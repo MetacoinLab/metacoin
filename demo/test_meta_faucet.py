@@ -1,1 +1,203 @@
-# TODO: dispense zero-value Test-META on verified Gate-1/Gate-2 pass. Skeleton only; no logic yet. Research-only; Test-META is a testnet placeholder with zero value, never base supply.
+"""test_meta_faucet.py — zero-value Test-META faucet for the Phase 1 agentic demo.
+
+================================ INVARIANTS (READ ME) ================================
+Test-META is a ZERO-VALUE TESTNET PLACEHOLDER. It is NOT MetaCoin. It is NOT base
+supply. It has NO monetary value, NO price, and is NEVER tradable. It exists only to
+model the demo's earn->spend loop in software. Dispensing Test-META mints nothing on the
+real protocol and can never affect base emission (MIP-0001 paragraph 3, MIP-0002
+paragraph 8). Research-only; not financial or legal advice.
+
+The faucet dispenses ONLY when verification passes. There is no code path that grants
+Test-META without a passing verify() result: crediting is a name-mangled private method
+of the faucet, reachable only from inside the dispense() path, which first calls
+demo.verify_gates.verify(submission) and proceeds solely when result["passed"] is True.
+=====================================================================================
+
+Standard library only. In-memory ledger only — no persistence, no network.
+"""
+
+import os
+import sys
+
+# Make absolute imports resolve when this file is run directly (repo root on sys.path;
+# `demo` is a Python 3 namespace package, no __init__.py needed).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from demo.verify_gates import verify
+
+
+class _Faucet:
+    """Zero-value Test-META faucet.
+
+    The ledger and the crediting operation are private. The ONLY way balances change is
+    through dispense(), which gates every credit behind a passing verify() result. There
+    is deliberately no public credit method.
+    """
+
+    def __init__(self):
+        # Private in-memory ledger: address -> integer Test-META balance (zero value).
+        self.__ledger = {}
+
+    def __credit(self, address: str, amount: int) -> int:
+        """PRIVATE (name-mangled). Add zero-value Test-META to an address balance.
+
+        This is intentionally unreachable as a public attribute. It must only ever be
+        called from dispense(), after verification has passed. It performs no verification
+        itself and must never be wired to any public entry point.
+        """
+        self.__ledger[address] = self.__ledger.get(address, 0) + int(amount)
+        return self.__ledger[address]
+
+    def balance_of(self, address: str) -> int:
+        """Read-only: current zero-value Test-META balance for an address."""
+        return self.__ledger.get(address, 0)
+
+    def dispense(self, address: str, submission: dict, amount: int = 1) -> dict:
+        """Dispense zero-value Test-META IF AND ONLY IF verification passes.
+
+        Calls verify(submission) (Gate-1 stand-in + Gate-2 reproducibility). Only when
+        the combined result is passed=True does it credit `amount` zero-value Test-META
+        to `address`. On any verification failure it credits NOTHING.
+        """
+        verify_result = verify(submission)
+
+        if not verify_result["passed"]:
+            # No-credit path. Balance is untouched.
+            return {
+                "dispensed": False,
+                "reason": "verification failed — no Test-META dispensed (zero-value faucet only credits verified work)",
+                "verify_result": verify_result,
+            }
+
+        # Verified path — the ONLY place __credit is ever called.
+        new_balance = self.__credit(address, amount)
+        return {
+            "dispensed": True,
+            "address": address,
+            "amount": amount,
+            "new_balance": new_balance,
+            "verify_result": verify_result,
+        }
+
+
+# Module-level singleton faucet and public API. The public surface is exactly two
+# functions: dispense() and balance_of(). There is no module-level credit function.
+_FAUCET = _Faucet()
+
+
+def dispense(address: str, submission: dict, amount: int = 1) -> dict:
+    """Public entry point. Dispenses zero-value Test-META only on a passing verify()."""
+    return _FAUCET.dispense(address, submission, amount)
+
+
+def balance_of(address: str) -> int:
+    """Public read-only balance lookup."""
+    return _FAUCET.balance_of(address)
+
+
+if __name__ == "__main__":
+    import copy
+
+    from demo.tasks.task_0001_lunar_link_budget import compute, output_hash
+
+    ADDR = "agent-testnet-0001"
+
+    # Build an HONEST submission (real run + correct hash).
+    honest_result = compute()
+    honest_submission = {
+        "result": honest_result,
+        "claimed_output_hash": output_hash(honest_result),
+    }
+
+    # Build a TAMPERED submission (alter one number, keep the stale hash).
+    tampered_submission = {
+        "result": copy.deepcopy(honest_result),
+        "claimed_output_hash": output_hash(honest_result),
+    }
+    tampered_submission["result"]["results"][0]["link_margin_dB"] += 1.0
+
+    print("=== test_meta_faucet.py self-test (zero-value Test-META; credits only verified work) ===\n")
+
+    ok = []
+
+    # (a) HONEST -> must DISPENSE, balance 0 -> amount.
+    print("--- (a) HONEST submission ---")
+    before_a = balance_of(ADDR)
+    res_a = dispense(ADDR, honest_submission, amount=1)
+    after_a = balance_of(ADDR)
+    print(f"  balance before : {before_a}")
+    print(f"  dispensed      : {res_a['dispensed']}")
+    print(f"  amount         : {res_a.get('amount')}")
+    print(f"  balance after  : {after_a}")
+    case_a_ok = (before_a == 0) and (res_a["dispensed"] is True) and (after_a == 1)
+    print(f"  self-test      : {'OK (dispensed; balance 0 -> 1)' if case_a_ok else 'WRONG'}")
+    ok.append(case_a_ok)
+    print()
+
+    # (b) TAMPERED -> must REFUSE, balance unchanged.
+    print("--- (b) TAMPERED submission ---")
+    before_b = balance_of(ADDR)
+    res_b = dispense(ADDR, tampered_submission, amount=1)
+    after_b = balance_of(ADDR)
+    print(f"  balance before : {before_b}")
+    print(f"  dispensed      : {res_b['dispensed']}")
+    print(f"  reason         : {res_b.get('reason')}")
+    print(f"  gate2          : {res_b['verify_result']['gate2']['reason']}")
+    print(f"  balance after  : {after_b}")
+    case_b_ok = (res_b["dispensed"] is False) and (after_b == before_b)
+    print(f"  self-test      : {'OK (refused; balance unchanged)' if case_b_ok else 'WRONG'}")
+    ok.append(case_b_ok)
+    print()
+
+    # (c) No verify-bypassing public credit path.
+    print("--- (c) No verify-bypassing public credit path ---")
+    import demo.test_meta_faucet as _mod
+
+    module_has_credit = any(
+        name in dir(_mod) for name in ("credit", "_credit", "grant", "mint")
+    )
+    print(f"  module-level credit/grant/mint function exposed? : {module_has_credit}")
+
+    faucet_public_credit = getattr(_FAUCET, "credit", None)
+    print(f"  _FAUCET.credit attribute                         : {faucet_public_credit}")
+
+    # The private method is name-mangled; natural access fails.
+    try:
+        getattr(_FAUCET, "__credit")
+        natural_access = "REACHABLE (unexpected)"
+    except AttributeError:
+        natural_access = "AttributeError (not reachable as __credit)"
+    print(f"  natural access _FAUCET.__credit                  : {natural_access}")
+
+    # Public surface that can change a balance:
+    public_balance_changers = [
+        name for name in dir(_mod)
+        if callable(getattr(_mod, name)) and name in ("dispense",)
+    ]
+    print(f"  public balance-changing entry point(s)           : {public_balance_changers}")
+
+    # Prove the gate holds: dispensing a tampered submission via the public API never credits.
+    bal_before_c = balance_of("probe-addr")
+    _ = dispense("probe-addr", tampered_submission, amount=999)
+    bal_after_c = balance_of("probe-addr")
+    print(f"  attempt to dispense tampered work (amount=999)   : balance {bal_before_c} -> {bal_after_c}")
+
+    case_c_ok = (
+        not module_has_credit
+        and faucet_public_credit is None
+        and natural_access.startswith("AttributeError")
+        and public_balance_changers == ["dispense"]
+        and bal_after_c == bal_before_c == 0
+    )
+    print(f"  self-test      : {'OK (only dispense() can credit, and only on verify pass)' if case_c_ok else 'WRONG'}")
+    print("  note           : Python has no hard private; crediting is a name-mangled "
+          "method called only inside dispense() after verify() passes. The supported "
+          "public API is dispense() + balance_of() only.")
+    ok.append(case_c_ok)
+    print()
+
+    all_ok = all(ok)
+    print("=== self-test summary: " + ("ALL CASES BEHAVED CORRECTLY" if all_ok else "FAILURE — see above") + " ===")
+    sys.exit(0 if all_ok else 1)
