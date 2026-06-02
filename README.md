@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/metacoin-logo.svg" alt="MetaCoin logo" width="200"></p>
+
 # MetaCoin
 
 **The credibly neutral money-and-work protocol for the Space Machine Economy.**
