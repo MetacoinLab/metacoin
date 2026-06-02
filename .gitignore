@@ -1,0 +1,9 @@
+.env
+*.pem
+*.key
+/secrets/
+*receipt*
+*password*
+*screenshot*
+*.JPG
+*.png
