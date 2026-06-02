@@ -1,0 +1,1 @@
+# TODO: define an example reproducible task (assigned GitHub issue) with NASA-taxonomy reference, inputs, seed, and Gate-1/Gate-2 acceptance criteria. Skeleton only; no content yet. Research-only; Test-META has zero value.
