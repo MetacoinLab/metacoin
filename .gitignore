@@ -7,3 +7,5 @@
 *screenshot*
 *.JPG
 *.png
+__pycache__/
+*.pyc
