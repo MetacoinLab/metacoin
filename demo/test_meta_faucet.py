@@ -11,6 +11,10 @@ The faucet dispenses ONLY when verification passes. There is no code path that g
 Test-META without a passing verify() result: crediting is a name-mangled private method
 of the faucet, reachable only from inside the dispense() path, which first calls
 demo.verify_gates.verify(submission) and proceeds solely when result["passed"] is True.
+
+The faucet owns ALL balance changes — credits (dispense, gated by verify) and debits
+(spend, gated by a sufficiency check). Both the credit and the debit are name-mangled
+private methods; external code (e.g. the x402 stub) must call spend(), never the ledger.
 =====================================================================================
 
 Standard library only. In-memory ledger only — no persistence, no network.
@@ -81,6 +85,47 @@ class _Faucet:
             "verify_result": verify_result,
         }
 
+    def __debit(self, address: str, amount: int) -> int:
+        """PRIVATE (name-mangled). Subtract zero-value Test-META from an address balance.
+
+        Intentionally unreachable as a public attribute. Only ever called from spend(),
+        after the sufficiency and positivity checks. It performs no validation itself.
+        """
+        self.__ledger[address] = self.__ledger.get(address, 0) - int(amount)
+        return self.__ledger[address]
+
+    def spend(self, address: str, amount: int) -> dict:
+        """Guarded debit. Spends zero-value Test-META only if the balance is sufficient.
+
+        Rejects non-positive amounts. Debits NOTHING on rejection. The faucet owns all
+        balance changes; external code (e.g. the x402 stub) must call this method rather
+        than touching the ledger — mirroring the dispense() integrity guarantee.
+        """
+        if not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
+            return {
+                "spent": False,
+                "reason": "amount must be a positive integer",
+                "balance": self.balance_of(address),
+            }
+
+        current = self.balance_of(address)
+        if amount > current:
+            # Insufficient-balance path. Balance is untouched.
+            return {
+                "spent": False,
+                "reason": "insufficient balance",
+                "balance": current,
+            }
+
+        # Sufficient — the ONLY place __debit is ever called.
+        new_balance = self.__debit(address, amount)
+        return {
+            "spent": True,
+            "address": address,
+            "amount": amount,
+            "new_balance": new_balance,
+        }
+
 
 # Module-level singleton faucet and public API. The public surface is exactly two
 # functions: dispense() and balance_of(). There is no module-level credit function.
@@ -90,6 +135,11 @@ _FAUCET = _Faucet()
 def dispense(address: str, submission: dict, amount: int = 1) -> dict:
     """Public entry point. Dispenses zero-value Test-META only on a passing verify()."""
     return _FAUCET.dispense(address, submission, amount)
+
+
+def spend(address: str, amount: int) -> dict:
+    """Public guarded debit. Spends zero-value Test-META only if the balance is sufficient."""
+    return _FAUCET.spend(address, amount)
 
 
 def balance_of(address: str) -> int:
@@ -196,6 +246,54 @@ if __name__ == "__main__":
           "method called only inside dispense() after verify() passes. The supported "
           "public API is dispense() + balance_of() only.")
     ok.append(case_c_ok)
+    print()
+
+    # Spend cases use a freshly funded address so balances are easy to read.
+    SPEND_ADDR = "agent-testnet-spend"
+    fund = dispense(SPEND_ADDR, honest_submission, amount=3)  # verified credit, 0 -> 3
+    print("--- spend setup ---")
+    print(f"  funded {SPEND_ADDR} via verified dispense: balance = {balance_of(SPEND_ADDR)} (expected 3)")
+    print()
+
+    # (d) SPEND within balance -> succeeds, balance drops.
+    print("--- (d) SPEND within balance ---")
+    before_d = balance_of(SPEND_ADDR)
+    res_d = spend(SPEND_ADDR, 2)
+    after_d = balance_of(SPEND_ADDR)
+    print(f"  balance before : {before_d}")
+    print(f"  spend(2)       : {res_d}")
+    print(f"  balance after  : {after_d}")
+    case_d_ok = (before_d == 3) and (res_d["spent"] is True) and (after_d == 1)
+    print(f"  self-test      : {'OK (spent; balance 3 -> 1)' if case_d_ok else 'WRONG'}")
+    ok.append(case_d_ok)
+    print()
+
+    # (e) SPEND exceeding balance -> refused, balance unchanged.
+    print("--- (e) SPEND exceeding balance ---")
+    before_e = balance_of(SPEND_ADDR)
+    res_e = spend(SPEND_ADDR, 5)
+    after_e = balance_of(SPEND_ADDR)
+    print(f"  balance before : {before_e}")
+    print(f"  spend(5)       : {res_e}")
+    print(f"  balance after  : {after_e}")
+    case_e_ok = (res_e["spent"] is False) and (res_e["reason"] == "insufficient balance") and (after_e == before_e)
+    print(f"  self-test      : {'OK (refused; balance unchanged)' if case_e_ok else 'WRONG'}")
+    ok.append(case_e_ok)
+    print()
+
+    # (f) SPEND of a non-positive amount -> refused.
+    print("--- (f) SPEND non-positive amount ---")
+    before_f = balance_of(SPEND_ADDR)
+    res_zero = spend(SPEND_ADDR, 0)
+    res_neg = spend(SPEND_ADDR, -5)
+    after_f = balance_of(SPEND_ADDR)
+    print(f"  balance before : {before_f}")
+    print(f"  spend(0)       : {res_zero}")
+    print(f"  spend(-5)      : {res_neg}")
+    print(f"  balance after  : {after_f}")
+    case_f_ok = (res_zero["spent"] is False) and (res_neg["spent"] is False) and (after_f == before_f)
+    print(f"  self-test      : {'OK (both refused; balance unchanged)' if case_f_ok else 'WRONG'}")
+    ok.append(case_f_ok)
     print()
 
     all_ok = all(ok)
