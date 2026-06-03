@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Self-tests to run, in order.
 TESTS=(
     "tasks/task_0001_lunar_link_budget.py"
+    "tasks/task_0002_orbit_propagation.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"
