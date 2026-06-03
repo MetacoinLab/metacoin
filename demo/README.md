@@ -1,85 +1,134 @@
 # MetaCoin — Phase 1 Agentic Testnet Demo
 
-**Research-only. This is a testnet specification, not a product.** `Test-META` is a
+**Research-only. This is a testnet demonstration, not a product.** `Test-META` is a
 **zero-value testnet placeholder token** — it is not for sale, has no price, no market,
 and is not an investment of any kind. Nothing here is financial, investment, or legal
 advice. See [`../legal/disclaimers.md`](../legal/disclaimers.md).
 
-This directory holds the **skeleton** for the Phase 1 demo described in
+This directory holds a **working Phase 1 demo** for the loop described in
 [`../ROADMAP.md`](../ROADMAP.md) (Phase 1) and [`../WHITEPAPER.md`](../WHITEPAPER.md) §10.
-At this step there is **no working logic** — only structure and specs. Stub modules carry
-a single `# TODO` header and will be implemented in later steps.
+It runs entirely in-process using the Python **standard library only** — there is **no
+real ledger, no network, no wallet, and no payment**. The faucet is an in-memory dictionary
+and the x402 "payment" is a simulated function call. The point is to demonstrate the
+*verification loop* (MIP-0002), vendor-neutrally, in software.
 
-## Goal: the 30-day verified loop
+## Goal: the verified earn→spend loop
 
 Demonstrate, end to end, that an autonomous agent can earn a zero-value testnet token by
 completing an **objectively verifiable, reproducible task**, and then spend it to fund its
-next unit of work — proving the *verification loop*, not the hardware. The point is to show
-that the MetaCoin proof model (MIP-0002) works in software, vendor-neutrally.
+next unit of work — proving the *verification loop*, not the hardware. Two genuinely
+space-relevant tasks are now wired through this loop.
 
-## The loop
+## The loop (as implemented in `agent_loop.py`)
 
 ```
    ┌──────────────────────────────────────────────────────────────────────┐
    │                                                                        │
-   │   1. ASSIGN ── agent is given a reproducible task (a GitHub issue)     │
-   │        │         e.g. a parametric simulation referenced to the        │
-   │        │         NASA Technology Taxonomy (see tasks/example_task.md)  │
+   │   1. ASSIGN ── a round is given a specific reproducible task           │
+   │        │         (task-0001 link budget OR task-0002 orbit prop)       │
    │        ▼                                                                │
-   │   2. RUN ───── agent executes the task in a sandboxed runtime          │
+   │   2. RUN ───── the task's compute() runs deterministically             │
    │        │                                                                │
    │        ▼                                                                │
-   │   3. PROVE ─── agent emits:                                            │
-   │        │         • Gate-1 integrity proof (attestation / det. re-run)  │
-   │        │         • Gate-2 reproducibility metadata (hashes, seed, …)   │
+   │   3. PROVE ─── build a submission: the result + its canonical          │
+   │        │         SHA-256 output hash (a tampered round alters one       │
+   │        ▼         number after hashing, to be caught at Gate 2)          │
+   │   4. VERIFY ── the task-agnostic verifier checks Gate 1 + Gate 2        │
+   │        │         (Gate 3 is out of scope for this software demo)        │
    │        ▼                                                                │
-   │   4. SUBMIT ── agent opens a Pull Request with artifacts + metadata    │
-   │        │                                                                │
+   │   5. DISPENSE ─ on pass ONLY, the faucet dispenses zero-value           │
+   │        │         Test-META to the agent's in-memory balance            │
    │        ▼                                                                │
-   │   5. VERIFY ── CI automatically checks Gate 1 + Gate 2                 │
-   │        │         (gate 3 is out of scope for this software demo)       │
-   │        ▼                                                                │
-   │   6. DISPENSE ─ on pass, the Test-META faucet dispenses zero-value     │
-   │        │         Test-META to the agent's testnet wallet              │
-   │        ▼                                                                │
-   │   7. SPEND ──── agent spends Test-META via an x402-class call to       │
-   │        │         buy compute for the next task                        │
-   │        └──────────────────────────► back to 1. ASSIGN                  │
+   │   6. SPEND ──── the agent spends Test-META via a simulated x402-class   │
+   │        │         call to "buy compute" for the next round              │
+   │        └──────────────────────────► back to 1. ASSIGN                   │
    │                                                                        │
    └──────────────────────────────────────────────────────────────────────┘
 ```
+
+In a production setting, ASSIGN/PROVE/VERIFY would map to a GitHub issue, a Pull Request,
+and CI. In this demo the whole cycle runs **in one process** against an in-memory ledger;
+CI's role here is to run the self-tests on every push (see below), not to gate payments.
+
+## The two reproducible tasks
+
+Both tasks are **deterministic and byte-reproducible**: identical inputs produce a
+byte-identical canonical JSON and therefore a stable SHA-256 output hash. Both expose the
+same interface — `compute() -> dict`, `canonical_json(result) -> str`,
+`output_hash(result) -> str` — so the verifier and loop treat them interchangeably.
+
+| Task | What it computes | NASA Technology Taxonomy | File |
+|---|---|---|---|
+| **task-0001** | Lunar link budget: free-space path loss and link margin over a range sweep. *Illustrative figures, not an engineering claim.* | **TX05** (Communications, Navigation, and Orbital Debris Tracking & Characterization) | `tasks/task_0001_lunar_link_budget.py` |
+| **task-0002** | Two-body (Keplerian) orbit propagation around Earth: ECI position/velocity over one ISS-like orbit, via a bounded Newton-Raphson solve of Kepler's equation. | **TX17** (Guidance, Navigation, and Control) / astrodynamics | `tasks/task_0002_orbit_propagation.py` |
+
+Reproducibility is achieved by fixing all inputs, using a documented deterministic method
+(task-0002's Kepler solve has a fixed tolerance **and** a hard max-iteration cap, so it is
+bit-reproducible and can never loop unboundedly), and rounding every emitted float to a
+fixed number of decimals so the canonical JSON is byte-stable across runs.
 
 ## Mapping to the MIP-0002 three-gate stack
 
 The demo exercises the verification stack from
 [`../mip/MIP-0002-proof-of-useful-space-work.md`](../mip/MIP-0002-proof-of-useful-space-work.md).
-**Hardware attestation is one gate of three, never the whole proof.**
+**Attestation is one gate of three, never the whole proof.**
 
-| MIP-0002 gate | Question | In this demo | Stub |
-|---|---|---|---|
-| **Gate 1 — Integrity** | Was the workload actually run, unmodified? | Vendor-agnostic TEE attestation **and/or** a deterministic re-run by CI. | `verify_gates.py` |
-| **Gate 2 — Reproducibility** | Can anyone re-derive it independently? | Hashed inputs, exact model/harness/prompt/seed, dependency manifest, re-run recipe; CI re-runs and compares output hashes. A **computational-complexity ceiling** keeps verification far cheaper than generation. | `verify_gates.py` |
-| **Gate 3 — Usefulness** | Does it matter for the mission? | **Out of scope for this software demo.** Gate 3 is the bounded optimistic oracle + human council in MIP-0002 §2; here we only automate Gates 1–2, which is sufficient to prove the earn→spend loop. | — (future) |
+| MIP-0002 gate | Question | In this demo |
+|---|---|---|
+| **Gate 1 — Integrity** | Was the workload actually run, unmodified? | A **documented software stand-in**, not real hardware: `verify_gates.py` re-runs the task and confirms the execution is deterministic. This is *not* a hardware TEE attestation — production Gate 1 is a vendor-agnostic TEE attestation and/or validator re-run (MIP-0002 §2). The stand-in proves execution stability only. |
+| **Gate 2 — Reproducibility** | Can anyone re-derive it independently? | **The real check.** The verifier independently re-runs `compute()`, recomputes the canonical hash, and **auto-rejects** unless *both* the submitted hash *and* the submitted result are byte-identical to the re-run. `assert_task_reproducible()` adds an active **two-run** check: it runs `compute()` twice and asserts the two canonical hashes match. |
+| **Gate 3 — Usefulness** | Does it matter for the mission? | **Out of scope / deferred.** Gate 3 is the bounded optimistic oracle + human council in MIP-0002 §2; here we automate only Gates 1–2, which is sufficient to prove the earn→spend loop. |
 
 > **Invariant (MIP-0001 §3, MIP-0002 §8):** nothing in this demo mints base supply.
-> Test-META is a testnet faucet artifact with zero value, dispensed only for
-> objectively verifiable Gate-1/Gate-2 work. It models the loop; it is not money.
+> Test-META is a testnet faucet artifact with zero value, dispensed only for objectively
+> verifiable Gate-1/Gate-2 work. It models the loop; it is not money.
 
-## Files in this directory
+## Components
 
-| File | Role (skeleton — `# TODO` only at this step) |
+| File | Role |
 |---|---|
-| `agent_loop.py` | Orchestrates the loop: assign → run → prove → submit → spend. |
-| `verify_gates.py` | CI-side Gate-1 (integrity) and Gate-2 (reproducibility) checks. |
-| `test_meta_faucet.py` | Dispenses zero-value Test-META on verified pass. |
-| `x402_spend_stub.py` | x402-class call to spend Test-META on compute for the next task. |
-| `tasks/example_task.md` | A sample reproducible task (the assigned GitHub issue). |
+| `tasks/task_0001_lunar_link_budget.py` | Reproducible task-0001 (link budget, TX05). Prints canonical JSON + SHA-256 when run. |
+| `tasks/task_0002_orbit_propagation.py` | Reproducible task-0002 (two-body orbit propagation, TX17). Prints canonical JSON + SHA-256 when run. |
+| `verify_gates.py` | **Task-agnostic** verifier: a task registry + `_resolve_task()`, the Gate-1 integrity stand-in, the Gate-2 reproducibility check, and `assert_task_reproducible()` (active two-run hash compare). Defaults to task-0001 when no task is given. |
+| `test_meta_faucet.py` | Zero-value Test-META faucet over an **in-memory** ledger. `dispense()` credits **only** on a passing `verify()`; `spend()` is a guarded debit (rejects insufficient/non-positive amounts). Crediting and debiting are name-mangled private methods reachable only through these two guarded entry points. |
+| `x402_spend_stub.py` | **Simulated** x402-class micropayment. Spends Test-META only via `faucet.spend()` to "buy" imaginary compute units — no real x402 network, HTTP 402 flow, or payment. |
+| `agent_loop.py` | Orchestrates the full cycle for **both** tasks: assign → run → prove → verify → dispense → spend. Its self-test asserts per-round **task identity** and **verify pass/fail outcome** (against independent hardcoded expectations), plus the aggregate totals. |
+| `run_all_selftests.sh` | One-command runner that executes all six self-tests, prints a summary table, and exits non-zero if any fail. |
+| `tasks/example_task.md` | A sample reproducible-task spec (the conceptual assigned issue). |
 
-## Scope of this step
+CI: [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs
+`demo/run_all_selftests.sh` on every push and pull request to `main` (Ubuntu, Python 3.x,
+no dependencies installed — the demo is standard-library only).
 
-- ✅ Directory structure and specifications.
-- ✅ Stub files with `# TODO` headers, no logic.
-- ❌ No working agent, no real verification, no faucet, no payments — added in later Phase 1 steps.
+## How to run
+
+Each module is self-testing: running it executes its own checks and exits non-zero on
+failure. From the **repository root**:
+
+Run a single task (prints its canonical JSON and SHA-256 output hash):
+
+```bash
+python3 demo/tasks/task_0001_lunar_link_budget.py
+python3 demo/tasks/task_0002_orbit_propagation.py
+```
+
+Run an individual component self-test:
+
+```bash
+python3 demo/verify_gates.py        # both tasks: honest PASS, tampered REJECT, two-run reproducible
+python3 demo/test_meta_faucet.py    # dispense-on-verify and guarded-spend invariants
+python3 demo/x402_spend_stub.py     # simulated micropayment within/over balance
+python3 demo/agent_loop.py          # full loop over both tasks + per-round assertions
+```
+
+Run **all six** self-tests at once (this is what CI runs):
+
+```bash
+bash demo/run_all_selftests.sh
+```
+
+The runner prints a per-test header and a final summary table; expect **6/6 passed** and
+exit code 0.
 
 ## Compliance
 
