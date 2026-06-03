@@ -17,6 +17,7 @@ TESTS=(
     "tasks/task_0001_lunar_link_budget.py"
     "tasks/task_0002_orbit_propagation.py"
     "tasks/task_0003_power_eclipse.py"
+    "tasks/task_0004_comms_access.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"

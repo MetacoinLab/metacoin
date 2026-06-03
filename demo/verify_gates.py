@@ -37,6 +37,7 @@ if _REPO_ROOT not in sys.path:
 import demo.tasks.task_0001_lunar_link_budget as task_0001
 import demo.tasks.task_0002_orbit_propagation as task_0002
 import demo.tasks.task_0003_power_eclipse as task_0003
+import demo.tasks.task_0004_comms_access as task_0004
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -47,6 +48,7 @@ _TASK_REGISTRY = {
     "task-0001-lunar-link-budget": task_0001,
     "task-0002-orbit-propagation": task_0002,
     "task-0003-power-eclipse": task_0003,
+    "task-0004-comms-access": task_0004,
 }
 
 
@@ -232,6 +234,7 @@ if __name__ == "__main__":
         ("task-0001-lunar-link-budget", task_0001),
         ("task-0002-orbit-propagation", task_0002),
         ("task-0003-power-eclipse", task_0003),
+        ("task-0004-comms-access", task_0004),
     ]
 
     print("=== verify_gates.py self-test (task-agnostic: Gate-1 stand-in + Gate-2 + two-run reproducibility) ===\n")
