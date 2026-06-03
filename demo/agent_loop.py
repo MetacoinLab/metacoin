@@ -32,6 +32,7 @@ if _REPO_ROOT not in sys.path:
 
 import demo.tasks.task_0001_lunar_link_budget as task_0001
 import demo.tasks.task_0002_orbit_propagation as task_0002
+import demo.tasks.task_0003_power_eclipse as task_0003
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -189,17 +190,19 @@ def run_loop(scenario: list, address: str):
 if __name__ == "__main__":
     AGENT = "agent-testnet-loop"
 
-    # A short scenario exercising BOTH real tasks and every path:
+    # A short scenario exercising ALL THREE real tasks and every path:
     #   R1 task-0001 honest : earn 2, spend 1                 -> balance 1
     #   R2 task-0002 honest : earn 2, spend 3 (drains)        -> balance 0   (real orbit task earns)
     #   R3 task-0002 TAMPER : verify FAILS, earn 0, and the   -> balance 0   (real task rejected)
     #                         spend attempt hits insufficient balance; the loop continues
     #   R4 task-0001 honest : recovers, earn 2, spend 1       -> balance 1
+    #   R5 task-0003 honest : earn 2, spend 1                 -> balance 2   (eclipse/power task earns)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
         {"task": task_0002, "tamper": True, "dispense": 2, "spend": 1},
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0003, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -211,11 +214,13 @@ if __name__ == "__main__":
         {"task_id": "task-0002-orbit-propagation", "verify_passed": True},
         {"task_id": "task-0002-orbit-propagation", "verify_passed": False},
         {"task_id": "task-0001-lunar-link-budget", "verify_passed": True},
+        {"task_id": "task-0003-power-eclipse", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs BOTH real tasks: task-0001 (link budget) and task-0002 (two-body orbit propagation).\n")
+    print("Runs all three real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+          "propagation), task-0003 (eclipse/power budget).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -252,12 +257,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 4,
-        "passed": 3,
+        "rounds": 5,
+        "passed": 4,
         "rejected": 1,
-        "total_earned": 6,
-        "total_spent": 5,
-        "final_balance": 1,
+        "total_earned": 8,
+        "total_spent": 6,
+        "final_balance": 2,
     }
     totals_ok = totals == expected
 

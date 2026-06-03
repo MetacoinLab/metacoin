@@ -36,6 +36,7 @@ if _REPO_ROOT not in sys.path:
 
 import demo.tasks.task_0001_lunar_link_budget as task_0001
 import demo.tasks.task_0002_orbit_propagation as task_0002
+import demo.tasks.task_0003_power_eclipse as task_0003
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -45,6 +46,7 @@ _DEFAULT_TASK = task_0001
 _TASK_REGISTRY = {
     "task-0001-lunar-link-budget": task_0001,
     "task-0002-orbit-propagation": task_0002,
+    "task-0003-power-eclipse": task_0003,
 }
 
 
@@ -229,6 +231,7 @@ if __name__ == "__main__":
     TASKS = [
         ("task-0001-lunar-link-budget", task_0001),
         ("task-0002-orbit-propagation", task_0002),
+        ("task-0003-power-eclipse", task_0003),
     ]
 
     print("=== verify_gates.py self-test (task-agnostic: Gate-1 stand-in + Gate-2 + two-run reproducibility) ===\n")
@@ -276,5 +279,5 @@ if __name__ == "__main__":
         all_ok.extend([a_ok, b_ok, c_ok])
 
     ok = all(all_ok)
-    print("=== self-test summary: " + ("ALL CASES BEHAVED CORRECTLY (both tasks)" if ok else "FAILURE — see above") + " ===")
+    print("=== self-test summary: " + ("ALL CASES BEHAVED CORRECTLY (all tasks)" if ok else "FAILURE — see above") + " ===")
     sys.exit(0 if ok else 1)

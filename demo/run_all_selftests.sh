@@ -16,6 +16,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTS=(
     "tasks/task_0001_lunar_link_budget.py"
     "tasks/task_0002_orbit_propagation.py"
+    "tasks/task_0003_power_eclipse.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"
