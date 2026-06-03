@@ -58,14 +58,15 @@ class _Faucet:
         """Read-only: current zero-value Test-META balance for an address."""
         return self.__ledger.get(address, 0)
 
-    def dispense(self, address: str, submission: dict, amount: int = 1) -> dict:
+    def dispense(self, address: str, submission: dict, amount: int = 1, task=None) -> dict:
         """Dispense zero-value Test-META IF AND ONLY IF verification passes.
 
-        Calls verify(submission) (Gate-1 stand-in + Gate-2 reproducibility). Only when
-        the combined result is passed=True does it credit `amount` zero-value Test-META
-        to `address`. On any verification failure it credits NOTHING.
+        Calls verify(submission, task) (Gate-1 stand-in + Gate-2 reproducibility) against
+        the given task (module or identifier; default task-0001). Only when the combined
+        result is passed=True does it credit `amount` zero-value Test-META to `address`.
+        On any verification failure it credits NOTHING.
         """
-        verify_result = verify(submission)
+        verify_result = verify(submission, task)
 
         if not verify_result["passed"]:
             # No-credit path. Balance is untouched.
@@ -132,9 +133,12 @@ class _Faucet:
 _FAUCET = _Faucet()
 
 
-def dispense(address: str, submission: dict, amount: int = 1) -> dict:
-    """Public entry point. Dispenses zero-value Test-META only on a passing verify()."""
-    return _FAUCET.dispense(address, submission, amount)
+def dispense(address: str, submission: dict, amount: int = 1, task=None) -> dict:
+    """Public entry point. Dispenses zero-value Test-META only on a passing verify().
+
+    `task` (module or identifier) selects which task to verify against; default task-0001.
+    """
+    return _FAUCET.dispense(address, submission, amount, task)
 
 
 def spend(address: str, amount: int) -> dict:
