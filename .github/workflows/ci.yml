@@ -1,0 +1,31 @@
+# CI for the demo self-tests.
+#
+# Research-only. Runs the standard-library demo self-tests on every push and
+# pull request to main. No dependencies are installed — the demo is pure
+# Python 3 standard library, so there is intentionally no pip step.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  selftests:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the repository so the demo scripts are available.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Provide a recent stable Python 3 (no packages installed).
+      - name: Set up Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Run all demo self-tests through the single runner.
+      - name: Run demo self-tests
+        run: bash demo/run_all_selftests.sh
