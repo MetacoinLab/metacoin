@@ -4,6 +4,12 @@ This wires the demo end to end, one round per task attempt:
 
     ASSIGN -> RUN -> PROVE/BUILD SUBMISSION -> VERIFY -> DISPENSE -> SPEND -> repeat
 
+Each round can be assigned a specific task (task-0001 lunar link budget OR task-0002
+two-body orbit propagation). The task flows through compute(), build_submission(),
+verify(), and dispense() via the now task-agnostic verifier and faucet (both accept an
+optional task parameter, defaulting to task-0001). This means the same earn->verify->spend
+loop runs on genuine astrodynamics work, not only the illustrative link-budget task.
+
 Research-only. Test-META is a ZERO-VALUE testnet placeholder — not MetaCoin, not base
 supply, no monetary value (MIP-0001 paragraph 3, MIP-0002 paragraph 8). The "compute"
 bought via the x402 stub is simulated and imaginary. Nothing here mints base supply or
@@ -24,37 +30,56 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from demo.tasks.task_0001_lunar_link_budget import canonical_json, compute, output_hash
+import demo.tasks.task_0001_lunar_link_budget as task_0001
+import demo.tasks.task_0002_orbit_propagation as task_0002
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
 
-# The single task referenced by this demo (see demo/tasks/example_task.md).
-TASK_ID = "task-0001-lunar-link-budget"
+# Default task when a round does not name one (keeps prior single-task behavior unchanged).
+DEFAULT_TASK = task_0001
 
 
-def build_submission(tamper: bool = False) -> dict:
-    """PROVE / BUILD SUBMISSION.
+def _tamper_first_numeric(result: dict) -> None:
+    """Alter the first numeric field in results[0], in place (generic across tasks).
 
-    Run the task and package the result with its correct canonical output hash.
+    Every task emits a "results" list of dicts with numeric fields, so bumping the first
+    numeric value by 1.0 reliably yields a result that no longer matches an independent
+    re-run — which Gate 2 must reject, for task-0001 or task-0002 alike.
+    """
+    row = result["results"][0]
+    for key, value in row.items():
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            row[key] = value + 1.0
+            return
+
+
+def build_submission(task, tamper: bool = False) -> dict:
+    """PROVE / BUILD SUBMISSION for the given task module.
+
+    Run the task and package the result with its correct canonical output hash, using the
+    assigned task's own compute()/canonical_json()/output_hash() (task-agnostic).
 
     When `tamper` is True we simulate a dishonest agent: we alter one number in the
     result AFTER computing the hash, so the submitted result no longer matches its
-    claimed hash (and no longer matches an independent re-run). Gate 2 must reject this.
+    claimed hash (and no longer matches an independent re-run). Gate 2 must reject this,
+    for whichever task ran.
     """
-    result = compute()
+    result = task.compute()
 
     # The canonical JSON is exactly what gets hashed; output_hash() canonicalizes
-    # internally, but we materialize it here to make the proof step explicit.
-    canonical = canonical_json(result)
-    claimed_hash = output_hash(result)
+    # internally, but we materialize it here to make the proof step explicit. The hash is
+    # computed from the HONEST result, before any tampering.
+    canonical = task.canonical_json(result)
+    claimed_hash = task.output_hash(result)
+    task_id = result.get("task_id", getattr(task, "__name__", "unknown"))
 
     if tamper:
         result = copy.deepcopy(result)
-        result["results"][0]["link_margin_dB"] += 1.0  # flip a single value
+        _tamper_first_numeric(result)  # flip a single numeric value
 
     return {
-        "task_id": TASK_ID,
+        "task_id": task_id,
         "result": result,
         "claimed_output_hash": claimed_hash,
         # Carried only for visibility/debugging; not used by the verifier.
@@ -62,21 +87,21 @@ def build_submission(tamper: bool = False) -> dict:
     }
 
 
-def run_round(round_num: int, address: str, tamper: bool, dispense_amount: int, spend_cost: int) -> dict:
-    """Run one full cycle for `address` and return a summary dict (also prints a line)."""
-    # 1. ASSIGN — reference the lunar link-budget task.
-    task_id = TASK_ID
-
+def run_round(round_num: int, address: str, task, tamper: bool, dispense_amount: int, spend_cost: int) -> dict:
+    """Run one full cycle for `address` on `task` and return a summary dict (also prints a line)."""
+    # 1. ASSIGN — the task for this round (task-0001 link budget or task-0002 orbit prop).
     # 2. RUN + 3. PROVE/BUILD SUBMISSION.
-    submission = build_submission(tamper=tamper)
+    submission = build_submission(task, tamper=tamper)
+    task_id = submission["task_id"]
 
-    # 4. VERIFY (for reporting). Gate-1 stand-in + Gate-2 reproducibility.
-    verify_result = verify(submission)
+    # 4. VERIFY (for reporting). Gate-1 stand-in + Gate-2 reproducibility, for THIS task.
+    verify_result = verify(submission, task=task)
     verify_passed = verify_result["passed"]
 
     # 5. DISPENSE — earns zero-value Test-META ONLY if verification passes. Note that
-    #    dispense() independently re-verifies (defense in depth); earnings come from it.
-    dispense_result = faucet.dispense(address, submission, amount=dispense_amount)
+    #    dispense() independently re-verifies against the same task (defense in depth);
+    #    earnings come from it.
+    dispense_result = faucet.dispense(address, submission, amount=dispense_amount, task=task)
     earned = dispense_result["amount"] if dispense_result["dispensed"] else 0
 
     # 6. SPEND — try to buy simulated compute for the next round via the x402 stub.
@@ -110,6 +135,7 @@ def run_round(round_num: int, address: str, tamper: bool, dispense_amount: int, 
 
     return {
         "round": round_num,
+        "task_id": task_id,
         "verify_passed": verify_passed,
         "earned": earned,
         "spent": spent,
@@ -118,11 +144,17 @@ def run_round(round_num: int, address: str, tamper: bool, dispense_amount: int, 
     }
 
 
-def run_loop(scenario: list, address: str) -> dict:
-    """Run a sequence of rounds described by `scenario` and return aggregate totals.
+def run_loop(scenario: list, address: str):
+    """Run a sequence of rounds described by `scenario`.
 
-    `scenario` is a list of dicts, each: {"tamper": bool, "dispense": int, "spend": int}.
-    This makes the number of rounds (and which are tampered) fully configurable.
+    `scenario` is a list of dicts, each:
+        {"task": <task module>, "tamper": bool, "dispense": int, "spend": int}
+    "task" is optional and defaults to task-0001, so the number of rounds, which task each
+    runs, and which are tampered are all fully configurable.
+
+    Returns (totals, summaries): the aggregate totals dict, plus the list of per-round
+    summary dicts (each carrying round, task_id, verify_passed, earned, spent, balance,
+    compute_bought) so callers can assert per-round behavior, not only the aggregate.
     """
     summaries = []
     for i, cfg in enumerate(scenario, start=1):
@@ -130,6 +162,7 @@ def run_loop(scenario: list, address: str) -> dict:
             run_round(
                 round_num=i,
                 address=address,
+                task=cfg.get("task", DEFAULT_TASK),
                 tamper=cfg.get("tamper", False),
                 dispense_amount=cfg.get("dispense", 1),
                 spend_cost=cfg.get("spend", 1),
@@ -142,7 +175,7 @@ def run_loop(scenario: list, address: str) -> dict:
     rejected = sum(1 for s in summaries if not s["verify_passed"])
     final_balance = faucet.balance_of(address)
 
-    return {
+    totals = {
         "rounds": len(summaries),
         "passed": passed,
         "rejected": rejected,
@@ -150,28 +183,41 @@ def run_loop(scenario: list, address: str) -> dict:
         "total_spent": total_spent,
         "final_balance": final_balance,
     }
+    return totals, summaries
 
 
 if __name__ == "__main__":
     AGENT = "agent-testnet-loop"
 
-    # A short scenario exercising every path:
-    #   R1 honest      : earn 2, spend 1            -> balance 1
-    #   R2 honest      : earn 2, spend 3 (drains)   -> balance 0
-    #   R3 TAMPERED    : verify FAILS, earn 0, and  -> balance 0, cannot buy compute
-    #                    spend attempt hits insufficient balance
-    #   R4 honest      : recovers, earn 2, spend 1  -> balance 1
+    # A short scenario exercising BOTH real tasks and every path:
+    #   R1 task-0001 honest : earn 2, spend 1                 -> balance 1
+    #   R2 task-0002 honest : earn 2, spend 3 (drains)        -> balance 0   (real orbit task earns)
+    #   R3 task-0002 TAMPER : verify FAILS, earn 0, and the   -> balance 0   (real task rejected)
+    #                         spend attempt hits insufficient balance; the loop continues
+    #   R4 task-0001 honest : recovers, earn 2, spend 1       -> balance 1
     scenario = [
-        {"tamper": False, "dispense": 2, "spend": 1},
-        {"tamper": False, "dispense": 2, "spend": 3},
-        {"tamper": True, "dispense": 2, "spend": 1},
-        {"tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
+        {"task": task_0002, "tamper": True, "dispense": 2, "spend": 1},
+        {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
+    ]
+
+    # Independent ground truth for the PER-ROUND assertions: the task that must run each
+    # round and whether verification must pass. Declared separately from `scenario` (which
+    # only says which task to assign and whether to tamper) so the assertion is real
+    # ground truth, not derived from the same config it is checking.
+    expected_rounds = [
+        {"task_id": "task-0001-lunar-link-budget", "verify_passed": True},
+        {"task_id": "task-0002-orbit-propagation", "verify_passed": True},
+        {"task_id": "task-0002-orbit-propagation", "verify_passed": False},
+        {"task_id": "task-0001-lunar-link-budget", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
-    print("Research-only. Test-META is a zero-value placeholder; compute is simulated.\n")
+    print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
+    print("Runs BOTH real tasks: task-0001 (link budget) and task-0002 (two-body orbit propagation).\n")
 
-    totals = run_loop(scenario, AGENT)
+    totals, summaries = run_loop(scenario, AGENT)
 
     print()
     print("=== final summary ===")
@@ -182,7 +228,29 @@ if __name__ == "__main__":
     print(f"  total spent     : {totals['total_spent']} Test-META (zero value)")
     print(f"  final balance   : {totals['final_balance']} Test-META (zero value)")
 
-    # Sanity self-check for the scripted scenario above.
+    # (1) PER-ROUND assertion — each round ran the expected task AND had the expected
+    #     verify pass/fail outcome. This catches a reshuffle that leaves totals unchanged.
+    print()
+    print("=== per-round assertions (task identity + verify outcome) ===")
+    per_round_ok = []
+    count_ok = len(summaries) == len(expected_rounds)
+    if not count_ok:
+        print(f"  WRONG — ran {len(summaries)} rounds, expected {len(expected_rounds)}")
+    for got, exp in zip(summaries, expected_rounds):
+        id_ok = got["task_id"] == exp["task_id"]
+        verify_ok = got["verify_passed"] == exp["verify_passed"]
+        row_ok = id_ok and verify_ok
+        per_round_ok.append(row_ok)
+        print(
+            f"  round {got['round']}: task {got['task_id']} (exp {exp['task_id']}) "
+            f"-> {'match' if id_ok else 'MISMATCH'} | "
+            f"verify {'PASS' if got['verify_passed'] else 'FAIL'} "
+            f"(exp {'PASS' if exp['verify_passed'] else 'FAIL'}) "
+            f"-> {'match' if verify_ok else 'MISMATCH'} | "
+            f"{'OK' if row_ok else 'WRONG'}"
+        )
+
+    # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
         "rounds": 4,
         "passed": 3,
@@ -191,7 +259,12 @@ if __name__ == "__main__":
         "total_spent": 5,
         "final_balance": 1,
     }
-    ok = totals == expected
+    totals_ok = totals == expected
+
+    ok = totals_ok and count_ok and all(per_round_ok)
     print()
-    print("=== self-test: " + ("OK (scenario totals match expected)" if ok else f"WRONG — got {totals}, expected {expected}") + " ===")
+    print(f"  per-round   : {'OK (all rounds matched expected task + verify outcome)' if (count_ok and all(per_round_ok)) else 'WRONG — see above'}")
+    print(f"  aggregate   : {'OK (scenario totals match expected)' if totals_ok else f'WRONG — got {totals}, expected {expected}'}")
+    print()
+    print("=== self-test: " + ("OK (per-round AND aggregate assertions passed)" if ok else "WRONG — see above") + " ===")
     sys.exit(0 if ok else 1)
