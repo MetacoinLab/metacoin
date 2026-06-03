@@ -16,7 +16,7 @@ and the x402 "payment" is a simulated function call. The point is to demonstrate
 
 Demonstrate, end to end, that an autonomous agent can earn a zero-value testnet token by
 completing an **objectively verifiable, reproducible task**, and then spend it to fund its
-next unit of work — proving the *verification loop*, not the hardware. Two genuinely
+next unit of work — proving the *verification loop*, not the hardware. Three genuinely
 space-relevant tasks are now wired through this loop.
 
 ## The loop (as implemented in `agent_loop.py`)
@@ -25,7 +25,7 @@ space-relevant tasks are now wired through this loop.
    ┌──────────────────────────────────────────────────────────────────────┐
    │                                                                        │
    │   1. ASSIGN ── a round is given a specific reproducible task           │
-   │        │         (task-0001 link budget OR task-0002 orbit prop)       │
+   │        │         (task-0001 / task-0002 / task-0003, per round)        │
    │        ▼                                                                │
    │   2. RUN ───── the task's compute() runs deterministically             │
    │        │                                                                │
@@ -50,10 +50,10 @@ In a production setting, ASSIGN/PROVE/VERIFY would map to a GitHub issue, a Pull
 and CI. In this demo the whole cycle runs **in one process** against an in-memory ledger;
 CI's role here is to run the self-tests on every push (see below), not to gate payments.
 
-## The two reproducible tasks
+## The three reproducible tasks
 
-Both tasks are **deterministic and byte-reproducible**: identical inputs produce a
-byte-identical canonical JSON and therefore a stable SHA-256 output hash. Both expose the
+All three tasks are **deterministic and byte-reproducible**: identical inputs produce a
+byte-identical canonical JSON and therefore a stable SHA-256 output hash. All expose the
 same interface — `compute() -> dict`, `canonical_json(result) -> str`,
 `output_hash(result) -> str` — so the verifier and loop treat them interchangeably.
 
@@ -61,11 +61,13 @@ same interface — `compute() -> dict`, `canonical_json(result) -> str`,
 |---|---|---|---|
 | **task-0001** | Lunar link budget: free-space path loss and link margin over a range sweep. *Illustrative figures, not an engineering claim.* | **TX05** (Communications, Navigation, and Orbital Debris Tracking & Characterization) | `tasks/task_0001_lunar_link_budget.py` |
 | **task-0002** | Two-body (Keplerian) orbit propagation around Earth: ECI position/velocity over one ISS-like orbit, via a bounded Newton-Raphson solve of Kepler's equation. | **TX17** (Guidance, Navigation, and Control) / astrodynamics | `tasks/task_0002_orbit_propagation.py` |
+| **task-0003** | Orbital eclipse + solar-power/energy budget: per-step sunlight/umbra classification (cylindrical-shadow model) and a battery state-of-charge integration over one orbit. Uses a **simplified fixed-Sun (single-β) model** — a deterministic stand-in for a solar ephemeris, representative of one geometry, not a seasonal average (stated plainly in the task docstring). | **TX03** (Aerospace Power and Energy Storage) | `tasks/task_0003_power_eclipse.py` |
 
 Reproducibility is achieved by fixing all inputs, using a documented deterministic method
-(task-0002's Kepler solve has a fixed tolerance **and** a hard max-iteration cap, so it is
-bit-reproducible and can never loop unboundedly), and rounding every emitted float to a
-fixed number of decimals so the canonical JSON is byte-stable across runs.
+(e.g. task-0002's Kepler solve has a fixed tolerance **and** a hard max-iteration cap, so
+it is bit-reproducible and can never loop unboundedly; task-0003 uses forward-Euler
+integration at a fixed time step), and rounding every emitted float to a fixed number of
+decimals so the canonical JSON is byte-stable across runs.
 
 ## Mapping to the MIP-0002 three-gate stack
 
@@ -89,11 +91,12 @@ The demo exercises the verification stack from
 |---|---|
 | `tasks/task_0001_lunar_link_budget.py` | Reproducible task-0001 (link budget, TX05). Prints canonical JSON + SHA-256 when run. |
 | `tasks/task_0002_orbit_propagation.py` | Reproducible task-0002 (two-body orbit propagation, TX17). Prints canonical JSON + SHA-256 when run. |
-| `verify_gates.py` | **Task-agnostic** verifier: a task registry + `_resolve_task()`, the Gate-1 integrity stand-in, the Gate-2 reproducibility check, and `assert_task_reproducible()` (active two-run hash compare). Defaults to task-0001 when no task is given. |
+| `tasks/task_0003_power_eclipse.py` | Reproducible task-0003 (eclipse + power/energy budget, TX03; simplified fixed-Sun model). Prints canonical JSON + SHA-256 when run. |
+| `verify_gates.py` | **Task-agnostic** verifier: a task registry + `_resolve_task()`, the Gate-1 integrity stand-in, the Gate-2 reproducibility check, and `assert_task_reproducible()` (active two-run hash compare). Its self-test exercises all three tasks (honest PASS, tampered REJECT, two-run reproducible). Defaults to task-0001 when no task is given. |
 | `test_meta_faucet.py` | Zero-value Test-META faucet over an **in-memory** ledger. `dispense()` credits **only** on a passing `verify()`; `spend()` is a guarded debit (rejects insufficient/non-positive amounts). Crediting and debiting are name-mangled private methods reachable only through these two guarded entry points. |
 | `x402_spend_stub.py` | **Simulated** x402-class micropayment. Spends Test-META only via `faucet.spend()` to "buy" imaginary compute units — no real x402 network, HTTP 402 flow, or payment. |
-| `agent_loop.py` | Orchestrates the full cycle for **both** tasks: assign → run → prove → verify → dispense → spend. Its self-test asserts per-round **task identity** and **verify pass/fail outcome** (against independent hardcoded expectations), plus the aggregate totals. |
-| `run_all_selftests.sh` | One-command runner that executes all six self-tests, prints a summary table, and exits non-zero if any fail. |
+| `agent_loop.py` | Orchestrates the full cycle for **all three** tasks end-to-end: assign → run → prove → verify → dispense → spend. Its self-test asserts per-round **task identity** and **verify pass/fail outcome** (against independent hardcoded expectations), plus the aggregate totals. |
+| `run_all_selftests.sh` | One-command runner that executes all seven self-tests, prints a summary table, and exits non-zero if any fail. |
 | `tasks/example_task.md` | A sample reproducible-task spec (the conceptual assigned issue). |
 
 CI: [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs
@@ -110,24 +113,25 @@ Run a single task (prints its canonical JSON and SHA-256 output hash):
 ```bash
 python3 demo/tasks/task_0001_lunar_link_budget.py
 python3 demo/tasks/task_0002_orbit_propagation.py
+python3 demo/tasks/task_0003_power_eclipse.py
 ```
 
 Run an individual component self-test:
 
 ```bash
-python3 demo/verify_gates.py        # both tasks: honest PASS, tampered REJECT, two-run reproducible
+python3 demo/verify_gates.py        # all three tasks: honest PASS, tampered REJECT, two-run reproducible
 python3 demo/test_meta_faucet.py    # dispense-on-verify and guarded-spend invariants
 python3 demo/x402_spend_stub.py     # simulated micropayment within/over balance
-python3 demo/agent_loop.py          # full loop over both tasks + per-round assertions
+python3 demo/agent_loop.py          # full loop over all three tasks + per-round assertions
 ```
 
-Run **all six** self-tests at once (this is what CI runs):
+Run **all seven** self-tests at once (this is what CI runs):
 
 ```bash
 bash demo/run_all_selftests.sh
 ```
 
-The runner prints a per-test header and a final summary table; expect **6/6 passed** and
+The runner prints a per-test header and a final summary table; expect **7/7 passed** and
 exit code 0.
 
 ## Compliance
