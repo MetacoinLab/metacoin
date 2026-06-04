@@ -30,6 +30,7 @@ existing protocol components. The single-host simulation appears ONLY inside the
 below, clearly labeled "local test harness, not the product".
 """
 
+import argparse
 import json
 import os
 import sys
@@ -40,7 +41,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from protocol.ledger import Ledger
+from protocol.ledger import Ledger, DEFAULT_LEDGER_PATH
 import protocol.verifier_cli as verifier_cli
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
@@ -300,5 +301,139 @@ def _selftest() -> int:
     return 0 if ok_overall else 1
 
 
+# ============================== REAL COORDINATOR CLI =========================
+# Importable functions and the self-test above are unchanged. The CLI below lets the
+# coordinator ingest a REAL submission file and anchor the outcome into a REAL persistent
+# ledger. With NO arguments, main() runs the self-test on a temp ledger and never touches
+# the real ledger (so CI's `python3 protocol/external_verifier.py` keeps running 3/3).
+
+BANNER = (
+    "MetaCoin R3 external-verifier pilot — research-stage, zero-value. "
+    "A matching hash proves REPRODUCIBILITY, not execution."
+)
+
+
+def _cmd_genesis(ledger_path: str) -> int:
+    """Append a neutral chain-start marker IFF the ledger is empty; refuse otherwise.
+
+    Exit 0 on success; non-zero if the ledger already has entries (never double-genesis).
+    """
+    print(BANNER)
+    ledger = Ledger(ledger_path)
+    if ledger.read_all():
+        print(f"ledger already initialized, genesis exists at index 0 (path: {ledger_path})")
+        print("refusing to double-genesis")
+        return 1
+    payload = {
+        "event": "ledger_genesis",
+        "stage": "R-protocol",
+        "note": (
+            "MetaCoin research-stage protocol ledger chain-start marker. "
+            "Zero-value, no token, no money. Research only."
+        ),
+        "zero_value": True,
+        "no_token": True,
+    }
+    entry = ledger.append(payload)
+    print(f"genesis written: index {entry['index']}, hash {entry['hash'][:16]}... (path: {ledger_path})")
+    ok, reason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {reason}")
+    return 0 if ok else 1
+
+
+def _cmd_evaluate(submission_path: str, ledger_path: str) -> int:
+    """Load a submission file, evaluate it, and anchor the outcome into the ledger.
+
+    Exit codes: 0 = externally-verified; non-zero = external-mismatch or rejected.
+    A missing/invalid file is 'rejected' and anchors nothing.
+    """
+    print(BANNER)
+
+    # Load the submission file defensively; any load failure is a rejection (no anchor).
+    reason = None
+    submission = None
+    try:
+        with open(submission_path, "r", encoding="utf-8") as f:
+            submission = json.load(f)
+    except FileNotFoundError:
+        reason = f"submission file not found: {submission_path}"
+    except json.JSONDecodeError as exc:
+        reason = f"submission file is not valid JSON ({exc})"
+    except OSError as exc:
+        reason = f"could not read submission file ({exc})"
+    if reason is None and not isinstance(submission, dict):
+        reason = "submission JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    result = evaluate_submission(submission, ledger)
+    ev = result["evaluation"]
+    entry = result["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}")
+    print(f"task_id: {submission.get('task_id', 'unknown')}")
+    print(f"verifier_id: {submission.get('verifier_id', 'unknown')}")
+
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed submissions are not written to the ledger)")
+        return 1
+
+    print(f"submitted_output_hash: {ev['submitted_output_hash']}")
+    print(f"local_output_hash:     {ev['local_output_hash']}")
+    print(f"match: {ev['match']}")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    # 0 only for a genuine external verification; mismatch is a real but non-zero outcome.
+    return 0 if status == "externally-verified" else 1
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="external_verifier.py",
+        description=(
+            "MetaCoin R3 external-verifier-pilot COORDINATOR (research-stage, ZERO-VALUE, "
+            "no token). With NO arguments, runs the self-test on a TEMP ledger and does NOT "
+            "touch the real ledger."
+        ),
+        epilog=(
+            "Exit codes: 0 = externally-verified (or --genesis / self-test ok); non-zero = "
+            "external-mismatch, rejected, genesis-refused, or self-test failure. HONEST "
+            "LIMITATION: a matching hash proves REPRODUCIBILITY, not execution (a hash can be "
+            "copied). Not consensus, not mainnet, not payment, not a token."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--genesis", action="store_true",
+        help="append a neutral chain-start marker IFF the ledger is empty (refuses if already initialized)",
+    )
+    mode.add_argument(
+        "--evaluate", metavar="SUBMISSION_JSON",
+        help="evaluate an external-verifier submission file against the locally recomputed hash and anchor the outcome",
+    )
+    parser.add_argument(
+        "--ledger", default=DEFAULT_LEDGER_PATH,
+        help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
+    )
+    args = parser.parse_args(argv)
+
+    if args.genesis:
+        return _cmd_genesis(args.ledger)
+    if args.evaluate is not None:
+        return _cmd_evaluate(args.evaluate, args.ledger)
+    # No command -> run the self-test (temp ledger only; never touches the real ledger).
+    return _selftest()
+
+
 if __name__ == "__main__":
-    sys.exit(_selftest())
+    sys.exit(main())
