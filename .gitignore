@@ -9,3 +9,6 @@
 *.png
 __pycache__/
 *.pyc
+
+# local Claude Code settings
+.claude/
