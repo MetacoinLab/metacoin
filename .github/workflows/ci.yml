@@ -39,13 +39,25 @@ jobs:
         if: always()
         run: bash protocol/run_protocol_selftests.sh
 
-      # Guard: the protocol self-tests must use temp files only and never create
-      # the default runtime ledger. Fail the build if a stray ledger file appears.
-      - name: Verify no stray ledger file
+      # Guard: the protocol self-tests must use temp files only and never create the
+      # default runtime ledger or a real signing key. Fail the build if a stray ledger
+      # file OR any protocol secret key (protocol/*.secret) is left behind.
+      - name: Verify no stray ledger or key files
         if: always()
         run: |
+          status=0
           if [ -f protocol/ledger_data.jsonl ]; then
             echo "ERROR: protocol/ledger_data.jsonl was created by the self-tests (should use a temp file only)."
-            exit 1
+            status=1
+          else
+            echo "OK: no stray protocol/ledger_data.jsonl."
           fi
-          echo "OK: no stray protocol/ledger_data.jsonl."
+          strays=$(find protocol -maxdepth 1 -name '*.secret' 2>/dev/null)
+          if [ -n "$strays" ]; then
+            echo "ERROR: stray protocol secret key file(s) left behind (self-tests must use a temp key):"
+            echo "$strays"
+            status=1
+          else
+            echo "OK: no stray protocol/*.secret key files."
+          fi
+          exit $status

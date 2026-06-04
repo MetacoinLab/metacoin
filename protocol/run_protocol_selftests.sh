@@ -19,6 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # (e.g. R2 attestation, R3 multi-node) and they are picked up automatically.
 TESTS=(
     "ledger.py"
+    "attest.py"
 )
 
 # Parallel arrays: names and their captured exit codes.
