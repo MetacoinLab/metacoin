@@ -39,6 +39,7 @@ import demo.tasks.task_0002_orbit_propagation as task_0002
 import demo.tasks.task_0003_power_eclipse as task_0003
 import demo.tasks.task_0004_comms_access as task_0004
 import demo.tasks.task_0005_rover_path as task_0005
+import demo.tasks.task_0006_docking_approach as task_0006
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -51,6 +52,7 @@ _TASK_REGISTRY = {
     "task-0003-power-eclipse": task_0003,
     "task-0004-comms-access": task_0004,
     "task-0005-rover-path": task_0005,
+    "task-0006-docking-approach": task_0006,
 }
 
 
@@ -240,6 +242,7 @@ if __name__ == "__main__":
         ("task-0003-power-eclipse", task_0003),
         ("task-0004-comms-access", task_0004),
         ("task-0005-rover-path", task_0005),
+        ("task-0006-docking-approach", task_0006),
     ]
 
     print("=== verify_gates.py self-test (task-agnostic: Gate-1 stand-in + Gate-2 + two-run reproducibility) ===\n")
