@@ -1,7 +1,6 @@
 # MetaCoin Sovereign Mission License Suite v1.0 (SML-1.0)
 
 Copyright (c) 2026 MetaCoin-Lab. All rights reserved.
-Registered Office: Calgary, Alberta, Canada.
 
 **CRITICAL NOTICE:** This is a source-available, research-stage specification license. It is NOT an OSI-approved open-source license. It is completely distinct from MIT, Apache 2.0, GPL, BSD, or Creative Commons frameworks.
 
