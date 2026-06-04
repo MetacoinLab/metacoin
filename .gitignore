@@ -19,3 +19,9 @@ protocol/ledger_data.jsonl
 # attestation software signing key (NEVER commit a signing key)
 protocol/attest_key.secret
 *.secret
+
+# external-verifier submissions are local artifacts, not committed
+submission.json
+protocol/*submission*.json
+# keep the tracked submission JSON Schema spec (not a local artifact; must stay versioned)
+!protocol/verifier_submission.schema.json

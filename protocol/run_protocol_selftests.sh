@@ -20,6 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTS=(
     "ledger.py"
     "attest.py"
+    "external_verifier.py"
 )
 
 # Parallel arrays: names and their captured exit codes.
