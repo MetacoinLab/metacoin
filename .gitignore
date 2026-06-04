@@ -15,3 +15,7 @@ __pycache__/
 
 # runtime ledger data (never commit a real ledger file)
 protocol/ledger_data.jsonl
+
+# attestation software signing key (NEVER commit a signing key)
+protocol/attest_key.secret
+*.secret
