@@ -1,8 +1,10 @@
-# CI for the demo self-tests.
+# CI for the demo and protocol self-tests.
 #
-# Research-only. Runs the standard-library demo self-tests on every push and
-# pull request to main. No dependencies are installed — the demo is pure
-# Python 3 standard library, so there is intentionally no pip step.
+# Research-stage. Runs the standard-library self-tests on every push and pull
+# request to main: the demo suite (demo/run_all_selftests.sh) and the protocol
+# suite (protocol/run_protocol_selftests.sh). No dependencies are installed —
+# everything is pure Python 3 standard library, so there is intentionally no
+# pip step. A failure in EITHER suite fails the build.
 
 name: CI
 
@@ -16,7 +18,7 @@ jobs:
   selftests:
     runs-on: ubuntu-latest
     steps:
-      # Check out the repository so the demo scripts are available.
+      # Check out the repository so the demo and protocol scripts are available.
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -29,3 +31,21 @@ jobs:
       # Run all demo self-tests through the single runner.
       - name: Run demo self-tests
         run: bash demo/run_all_selftests.sh
+
+      # Run all protocol self-tests through the single runner. `if: always()` lets
+      # this suite run (and report) even if the demo suite failed; the job still
+      # fails overall if either suite failed.
+      - name: Run protocol self-tests
+        if: always()
+        run: bash protocol/run_protocol_selftests.sh
+
+      # Guard: the protocol self-tests must use temp files only and never create
+      # the default runtime ledger. Fail the build if a stray ledger file appears.
+      - name: Verify no stray ledger file
+        if: always()
+        run: |
+          if [ -f protocol/ledger_data.jsonl ]; then
+            echo "ERROR: protocol/ledger_data.jsonl was created by the self-tests (should use a temp file only)."
+            exit 1
+          fi
+          echo "OK: no stray protocol/ledger_data.jsonl."

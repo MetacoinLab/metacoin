@@ -12,3 +12,6 @@ __pycache__/
 
 # local Claude Code settings
 .claude/
+
+# runtime ledger data (never commit a real ledger file)
+protocol/ledger_data.jsonl
