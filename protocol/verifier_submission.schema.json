@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.invalid/metacoin/r3/verifier_submission.schema.json",
+  "title": "MetaCoin R3 external-verifier-pilot submission",
+  "description": "Honest, research-stage, ZERO-VALUE external-verifier submission. NOT consensus, NOT mainnet, NOT payment, NOT a token. A matching output_hash proves REPRODUCIBILITY (the result was independently re-derived to the same canonical value); it does NOT by itself prove the verifier executed the task (a hash can be copied).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "event",
+    "stage",
+    "topology",
+    "task_id",
+    "verifier_id",
+    "machine_fingerprint",
+    "timestamp",
+    "output_hash",
+    "repo_commit",
+    "environment_summary",
+    "zero_value",
+    "no_token"
+  ],
+  "properties": {
+    "event": {
+      "const": "external_verifier_submission",
+      "description": "Fixed event tag for an external-verifier submission."
+    },
+    "stage": {
+      "const": "R3",
+      "description": "Protocol stage."
+    },
+    "topology": {
+      "const": "external-verifier-pilot",
+      "description": "Honest topology label. This is a pilot, not decentralized consensus."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Reproducible task id, short or full form (e.g. 'task-0002')."
+    },
+    "verifier_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Name/handle of the external verifier (ideally a separate person or org)."
+    },
+    "machine_fingerprint": {
+      "type": "string",
+      "description": "Coarse, NON-identifying sha256 of platform string + machine arch. No hostname/user/IP; not PII."
+    },
+    "timestamp": {
+      "type": "number",
+      "description": "Unix epoch seconds when the submission was produced."
+    },
+    "output_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Lowercase hex SHA-256 of the task's canonical output, computed by the task module itself."
+    },
+    "repo_commit": {
+      "type": "string",
+      "description": "git rev-parse HEAD of the verifier's checkout, or 'unknown'."
+    },
+    "environment_summary": {
+      "type": "object",
+      "description": "Coarse, non-identifying environment summary (python version + platform/arch)."
+    },
+    "zero_value": {
+      "const": true,
+      "description": "Always true: nothing of value is represented or transferred."
+    },
+    "no_token": {
+      "const": true,
+      "description": "Always true: no token, no payment, no wallet."
+    },
+    "honest_note": {
+      "type": "string",
+      "description": "Human-readable honesty note (reproducibility-not-execution limitation)."
+    },
+    "r2_attestation": {
+      "type": "object",
+      "description": "OPTIONAL R2 software-key MAC over task_id+output_hash. Symmetric HMAC-SHA256; NOT a public-key signature; NOT hardware-backed; does NOT prove execution."
+    },
+    "signing_note": {
+      "type": "string",
+      "description": "Honest description of the optional MAC and its limitation."
+    }
+  }
+}
