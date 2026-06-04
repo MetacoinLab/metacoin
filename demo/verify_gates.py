@@ -38,6 +38,7 @@ import demo.tasks.task_0001_lunar_link_budget as task_0001
 import demo.tasks.task_0002_orbit_propagation as task_0002
 import demo.tasks.task_0003_power_eclipse as task_0003
 import demo.tasks.task_0004_comms_access as task_0004
+import demo.tasks.task_0005_rover_path as task_0005
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -49,6 +50,7 @@ _TASK_REGISTRY = {
     "task-0002-orbit-propagation": task_0002,
     "task-0003-power-eclipse": task_0003,
     "task-0004-comms-access": task_0004,
+    "task-0005-rover-path": task_0005,
 }
 
 
@@ -215,17 +217,19 @@ if __name__ == "__main__":
     import copy
 
     def _tamper(result: dict) -> dict:
-        """Return a deep copy of `result` with the first numeric value in results[0] bumped.
+        """Return a deep copy of `result` with the first non-bool numeric summary field bumped.
 
-        Task-agnostic: every task emits a "results" list of dicts with numeric fields, so
-        bumping the first numeric value by 1.0 reliably produces a result that no longer
-        matches an independent re-run (Gate 2 must reject it).
+        Task-agnostic AND robust to result shape: every task emits a "summary" dict of
+        numeric fields, whereas "results" varies (task-0005's results is a list of [row,col]
+        lists, not dicts). Perturbing the summary therefore works for all tasks. Bumping the
+        first numeric (non-bool) summary value by 1.0 yields a result that no longer matches
+        an independent re-run (Gate 2 must reject it).
         """
         tampered = copy.deepcopy(result)
-        row = tampered["results"][0]
-        for key, value in row.items():
+        summary = tampered["summary"]
+        for key, value in summary.items():
             if isinstance(value, (int, float)) and not isinstance(value, bool):
-                row[key] = value + 1.0
+                summary[key] = value + 1.0
                 break
         return tampered
 
@@ -235,6 +239,7 @@ if __name__ == "__main__":
         ("task-0002-orbit-propagation", task_0002),
         ("task-0003-power-eclipse", task_0003),
         ("task-0004-comms-access", task_0004),
+        ("task-0005-rover-path", task_0005),
     ]
 
     print("=== verify_gates.py self-test (task-agnostic: Gate-1 stand-in + Gate-2 + two-run reproducibility) ===\n")

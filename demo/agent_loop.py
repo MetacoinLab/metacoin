@@ -34,6 +34,7 @@ import demo.tasks.task_0001_lunar_link_budget as task_0001
 import demo.tasks.task_0002_orbit_propagation as task_0002
 import demo.tasks.task_0003_power_eclipse as task_0003
 import demo.tasks.task_0004_comms_access as task_0004
+import demo.tasks.task_0005_rover_path as task_0005
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -43,16 +44,17 @@ DEFAULT_TASK = task_0001
 
 
 def _tamper_first_numeric(result: dict) -> None:
-    """Alter the first numeric field in results[0], in place (generic across tasks).
+    """Alter the first non-bool numeric field in result["summary"], in place (generic).
 
-    Every task emits a "results" list of dicts with numeric fields, so bumping the first
-    numeric value by 1.0 reliably yields a result that no longer matches an independent
-    re-run — which Gate 2 must reject, for task-0001 or task-0002 alike.
+    Every task emits a "summary" dict of numeric fields, whereas "results" varies in shape
+    (task-0005's results is a list of [row,col] lists, not dicts). Perturbing the summary
+    therefore works for all tasks: bumping the first numeric (non-bool) value by 1.0 yields
+    a result that no longer matches an independent re-run — which Gate 2 must reject.
     """
-    row = result["results"][0]
-    for key, value in row.items():
+    summary = result["summary"]
+    for key, value in summary.items():
         if isinstance(value, (int, float)) and not isinstance(value, bool):
-            row[key] = value + 1.0
+            summary[key] = value + 1.0
             return
 
 
@@ -199,6 +201,7 @@ if __name__ == "__main__":
     #   R4 task-0001 honest : recovers, earn 2, spend 1       -> balance 1
     #   R5 task-0003 honest : earn 2, spend 1                 -> balance 2   (eclipse/power task earns)
     #   R6 task-0004 honest : earn 2, spend 1                 -> balance 3   (comms-access task earns)
+    #   R7 task-0005 honest : earn 2, spend 1                 -> balance 4   (rover-path task earns)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
@@ -206,6 +209,7 @@ if __name__ == "__main__":
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0003, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0004, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0005, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -219,12 +223,14 @@ if __name__ == "__main__":
         {"task_id": "task-0001-lunar-link-budget", "verify_passed": True},
         {"task_id": "task-0003-power-eclipse", "verify_passed": True},
         {"task_id": "task-0004-comms-access", "verify_passed": True},
+        {"task_id": "task-0005-rover-path", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs all four real tasks: task-0001 (link budget), task-0002 (two-body orbit "
-          "propagation), task-0003 (eclipse/power budget), task-0004 (comms access).\n")
+    print("Runs all five real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+          "propagation), task-0003 (eclipse/power budget), task-0004 (comms access), "
+          "task-0005 (rover path).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -261,12 +267,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 6,
-        "passed": 5,
+        "rounds": 7,
+        "passed": 6,
         "rejected": 1,
-        "total_earned": 10,
-        "total_spent": 7,
-        "final_balance": 3,
+        "total_earned": 12,
+        "total_spent": 8,
+        "final_balance": 4,
     }
     totals_ok = totals == expected
 
