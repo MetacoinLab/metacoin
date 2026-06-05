@@ -181,6 +181,14 @@ def _rmtree(path):
 
 
 def _selftest() -> int:
+    # Record whether a REAL ledger already exists BEFORE the self-test, so the stray-ledger
+    # guard flags only a ledger this self-test ACCIDENTALLY creates — not a legitimate
+    # pre-existing real ledger (the self-test itself uses temp paths only).
+    _real_ledger_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "ledger_data.jsonl"
+    )
+    _ledger_existed_before = os.path.exists(_real_ledger_path)
+
     tmp = os.path.join(
         os.environ.get("TMPDIR", "/tmp"), f"r3_selftest_{os.getpid()}_{int(time.time())}"
     )
@@ -285,7 +293,7 @@ def _selftest() -> int:
 
     # Confirm no stray default files anywhere in protocol/.
     proto = os.path.dirname(os.path.abspath(__file__))
-    stray_ledger = os.path.exists(os.path.join(proto, "ledger_data.jsonl"))
+    stray_ledger = os.path.exists(_real_ledger_path) and not _ledger_existed_before
     stray_keys = [n for n in os.listdir(proto) if n.endswith(".secret")]
     stray_sub = os.path.exists(os.path.join(proto, "submission.json"))
     print(f"\nstray default ledger file: {'PRESENT (!!)' if stray_ledger else 'absent (good)'}")

@@ -21,6 +21,7 @@ TESTS=(
     "ledger.py"
     "attest.py"
     "external_verifier.py"
+    "audit.py"
 )
 
 # Parallel arrays: names and their captured exit codes.

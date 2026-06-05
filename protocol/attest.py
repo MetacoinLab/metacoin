@@ -206,6 +206,14 @@ def _selftest() -> int:
             for ln in lines:
                 f.write(ln + "\n")
 
+    # Record whether a REAL ledger already exists BEFORE the self-test, so the stray-ledger
+    # guard flags only a ledger this self-test ACCIDENTALLY creates — not a legitimate
+    # pre-existing real ledger (the self-test itself uses temp paths only).
+    _real_ledger_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "ledger_data.jsonl"
+    )
+    _ledger_existed_before = os.path.exists(_real_ledger_path)
+
     tmpdir = tempfile.mkdtemp(prefix="attest_selftest_")
     checks = []  # (label, passed_bool, detail)
     sample_record = None
@@ -296,9 +304,7 @@ def _selftest() -> int:
 
     # Confirm the self-test left no stray default key / ledger files.
     stray_key = os.path.exists(DEFAULT_KEY_PATH)
-    stray_ledger = os.path.exists(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger_data.jsonl")
-    )
+    stray_ledger = os.path.exists(_real_ledger_path) and not _ledger_existed_before
     print(f"\nstray default key file ({DEFAULT_KEY_PATH}): "
           f"{'PRESENT (!!)' if stray_key else 'absent (good)'}")
     print(f"stray default ledger file: {'PRESENT (!!)' if stray_ledger else 'absent (good)'}")
