@@ -25,3 +25,8 @@ submission.json
 *submission*.json
 # keep the tracked submission JSON Schema spec (not a local artifact; must stay versioned)
 !protocol/verifier_submission.schema.json
+
+# full-content ledger snapshots are local/publishable artifacts, NOT committed (any directory).
+# (the TINY tip anchor protocol/ledger_anchor.json IS committed — see below; only full
+# snapshots, which embed the entire ledger, are ignored.)
+*snapshot*.json
