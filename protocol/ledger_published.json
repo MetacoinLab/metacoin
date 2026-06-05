@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "hash": "71fe94035edd8c4f3c2d9f48910d93eb5c51f5dce6a7c37e7d07ba72c6d67288",
+      "index": 0,
+      "payload": {
+        "event": "ledger_genesis",
+        "no_token": true,
+        "note": "MetaCoin research-stage protocol ledger chain-start marker. Zero-value, no token, no money. Research only.",
+        "stage": "R-protocol",
+        "zero_value": true
+      },
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "timestamp": 1780610341.8019664
+    },
+    {
+      "hash": "530037afa07e61fe3533125bece27747a3b19796f290fd72ca0a5576b0b771db",
+      "index": 1,
+      "payload": {
+        "anchored": true,
+        "evaluated_at": 1780610346.4122818,
+        "event": "external_verification_result",
+        "limitation_note": "A matching output_hash proves REPRODUCIBILITY (the result was independently re-derived to the same canonical value); it does NOT cryptographically prove the external verifier executed the task (a hash can be copied). Independence improves when the verifier is a separate person/org; execution-proof would need verifier-held signing keys and/or hardware attestation (future work, same interface). external-verifier-pilot \u2014 not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "local_output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+        "match": true,
+        "no_token": true,
+        "stage": "R3",
+        "status": "externally-verified",
+        "submitted_output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+        "task_id": "task-0002",
+        "topology": "external-verifier-pilot",
+        "verifier_id": "jiyu-laptop-same-operator",
+        "verifier_machine_fingerprint": "sha256:b4eb2914106b4ee9b2ba8df1def8b9deb521ddd9611d66f398e1212f72107258",
+        "verifier_repo_commit": "2f9975d58324080e92c8c8d5ddd29f87f54fcfa8",
+        "zero_value": true
+      },
+      "prev_hash": "71fe94035edd8c4f3c2d9f48910d93eb5c51f5dce6a7c37e7d07ba72c6d67288",
+      "timestamp": 1780610346.412307
+    }
+  ],
+  "snapshot_header": {
+    "entry_count": 2,
+    "format": "metacoin-ledger-snapshot",
+    "no_token": true,
+    "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
+    "research_only": true,
+    "snapshot_timestamp": 1780702451.4162908,
+    "snapshot_version": 1,
+    "stage": "R-protocol",
+    "tip_hash": "530037afa07e61fe3533125bece27747a3b19796f290fd72ca0a5576b0b771db",
+    "tip_index": 1,
+    "zero_value": true
+  }
+}
