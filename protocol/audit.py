@@ -354,6 +354,14 @@ def _write_raw(path, lines):
 
 
 def _selftest() -> int:
+    # Record protocol/ state BEFORE the self-test so the stray-file guards flag only what
+    # this self-test ACCIDENTALLY creates — not a legitimately committed anchor (the real
+    # public tip anchor lives at DEFAULT_ANCHOR_PATH) or a pre-existing local snapshot.
+    # The self-test itself uses temp paths only.
+    _proto_dir = os.path.dirname(os.path.abspath(__file__))
+    _anchor_existed_before = os.path.exists(DEFAULT_ANCHOR_PATH)
+    _snaps_before = {n for n in os.listdir(_proto_dir) if "snapshot" in n.lower()}
+
     tmp = os.path.join(
         os.environ.get("TMPDIR", "/tmp"), f"audit_selftest_{os.getpid()}_{int(time.time())}"
     )
@@ -468,13 +476,14 @@ def _selftest() -> int:
     finally:
         _rmtree(tmp)
 
-    # Confirm the self-test left no stray default anchor / snapshot in protocol/.
-    proto = os.path.dirname(os.path.abspath(__file__))
-    stray_anchor = os.path.exists(DEFAULT_ANCHOR_PATH)
-    stray_snaps = [n for n in os.listdir(proto) if "snapshot" in n.lower()]
+    # Confirm the self-test CREATED no stray default anchor / snapshot in protocol/
+    # (existence-delta: a legitimately committed anchor or pre-existing snapshot is allowed).
+    stray_anchor = os.path.exists(DEFAULT_ANCHOR_PATH) and not _anchor_existed_before
+    _snaps_after = {n for n in os.listdir(_proto_dir) if "snapshot" in n.lower()}
+    stray_snaps = sorted(_snaps_after - _snaps_before)
     print(f"\nstray default anchor file ({DEFAULT_ANCHOR_PATH}): "
-          f"{'PRESENT (!!)' if stray_anchor else 'absent (good)'}")
-    print(f"stray snapshot files in protocol/: {stray_snaps if stray_snaps else 'none (good)'}")
+          f"{'CREATED BY SELF-TEST (!!)' if stray_anchor else 'none created (good)'}")
+    print(f"stray snapshot files created in protocol/: {stray_snaps if stray_snaps else 'none (good)'}")
     print("(the real ledger is untouched — the self-test uses temp paths only)")
 
     ok_overall = all(passed for _l, passed, _d in checks) and not stray_anchor and not stray_snaps
