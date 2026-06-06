@@ -11,6 +11,10 @@
 
 <p align="center">
   <a href="https://github.com/MetacoinLab/metacoin/actions"><img src="https://img.shields.io/github/actions/workflow/status/MetacoinLab/metacoin/ci.yml?branch=main&label=CI&logo=github" alt="CI"></a>
+  <img src="https://img.shields.io/github/last-commit/MetacoinLab/metacoin?label=last%20commit" alt="Last commit">
+  <img src="https://img.shields.io/github/commit-activity/m/MetacoinLab/metacoin?label=commits" alt="Commit activity">
+  <img src="https://img.shields.io/github/languages/top/MetacoinLab/metacoin" alt="Top language">
+  <br>
   <img src="https://img.shields.io/badge/stage-research-blue" alt="Research stage">
   <img src="https://img.shields.io/badge/token-none-lightgrey" alt="No token">
   <img src="https://img.shields.io/badge/license-SML--1.0-yellow" alt="SML-1.0">
@@ -55,24 +59,7 @@ We keep that line sharp on purpose. A design is not a deployment, and we never w
 
 The single most important design decision: base emission and mission grants are strictly separated, so that subjective review can never mint base money.
 
-```text
-+---------------------------------------------------------------+
-|                  TWO-FLOW ISOLATION  [SPEC]                   |
-+---------------------------------------------------------------+
-|                                                               |
-|  FLOW 1 — BASE EMISSION  (objective only, Bitcoin-like)       |
-|    infra uptime · liquidity · proof-of-humanity              |
-|        |                                                      |
-|        +--> mints --> 1.81B META hard cap, 5-year halving     |
-|                                                               |
-|  ===========  the base supply NEVER funds subjective work  == |
-|                                                               |
-|  FLOW 2 — METASTAR TREASURY  (fee-funded, bounded)            |
-|    protocol-usage fees --> bounties for judged work:          |
-|    AI research · robotics · simulations · open source         |
-|                                                               |
-+---------------------------------------------------------------+
-```
+<p align="center"><img src="assets/two-flow.svg" width="720" alt="Two-flow isolation: base emission mints only from objective work; a fee-funded treasury pays judged work and can never mint base supply"></p>
 
 Bitcoin mining is objective — any node can cheaply verify a valid block. Deciding whether an AI report is *useful* requires judgment. If that judgment minted base supply, a review committee would become a central bank. So judged work is routed to a bounded treasury instead, where a failed bounty costs only the treasury budget — never the monetary base.
 
@@ -96,29 +83,7 @@ Designed base-emission channels (objective only, no human judgment in the loop):
 
 > PoUSW governs the **treasury** (Flow 2) — it never mints base supply. It validates judged work through three independent gates, all required for full settlement. The core principle: **integrity ≠ reproducibility ≠ usefulness** — each is verified separately, and cheap gates run first to filter the expensive, subjective gate down to a small surface.
 
-```text
-   submit
-     |
-     v
- [ COMPLIANCE ]  signed attestation: inputs/code are public-domain or
-     |           verified open-source (export-control + copyright guard)
-     v
- [ GATE 1 — INTEGRITY ]      was it actually run as claimed?
-     |   vendor-agnostic TEE attestation  AND/OR  deterministic re-run.
-     |   proves execution integrity — NOT value. (necessary, not sufficient)
-     v
- [ GATE 2 — REPRODUCIBILITY ]  can anyone re-derive it independently?
-     |   hashed inputs + exact model/harness/prompt/seed + re-run recipe;
-     |   pipeline re-runs and compares hashes. verifying must be far
-     |   cheaper than generating (the complexity ceiling).
-     v
- [ GATE 3 — USEFULNESS ]   does it matter for the mission?
-     |   bounded optimistic oracle: machine pre-check (NASA taxonomy) →
-     |   bounded provisional release → challenge window → rotating,
-     |   stake-weighted council adjudicates ONLY challenged work.
-     v
-  finalize  ->  MetaWork Passport updated  ·  Useful-Work-per-Watt recorded
-```
+<p align="center"><img src="assets/three-gate.svg" width="720" alt="Three-gate verification: compliance, then integrity, reproducibility, and usefulness gates before treasury settlement"></p>
 
 Hardware attestation is **Gate 1 of 3 — powerful, never alone.** A signed enclave proves a workload ran untampered; it does not prove the result was useful. This is exactly why minting on "signed = valid" only moves the sybil attack up a level — and why MetaCoin refuses to do it.
 
@@ -158,6 +123,24 @@ public tip anchor: 7b71b88f…
 ```
 
 **Honest boundary.** Every entry so far is the **same operator** on machines under direct control. This demonstrates strong **cross-platform reproducibility** — *not* independent multi-party consensus. The next meaningful milestone is operational, not code: an unaffiliated third party running the public verifier and submitting a result.
+
+### Verify it yourself
+
+Don't trust — reproduce. Anyone can independently re-derive the published chain and the recorded task, mechanically, with no LLM/AI judgment:
+
+```bash
+git clone https://github.com/MetacoinLab/metacoin.git
+cd metacoin
+
+# 1. verify the published chain stands alone (no original ledger needed)
+python3 protocol/audit.py --verify protocol/ledger_published.json
+
+# 2. run the autonomous agent-verifier: re-checks the chain, confirms the
+#    tip against the committed anchor, and RE-RUNS the recorded task
+python3 protocol/agent_verifier.py --verifier-id "$(whoami)-independent"
+```
+
+If your machine reaches the same canonical hash `ff03231f…ba300c`, you have independently confirmed the result — on your hardware, by computation, trusting no one.
 
 ---
 
