@@ -79,19 +79,62 @@
       },
       "prev_hash": "530037afa07e61fe3533125bece27747a3b19796f290fd72ca0a5576b0b771db",
       "timestamp": 1780711252.4765823
+    },
+    {
+      "hash": "7b71b88f05503f212aed6db4de53a1f4b866d9cd475047cee784219a4fddaa26",
+      "index": 3,
+      "payload": {
+        "agent_anchor_tip_hash": "6bb54787273ab841f2d0798da90efcc46336f8a286515276b57cc72282c02698",
+        "agent_snapshot_tip_hash": "6bb54787273ab841f2d0798da90efcc46336f8a286515276b57cc72282c02698",
+        "agent_verdict": "verified",
+        "anchor_tip_hash": "6bb54787273ab841f2d0798da90efcc46336f8a286515276b57cc72282c02698",
+        "anchored_at": 1780715499.5303707,
+        "event": "agent_verifier_attestation",
+        "limitation_note": "mechanical re-derivation by the same operator on a second machine \u2014 proves REPRODUCIBILITY, NOT independent third-party verification; verdicts/hashes can be copied. The agent is a deterministic script (no LLM judgment). Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "snapshot_tip_hash": "6bb54787273ab841f2d0798da90efcc46336f8a286515276b57cc72282c02698",
+        "spark_reconfirmed": {
+          "agent_tips_agree": true,
+          "chain_verified": true,
+          "per_task": [
+            {
+              "local_output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0002"
+            }
+          ],
+          "task_reproduced": true,
+          "tip_matches_anchor": true
+        },
+        "stage": "R-protocol",
+        "status": "agent-result-confirmed",
+        "task_ids": [
+          "task-0002"
+        ],
+        "topology": "agent-verifier",
+        "verifier_attestation_method": "mechanical-no-LLM",
+        "verifier_id": "windows-laptop-same-operator",
+        "verifier_kind": "autonomous-agent",
+        "zero_value": true
+      },
+      "prev_hash": "6bb54787273ab841f2d0798da90efcc46336f8a286515276b57cc72282c02698",
+      "timestamp": 1780715499.5304587
     }
   ],
   "snapshot_header": {
-    "entry_count": 3,
+    "entry_count": 4,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1780711270.1612513,
+    "snapshot_timestamp": 1780715511.1836393,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "6bb54787273ab841f2d0798da90efcc46336f8a286515276b57cc72282c02698",
-    "tip_index": 2,
+    "tip_hash": "7b71b88f05503f212aed6db4de53a1f4b866d9cd475047cee784219a4fddaa26",
+    "tip_index": 3,
     "zero_value": true
   }
 }
