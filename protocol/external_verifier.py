@@ -75,10 +75,14 @@ LIMITATION_NOTE = (
 # not a single task submission. The coordinator re-derives all three on the Spark before
 # anchoring — it never just trusts the result file.
 _AGENT_RESULT_EVENT = "agent_verifier_attestation"
+# Real schema emitted by jiyu's agent_verifier.py: top-level claims + a task_reproductions
+# ARRAY (each item: task_id, recomputed_hash, recorded_hash, match). The Spark re-derives
+# each task itself rather than trusting these values.
 _AGENT_RESULT_REQUIRED = (
     "event", "verdict", "chain_verified", "tip_matches_anchor",
-    "task_id", "output_hash", "verifier_id", "zero_value", "no_token",
+    "verifier_id", "zero_value", "no_token", "task_reproductions",
 )
+_AGENT_REP_REQUIRED = ("task_id", "recomputed_hash", "recorded_hash", "match")
 
 # Canonical committed published-snapshot path (the artifact the agent verified).
 _DEFAULT_PUBLISHED_SNAPSHOT_PATH = os.path.join(
@@ -192,7 +196,11 @@ def evaluate_submission(submission: dict, ledger: Ledger) -> dict:
 # claims on the Spark (never trust the file), and anchor an honest record.
 # ----------------------------------------------------------------------------
 def validate_agent_result(result: dict):
-    """Structurally validate an agent_verifier_attestation result. Returns (ok, reason)."""
+    """Structurally validate an agent_verifier_attestation result (real nested schema).
+
+    Returns (ok, reason). Requires the top-level claim fields PLUS a non-empty
+    task_reproductions array where each item carries task_id/recomputed_hash/recorded_hash/match.
+    """
     if not isinstance(result, dict):
         return (False, "agent result is not a JSON object")
     for field in _AGENT_RESULT_REQUIRED:
@@ -212,15 +220,28 @@ def validate_agent_result(result: dict):
         return (False, "tip_matches_anchor must be a boolean")
     if not isinstance(result.get("verifier_id"), str) or not result["verifier_id"]:
         return (False, "verifier_id must be a non-empty string")
-    if not isinstance(result.get("task_id"), str):
-        return (False, "task_id must be a string")
-    oh = result.get("output_hash")
-    if not isinstance(oh, str) or len(oh) != 64 or any(c not in _HEX for c in oh):
-        return (False, "output_hash must be a 64-char lowercase hex sha256")
-    try:
-        verifier_cli.normalize_task_id(result["task_id"])
-    except KeyError as exc:
-        return (False, f"unknown task_id: {exc}")
+
+    reps = result.get("task_reproductions")
+    if not isinstance(reps, list) or not reps:
+        return (False, "task_reproductions must be a non-empty array")
+    for i, rep in enumerate(reps):
+        if not isinstance(rep, dict):
+            return (False, f"task_reproductions[{i}] is not a JSON object")
+        for key in _AGENT_REP_REQUIRED:
+            if key not in rep:
+                return (False, f"task_reproductions[{i}] missing '{key}'")
+        if not isinstance(rep["task_id"], str):
+            return (False, f"task_reproductions[{i}].task_id must be a string")
+        for hk in ("recomputed_hash", "recorded_hash"):
+            h = rep[hk]
+            if not isinstance(h, str) or len(h) != 64 or any(c not in _HEX for c in h):
+                return (False, f"task_reproductions[{i}].{hk} must be a 64-char lowercase hex sha256")
+        if not isinstance(rep["match"], bool):
+            return (False, f"task_reproductions[{i}].match must be a boolean")
+        try:
+            verifier_cli.normalize_task_id(rep["task_id"])
+        except KeyError as exc:
+            return (False, f"task_reproductions[{i}] unknown task_id: {exc}")
     return (True, "ok: conforms to the agent_verifier_attestation schema")
 
 
@@ -236,17 +257,17 @@ def _find_ledger_task_hash(entries: list, task_id: str):
 
 
 def _rederive_agent_claims(result: dict, ledger: Ledger, snapshot_path: str, anchor_path: str) -> dict:
-    """RE-DERIVE the agent's three claims on the Spark (do NOT trust the result file).
+    """RE-DERIVE the agent's claims on the Spark (do NOT trust the result file).
 
     chain_verified    : the published snapshot independently verifies (audit.verify) AND the
                         live ledger verifies AND their tips agree.
     tip_matches_anchor: the published snapshot tip == the committed anchor tip.
-    task_reproduced   : re-running the task here reproduces the agent's claimed output_hash
-                        AND it agrees with the hash recorded in the ledger (if present).
+    agent_tips_agree  : the agent's provided snapshot_tip_hash/anchor_tip_hash match the
+                        Spark's own re-derived values (when the agent provided them).
+    per_task          : for EACH task_reproduction, the Spark re-runs that task here and
+                        confirms its hash equals BOTH the agent's recomputed_hash AND the
+                        hash recorded in the live ledger for that task.
     """
-    task_id = result.get("task_id")
-    claimed_hash = result.get("output_hash")
-
     # 1. chain_verified — verify the published snapshot, the live ledger, and tip agreement.
     snap_ok, snap_reason, snap_details = audit.verify_snapshot_file(snapshot_path)
     snapshot_tip = snap_details.get("tip_hash") if snap_ok else None
@@ -266,30 +287,57 @@ def _rederive_agent_claims(result: dict, ledger: Ledger, snapshot_path: str, anc
         anchor_tip = None
     tip_matches = bool(snapshot_tip is not None and anchor_tip is not None and snapshot_tip == anchor_tip)
 
-    # 3. task_reproduced — recompute the task here; compare to claimed AND to ledger record.
-    local_hash = None
-    try:
-        module = verifier_cli.load_task(task_id)
-        local_hash = module.output_hash(module.compute())
-    except (KeyError, ImportError, AttributeError, ValueError, TypeError):
-        local_hash = None
-    ledger_recorded = _find_ledger_task_hash(entries, task_id)
-    task_reproduced = bool(
-        local_hash is not None
-        and local_hash == claimed_hash
-        and (ledger_recorded is None or local_hash == ledger_recorded)
+    # 2b. cross-check the AGENT's provided tips against the Spark's own (when provided).
+    agent_snapshot_tip = result.get("snapshot_tip_hash")
+    agent_anchor_tip = result.get("anchor_tip_hash")
+    agent_tips_agree = bool(
+        (agent_snapshot_tip is None or agent_snapshot_tip == snapshot_tip)
+        and (agent_anchor_tip is None or agent_anchor_tip == anchor_tip)
     )
+
+    # 3. per-task reproduction — re-run EACH claimed task; compare to the agent's recomputed
+    #    hash AND to the hash recorded in the ledger for that task.
+    per_task = []
+    all_tasks_reproduced = True
+    for rep in result.get("task_reproductions", []):
+        tid = rep.get("task_id")
+        agent_recomputed = rep.get("recomputed_hash")
+        local_hash = None
+        try:
+            module = verifier_cli.load_task(tid)
+            local_hash = module.output_hash(module.compute())
+        except (KeyError, ImportError, AttributeError, ValueError, TypeError):
+            local_hash = None
+        ledger_recorded = _find_ledger_task_hash(entries, tid)
+        matches_agent = bool(local_hash is not None and local_hash == agent_recomputed)
+        matches_ledger = bool(
+            local_hash is not None and ledger_recorded is not None and local_hash == ledger_recorded
+        )
+        reproduced = bool(matches_agent and matches_ledger)
+        all_tasks_reproduced = all_tasks_reproduced and reproduced
+        per_task.append({
+            "task_id": tid,
+            "local_output_hash": local_hash,
+            "agent_recomputed_hash": agent_recomputed,
+            "ledger_recorded_hash": ledger_recorded,
+            "matches_agent_recomputed": matches_agent,
+            "matches_ledger_recorded": matches_ledger,
+            "reproduced": reproduced,
+        })
+    task_reproduced = bool(per_task and all_tasks_reproduced)
 
     return {
         "chain_verified": chain_verified,
         "tip_matches_anchor": tip_matches,
+        "agent_tips_agree": agent_tips_agree,
         "task_reproduced": task_reproduced,
-        "local_output_hash": local_hash,
-        # extra transparency (not part of the 4-field spark_reconfirmed block):
+        "per_task": per_task,
+        # extra transparency:
         "snapshot_tip_hash": snapshot_tip,
         "ledger_tip_hash": ledger_tip,
         "anchor_tip_hash": anchor_tip,
-        "ledger_recorded_output_hash": ledger_recorded,
+        "agent_snapshot_tip_hash": agent_snapshot_tip,
+        "agent_anchor_tip_hash": agent_anchor_tip,
         "snapshot_verify_reason": snap_reason,
         "ledger_verify_reason": led_reason,
     }
@@ -299,10 +347,11 @@ def anchor_agent_result(result: dict, ledger: Ledger, snapshot_path: str, anchor
                         operator_relationship: str = "same-operator") -> dict:
     """Validate + RE-DERIVE + anchor an agent_verifier_attestation. Returns {evaluation, ledger_entry}.
 
-    Malformed -> 'rejected', NOT anchored. All three re-derived True AND agent verdict
-    'verified' -> 'agent-result-confirmed', anchored. Otherwise -> 'agent-result-mismatch',
-    anchored (a real audit event). The anchored payload carries BOTH the agent's claim AND
-    the Spark's re-derivation, with honest labels.
+    Malformed -> 'rejected', NOT anchored. All claims re-derived True (chain, tip-vs-anchor,
+    agent-tips-agree, every task reproduced) AND agent verdict 'verified' ->
+    'agent-result-confirmed', anchored. Otherwise -> 'agent-result-mismatch', anchored (a
+    real audit event). The anchored payload carries BOTH the agent's claim AND the Spark's
+    per-task re-derivation, with honest labels.
     """
     ok, reason = validate_agent_result(result)
     if not ok:
@@ -324,6 +373,7 @@ def anchor_agent_result(result: dict, ledger: Ledger, snapshot_path: str, anchor
     spark_all_true = (
         rederived["chain_verified"]
         and rederived["tip_matches_anchor"]
+        and rederived["agent_tips_agree"]
         and rederived["task_reproduced"]
     )
     agent_verdict = result.get("verdict")
@@ -340,16 +390,28 @@ def anchor_agent_result(result: dict, ledger: Ledger, snapshot_path: str, anchor
         "spark_reconfirmed": {
             "chain_verified": rederived["chain_verified"],
             "tip_matches_anchor": rederived["tip_matches_anchor"],
+            "agent_tips_agree": rederived["agent_tips_agree"],
             "task_reproduced": rederived["task_reproduced"],
-            "local_output_hash": rederived["local_output_hash"],
+            "per_task": [
+                {
+                    "task_id": pt["task_id"],
+                    "local_output_hash": pt["local_output_hash"],
+                    "matches_agent_recomputed": pt["matches_agent_recomputed"],
+                    "matches_ledger_recorded": pt["matches_ledger_recorded"],
+                    "reproduced": pt["reproduced"],
+                }
+                for pt in rederived["per_task"]
+            ],
         },
-        "task_id": result.get("task_id"),
-        "claimed_output_hash": result.get("output_hash"),
-        "ledger_recorded_output_hash": rederived["ledger_recorded_output_hash"],
+        "task_ids": [pt["task_id"] for pt in rederived["per_task"]],
         "snapshot_tip_hash": rederived["snapshot_tip_hash"],
         "anchor_tip_hash": rederived["anchor_tip_hash"],
+        "agent_snapshot_tip_hash": rederived["agent_snapshot_tip_hash"],
+        "agent_anchor_tip_hash": rederived["agent_anchor_tip_hash"],
         "verifier_id": result.get("verifier_id"),
-        "verifier_kind": "mechanical-no-LLM",
+        # preserve the agent's own verifier_kind; record the attestation method separately.
+        "verifier_kind": result.get("verifier_kind", "autonomous-agent"),
+        "verifier_attestation_method": "mechanical-no-LLM",
         "operator_relationship": operator_relationship,
         "limitation_note": AGENT_LIMITATION_NOTE,
         "zero_value": True,
@@ -482,17 +544,25 @@ def _selftest() -> int:
         real_task_hash = verifier_cli.load_task(TASK).output_hash(
             verifier_cli.load_task(TASK).compute()
         )
+        base_tip = abl.read_all()[-1]["hash"]  # snapshot/anchor tip the agent must agree with
 
-        def _make_agent_result(output_hash):
+        def _make_agent_result(recomputed_hash):
+            """Sample in jiyu's REAL nested schema (task_reproductions array + tip fields)."""
             return {
                 "event": "agent_verifier_attestation", "verdict": "verified",
-                "chain_verified": True, "tip_matches_anchor": True, "task_id": TASK,
-                "output_hash": output_hash, "verifier_id": "jiyu-laptop-same-operator",
-                "verifier_kind": "mechanical-no-LLM", "timestamp": 1.0,
-                "zero_value": True, "no_token": True,
+                "chain_verified": True, "tip_matches_anchor": True,
+                "verifier_id": "jiyu-agent-same-operator", "verifier_kind": "autonomous-agent",
+                "snapshot_tip_hash": base_tip, "snapshot_tip_index": 1,
+                "anchor_tip_hash": base_tip, "anchor_tip_index": 1,
+                "task_reproductions": [{
+                    "task_id": TASK, "recomputed_hash": recomputed_hash,
+                    "recorded_hash": real_task_hash, "match": recomputed_hash == real_task_hash,
+                    "ledger_entry_index": 1,
+                }],
+                "timestamp": 1.0, "zero_value": True, "no_token": True,
             }
 
-        # (6) VALID agent result -> Spark re-derives all three True -> confirmed -> anchored
+        # (6) VALID agent result (real schema, correct hash) -> Spark re-derives -> confirmed
         ledger_a = os.path.join(tmp, "agent_A.jsonl")
         _copyfile(agent_base, ledger_a)
         out_a = anchor_agent_result(
@@ -501,34 +571,37 @@ def _selftest() -> int:
         agent_confirmed_payload = out_a["evaluation"]
         sr_a = out_a["evaluation"].get("spark_reconfirmed", {})
         checks.append((
-            "AGENT-RESULT CONFIRMED (Spark re-derives all 3 True -> anchored)",
+            "AGENT-RESULT CONFIRMED (real schema; Spark re-derives all claims -> anchored)",
             out_a["evaluation"]["status"] == "agent-result-confirmed"
             and out_a["ledger_entry"] is not None
             and sr_a.get("chain_verified") is True
             and sr_a.get("tip_matches_anchor") is True
-            and sr_a.get("task_reproduced") is True,
+            and sr_a.get("agent_tips_agree") is True
+            and sr_a.get("task_reproduced") is True
+            and sr_a["per_task"][0]["reproduced"] is True,
             out_a["evaluation"]["status"],
         ))
 
-        # (7) WRONG claimed hash -> Spark task_reproduced False -> mismatch -> anchored
+        # (7) WRONG recomputed_hash in task_reproductions -> Spark reproduces real hash, disagrees
         ledger_b = os.path.join(tmp, "agent_B.jsonl")
         _copyfile(agent_base, ledger_b)
         out_b = anchor_agent_result(
             _make_agent_result("1" * 64), Ledger(ledger_b), agent_snap, agent_anchor, "same-operator"
         )
         checks.append((
-            "AGENT-RESULT MISMATCH (wrong claimed hash -> anchored audit event)",
+            "AGENT-RESULT MISMATCH (wrong recomputed_hash -> anchored audit event)",
             out_b["evaluation"]["status"] == "agent-result-mismatch"
             and out_b["ledger_entry"] is not None
-            and out_b["evaluation"]["spark_reconfirmed"]["task_reproduced"] is False,
+            and out_b["evaluation"]["spark_reconfirmed"]["task_reproduced"] is False
+            and out_b["evaluation"]["spark_reconfirmed"]["per_task"][0]["matches_agent_recomputed"] is False,
             out_b["evaluation"]["status"],
         ))
 
-        # (8) MALFORMED agent result -> rejected -> NOT anchored
+        # (8) MALFORMED agent result (no task_reproductions) -> rejected -> NOT anchored
         ledger_c = os.path.join(tmp, "agent_C.jsonl")
         _copyfile(agent_base, ledger_c)
         bad_agent = _make_agent_result(real_task_hash)
-        del bad_agent["output_hash"]
+        del bad_agent["task_reproductions"]
         out_c = anchor_agent_result(bad_agent, Ledger(ledger_c), agent_snap, agent_anchor, "same-operator")
         checks.append((
             "AGENT-RESULT REJECTED (malformed -> NOT anchored)",
@@ -721,7 +794,6 @@ def _cmd_anchor_agent_result(result_path: str, ledger_path: str, snapshot_path: 
     status = ev["status"]
 
     print(f"status: {status}")
-    print(f"task_id: {result.get('task_id', 'unknown')}")
     print(f"verifier_id: {result.get('verifier_id', 'unknown')}")
     print(f"agent_verdict: {result.get('verdict', 'unknown')}")
 
@@ -731,12 +803,16 @@ def _cmd_anchor_agent_result(result_path: str, ledger_path: str, snapshot_path: 
         return 1
 
     sr = ev["spark_reconfirmed"]
+    print(f"task_ids: {ev.get('task_ids')}")
     print("spark re-derivation (independently re-derived here — NOT trusting the agent's file):")
     print(f"  chain_verified     : {sr['chain_verified']}")
     print(f"  tip_matches_anchor : {sr['tip_matches_anchor']}")
+    print(f"  agent_tips_agree   : {sr['agent_tips_agree']}")
     print(f"  task_reproduced    : {sr['task_reproduced']}")
-    print(f"  local_output_hash  : {sr['local_output_hash']}")
-    print(f"  claimed_output_hash: {ev['claimed_output_hash']}")
+    for pt in sr.get("per_task", []):
+        print(f"    - {pt['task_id']}: local={pt['local_output_hash']} "
+              f"matches_agent={pt['matches_agent_recomputed']} "
+              f"matches_ledger={pt['matches_ledger_recorded']} reproduced={pt['reproduced']}")
     if entry is not None:
         print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
     ok, vreason = ledger.verify_chain()
