@@ -30,3 +30,10 @@ submission.json
 # (the TINY tip anchor protocol/ledger_anchor.json IS committed — see below; only full
 # snapshots, which embed the entire ledger, are ignored.)
 *snapshot*.json
+
+# agent-verifier-result input artifacts are local inputs, NOT committed (the canonical
+# record is the ANCHORED ledger entry, not the input file). NOTE: the literal pattern
+# 'agentresult*.json' does NOT match 'agent_verifier_result.json' (underscores), so the
+# working glob below is used instead — it covers the file and versioned variants.
+agent_verifier_result.json
+agent_verifier_result*.json

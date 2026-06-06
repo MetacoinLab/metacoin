@@ -43,6 +43,7 @@ if _REPO_ROOT not in sys.path:
 
 from protocol.ledger import Ledger, DEFAULT_LEDGER_PATH
 import protocol.verifier_cli as verifier_cli
+import protocol.audit as audit  # reused to independently re-derive chain/anchor claims
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -67,6 +68,28 @@ LIMITATION_NOTE = (
     "separate person/org; execution-proof would need verifier-held signing keys and/or "
     "hardware attestation (future work, same interface). external-verifier-pilot — not "
     "consensus, not mainnet, not payment, not a token; zero-value research-stage."
+)
+
+# --- agent-verifier-result schema (a DIFFERENT record type than a task submission) -------
+# An agent_verifier_attestation asserts three claims (chain + anchor + task reproduction),
+# not a single task submission. The coordinator re-derives all three on the Spark before
+# anchoring — it never just trusts the result file.
+_AGENT_RESULT_EVENT = "agent_verifier_attestation"
+_AGENT_RESULT_REQUIRED = (
+    "event", "verdict", "chain_verified", "tip_matches_anchor",
+    "task_id", "output_hash", "verifier_id", "zero_value", "no_token",
+)
+
+# Canonical committed published-snapshot path (the artifact the agent verified).
+_DEFAULT_PUBLISHED_SNAPSHOT_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "ledger_published.json"
+)
+
+AGENT_LIMITATION_NOTE = (
+    "mechanical re-derivation by the same operator on a second machine — proves "
+    "REPRODUCIBILITY, NOT independent third-party verification; verdicts/hashes can be "
+    "copied. The agent is a deterministic script (no LLM judgment). Not consensus, not "
+    "mainnet, not payment, not a token; zero-value research-stage."
 )
 
 
@@ -164,6 +187,179 @@ def evaluate_submission(submission: dict, ledger: Ledger) -> dict:
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# ----------------------------------------------------------------------------
+# Agent-verifier-result anchoring: ingest an agent_verifier_attestation, RE-DERIVE its
+# claims on the Spark (never trust the file), and anchor an honest record.
+# ----------------------------------------------------------------------------
+def validate_agent_result(result: dict):
+    """Structurally validate an agent_verifier_attestation result. Returns (ok, reason)."""
+    if not isinstance(result, dict):
+        return (False, "agent result is not a JSON object")
+    for field in _AGENT_RESULT_REQUIRED:
+        if field not in result:
+            return (False, f"missing required field '{field}'")
+    if result.get("event") != _AGENT_RESULT_EVENT:
+        return (False, f"field 'event' must be {_AGENT_RESULT_EVENT!r} (got {result.get('event')!r})")
+    if result.get("zero_value") is not True:
+        return (False, "zero_value must be true")
+    if result.get("no_token") is not True:
+        return (False, "no_token must be true")
+    if not isinstance(result.get("verdict"), str) or not result["verdict"]:
+        return (False, "verdict must be a non-empty string")
+    if not isinstance(result.get("chain_verified"), bool):
+        return (False, "chain_verified must be a boolean")
+    if not isinstance(result.get("tip_matches_anchor"), bool):
+        return (False, "tip_matches_anchor must be a boolean")
+    if not isinstance(result.get("verifier_id"), str) or not result["verifier_id"]:
+        return (False, "verifier_id must be a non-empty string")
+    if not isinstance(result.get("task_id"), str):
+        return (False, "task_id must be a string")
+    oh = result.get("output_hash")
+    if not isinstance(oh, str) or len(oh) != 64 or any(c not in _HEX for c in oh):
+        return (False, "output_hash must be a 64-char lowercase hex sha256")
+    try:
+        verifier_cli.normalize_task_id(result["task_id"])
+    except KeyError as exc:
+        return (False, f"unknown task_id: {exc}")
+    return (True, "ok: conforms to the agent_verifier_attestation schema")
+
+
+def _find_ledger_task_hash(entries: list, task_id: str):
+    """Return the output_hash recorded in the ledger for `task_id`, or None if not present."""
+    for entry in entries:
+        payload = entry.get("payload", {})
+        if payload.get("task_id") == task_id:
+            for key in ("local_output_hash", "output_hash", "submitted_output_hash"):
+                if isinstance(payload.get(key), str):
+                    return payload[key]
+    return None
+
+
+def _rederive_agent_claims(result: dict, ledger: Ledger, snapshot_path: str, anchor_path: str) -> dict:
+    """RE-DERIVE the agent's three claims on the Spark (do NOT trust the result file).
+
+    chain_verified    : the published snapshot independently verifies (audit.verify) AND the
+                        live ledger verifies AND their tips agree.
+    tip_matches_anchor: the published snapshot tip == the committed anchor tip.
+    task_reproduced   : re-running the task here reproduces the agent's claimed output_hash
+                        AND it agrees with the hash recorded in the ledger (if present).
+    """
+    task_id = result.get("task_id")
+    claimed_hash = result.get("output_hash")
+
+    # 1. chain_verified — verify the published snapshot, the live ledger, and tip agreement.
+    snap_ok, snap_reason, snap_details = audit.verify_snapshot_file(snapshot_path)
+    snapshot_tip = snap_details.get("tip_hash") if snap_ok else None
+    led_ok, led_reason = ledger.verify_chain()
+    entries = ledger.read_all()
+    ledger_tip = entries[-1]["hash"] if entries else None
+    chain_verified = bool(snap_ok and led_ok and snapshot_tip is not None and snapshot_tip == ledger_tip)
+
+    # 2. tip_matches_anchor — published snapshot tip vs committed anchor tip.
+    anchor_tip = None
+    try:
+        with open(anchor_path, "r", encoding="utf-8") as f:
+            anchor = json.load(f)
+        if isinstance(anchor, dict):
+            anchor_tip = anchor.get("tip_hash")
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        anchor_tip = None
+    tip_matches = bool(snapshot_tip is not None and anchor_tip is not None and snapshot_tip == anchor_tip)
+
+    # 3. task_reproduced — recompute the task here; compare to claimed AND to ledger record.
+    local_hash = None
+    try:
+        module = verifier_cli.load_task(task_id)
+        local_hash = module.output_hash(module.compute())
+    except (KeyError, ImportError, AttributeError, ValueError, TypeError):
+        local_hash = None
+    ledger_recorded = _find_ledger_task_hash(entries, task_id)
+    task_reproduced = bool(
+        local_hash is not None
+        and local_hash == claimed_hash
+        and (ledger_recorded is None or local_hash == ledger_recorded)
+    )
+
+    return {
+        "chain_verified": chain_verified,
+        "tip_matches_anchor": tip_matches,
+        "task_reproduced": task_reproduced,
+        "local_output_hash": local_hash,
+        # extra transparency (not part of the 4-field spark_reconfirmed block):
+        "snapshot_tip_hash": snapshot_tip,
+        "ledger_tip_hash": ledger_tip,
+        "anchor_tip_hash": anchor_tip,
+        "ledger_recorded_output_hash": ledger_recorded,
+        "snapshot_verify_reason": snap_reason,
+        "ledger_verify_reason": led_reason,
+    }
+
+
+def anchor_agent_result(result: dict, ledger: Ledger, snapshot_path: str, anchor_path: str,
+                        operator_relationship: str = "same-operator") -> dict:
+    """Validate + RE-DERIVE + anchor an agent_verifier_attestation. Returns {evaluation, ledger_entry}.
+
+    Malformed -> 'rejected', NOT anchored. All three re-derived True AND agent verdict
+    'verified' -> 'agent-result-confirmed', anchored. Otherwise -> 'agent-result-mismatch',
+    anchored (a real audit event). The anchored payload carries BOTH the agent's claim AND
+    the Spark's re-derivation, with honest labels.
+    """
+    ok, reason = validate_agent_result(result)
+    if not ok:
+        evaluation = {
+            "event": _AGENT_RESULT_EVENT,
+            "stage": "R-protocol",
+            "topology": "agent-verifier",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": AGENT_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    rederived = _rederive_agent_claims(result, ledger, snapshot_path, anchor_path)
+    spark_all_true = (
+        rederived["chain_verified"]
+        and rederived["tip_matches_anchor"]
+        and rederived["task_reproduced"]
+    )
+    agent_verdict = result.get("verdict")
+    status = ("agent-result-confirmed"
+              if (spark_all_true and agent_verdict == "verified")
+              else "agent-result-mismatch")
+
+    evaluation = {
+        "event": _AGENT_RESULT_EVENT,
+        "stage": "R-protocol",
+        "topology": "agent-verifier",
+        "status": status,
+        "agent_verdict": agent_verdict,
+        "spark_reconfirmed": {
+            "chain_verified": rederived["chain_verified"],
+            "tip_matches_anchor": rederived["tip_matches_anchor"],
+            "task_reproduced": rederived["task_reproduced"],
+            "local_output_hash": rederived["local_output_hash"],
+        },
+        "task_id": result.get("task_id"),
+        "claimed_output_hash": result.get("output_hash"),
+        "ledger_recorded_output_hash": rederived["ledger_recorded_output_hash"],
+        "snapshot_tip_hash": rederived["snapshot_tip_hash"],
+        "anchor_tip_hash": rederived["anchor_tip_hash"],
+        "verifier_id": result.get("verifier_id"),
+        "verifier_kind": "mechanical-no-LLM",
+        "operator_relationship": operator_relationship,
+        "limitation_note": AGENT_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # ============================== SELF-TEST ====================================
 # NOTE: the following is a LOCAL TEST HARNESS (single-host simulation), NOT the product.
 # In real use the submission comes from a SEPARATE machine/person via verifier_cli.py.
@@ -178,6 +374,14 @@ def _rmtree(path):
         for d in dirs:
             os.rmdir(os.path.join(root, d))
     os.rmdir(path)
+
+
+def _copyfile(src, dst):
+    """Copy a file using os only (no shutil) — for making independent temp ledger copies."""
+    with open(src, "rb") as f:
+        data = f.read()
+    with open(dst, "wb") as g:
+        g.write(data)
 
 
 def _selftest() -> int:
@@ -198,6 +402,7 @@ def _selftest() -> int:
     sample_submission = None
     sample_evaluation = None
     signed_attestation = None
+    agent_confirmed_payload = None
     try:
         ledger_path = os.path.join(tmp, "ledger.jsonl")
         ledger = Ledger(ledger_path)
@@ -259,6 +464,78 @@ def _selftest() -> int:
             "root_of_trust=" + str(signed_attestation.get("root_of_trust") if signed_attestation else None),
         ))
 
+        # --- AGENT-RESULT mode coverage (mechanical, no-LLM agent attestation) -----------
+        # Build a base temp ledger (genesis + a task-0002 verification at index 1), then a
+        # temp published-snapshot + temp anchor exported from it, then sample agent results.
+        # All TEMP paths — never the real ledger/snapshot/anchor.
+        agent_base = os.path.join(tmp, "agent_ledger.jsonl")
+        abl = Ledger(agent_base)
+        abl.append({"event": "ledger_genesis", "stage": "R-protocol",
+                    "note": "temp chain-start (self-test)", "zero_value": True, "no_token": True})
+        evaluate_submission(
+            verifier_cli.build_submission(TASK, "jiyu-laptop-same-operator (simulated)"), abl
+        )  # index 1: externally-verified task-0002
+        agent_snap = os.path.join(tmp, "agent_published.json")
+        audit.export_snapshot(agent_base, agent_snap)
+        agent_anchor = os.path.join(tmp, "agent_anchor.json")
+        audit.write_anchor(agent_base, agent_anchor)
+        real_task_hash = verifier_cli.load_task(TASK).output_hash(
+            verifier_cli.load_task(TASK).compute()
+        )
+
+        def _make_agent_result(output_hash):
+            return {
+                "event": "agent_verifier_attestation", "verdict": "verified",
+                "chain_verified": True, "tip_matches_anchor": True, "task_id": TASK,
+                "output_hash": output_hash, "verifier_id": "jiyu-laptop-same-operator",
+                "verifier_kind": "mechanical-no-LLM", "timestamp": 1.0,
+                "zero_value": True, "no_token": True,
+            }
+
+        # (6) VALID agent result -> Spark re-derives all three True -> confirmed -> anchored
+        ledger_a = os.path.join(tmp, "agent_A.jsonl")
+        _copyfile(agent_base, ledger_a)
+        out_a = anchor_agent_result(
+            _make_agent_result(real_task_hash), Ledger(ledger_a), agent_snap, agent_anchor, "same-operator"
+        )
+        agent_confirmed_payload = out_a["evaluation"]
+        sr_a = out_a["evaluation"].get("spark_reconfirmed", {})
+        checks.append((
+            "AGENT-RESULT CONFIRMED (Spark re-derives all 3 True -> anchored)",
+            out_a["evaluation"]["status"] == "agent-result-confirmed"
+            and out_a["ledger_entry"] is not None
+            and sr_a.get("chain_verified") is True
+            and sr_a.get("tip_matches_anchor") is True
+            and sr_a.get("task_reproduced") is True,
+            out_a["evaluation"]["status"],
+        ))
+
+        # (7) WRONG claimed hash -> Spark task_reproduced False -> mismatch -> anchored
+        ledger_b = os.path.join(tmp, "agent_B.jsonl")
+        _copyfile(agent_base, ledger_b)
+        out_b = anchor_agent_result(
+            _make_agent_result("1" * 64), Ledger(ledger_b), agent_snap, agent_anchor, "same-operator"
+        )
+        checks.append((
+            "AGENT-RESULT MISMATCH (wrong claimed hash -> anchored audit event)",
+            out_b["evaluation"]["status"] == "agent-result-mismatch"
+            and out_b["ledger_entry"] is not None
+            and out_b["evaluation"]["spark_reconfirmed"]["task_reproduced"] is False,
+            out_b["evaluation"]["status"],
+        ))
+
+        # (8) MALFORMED agent result -> rejected -> NOT anchored
+        ledger_c = os.path.join(tmp, "agent_C.jsonl")
+        _copyfile(agent_base, ledger_c)
+        bad_agent = _make_agent_result(real_task_hash)
+        del bad_agent["output_hash"]
+        out_c = anchor_agent_result(bad_agent, Ledger(ledger_c), agent_snap, agent_anchor, "same-operator")
+        checks.append((
+            "AGENT-RESULT REJECTED (malformed -> NOT anchored)",
+            out_c["evaluation"]["status"] == "rejected" and out_c["ledger_entry"] is None,
+            f"{out_c['evaluation']['status']} ({out_c['evaluation'].get('reason')})",
+        ))
+
         # --- report ---------------------------------------------------------
         print("=== protocol/external_verifier.py self-test — R3 EXTERNAL-VERIFIER-PILOT ===")
         print("HONEST: a matching output_hash proves REPRODUCIBILITY, NOT execution (a hash")
@@ -274,6 +551,10 @@ def _selftest() -> int:
         print()
         print("--- OPTIONAL attached R2 software-key MAC (symmetric; not a signature; not hardware; not execution-proof) ---")
         print(json.dumps(signed_attestation, indent=2, sort_keys=True))
+        print()
+        print("--- sample ANCHORED agent-result payload (note spark_reconfirmed + honest labels) ---")
+        print("    HONEST: the Spark RE-DERIVES the agent's claims here; it does not trust the file.")
+        print(json.dumps(agent_confirmed_payload, indent=2, sort_keys=True))
         print()
 
         print("--- results ---")
@@ -404,6 +685,67 @@ def _cmd_evaluate(submission_path: str, ledger_path: str) -> int:
     return 0 if status == "externally-verified" else 1
 
 
+def _cmd_anchor_agent_result(result_path: str, ledger_path: str, snapshot_path: str,
+                             anchor_path: str, operator_relationship: str) -> int:
+    """Load an agent_verifier_attestation, RE-DERIVE its claims on the Spark, anchor the outcome.
+
+    Exit codes: 0 = agent-result-confirmed; non-zero = mismatch or rejected.
+    A missing/invalid file is 'rejected' and anchors nothing.
+    """
+    print(BANNER)
+
+    # Load defensively; any load failure is a rejection (no anchor).
+    reason = None
+    result = None
+    try:
+        with open(result_path, "r", encoding="utf-8") as f:
+            result = json.load(f)
+    except FileNotFoundError:
+        reason = f"agent-result file not found: {result_path}"
+    except json.JSONDecodeError as exc:
+        reason = f"agent-result file is not valid JSON ({exc})"
+    except OSError as exc:
+        reason = f"could not read agent-result file ({exc})"
+    if reason is None and not isinstance(result, dict):
+        reason = "agent-result JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    out = anchor_agent_result(result, ledger, snapshot_path, anchor_path, operator_relationship)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}")
+    print(f"task_id: {result.get('task_id', 'unknown')}")
+    print(f"verifier_id: {result.get('verifier_id', 'unknown')}")
+    print(f"agent_verdict: {result.get('verdict', 'unknown')}")
+
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed -> not written to the ledger)")
+        return 1
+
+    sr = ev["spark_reconfirmed"]
+    print("spark re-derivation (independently re-derived here — NOT trusting the agent's file):")
+    print(f"  chain_verified     : {sr['chain_verified']}")
+    print(f"  tip_matches_anchor : {sr['tip_matches_anchor']}")
+    print(f"  task_reproduced    : {sr['task_reproduced']}")
+    print(f"  local_output_hash  : {sr['local_output_hash']}")
+    print(f"  claimed_output_hash: {ev['claimed_output_hash']}")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    # 0 only when the Spark re-derivation confirms the agent's 'verified' verdict.
+    return 0 if status == "agent-result-confirmed" else 1
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -429,9 +771,25 @@ def main(argv=None) -> int:
         "--evaluate", metavar="SUBMISSION_JSON",
         help="evaluate an external-verifier submission file against the locally recomputed hash and anchor the outcome",
     )
+    mode.add_argument(
+        "--anchor-agent-result", metavar="AGENT_RESULT_JSON",
+        help="ingest an agent_verifier_attestation; RE-DERIVE its chain/anchor/task claims on this host and anchor the outcome",
+    )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
         help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
+    )
+    parser.add_argument(
+        "--snapshot", default=_DEFAULT_PUBLISHED_SNAPSHOT_PATH,
+        help=f"published snapshot to re-verify for --anchor-agent-result (default {_DEFAULT_PUBLISHED_SNAPSHOT_PATH})",
+    )
+    parser.add_argument(
+        "--anchor-file", default=audit.DEFAULT_ANCHOR_PATH,
+        help=f"committed tip anchor to compare for --anchor-agent-result (default {audit.DEFAULT_ANCHOR_PATH})",
+    )
+    parser.add_argument(
+        "--operator-relationship", default="same-operator",
+        help="honest label for the verifier's relationship to this operator (default: same-operator)",
     )
     args = parser.parse_args(argv)
 
@@ -439,6 +797,11 @@ def main(argv=None) -> int:
         return _cmd_genesis(args.ledger)
     if args.evaluate is not None:
         return _cmd_evaluate(args.evaluate, args.ledger)
+    if args.anchor_agent_result is not None:
+        return _cmd_anchor_agent_result(
+            args.anchor_agent_result, args.ledger, args.snapshot, args.anchor_file,
+            args.operator_relationship,
+        )
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
