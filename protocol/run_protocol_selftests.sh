@@ -17,11 +17,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Self-tests to run, in order. Add future protocol self-tests here
 # (e.g. R2 attestation, R3 multi-node) and they are picked up automatically.
+# Entries may include arguments (e.g. "agent_verifier.py --selftest"); the invocation
+# below word-splits the entry while keeping SCRIPT_DIR (which may contain spaces) intact.
 TESTS=(
     "ledger.py"
     "attest.py"
     "external_verifier.py"
     "audit.py"
+    "agent_verifier.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.
@@ -34,7 +37,9 @@ for test in "${TESTS[@]}"; do
     echo ">>> RUNNING: $test"
     echo "============================================================"
 
-    python3 "$SCRIPT_DIR/$test"
+    # Quoted prefix keeps a space-containing SCRIPT_DIR intact; unquoted $test word-splits
+    # so any trailing arguments (e.g. --selftest) are passed as separate argv entries.
+    python3 "$SCRIPT_DIR/"$test
     code=$?
 
     NAMES+=("$test")
