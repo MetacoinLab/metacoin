@@ -32,8 +32,7 @@ submission.json
 *snapshot*.json
 
 # agent-verifier-result input artifacts are local inputs, NOT committed (the canonical
-# record is the ANCHORED ledger entry, not the input file). NOTE: the literal pattern
-# 'agentresult*.json' does NOT match 'agent_verifier_result.json' (underscores), so the
-# working glob below is used instead — it covers the file and versioned variants.
-agent_verifier_result.json
-agent_verifier_result*.json
+# record is the ANCHORED ledger entry, not the input file). The leading '*' catches ANY
+# platform prefix (e.g. windows_/mac_) and versioned variants, while NOT shadowing the
+# tracked tool protocol/agent_verifier.py (a .py with no "result" in its name).
+*agent_verifier_result*.json
