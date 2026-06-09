@@ -21,6 +21,7 @@ TESTS=(
     "tasks/task_0005_rover_path.py"
     "tasks/task_0006_docking_approach.py"
     "tasks/task_0007_hohmann_transfer.py"
+    "tasks/task_0008_arm_inverse_kinematics.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"

@@ -37,6 +37,7 @@ import demo.tasks.task_0004_comms_access as task_0004
 import demo.tasks.task_0005_rover_path as task_0005
 import demo.tasks.task_0006_docking_approach as task_0006
 import demo.tasks.task_0007_hohmann_transfer as task_0007
+import demo.tasks.task_0008_arm_inverse_kinematics as task_0008
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -206,6 +207,7 @@ if __name__ == "__main__":
     #   R7 task-0005 honest : earn 2, spend 1                 -> balance 4   (rover-path task earns)
     #   R8 task-0006 honest : earn 2, spend 1                 -> balance 5   (docking-approach task earns)
     #   R9 task-0007 honest : earn 2, spend 1                 -> balance 6   (Hohmann-transfer task earns)
+    #   R10 task-0008 honest: earn 2, spend 1                 -> balance 7   (arm-IK task earns)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
@@ -216,6 +218,7 @@ if __name__ == "__main__":
         {"task": task_0005, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0006, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0007, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0008, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -232,13 +235,15 @@ if __name__ == "__main__":
         {"task_id": "task-0005-rover-path", "verify_passed": True},
         {"task_id": "task-0006-docking-approach", "verify_passed": True},
         {"task_id": "task-0007-hohmann-transfer", "verify_passed": True},
+        {"task_id": "task-0008-arm-inverse-kinematics", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs all seven real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+    print("Runs all eight real tasks: task-0001 (link budget), task-0002 (two-body orbit "
           "propagation), task-0003 (eclipse/power budget), task-0004 (comms access), "
-          "task-0005 (rover path), task-0006 (docking approach), task-0007 (Hohmann transfer).\n")
+          "task-0005 (rover path), task-0006 (docking approach), task-0007 (Hohmann transfer), "
+          "task-0008 (arm inverse kinematics).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -275,12 +280,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 9,
-        "passed": 8,
+        "rounds": 10,
+        "passed": 9,
         "rejected": 1,
-        "total_earned": 16,
-        "total_spent": 10,
-        "final_balance": 6,
+        "total_earned": 18,
+        "total_spent": 11,
+        "final_balance": 7,
     }
     totals_ok = totals == expected
 
