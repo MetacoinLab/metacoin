@@ -44,6 +44,7 @@ import demo.tasks.task_0007_hohmann_transfer as task_0007
 import demo.tasks.task_0008_arm_inverse_kinematics as task_0008
 import demo.tasks.task_0009_power_budget as task_0009
 import demo.tasks.task_0010_thermal_equilibrium as task_0010
+import demo.tasks.task_0011_ballistic_reentry as task_0011
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -61,6 +62,7 @@ _TASK_REGISTRY = {
     "task-0008-arm-inverse-kinematics": task_0008,
     "task-0009-power-budget": task_0009,
     "task-0010-thermal-equilibrium": task_0010,
+    "task-0011-ballistic-reentry": task_0011,
 }
 
 
@@ -255,6 +257,7 @@ if __name__ == "__main__":
         ("task-0008-arm-inverse-kinematics", task_0008),
         ("task-0009-power-budget", task_0009),
         ("task-0010-thermal-equilibrium", task_0010),
+        ("task-0011-ballistic-reentry", task_0011),
     ]
 
     print("=== verify_gates.py self-test (task-agnostic: Gate-1 stand-in + Gate-2 + two-run reproducibility) ===\n")
