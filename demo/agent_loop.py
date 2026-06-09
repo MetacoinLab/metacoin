@@ -36,6 +36,7 @@ import demo.tasks.task_0003_power_eclipse as task_0003
 import demo.tasks.task_0004_comms_access as task_0004
 import demo.tasks.task_0005_rover_path as task_0005
 import demo.tasks.task_0006_docking_approach as task_0006
+import demo.tasks.task_0007_hohmann_transfer as task_0007
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -194,7 +195,7 @@ def run_loop(scenario: list, address: str):
 if __name__ == "__main__":
     AGENT = "agent-testnet-loop"
 
-    # A short scenario exercising ALL FOUR real tasks and every path:
+    # A short scenario exercising ALL SEVEN real tasks and every path:
     #   R1 task-0001 honest : earn 2, spend 1                 -> balance 1
     #   R2 task-0002 honest : earn 2, spend 3 (drains)        -> balance 0   (real orbit task earns)
     #   R3 task-0002 TAMPER : verify FAILS, earn 0, and the   -> balance 0   (real task rejected)
@@ -204,6 +205,7 @@ if __name__ == "__main__":
     #   R6 task-0004 honest : earn 2, spend 1                 -> balance 3   (comms-access task earns)
     #   R7 task-0005 honest : earn 2, spend 1                 -> balance 4   (rover-path task earns)
     #   R8 task-0006 honest : earn 2, spend 1                 -> balance 5   (docking-approach task earns)
+    #   R9 task-0007 honest : earn 2, spend 1                 -> balance 6   (Hohmann-transfer task earns)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
@@ -213,6 +215,7 @@ if __name__ == "__main__":
         {"task": task_0004, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0005, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0006, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0007, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -228,13 +231,14 @@ if __name__ == "__main__":
         {"task_id": "task-0004-comms-access", "verify_passed": True},
         {"task_id": "task-0005-rover-path", "verify_passed": True},
         {"task_id": "task-0006-docking-approach", "verify_passed": True},
+        {"task_id": "task-0007-hohmann-transfer", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs all six real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+    print("Runs all seven real tasks: task-0001 (link budget), task-0002 (two-body orbit "
           "propagation), task-0003 (eclipse/power budget), task-0004 (comms access), "
-          "task-0005 (rover path), task-0006 (docking approach).\n")
+          "task-0005 (rover path), task-0006 (docking approach), task-0007 (Hohmann transfer).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -271,12 +275,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 8,
-        "passed": 7,
+        "rounds": 9,
+        "passed": 8,
         "rejected": 1,
-        "total_earned": 14,
-        "total_spent": 9,
-        "final_balance": 5,
+        "total_earned": 16,
+        "total_spent": 10,
+        "final_balance": 6,
     }
     totals_ok = totals == expected
 

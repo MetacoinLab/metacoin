@@ -20,6 +20,7 @@ TESTS=(
     "tasks/task_0004_comms_access.py"
     "tasks/task_0005_rover_path.py"
     "tasks/task_0006_docking_approach.py"
+    "tasks/task_0007_hohmann_transfer.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"

@@ -52,6 +52,7 @@ TASK_MODULES = {
     "task-0004": "demo.tasks.task_0004_comms_access",
     "task-0005": "demo.tasks.task_0005_rover_path",
     "task-0006": "demo.tasks.task_0006_docking_approach",
+    "task-0007": "demo.tasks.task_0007_hohmann_transfer",
 }
 
 # Honest note embedded in every submission (and visible in output).
