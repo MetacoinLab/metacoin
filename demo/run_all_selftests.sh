@@ -22,6 +22,7 @@ TESTS=(
     "tasks/task_0006_docking_approach.py"
     "tasks/task_0007_hohmann_transfer.py"
     "tasks/task_0008_arm_inverse_kinematics.py"
+    "tasks/task_0009_power_budget.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"
