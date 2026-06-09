@@ -41,6 +41,7 @@ import demo.tasks.task_0008_arm_inverse_kinematics as task_0008
 import demo.tasks.task_0009_power_budget as task_0009
 import demo.tasks.task_0010_thermal_equilibrium as task_0010
 import demo.tasks.task_0011_ballistic_reentry as task_0011
+import demo.tasks.task_0012_comms_link_budget as task_0012
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -199,7 +200,7 @@ def run_loop(scenario: list, address: str):
 if __name__ == "__main__":
     AGENT = "agent-testnet-loop"
 
-    # A short scenario exercising ALL ELEVEN real tasks and every path:
+    # A short scenario exercising ALL TWELVE real tasks and every path:
     #   R1 task-0001 honest : earn 2, spend 1                 -> balance 1
     #   R2 task-0002 honest : earn 2, spend 3 (drains)        -> balance 0   (real orbit task earns)
     #   R3 task-0002 TAMPER : verify FAILS, earn 0, and the   -> balance 0   (real task rejected)
@@ -214,6 +215,7 @@ if __name__ == "__main__":
     #   R11 task-0009 honest: earn 2, spend 1                 -> balance 8   (power-budget task earns)
     #   R12 task-0010 honest: earn 2, spend 1                 -> balance 9   (thermal-equilibrium task earns)
     #   R13 task-0011 honest: earn 2, spend 1                 -> balance 10  (ballistic-reentry task earns)
+    #   R14 task-0012 honest: earn 2, spend 1                 -> balance 11  (comms-link-budget task earns)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
@@ -228,6 +230,7 @@ if __name__ == "__main__":
         {"task": task_0009, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0010, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0011, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0012, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -248,15 +251,17 @@ if __name__ == "__main__":
         {"task_id": "task-0009-power-budget", "verify_passed": True},
         {"task_id": "task-0010-thermal-equilibrium", "verify_passed": True},
         {"task_id": "task-0011-ballistic-reentry", "verify_passed": True},
+        {"task_id": "task-0012-comms-link-budget", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs all eleven real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+    print("Runs all twelve real tasks: task-0001 (link budget), task-0002 (two-body orbit "
           "propagation), task-0003 (eclipse/power budget), task-0004 (comms access), "
           "task-0005 (rover path), task-0006 (docking approach), task-0007 (Hohmann transfer), "
           "task-0008 (arm inverse kinematics), task-0009 (power budget), "
-          "task-0010 (thermal equilibrium), task-0011 (ballistic re-entry).\n")
+          "task-0010 (thermal equilibrium), task-0011 (ballistic re-entry), "
+          "task-0012 (deep-space comms link budget).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -293,12 +298,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 13,
-        "passed": 12,
+        "rounds": 14,
+        "passed": 13,
         "rejected": 1,
-        "total_earned": 24,
-        "total_spent": 14,
-        "final_balance": 10,
+        "total_earned": 26,
+        "total_spent": 15,
+        "final_balance": 11,
     }
     totals_ok = totals == expected
 

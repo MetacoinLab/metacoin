@@ -57,6 +57,7 @@ TASK_MODULES = {
     "task-0009": "demo.tasks.task_0009_power_budget",
     "task-0010": "demo.tasks.task_0010_thermal_equilibrium",
     "task-0011": "demo.tasks.task_0011_ballistic_reentry",
+    "task-0012": "demo.tasks.task_0012_comms_link_budget",
 }
 
 # Honest note embedded in every submission (and visible in output).
