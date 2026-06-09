@@ -26,6 +26,7 @@ TESTS=(
     "tasks/task_0010_thermal_equilibrium.py"
     "tasks/task_0011_ballistic_reentry.py"
     "tasks/task_0012_comms_link_budget.py"
+    "tasks/task_0013_lambert_transfer.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"
