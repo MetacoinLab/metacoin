@@ -23,6 +23,7 @@ TESTS=(
     "tasks/task_0007_hohmann_transfer.py"
     "tasks/task_0008_arm_inverse_kinematics.py"
     "tasks/task_0009_power_budget.py"
+    "tasks/task_0010_thermal_equilibrium.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"

@@ -55,6 +55,7 @@ TASK_MODULES = {
     "task-0007": "demo.tasks.task_0007_hohmann_transfer",
     "task-0008": "demo.tasks.task_0008_arm_inverse_kinematics",
     "task-0009": "demo.tasks.task_0009_power_budget",
+    "task-0010": "demo.tasks.task_0010_thermal_equilibrium",
 }
 
 # Honest note embedded in every submission (and visible in output).
