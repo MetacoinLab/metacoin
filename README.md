@@ -104,25 +104,28 @@ Agentic payment rails let agents *pay*. MetaCoin defines what useful space-machi
 
 Everything in this section exists in the repository and is exercised by CI. Each item is deliberately scoped — these are mechanical, deterministic facts, not marketing.
 
-- **Reproducible task demo** — six space-engineering tasks (link budget, orbit propagation, eclipse/power, comms access windows, rover path planning, rendezvous/docking), wired into a task-agnostic verifier and an earn→verify→spend agent loop. CI 10/10.
+- **Reproducible task demo** — thirteen reproducible space-engineering tasks spanning NASA-taxonomy domains (orbital mechanics & Lambert transfer, propulsion/Hohmann, robotics/ISAM arm IK, power budget, thermal equilibrium, ballistic re-entry/EDL, deep-space comms & Doppler, comms access windows, rover path planning, rendezvous/docking), wired into a task-agnostic verifier and an earn→verify→spend agent loop. CI 17/17.
 - **R1 — Tamper-evident ledger** — an append-only, hash-chained ledger; verification recomputes every hash from content and detects mutation, reordering, insertion, and deletion.
 - **R2 — Honest attestation** — software-rooted HMAC attestation, anchored to the ledger. The hardware was investigated and found to have **no usable TPM/TEE**, so the mechanism is honestly labeled *software-rooted, not hardware* — a future hardware/public-key root drops into the same interface.
 - **R3 — External verifier + coordinator** — an external party re-derives a task hash; the coordinator anchors the outcome only after **independently recomputing it** (a matching hash proves reproducibility, not who executed the task).
 - **Public auditability** — `audit.py` exports a verifiable snapshot, verifies it standalone (no original ledger needed), and commits a tiny public tip anchor — closing the external-anchor gap so anyone can confirm the chain was not silently rewritten.
 - **Autonomous agent-verifier** — a published, CI-tested tool that fetches the public snapshot, mechanically re-verifies the chain, checks the tip against the committed anchor, and re-runs the recorded task — **no LLM/AI judgment, hashes and re-runs only.**
-- **Cross-platform reproducibility** — task `ff03231f…ba300c` reproduces byte-for-byte on **macOS (arm64)**, **Linux (aarch64 + CI x86-64)**, and **Windows 11 (AMD64)**.
+- **Cross-platform reproducibility** — the canonical task hash `ff03231f…ba300c` reproduces byte-for-byte on **macOS (arm64)**, **Linux (aarch64)**, **Linux x86-64 (CI)**, and **Windows 11 (AMD64)** — and the CI environment independently re-derives all **thirteen** task hashes against the published snapshot on every push (same-operator; reproducibility evidence, not third-party independence).
+- **Full demo↔protocol wiring** — every one of the thirteen tasks is anchored in the tamper-evident ledger: twelve honestly-labeled same-machine self-recompute evaluations plus one batch autonomous-agent attestation covering the entire catalog (Spark-reconfirmed), each record carrying explicit honesty labels (`task_class: illustrative-demo`, topology, zero-value/no-token, limitation notes).
 
 ### Current ledger
 
 ```text
-idx 0  genesis (neutral chain-start marker)
-idx 1  external verification (task reproduced)
-idx 2  autonomous-agent attestation — macOS    (Spark-reconfirmed)
-idx 3  autonomous-agent attestation — Windows  (Spark-reconfirmed)
-public tip anchor: 7b71b88f…
+idx 0      genesis (neutral chain-start marker)
+idx 1      external verification — task-0002 reproduced (second machine)
+idx 2–3    autonomous-agent attestations — macOS, Windows (Spark-reconfirmed)
+idx 4–15   self-recompute evaluations — tasks 0001, 0003–0013
+           (honestly labeled same-machine, task_class: illustrative-demo)
+idx 16     batch agent attestation — all 13 tasks re-derived & confirmed
+public tip anchor: e00bacd2…
 ```
 
-**Honest boundary.** Every entry so far is the **same operator** on machines under direct control. This demonstrates strong **cross-platform reproducibility** — *not* independent multi-party consensus. The next meaningful milestone is operational, not code: an unaffiliated third party running the public verifier and submitting a result.
+**Honest boundary.** Every entry so far is the **same operator** on machines under direct control — and the entries now include **same-machine self-recompute** records that are explicitly labeled as adding *no cross-party independence* (this host generated and re-evaluated its own submissions). The catalog-wide claim remains **cross-platform reproducibility under one operator** — *not* independent multi-party consensus. The next meaningful milestone is still operational, not code: an unaffiliated third party running the public verifier and submitting a result.
 
 ### Verify it yourself
 
@@ -140,7 +143,7 @@ python3 protocol/audit.py --verify protocol/ledger_published.json
 python3 protocol/agent_verifier.py --verifier-id "$(whoami)-independent"
 ```
 
-If your machine reaches the same canonical hash `ff03231f…ba300c`, you have independently confirmed the result — on your hardware, by computation, trusting no one.
+The published snapshot now records all **thirteen** task hashes, any of which the agent-verifier re-derives on your machine. If yours reaches the same canonical hash `ff03231f…ba300c` (the worked example, task-0002), you have independently confirmed the result — on your hardware, by computation, trusting no one.
 
 ---
 
@@ -164,7 +167,7 @@ If your machine reaches the same canonical hash `ff03231f…ba300c`, you have in
 - [`ROADMAP.md`](ROADMAP.md) · [`MISSION.md`](MISSION.md) · [`HISTORY.md`](HISTORY.md)
 - [`mip/MIP-0001-genesis.md`](mip/MIP-0001-genesis.md) · [`mip/MIP-0002-proof-of-useful-space-work.md`](mip/MIP-0002-proof-of-useful-space-work.md)
 - [`protocol/`](protocol/) — ledger, attestation, external & autonomous verifiers, auditability
-- [`demo/`](demo/) — six reproducible space-engineering tasks
+- [`demo/`](demo/) — thirteen reproducible space-engineering tasks
 - [`legal/`](legal/) — disclaimers and risk notes
 
 ## Lineage
