@@ -145,6 +145,16 @@ python3 protocol/agent_verifier.py --verifier-id "$(whoami)-independent"
 
 The published snapshot now records all **thirteen** task hashes, any of which the agent-verifier re-derives on your machine. If yours reaches the same canonical hash `ff03231f…ba300c` (the worked example, task-0002), you have independently confirmed the result — on your hardware, by computation, trusting no one.
 
+### Submit your verification
+
+If you ran the verifier and reached a verdict, you can submit it for anchoring:
+
+1. Run `python3 protocol/agent_verifier.py --verifier-id <your-handle> --out result.json`
+2. Open a GitHub Issue titled `Verification result: <your-handle>` and attach or paste `result.json`
+3. The coordinator re-derives every claim locally (the same `--anchor-agent-result` path used for all existing entries) and anchors the outcome — match or mismatch — to the public ledger
+
+The first verification from an unaffiliated party will be the project's first cross-party independence record — every entry so far is same-operator, and the ledger says so on each record.
+
 ---
 
 ## Roadmap
