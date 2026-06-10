@@ -54,13 +54,35 @@ _REQUIRED_FIELDS = (
 _CONST_FIELDS = {
     "event": "external_verifier_submission",
     "stage": "R3",
-    "topology": "external-verifier-pilot",
     "zero_value": True,
     "no_token": True,
 }
 _HEX = set("0123456789abcdef")
 
-# The honest reproducibility-not-execution limitation, embedded in every ledger record.
+# topology is validated against an allowed SET (not a single const): a submission may be an
+# external-verifier-pilot OR an honest same-machine self-recompute. The anchored record
+# carries the submitted topology VERBATIM (never silently rewritten), and the event/status
+# naming differs per topology so no same-machine record can read as cross-machine ("external")
+# verification.
+_ALLOWED_TOPOLOGIES = ("external-verifier-pilot", "same-machine-self-recompute")
+_TOPOLOGY_PROFILE = {
+    "external-verifier-pilot": {
+        "event": "external_verification_result",
+        "verified_status": "externally-verified",
+        "mismatch_status": "external-mismatch",
+    },
+    "same-machine-self-recompute": {
+        "event": "self_recompute_result",
+        "verified_status": "locally-verified",
+        "mismatch_status": "local-mismatch",
+    },
+}
+
+# Honest self-description for the anchored records: the ledger entry is a REAL reproducibility
+# attestation; the task it concerns is an illustrative space-engineering calculation.
+_TASK_CLASS = "illustrative-demo"
+
+# The honest reproducibility-not-execution limitation, embedded in every external-pilot record.
 LIMITATION_NOTE = (
     "A matching output_hash proves REPRODUCIBILITY (the result was independently re-derived "
     "to the same canonical value); it does NOT cryptographically prove the external verifier "
@@ -68,6 +90,16 @@ LIMITATION_NOTE = (
     "separate person/org; execution-proof would need verifier-held signing keys and/or "
     "hardware attestation (future work, same interface). external-verifier-pilot — not "
     "consensus, not mainnet, not payment, not a token; zero-value research-stage."
+)
+
+# The honest limitation for a SAME-MACHINE self-recompute (used instead of LIMITATION_NOTE).
+SAME_MACHINE_LIMITATION_NOTE = (
+    "SAME-MACHINE self-recompute (research-stage, zero-value). The coordinator generated and "
+    "re-evaluated this submission on the SAME host; a matching output_hash proves the result "
+    "is REPRODUCIBLE run-to-run on this machine. This is NOT cross-machine and NOT independent "
+    "third-party verification — no separate party, machine, or platform is involved, so it "
+    "adds no cross-party independence (it is a stronger sibling of the deterministic re-run "
+    "check). A hash can be copied. Not consensus, not mainnet, not payment, not a token."
 )
 
 # --- agent-verifier-result schema (a DIFFERENT record type than a task submission) -------
@@ -110,6 +142,12 @@ def validate_submission(submission: dict):
         if submission.get(key) != expected:
             return (False, f"field '{key}' must be {expected!r} (got {submission.get(key)!r})")
 
+    # topology is an allowed-set field (not a single const) — accept both the external pilot
+    # and the honest same-machine self-recompute; reject anything else.
+    if submission.get("topology") not in _ALLOWED_TOPOLOGIES:
+        return (False, f"field 'topology' must be one of {_ALLOWED_TOPOLOGIES} "
+                       f"(got {submission.get('topology')!r})")
+
     if not isinstance(submission["verifier_id"], str) or not submission["verifier_id"]:
         return (False, "verifier_id must be a non-empty string")
     if not isinstance(submission["machine_fingerprint"], str):
@@ -146,9 +184,9 @@ def evaluate_submission(submission: dict, ledger: Ledger) -> dict:
     ok, reason = validate_submission(submission)
     if not ok:
         evaluation = {
-            "event": "external_verification_result",
+            "event": "submission_rejected",
             "stage": "R3",
-            "topology": "external-verifier-pilot",
+            "topology": submission.get("topology") if isinstance(submission, dict) else None,
             "status": "rejected",
             "reason": reason,
             "match": False,
@@ -167,15 +205,22 @@ def evaluate_submission(submission: dict, ledger: Ledger) -> dict:
 
     submitted_hash = submission["output_hash"]
     match = (submitted_hash == local_hash)
-    status = "externally-verified" if match else "external-mismatch"
+
+    # Carry the submitted topology VERBATIM and name the event/status from its profile, so a
+    # same-machine self-recompute can never read as cross-machine ("external") verification.
+    topo = submission["topology"]
+    profile = _TOPOLOGY_PROFILE[topo]
+    status = profile["verified_status"] if match else profile["mismatch_status"]
+    note = LIMITATION_NOTE if topo == "external-verifier-pilot" else SAME_MACHINE_LIMITATION_NOTE
 
     evaluation = {
-        "event": "external_verification_result",
+        "event": profile["event"],
         "stage": "R3",
-        "topology": "external-verifier-pilot",
+        "topology": topo,
         "status": status,
         "match": match,
         "task_id": task_id,
+        "task_class": _TASK_CLASS,
         "verifier_id": submission["verifier_id"],
         "verifier_machine_fingerprint": submission["machine_fingerprint"],
         "submitted_output_hash": submitted_hash,
@@ -184,9 +229,12 @@ def evaluate_submission(submission: dict, ledger: Ledger) -> dict:
         "anchored": True,
         "zero_value": True,
         "no_token": True,
-        "limitation_note": LIMITATION_NOTE,
+        "limitation_note": note,
         "evaluated_at": time.time(),
     }
+    if topo == "same-machine-self-recompute":
+        # explicit, in addition to the verifier_id encoding it, so the relationship is unmissable
+        evaluation["operator_relationship"] = "same-operator"
     entry = ledger.append(evaluation)
     return {"evaluation": evaluation, "ledger_entry": entry}
 
@@ -386,6 +434,7 @@ def anchor_agent_result(result: dict, ledger: Ledger, snapshot_path: str, anchor
         "stage": "R-protocol",
         "topology": "agent-verifier",
         "status": status,
+        "task_class": _TASK_CLASS,
         "agent_verdict": agent_verdict,
         "spark_reconfirmed": {
             "chain_verified": rederived["chain_verified"],
@@ -463,6 +512,7 @@ def _selftest() -> int:
     checks = []
     sample_submission = None
     sample_evaluation = None
+    sample_same_evaluation = None
     signed_attestation = None
     agent_confirmed_payload = None
     try:
@@ -484,6 +534,36 @@ def _selftest() -> int:
             and res_valid["evaluation"]["match"] is True
             and res_valid["ledger_entry"] is not None,
             res_valid["evaluation"]["status"],
+        ))
+
+        # (1b) the anchored external result carries the honest task_class label
+        checks.append((
+            "TASK_CLASS LABEL on anchored result (illustrative-demo)",
+            res_valid["evaluation"].get("task_class") == "illustrative-demo",
+            f"task_class={res_valid['evaluation'].get('task_class')!r}",
+        ))
+
+        # (1c) HONEST SAME-MACHINE self-recompute -> locally-verified (NOT 'external') -> anchored.
+        # No reader can mistake this for cross-machine verification: topology, event, and status
+        # all avoid 'external', and operator_relationship is recorded explicitly.
+        same_machine_sub = verifier_cli.build_submission(
+            TASK, "spark-local-same-operator (simulated)",
+            topology="same-machine-self-recompute",
+        )
+        res_same = evaluate_submission(same_machine_sub, ledger)
+        sample_same_evaluation = res_same["evaluation"]
+        ev_s = res_same["evaluation"]
+        checks.append((
+            "SAME-MACHINE SELF-RECOMPUTE (locally-verified; event/topology never 'external')",
+            ev_s["status"] == "locally-verified"
+            and ev_s["event"] == "self_recompute_result"
+            and ev_s["topology"] == "same-machine-self-recompute"
+            and ev_s.get("task_class") == "illustrative-demo"
+            and ev_s.get("operator_relationship") == "same-operator"
+            and "external" not in ev_s["status"]
+            and "external" not in ev_s["event"]
+            and res_same["ledger_entry"] is not None,
+            f"{ev_s['status']} / {ev_s['event']} / {ev_s['topology']}",
         ))
 
         # (2) WRONG-hash submission -> external-mismatch -> anchored
@@ -582,6 +662,13 @@ def _selftest() -> int:
             out_a["evaluation"]["status"],
         ))
 
+        # (6b) the anchored agent-result carries the honest task_class label
+        checks.append((
+            "AGENT-RESULT task_class label (illustrative-demo)",
+            out_a["evaluation"].get("task_class") == "illustrative-demo",
+            f"task_class={out_a['evaluation'].get('task_class')!r}",
+        ))
+
         # (7) WRONG recomputed_hash in task_reproductions -> Spark reproduces real hash, disagrees
         ledger_b = os.path.join(tmp, "agent_B.jsonl")
         _copyfile(agent_base, ledger_b)
@@ -621,6 +708,10 @@ def _selftest() -> int:
         print()
         print("--- coordinator evaluation of that submission (externally-verified) ---")
         print(json.dumps(sample_evaluation, indent=2, sort_keys=True))
+        print()
+        print("--- sample SAME-MACHINE self-recompute evaluation (locally-verified; NOT external; "
+              "carries task_class + operator_relationship) ---")
+        print(json.dumps(sample_same_evaluation, indent=2, sort_keys=True))
         print()
         print("--- OPTIONAL attached R2 software-key MAC (symmetric; not a signature; not hardware; not execution-proof) ---")
         print(json.dumps(signed_attestation, indent=2, sort_keys=True))
@@ -754,8 +845,9 @@ def _cmd_evaluate(submission_path: str, ledger_path: str) -> int:
     ok, vreason = ledger.verify_chain()
     print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
 
-    # 0 only for a genuine external verification; mismatch is a real but non-zero outcome.
-    return 0 if status == "externally-verified" else 1
+    # 0 only for a genuine verification (external pilot OR same-machine self-recompute);
+    # a mismatch is a real but non-zero outcome.
+    return 0 if status in ("externally-verified", "locally-verified") else 1
 
 
 def _cmd_anchor_agent_result(result_path: str, ledger_path: str, snapshot_path: str,

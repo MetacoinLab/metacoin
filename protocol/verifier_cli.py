@@ -69,6 +69,22 @@ HONEST_NOTE = (
     "mainnet, not payment, not a token."
 )
 
+# Honest topology labels. Default is the external-verifier pilot (a separate party/machine).
+# The same-machine variant is for THIS host generating AND evaluating its own submission —
+# it is NOT cross-machine and must never be presented as independent verification.
+DEFAULT_TOPOLOGY = "external-verifier-pilot"
+SAME_MACHINE_TOPOLOGY = "same-machine-self-recompute"
+ALLOWED_TOPOLOGIES = (DEFAULT_TOPOLOGY, SAME_MACHINE_TOPOLOGY)
+
+# Honest note for a same-machine self-recompute submission (used instead of HONEST_NOTE).
+SAME_MACHINE_NOTE = (
+    "same-machine-self-recompute (research-stage, zero-value). The SAME host generated and "
+    "will evaluate this submission; a matching output_hash proves the computation is "
+    "REPRODUCIBLE run-to-run on this machine. It is NOT cross-machine and NOT independent "
+    "third-party verification — no separate party, machine, or platform is involved. A hash "
+    "can be copied. Not consensus, not mainnet, not payment, not a token."
+)
+
 
 def normalize_task_id(task_id: str) -> str:
     """Normalize a task id to a known short key (e.g. 'task-0002-orbit...' -> 'task-0002')."""
@@ -124,13 +140,18 @@ def get_repo_commit() -> str:
     return "unknown"
 
 
-def build_submission(task_id: str, verifier_id: str, key_path: str = None) -> dict:
+def build_submission(task_id: str, verifier_id: str, key_path: str = None,
+                     topology: str = DEFAULT_TOPOLOGY) -> dict:
     """Run the named task locally and build the external-verifier submission record.
 
     The output_hash is computed by the task module's own canonical_json/output_hash, so it
     matches whatever the coordinator recomputes locally for the same task. If `key_path` is
     given, an OPTIONAL R2 software-key MAC (HMAC-SHA256) is attached and labeled honestly —
     it binds this submission to a key the verifier holds but does NOT prove execution.
+
+    `topology` is carried verbatim (default the external-verifier pilot). Use
+    SAME_MACHINE_TOPOLOGY for an honest same-machine self-recompute; the note is chosen to
+    match so the submission never overclaims cross-machine independence.
     """
     short = normalize_task_id(task_id)
     module = importlib.import_module(TASK_MODULES[short])
@@ -141,7 +162,7 @@ def build_submission(task_id: str, verifier_id: str, key_path: str = None) -> di
     submission = {
         "event": "external_verifier_submission",
         "stage": "R3",
-        "topology": "external-verifier-pilot",
+        "topology": topology,
         "task_id": short,
         "verifier_id": verifier_id,
         "machine_fingerprint": machine_fingerprint(),
@@ -151,7 +172,7 @@ def build_submission(task_id: str, verifier_id: str, key_path: str = None) -> di
         "environment_summary": environment_summary(),
         "zero_value": True,
         "no_token": True,
-        "honest_note": HONEST_NOTE,
+        "honest_note": HONEST_NOTE if topology == DEFAULT_TOPOLOGY else SAME_MACHINE_NOTE,
     }
 
     if key_path:
@@ -192,6 +213,11 @@ def main(argv=None) -> int:
                         help="task id to re-run, e.g. task-0002 (short or full form)")
     parser.add_argument("--verifier-id", required=True,
                         help="name/handle of the external verifier (ideally a separate person or org)")
+    parser.add_argument("--topology", default=DEFAULT_TOPOLOGY, choices=list(ALLOWED_TOPOLOGIES),
+                        help="honest topology label carried verbatim into the record: "
+                             "'external-verifier-pilot' (default; a separate party/machine) or "
+                             "'same-machine-self-recompute' (THIS host generates AND evaluates its "
+                             "own submission — NOT cross-machine, NOT independent verification)")
     parser.add_argument("--out",
                         help="write the submission JSON to this file (default: print to stdout)")
     parser.add_argument("--key",
@@ -200,7 +226,8 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        submission = build_submission(args.task, args.verifier_id, key_path=args.key)
+        submission = build_submission(args.task, args.verifier_id, key_path=args.key,
+                                      topology=args.topology)
     except KeyError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

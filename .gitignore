@@ -23,6 +23,9 @@ protocol/attest_key.secret
 # external-verifier submissions are local artifacts, not committed (any directory)
 submission.json
 *submission*.json
+# same-machine self-recompute submission files (named sub_<task-id>.json) are also local
+# input artifacts, never committed (the canonical record is the ANCHORED ledger entry).
+sub_*.json
 # keep the tracked submission JSON Schema spec (not a local artifact; must stay versioned)
 !protocol/verifier_submission.schema.json
 
@@ -36,3 +39,6 @@ submission.json
 # platform prefix (e.g. windows_/mac_) and versioned variants, while NOT shadowing the
 # tracked tool protocol/agent_verifier.py (a .py with no "result" in its name).
 *agent_verifier_result*.json
+# also catch the batch agent-result file naming (e.g. spark_agent_result.json), which uses
+# 'agent_result' rather than 'agent_verifier_result' and would otherwise escape the glob above.
+*agent_result*.json

@@ -29,8 +29,8 @@
       "description": "Protocol stage."
     },
     "topology": {
-      "const": "external-verifier-pilot",
-      "description": "Honest topology label. This is a pilot, not decentralized consensus."
+      "enum": ["external-verifier-pilot", "same-machine-self-recompute"],
+      "description": "Honest topology label, carried verbatim into the ledger. 'external-verifier-pilot' = a separate party/machine re-ran the task; 'same-machine-self-recompute' = THIS host generated AND evaluated its own submission (NOT cross-machine, NOT independent verification). Either way: a pilot, not decentralized consensus."
     },
     "task_id": {
       "type": "string",
