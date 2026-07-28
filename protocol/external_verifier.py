@@ -45,6 +45,7 @@ from protocol.ledger import Ledger, DEFAULT_LEDGER_PATH
 import protocol.verifier_cli as verifier_cli
 import protocol.audit as audit  # reused to independently re-derive chain/anchor claims
 import protocol.work_molecule as work_molecule  # reused to REBUILD molecule catalogs
+import protocol.agent_concentration as agent_concentration  # reused to RECOMPUTE ACI reports
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -488,6 +489,138 @@ def anchor_agent_result(result: dict, ledger: Ledger, snapshot_path: str, anchor
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# --- ACI-baseline anchoring (a FOURTH record type) ---------------------------------------
+# The ACI report (protocol/agent_concentration.py) is the protocol's self-measurement of
+# verification-path concentration. The coordinator RECOMPUTES the FULL report itself
+# (rebuild all molecules -> recompute every pairwise score -> compare report_hash) before
+# anchoring — the same coordinator-reconfirms pattern: never trust the file.
+_ACI_EVENT = "aci_baseline_anchored"
+
+ACI_LIMITATION_NOTE = (
+    "This is the protocol's DELIBERATE SELF-MEASUREMENT of its own maximal-concentration "
+    "baseline: every verification path measured is operated by the SAME operator. ACI is "
+    "DESCRIPTIVE evidence, never a minting trigger or reward signal, and a low value is "
+    "not proof of independence. Pairwise ACI_2 only — higher-order concentration is not "
+    "measured. Unknown metadata is scored worst-case (never as independence) and flagged. "
+    "Not consensus, not mainnet, not payment, not a token; zero-value research-stage."
+)
+
+
+def validate_aci_report(report: dict):
+    """Structurally validate an ACI report file. Returns (ok, reason).
+
+    Internal inconsistency (a report_hash that does not recompute from the file's own
+    content) is MALFORMED input -> rejected before any ledger write. Whether the
+    MEASUREMENT is right is decided by the full recompute in anchor_aci_report.
+    """
+    if not isinstance(report, dict):
+        return (False, "ACI report is not a JSON object")
+    if report.get("schema") != agent_concentration.SCHEMA_VERSION:
+        return (False, f"field 'schema' must be {agent_concentration.SCHEMA_VERSION!r} "
+                       f"(got {report.get('schema')!r})")
+    if report.get("weights_version") != agent_concentration.WEIGHTS_VERSION:
+        return (False, f"field 'weights_version' must be "
+                       f"{agent_concentration.WEIGHTS_VERSION!r} "
+                       f"(got {report.get('weights_version')!r})")
+    for field in ("path_count", "pair_count", "missing_metadata_count"):
+        v = report.get(field)
+        if not isinstance(v, int) or isinstance(v, bool) or v < 0:
+            return (False, f"field '{field}' must be a non-negative integer")
+    for field in ("pairwise_aci", "eis"):
+        v = report.get(field)
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            return (False, f"field '{field}' must be a number")
+    if not isinstance(report.get("concentration_profile"), dict):
+        return (False, "concentration_profile must be a JSON object")
+    cov = report.get("metadata_coverage")
+    if not isinstance(cov, dict) or not isinstance(cov.get("coverage_ratio"), (int, float)):
+        return (False, "metadata_coverage.coverage_ratio must be a number")
+    rh = report.get("report_hash")
+    if not isinstance(rh, str) or len(rh) != 64 or any(c not in _HEX for c in rh):
+        return (False, "report_hash must be a 64-char lowercase hex sha256")
+    if agent_concentration.compute_report_hash(report) != rh:
+        return (False, "report_hash does not recompute from the report's own content "
+                       "(internally inconsistent file)")
+    return (True, "ok: conforms to the aci-report schema")
+
+
+def anchor_aci_report(report: dict, ledger: Ledger) -> dict:
+    """Validate + RECOMPUTE + anchor an ACI baseline report. Returns {evaluation, ledger_entry}.
+
+    Malformed -> 'rejected', NOT anchored. Otherwise the coordinator RECOMPUTES the full
+    report from the ledger itself (rebuild all molecules -> recompute ACI -> compare
+    report_hash): match -> 'aci-baseline-confirmed'; anything else ->
+    'aci-baseline-mismatch' (a real audit event). Both outcomes anchored.
+    """
+    ok, reason = validate_aci_report(report)
+    if not ok:
+        evaluation = {
+            "event": _ACI_EVENT,
+            "stage": "R-concentration",
+            "topology": "same-machine-aci-measurement",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": ACI_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    # RECOMPUTE the full report from this ledger (coordinator-reconfirms; never trust
+    # the file): rebuild every molecule, re-derive every path, re-score every pair.
+    recompute_error = None
+    recomputed = None
+    try:
+        recomputed = agent_concentration.compute_report(
+            agent_concentration.build_paths(ledger_path=ledger.path)
+        )
+    except (KeyError, ValueError) as exc:
+        recompute_error = f"{type(exc).__name__}: {exc}"
+    hash_matches = bool(recomputed is not None
+                        and recomputed["report_hash"] == report["report_hash"])
+    status = "aci-baseline-confirmed" if hash_matches else "aci-baseline-mismatch"
+
+    # AGGREGATE NUMBERS ONLY — no per-path list. And deliberately NO task_id / task_ids
+    # keys anywhere in this payload: work_molecule's citation scanner treats those keys
+    # as "this record verifies that task" and would pull this record into every
+    # molecule's verification_events, changing every WMID (and hence the ACI report
+    # itself) each time a baseline is anchored. This record MEASURES the paths; it does
+    # not verify tasks, so it must stay invisible to the scanner.
+    evaluation = {
+        "event": _ACI_EVENT,
+        "stage": "R-concentration",
+        "topology": "same-machine-aci-measurement",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "report_schema": report["schema"],
+        "weights_version": report["weights_version"],
+        "report_hash": report["report_hash"],
+        "path_count": report["path_count"],
+        "pair_count": report["pair_count"],
+        "pairwise_aci": report["pairwise_aci"],
+        "eis": report["eis"],
+        "concentration_profile": dict(report["concentration_profile"]),
+        "missing_metadata_flag_count": report["missing_metadata_count"],
+        "metadata_coverage_ratio": report["metadata_coverage"]["coverage_ratio"],
+        "coordinator_reconfirmed": {
+            "recomputed_report_hash": recomputed["report_hash"] if recomputed else None,
+            "report_hash_matches": hash_matches,
+            "recomputed_pairwise_aci": recomputed["pairwise_aci"] if recomputed else None,
+            "recomputed_path_count": recomputed["path_count"] if recomputed else 0,
+            "recompute_error": recompute_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": ACI_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # ----------------------------------------------------------------------------
 # Work-molecule catalog anchoring: validate + REBUILD-and-compare + anchor.
 # ----------------------------------------------------------------------------
@@ -898,6 +1031,86 @@ def _selftest() -> int:
             out_tcat["evaluation"]["status"],
         ))
 
+        # --- ACI-BASELINE mode coverage (recompute-and-compare anchoring) ----------------
+        # The recompute path rebuilds a molecule for EVERY known task, so the fixture
+        # ledger must reference all of them: one same-machine evaluation per task.
+        # All TEMP paths — the real ledger is never touched.
+        aci_ledger_path = os.path.join(tmp, "aci_ledger.jsonl")
+        aled = Ledger(aci_ledger_path)
+        aled.append({"event": "ledger_genesis", "stage": "R-protocol",
+                     "note": "temp chain-start (self-test)", "zero_value": True,
+                     "no_token": True})
+        for tid in sorted(verifier_cli.TASK_MODULES):
+            evaluate_submission(
+                verifier_cli.build_submission(
+                    tid, "spark-local-same-operator (simulated)",
+                    topology="same-machine-self-recompute"),
+                aled,
+            )
+        aci_report = agent_concentration.compute_report(
+            agent_concentration.build_paths(ledger_path=aci_ledger_path)
+        )
+
+        # (12) valid report -> coordinator recompute confirms -> anchored; the payload
+        # must carry aggregates only and NO task_id/task_ids keys (scanner-invisible),
+        # and re-measuring from the grown ledger must reproduce the same report_hash.
+        aci_ledger_a = os.path.join(tmp, "aci_ledger_a.jsonl")
+        _copyfile(aci_ledger_path, aci_ledger_a)
+        out_aci = anchor_aci_report(aci_report, Ledger(aci_ledger_a))
+        ev_aci = out_aci["evaluation"]
+        aci_chain_ok, _aci_reason = Ledger(aci_ledger_a).verify_chain()
+        checks.append((
+            "ACI-BASELINE CONFIRMED (full recompute from ledger -> anchored)",
+            ev_aci["status"] == "aci-baseline-confirmed"
+            and out_aci["ledger_entry"] is not None
+            and ev_aci["coordinator_reconfirmed"]["report_hash_matches"] is True
+            and aci_chain_ok is True,
+            ev_aci["status"],
+        ))
+        checks.append((
+            "ACI RECORD aggregates only, no task_id-like keys (scanner-invisible)",
+            "task_id" not in ev_aci and "task_ids" not in ev_aci
+            and "paths" not in ev_aci and "missing_metadata_flags" not in ev_aci,
+            f"task-keys={sorted(k for k in ev_aci if 'task_id' in k)}",
+        ))
+        aci_after = agent_concentration.compute_report(
+            agent_concentration.build_paths(ledger_path=aci_ledger_a)
+        )
+        checks.append((
+            "ACI REMEASURE AFTER ANCHOR unchanged (record invisible to the measurement)",
+            aci_after["report_hash"] == aci_report["report_hash"],
+            f"report_hash={aci_after['report_hash'][:16]}..",
+        ))
+
+        # (13) internally-inconsistent report_hash -> rejected -> NOT anchored
+        bad_aci = dict(aci_report)
+        bad_aci["report_hash"] = "0" * 64
+        aci_ledger_b = os.path.join(tmp, "aci_ledger_b.jsonl")
+        _copyfile(aci_ledger_path, aci_ledger_b)
+        out_badaci = anchor_aci_report(bad_aci, Ledger(aci_ledger_b))
+        checks.append((
+            "ACI REJECTED (inconsistent report_hash -> NOT anchored)",
+            out_badaci["evaluation"]["status"] == "rejected"
+            and out_badaci["ledger_entry"] is None,
+            f"{out_badaci['evaluation']['status']} ({out_badaci['evaluation'].get('reason')})",
+        ))
+
+        # (14) internally consistent but WRONG measurement -> coordinator recompute
+        # disagrees -> 'aci-baseline-mismatch', anchored (a real audit event)
+        tampered_aci = json.loads(json.dumps(aci_report))
+        tampered_aci["pairwise_aci"] = 0.0
+        tampered_aci["report_hash"] = agent_concentration.compute_report_hash(tampered_aci)
+        aci_ledger_c = os.path.join(tmp, "aci_ledger_c.jsonl")
+        _copyfile(aci_ledger_path, aci_ledger_c)
+        out_taci = anchor_aci_report(tampered_aci, Ledger(aci_ledger_c))
+        checks.append((
+            "ACI MISMATCH (wrong measurement -> recompute disagrees -> anchored audit event)",
+            out_taci["evaluation"]["status"] == "aci-baseline-mismatch"
+            and out_taci["ledger_entry"] is not None
+            and out_taci["evaluation"]["coordinator_reconfirmed"]["report_hash_matches"] is False,
+            out_taci["evaluation"]["status"],
+        ))
+
         # --- report ---------------------------------------------------------
         print("=== protocol/external_verifier.py self-test — R3 EXTERNAL-VERIFIER-PILOT ===")
         print("HONEST: a matching output_hash proves REPRODUCIBILITY, NOT execution (a hash")
@@ -1175,6 +1388,66 @@ def _cmd_anchor_molecule_catalog(catalog_path: str, ledger_path: str) -> int:
     return 0 if status == "molecule-catalog-confirmed" else 1
 
 
+def _cmd_anchor_aci_report(report_path: str, ledger_path: str) -> int:
+    """Load an ACI report, RECOMPUTE it from the ledger, anchor the outcome.
+
+    Exit codes: 0 = aci-baseline-confirmed; non-zero = mismatch or rejected.
+    A missing/invalid file is 'rejected' and anchors nothing.
+    """
+    print(BANNER)
+
+    # Load defensively; any load failure is a rejection (no anchor).
+    reason = None
+    report = None
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            report = json.load(f)
+    except FileNotFoundError:
+        reason = f"ACI report file not found: {report_path}"
+    except json.JSONDecodeError as exc:
+        reason = f"ACI report file is not valid JSON ({exc})"
+    except OSError as exc:
+        reason = f"could not read ACI report file ({exc})"
+    if reason is None and not isinstance(report, dict):
+        reason = "ACI report JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    out = anchor_aci_report(report, ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}")
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed -> not written to the ledger)")
+        return 1
+
+    cr = ev["coordinator_reconfirmed"]
+    print(f"report_hash:            {ev['report_hash']}")
+    print(f"recomputed_report_hash: {cr['recomputed_report_hash']}")
+    print("coordinator recompute (full rebuild + re-score here — NOT trusting the file):")
+    print(f"  report_hash_matches : {cr['report_hash_matches']}")
+    print(f"  pairwise_aci        : {ev['pairwise_aci']}  (recomputed: {cr['recomputed_pairwise_aci']})")
+    print(f"  eis                 : {ev['eis']}")
+    print(f"  paths/pairs         : {ev['path_count']}/{ev['pair_count']}")
+    print(f"  concentration       : {ev['concentration_profile']}")
+    print(f"  missing-metadata    : {ev['missing_metadata_flag_count']} flags, "
+          f"coverage {ev['metadata_coverage_ratio']:.4f}")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    # 0 only when the coordinator's own recompute reproduces the submitted report_hash.
+    return 0 if status == "aci-baseline-confirmed" else 1
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -1209,6 +1482,12 @@ def main(argv=None) -> int:
         help="ingest a work-molecule catalog (work_molecule.py --catalog); REBUILD every "
              "molecule from the ledger, recompute the catalog hash, and anchor the outcome",
     )
+    mode.add_argument(
+        "--anchor-aci-report", metavar="ACI_REPORT_JSON",
+        help="ingest an ACI report (agent_concentration.py --report); RECOMPUTE the full "
+             "report from the ledger, compare report_hash, and anchor the outcome "
+             "(aggregate numbers only)",
+    )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
         help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
@@ -1238,6 +1517,8 @@ def main(argv=None) -> int:
         )
     if args.anchor_molecule_catalog is not None:
         return _cmd_anchor_molecule_catalog(args.anchor_molecule_catalog, args.ledger)
+    if args.anchor_aci_report is not None:
+        return _cmd_anchor_aci_report(args.anchor_aci_report, args.ledger)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
