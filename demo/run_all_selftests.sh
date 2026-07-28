@@ -31,6 +31,7 @@ TESTS=(
     "test_meta_faucet.py"
     "x402_spend_stub.py"
     "agent_loop.py"
+    "economy_demo.py"
 )
 
 # Parallel arrays: names and their captured exit codes.

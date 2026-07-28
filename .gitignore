@@ -51,3 +51,9 @@ wm_*.json
 # ACI reports (agent_concentration.py --report) are derived, reconstructible artifacts —
 # local only, never committed (the module re-derives them from the ledger deterministically).
 aci_report*.json
+
+# 30-day simulated-economy artifacts (economy_demo.py): persistent state + final log —
+# derived, deterministic, reconstructible local artifacts, never committed (the canonical
+# record is the ANCHORED summary; simulated day indices, zero value, no token).
+economy_state.json
+economy_log.json

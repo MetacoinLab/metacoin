@@ -46,6 +46,7 @@ import protocol.verifier_cli as verifier_cli
 import protocol.audit as audit  # reused to independently re-derive chain/anchor claims
 import protocol.work_molecule as work_molecule  # reused to REBUILD molecule catalogs
 import protocol.agent_concentration as agent_concentration  # reused to RECOMPUTE ACI reports
+import demo.economy_demo as economy_demo  # reused to RE-RUN the full simulated economy
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -621,6 +622,146 @@ def anchor_aci_report(report: dict, ledger: Ledger) -> dict:
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# --- economy-demo summary anchoring (a FIFTH record type) --------------------------------
+# The economy log (demo/economy_demo.py) records the deterministic SIMULATED 30-day
+# earn->verify->spend loop. The coordinator RE-RUNS THE ENTIRE SIMULATION itself
+# (fresh state, in-process) and compares log hashes before anchoring — the same
+# coordinator-reconfirms pattern: never trust the file.
+_ECONOMY_EVENT = "economy_demo_summary_anchored"
+
+ECONOMY_LIMITATION_NOTE = (
+    "Deterministic SIMULATED-day economy demo by the same operator — proves the "
+    "earn->verify->spend loop MECHANICS with zero-value Test-META. The 30 days are "
+    "simulated day indices, NOT real time; the loop is scripted determinism, NOT market "
+    "behavior. The single rejection is a PLANNED tamper drill (labeled drill=true), not "
+    "detected fraud. A matching log hash proves deterministic REPRODUCIBILITY of the "
+    "simulation, not independence, not payment, not consensus, not a token; zero-value "
+    "research-stage."
+)
+
+
+def validate_economy_log(log: dict):
+    """Structurally validate an economy log file. Returns (ok, reason).
+
+    Internal inconsistency (an economy_log_hash that does not recompute from the file's
+    own content) is MALFORMED input -> rejected before any ledger write. Whether the
+    SIMULATION is right is decided by the full re-run in anchor_economy_summary.
+    """
+    if not isinstance(log, dict):
+        return (False, "economy log is not a JSON object")
+    if log.get("schema") != economy_demo.SCHEMA_VERSION:
+        return (False, f"field 'schema' must be {economy_demo.SCHEMA_VERSION!r} "
+                       f"(got {log.get('schema')!r})")
+    if log.get("simulated_days") != economy_demo.SIMULATED_DAYS:
+        return (False, f"field 'simulated_days' must be {economy_demo.SIMULATED_DAYS} "
+                       f"(got {log.get('simulated_days')!r})")
+    per_day = log.get("per_day")
+    if not isinstance(per_day, list) or len(per_day) != economy_demo.SIMULATED_DAYS:
+        return (False, f"per_day must be a list of exactly "
+                       f"{economy_demo.SIMULATED_DAYS} entries")
+    summary = log.get("summary")
+    if not isinstance(summary, dict):
+        return (False, "summary must be a JSON object")
+    for field in ("verified_count", "rejected_count", "total_earned", "total_spent",
+                  "final_balance", "distinct_task_count"):
+        v = summary.get(field)
+        if not isinstance(v, (int, float)) or isinstance(v, bool):
+            return (False, f"summary.{field} must be a number")
+    labels = log.get("labels")
+    if not isinstance(labels, dict):
+        return (False, "labels must be a JSON object")
+    for field in ("zero_value", "no_token", "simulated_time"):
+        if labels.get(field) is not True:
+            return (False, f"labels.{field} must be true (honest labels are mandatory)")
+    if labels.get("operator_relationship") != "same-operator":
+        return (False, "labels.operator_relationship must be 'same-operator'")
+    lh = log.get("economy_log_hash")
+    if not isinstance(lh, str) or len(lh) != 64 or any(c not in _HEX for c in lh):
+        return (False, "economy_log_hash must be a 64-char lowercase hex sha256")
+    if economy_demo.compute_log_hash(log) != lh:
+        return (False, "economy_log_hash does not recompute from the log's own content "
+                       "(internally inconsistent file)")
+    return (True, "ok: conforms to the economy-log schema")
+
+
+def anchor_economy_summary(log: dict, ledger: Ledger) -> dict:
+    """Validate + RE-RUN + anchor an economy-demo summary. Returns {evaluation, ledger_entry}.
+
+    Malformed -> 'rejected', NOT anchored. Otherwise the coordinator RE-RUNS the entire
+    30-simulated-day economy itself (fresh state, in-process) and compares log hashes:
+    match -> 'economy-demo-confirmed'; anything else -> 'economy-demo-mismatch' (a real
+    audit event). Both outcomes anchored.
+    """
+    ok, reason = validate_economy_log(log)
+    if not ok:
+        evaluation = {
+            "event": _ECONOMY_EVENT,
+            "stage": "Phase-1",
+            "topology": "same-machine-simulated-economy",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": ECONOMY_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    # RE-RUN the whole simulation (coordinator-reconfirms; never trust the file).
+    rerun_error = None
+    rerun = None
+    try:
+        rerun = economy_demo.simulate_all()
+    except (AssertionError, KeyError, ValueError) as exc:
+        rerun_error = f"{type(exc).__name__}: {exc}"
+    hash_matches = bool(rerun is not None
+                        and rerun["economy_log_hash"] == log["economy_log_hash"])
+    status = "economy-demo-confirmed" if hash_matches else "economy-demo-mismatch"
+
+    summary = log["summary"]
+    # AGGREGATES ONLY — no per-day list. And deliberately NO task_id / task_ids keys
+    # anywhere in this payload: work_molecule's citation scanner treats those keys as
+    # "this record verifies that task" and would pull this record into every molecule's
+    # verification_events, changing every WMID (and the ACI report) each time an
+    # economy summary is anchored. distinct_task_count carries the coverage claim —
+    # never a task list. This record summarizes a simulation; it verifies no task.
+    evaluation = {
+        "event": _ECONOMY_EVENT,
+        "stage": "Phase-1",
+        "topology": "same-machine-simulated-economy",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "log_schema": log["schema"],
+        "economy_log_hash": log["economy_log_hash"],
+        "simulated_days": log["simulated_days"],
+        "verified_count": summary["verified_count"],
+        "rejected_count": summary["rejected_count"],
+        # every rejection that was a PLANNED drill (drill=true in the log) — for the
+        # 30-day demo this is the single day-17 tamper drill, never detected fraud
+        "planned_drill_rejections": sum(
+            1 for e in log["per_day"] if e.get("drill") and not e.get("verified")
+        ),
+        "total_earned": summary["total_earned"],
+        "total_spent": summary["total_spent"],
+        "final_balance": summary["final_balance"],
+        "distinct_task_count": summary["distinct_task_count"],
+        "coordinator_reconfirmed": {
+            "rerun_log_hash": rerun["economy_log_hash"] if rerun else None,
+            "log_hash_matches": hash_matches,
+            "rerun_final_balance": rerun["summary"]["final_balance"] if rerun else None,
+            "rerun_error": rerun_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": ECONOMY_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # ----------------------------------------------------------------------------
 # Work-molecule catalog anchoring: validate + REBUILD-and-compare + anchor.
 # ----------------------------------------------------------------------------
@@ -1111,6 +1252,102 @@ def _selftest() -> int:
             out_taci["evaluation"]["status"],
         ))
 
+        # --- ECONOMY-SUMMARY mode coverage (re-run-and-compare anchoring) ----------------
+        # The economy simulation is ledger-independent (it runs tasks + the faucet), so
+        # one in-memory run serves as the "submitted" log. All TEMP ledger paths.
+        econ_log = economy_demo.simulate_all()
+
+        # (15) valid log -> coordinator full re-run confirms -> anchored; aggregates
+        # only, and NO task_id/task_ids keys (scanner-invisible).
+        econ_ledger_a = os.path.join(tmp, "econ_ledger_a.jsonl")
+        _copyfile(ledger_path, econ_ledger_a)
+        out_econ = anchor_economy_summary(econ_log, Ledger(econ_ledger_a))
+        ev_econ = out_econ["evaluation"]
+        econ_chain_ok, _econ_reason = Ledger(econ_ledger_a).verify_chain()
+        checks.append((
+            "ECONOMY-SUMMARY CONFIRMED (full simulation re-run -> anchored)",
+            ev_econ["status"] == "economy-demo-confirmed"
+            and out_econ["ledger_entry"] is not None
+            and ev_econ["coordinator_reconfirmed"]["log_hash_matches"] is True
+            and econ_chain_ok is True,
+            ev_econ["status"],
+        ))
+        checks.append((
+            "ECONOMY RECORD aggregates only, no task_id-like keys (scanner-invisible)",
+            "task_id" not in ev_econ and "task_ids" not in ev_econ
+            and "per_day" not in ev_econ
+            and ev_econ["planned_drill_rejections"] == ev_econ["rejected_count"] == 1,
+            f"task-keys={sorted(k for k in ev_econ if 'task_id' in k)}",
+        ))
+
+        # (16) internally-inconsistent economy_log_hash -> rejected -> NOT anchored
+        bad_econ = dict(econ_log)
+        bad_econ["economy_log_hash"] = "0" * 64
+        econ_ledger_b = os.path.join(tmp, "econ_ledger_b.jsonl")
+        _copyfile(ledger_path, econ_ledger_b)
+        out_badecon = anchor_economy_summary(bad_econ, Ledger(econ_ledger_b))
+        checks.append((
+            "ECONOMY REJECTED (inconsistent log hash -> NOT anchored)",
+            out_badecon["evaluation"]["status"] == "rejected"
+            and out_badecon["ledger_entry"] is None,
+            f"{out_badecon['evaluation']['status']} "
+            f"({out_badecon['evaluation'].get('reason')})",
+        ))
+
+        # (17) internally consistent but WRONG simulation content -> coordinator re-run
+        # disagrees -> 'economy-demo-mismatch', anchored (a real audit event)
+        tampered_econ = json.loads(json.dumps(econ_log))
+        tampered_econ["summary"]["final_balance"] = 9999
+        tampered_econ["economy_log_hash"] = economy_demo.compute_log_hash(tampered_econ)
+        econ_ledger_c = os.path.join(tmp, "econ_ledger_c.jsonl")
+        _copyfile(ledger_path, econ_ledger_c)
+        out_tecon = anchor_economy_summary(tampered_econ, Ledger(econ_ledger_c))
+        checks.append((
+            "ECONOMY MISMATCH (wrong content -> re-run disagrees -> anchored audit event)",
+            out_tecon["evaluation"]["status"] == "economy-demo-mismatch"
+            and out_tecon["ledger_entry"] is not None
+            and out_tecon["evaluation"]["coordinator_reconfirmed"]["log_hash_matches"] is False,
+            out_tecon["evaluation"]["status"],
+        ))
+
+        # (18) TRIPLE STABILITY after a temp anchor onto a copy of the REAL ledger
+        # (conditional — the runtime ledger is gitignored and absent in CI): the
+        # economy record must leave molecule WMIDs (idx-17 catalog), the ACI
+        # report_hash (idx-18), and the economy's own hash all unchanged.
+        real_ledger = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "ledger_data.jsonl"
+        )
+        real_entries = []
+        if os.path.exists(real_ledger):
+            with open(real_ledger, "r", encoding="utf-8") as f:
+                real_entries = [json.loads(ln) for ln in f if ln.strip()]
+        idx17 = next((e for e in real_entries
+                      if e["payload"].get("event") == "work_molecule_catalog_anchored"),
+                     None)
+        idx18 = next((e for e in real_entries
+                      if e["payload"].get("event") == "aci_baseline_anchored"), None)
+        if idx17 is not None and idx18 is not None:
+            triple_ledger = os.path.join(tmp, "triple_ledger.jsonl")
+            _copyfile(real_ledger, triple_ledger)
+            out_triple = anchor_economy_summary(econ_log, Ledger(triple_ledger))
+            cat_after = work_molecule.build_catalog(ledger_path=triple_ledger)
+            aci_after = agent_concentration.compute_report(
+                agent_concentration.build_paths(ledger_path=triple_ledger)
+            )
+            checks.append((
+                "TRIPLE STABILITY after temp anchor (WMIDs + ACI hash + economy hash)",
+                out_triple["evaluation"]["status"] == "economy-demo-confirmed"
+                and cat_after["catalog_hash"] == idx17["payload"]["catalog_hash"]
+                and aci_after["report_hash"] == idx18["payload"]["report_hash"]
+                and out_triple["evaluation"]["coordinator_reconfirmed"]["log_hash_matches"] is True,
+                f"catalog={cat_after['catalog_hash'][:12]}.. "
+                f"aci={aci_after['report_hash'][:12]}..",
+            ))
+        else:
+            print("    (no real ledger with idx-17/idx-18 anchors present — triple "
+                  "stability check SKIPPED; the scanner-invisibility checks above "
+                  "cover the mechanism)")
+
         # --- report ---------------------------------------------------------
         print("=== protocol/external_verifier.py self-test — R3 EXTERNAL-VERIFIER-PILOT ===")
         print("HONEST: a matching output_hash proves REPRODUCIBILITY, NOT execution (a hash")
@@ -1448,6 +1685,66 @@ def _cmd_anchor_aci_report(report_path: str, ledger_path: str) -> int:
     return 0 if status == "aci-baseline-confirmed" else 1
 
 
+def _cmd_anchor_economy_summary(log_path: str, ledger_path: str) -> int:
+    """Load an economy log, RE-RUN the full simulation, anchor the outcome.
+
+    Exit codes: 0 = economy-demo-confirmed; non-zero = mismatch or rejected.
+    A missing/invalid file is 'rejected' and anchors nothing.
+    """
+    print(BANNER)
+
+    # Load defensively; any load failure is a rejection (no anchor).
+    reason = None
+    log = None
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            log = json.load(f)
+    except FileNotFoundError:
+        reason = f"economy log file not found: {log_path}"
+    except json.JSONDecodeError as exc:
+        reason = f"economy log file is not valid JSON ({exc})"
+    except OSError as exc:
+        reason = f"could not read economy log file ({exc})"
+    if reason is None and not isinstance(log, dict):
+        reason = "economy log JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    out = anchor_economy_summary(log, ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}")
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed -> not written to the ledger)")
+        return 1
+
+    cr = ev["coordinator_reconfirmed"]
+    print(f"economy_log_hash: {ev['economy_log_hash']}")
+    print(f"rerun_log_hash:   {cr['rerun_log_hash']}")
+    print("coordinator re-run (entire simulation re-executed here — NOT trusting the file):")
+    print(f"  log_hash_matches      : {cr['log_hash_matches']}")
+    print(f"  simulated_days        : {ev['simulated_days']} (day indices, not real time)")
+    print(f"  verified/rejected     : {ev['verified_count']}/{ev['rejected_count']} "
+          f"(planned drill rejections: {ev['planned_drill_rejections']})")
+    print(f"  earned/spent/balance  : {ev['total_earned']}/{ev['total_spent']}/"
+          f"{ev['final_balance']} Test-META (zero value)")
+    print(f"  distinct tasks        : {ev['distinct_task_count']}")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    # 0 only when the coordinator's own full re-run reproduces the submitted log hash.
+    return 0 if status == "economy-demo-confirmed" else 1
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -1488,6 +1785,12 @@ def main(argv=None) -> int:
              "report from the ledger, compare report_hash, and anchor the outcome "
              "(aggregate numbers only)",
     )
+    mode.add_argument(
+        "--anchor-economy-summary", metavar="ECONOMY_LOG_JSON",
+        help="ingest a 30-simulated-day economy log (economy_demo.py --run-all); RE-RUN "
+             "the entire simulation, compare log hashes, and anchor the outcome "
+             "(aggregates only)",
+    )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
         help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
@@ -1519,6 +1822,8 @@ def main(argv=None) -> int:
         return _cmd_anchor_molecule_catalog(args.anchor_molecule_catalog, args.ledger)
     if args.anchor_aci_report is not None:
         return _cmd_anchor_aci_report(args.anchor_aci_report, args.ledger)
+    if args.anchor_economy_summary is not None:
+        return _cmd_anchor_economy_summary(args.anchor_economy_summary, args.ledger)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
