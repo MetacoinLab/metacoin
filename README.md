@@ -104,7 +104,7 @@ Agentic payment rails let agents *pay*. MetaCoin defines what useful space-machi
 
 Everything in this section exists in the repository and is exercised by CI. Each item is deliberately scoped — these are mechanical, deterministic facts, not marketing.
 
-- **Reproducible task demo** — thirteen reproducible space-engineering tasks spanning NASA-taxonomy domains (orbital mechanics & Lambert transfer, propulsion/Hohmann, robotics/ISAM arm IK, power budget, thermal equilibrium, ballistic re-entry/EDL, deep-space comms & Doppler, comms access windows, rover path planning, rendezvous/docking), wired into a task-agnostic verifier and an earn→verify→spend agent loop. CI 17/17.
+- **Reproducible task demo** — thirteen reproducible space-engineering tasks spanning NASA-taxonomy domains (orbital mechanics & Lambert transfer, propulsion/Hohmann, robotics/ISAM arm IK, power budget, thermal equilibrium, ballistic re-entry/EDL, deep-space comms & Doppler, comms access windows, rover path planning, rendezvous/docking), wired into a task-agnostic verifier and an earn→verify→spend agent loop. CI 18/18 (demo) + 7/7 (protocol).
 - **R1 — Tamper-evident ledger** — an append-only, hash-chained ledger; verification recomputes every hash from content and detects mutation, reordering, insertion, and deletion.
 - **R2 — Honest attestation** — software-rooted HMAC attestation, anchored to the ledger. The hardware was investigated and found to have **no usable TPM/TEE**, so the mechanism is honestly labeled *software-rooted, not hardware* — a future hardware/public-key root drops into the same interface.
 - **R3 — External verifier + coordinator** — an external party re-derives a task hash; the coordinator anchors the outcome only after **independently recomputing it** (a matching hash proves reproducibility, not who executed the task).
@@ -112,6 +112,9 @@ Everything in this section exists in the repository and is exercised by CI. Each
 - **Autonomous agent-verifier** — a published, CI-tested tool that fetches the public snapshot, mechanically re-verifies the chain, checks the tip against the committed anchor, and re-runs the recorded task — **no LLM/AI judgment, hashes and re-runs only.**
 - **Cross-platform reproducibility** — the canonical task hash `ff03231f…ba300c` reproduces byte-for-byte on **macOS (arm64)**, **Linux (aarch64)**, **Linux x86-64 (CI)**, and **Windows 11 (AMD64)** — and the CI environment independently re-derives all **thirteen** task hashes against the published snapshot on every push (same-operator; reproducibility evidence, not third-party independence).
 - **Full demo↔protocol wiring** — every one of the thirteen tasks is anchored in the tamper-evident ledger: twelve honestly-labeled same-machine self-recompute evaluations plus one batch autonomous-agent attestation covering the entire catalog (Spark-reconfirmed), each record carrying explicit honesty labels (`task_class: illustrative-demo`, topology, zero-value/no-token, limitation notes).
+- **Provenance layer — Work Molecules** (`work-molecule/0.2`) — thirteen content-addressed provenance objects, one per task, each assembling the task's spec hash, actors, manifests, execution timestamps, hardware evidence, verification citations, and result hash into a single deterministic document with **three-state field semantics** (populated / asserted-empty / not-captured) and machine-readable **provenance debt**: missing evidence (energy cost, TEE attestation, execution detail) is listed explicitly, never fabricated. The WMID catalog was anchored only after the coordinator independently rebuilt every molecule.
+- **Concentration self-measurement** (`aci-report/0.1`) — the protocol measured its **own** agent-concentration baseline: pairwise **ACI 0.99365** over **28 same-operator verification paths** (five evidence dimensions; missing metadata scored worst-case, never as independence) with the multi-scale profile Γ(operator)=Γ(repo)=1.0, Γ(machine)=27/28 — and anchored it. A deliberate, published maximal-concentration starting point: descriptive evidence, never a minting trigger.
+- **30-day agent economy demo (simulated time)** — a deterministic earn→verify→spend loop over **30 simulated day indices** (not wall-clock time — nothing ran for 30 real days) rotating through all thirteen tasks: zero-value Test-META is earned only on verified work, spent on simulated compute via the x402 stub, and a **planned day-17 tamper drill** (labeled in-log as a drill, not fraud) proves the rejection path — no earnings, economy continues. Summary (29 verified / 1 drill rejection, 58 earned / 30 spent / 28 final) anchored after the coordinator re-ran the entire simulation and matched the log hash.
 
 ### Current ledger
 
@@ -122,10 +125,13 @@ idx 2–3    autonomous-agent attestations — macOS, Windows (Spark-reconfirmed
 idx 4–15   self-recompute evaluations — tasks 0001, 0003–0013
            (honestly labeled same-machine, task_class: illustrative-demo)
 idx 16     batch agent attestation — all 13 tasks re-derived & confirmed
-public tip anchor: e00bacd2…
+idx 17     work-molecule catalog — 13 WMIDs anchored after independent rebuild
+idx 18     ACI baseline — self-measured maximal concentration (pairwise ACI 0.99365)
+idx 19     30-day simulated-economy summary — 29 verified / 1 planned drill rejection
+public tip anchor: 02b04bbe…
 ```
 
-**Honest boundary.** Every entry so far is the **same operator** on machines under direct control — and the entries now include **same-machine self-recompute** records that are explicitly labeled as adding *no cross-party independence* (this host generated and re-evaluated its own submissions). The catalog-wide claim remains **cross-platform reproducibility under one operator** — *not* independent multi-party consensus. The next meaningful milestone is still operational, not code: an unaffiliated third party running the public verifier and submitting a result.
+**Honest boundary.** Every entry so far is the **same operator** on machines under direct control — and the entries now include **same-machine self-recompute** records that are explicitly labeled as adding *no cross-party independence* (this host generated and re-evaluated its own submissions). The anchored concentration baseline **quantifies** that status: pairwise ACI 0.99365 across all 28 verification paths — maximal same-operator concentration, measured and published by the protocol itself. The catalog-wide claim remains **cross-platform reproducibility under one operator** — *not* independent multi-party consensus. The next meaningful milestone is still operational, not code: an unaffiliated third party running the public verifier and submitting a result.
 
 ### Verify it yourself
 
@@ -162,7 +168,7 @@ The first verification from an unaffiliated party will be the project's first cr
 | Phase | Goal | State |
 |---|---|---|
 | 0 | Constitutional repo — whitepaper, tokenomics, MIP-0001/0002, legal | `[BUILT]` |
-| 1 | Agentic testnet — zero-value Test-META, 30-day earn→spend agent demo | demo + protocol spine `[BUILT]`; full Test-META faucet `[SPEC]` |
+| 1 | Agentic testnet — zero-value Test-META, 30-day earn→spend agent demo | `[BUILT]` (simulated days, zero value; summary anchored at idx 19) |
 | 2 | Verification engine — the three-gate stack from MIP-0002 | `[SPEC]` |
 | 3 | Treasury & first small real grants — milestone-based | `[SPEC]` |
 | 4 | Token launch — legal-gated, BTC/gold pairs only | `[SPEC]` |
@@ -176,8 +182,8 @@ The first verification from an unaffiliated party will be the project's first cr
 - [`TOKENOMICS.md`](TOKENOMICS.md) — supply, 5-year halving, the two-flow split
 - [`ROADMAP.md`](ROADMAP.md) · [`MISSION.md`](MISSION.md) · [`HISTORY.md`](HISTORY.md)
 - [`mip/MIP-0001-genesis.md`](mip/MIP-0001-genesis.md) · [`mip/MIP-0002-proof-of-useful-space-work.md`](mip/MIP-0002-proof-of-useful-space-work.md)
-- [`protocol/`](protocol/) — ledger, attestation, external & autonomous verifiers, auditability
-- [`demo/`](demo/) — thirteen reproducible space-engineering tasks
+- [`protocol/`](protocol/) — ledger, attestation, external & autonomous verifiers, auditability, work-molecule provenance, concentration index
+- [`demo/`](demo/) — thirteen reproducible space-engineering tasks + the 30-simulated-day economy demo
 - [`legal/`](legal/) — disclaimers and risk notes
 
 ## Lineage
