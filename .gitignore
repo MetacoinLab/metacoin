@@ -42,3 +42,8 @@ sub_*.json
 # also catch the batch agent-result file naming (e.g. spark_agent_result.json), which uses
 # 'agent_result' rather than 'agent_verifier_result' and would otherwise escape the glob above.
 *agent_result*.json
+
+# work-molecule derived artifacts (v0): read-only assemblies of existing records into
+# a single provenance unit — local artifacts, never committed (the canonical record
+# is the ANCHORED ledger entry; the molecule is reconstructible from it at any time).
+wm_*.json
