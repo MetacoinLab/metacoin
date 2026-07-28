@@ -657,19 +657,58 @@
       },
       "prev_hash": "e00bacd2756db592bb1891c3233d27bacb5c6285fb396ea14d893d338c1d2400",
       "timestamp": 1785209904.7274513
+    },
+    {
+      "hash": "224703633361aaa84b9c0d176d8d8879244ec9966568722947e5ceb879d614e7",
+      "index": 18,
+      "payload": {
+        "anchored_at": 1785222403.1908865,
+        "concentration_profile": {
+          "machine_fingerprint": 0.9642857142857143,
+          "operator": 1.0,
+          "repo": 1.0
+        },
+        "coordinator_reconfirmed": {
+          "recompute_error": null,
+          "recomputed_pairwise_aci": 0.9936507936507936,
+          "recomputed_path_count": 28,
+          "recomputed_report_hash": "610001a83f5bbaa4b0c6e62d052c0cc06b9608ca48b8efca785d98a84ac0f8ae",
+          "report_hash_matches": true
+        },
+        "eis": 0.006349206349206438,
+        "event": "aci_baseline_anchored",
+        "limitation_note": "This is the protocol's DELIBERATE SELF-MEASUREMENT of its own maximal-concentration baseline: every verification path measured is operated by the SAME operator. ACI is DESCRIPTIVE evidence, never a minting trigger or reward signal, and a low value is not proof of independence. Pairwise ACI_2 only \u2014 higher-order concentration is not measured. Unknown metadata is scored worst-case (never as independence) and flagged. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "metadata_coverage_ratio": 0.7785714285714286,
+        "missing_metadata_flag_count": 31,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "pair_count": 378,
+        "pairwise_aci": 0.9936507936507936,
+        "path_count": 28,
+        "report_hash": "610001a83f5bbaa4b0c6e62d052c0cc06b9608ca48b8efca785d98a84ac0f8ae",
+        "report_schema": "aci-report/0.1",
+        "stage": "R-concentration",
+        "status": "aci-baseline-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-aci-measurement",
+        "weights_version": "aci-weights/0.1-uniform",
+        "zero_value": true
+      },
+      "prev_hash": "2a2632b2d12333ef960a2b11ea4ffad59cb145dbdea3bc4a9bb652b6b61ed0bd",
+      "timestamp": 1785222403.1909618
     }
   ],
   "snapshot_header": {
-    "entry_count": 18,
+    "entry_count": 19,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785209918.6907024,
+    "snapshot_timestamp": 1785222420.6628714,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "2a2632b2d12333ef960a2b11ea4ffad59cb145dbdea3bc4a9bb652b6b61ed0bd",
-    "tip_index": 17,
+    "tip_hash": "224703633361aaa84b9c0d176d8d8879244ec9966568722947e5ceb879d614e7",
+    "tip_index": 18,
     "zero_value": true
   }
 }
