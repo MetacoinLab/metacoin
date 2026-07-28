@@ -26,6 +26,7 @@ TESTS=(
     "audit.py"
     "agent_verifier.py --selftest"
     "work_molecule.py --selftest"
+    "agent_concentration.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.

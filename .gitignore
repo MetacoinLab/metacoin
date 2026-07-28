@@ -47,3 +47,7 @@ sub_*.json
 # a single provenance unit — local artifacts, never committed (the canonical record
 # is the ANCHORED ledger entry; the molecule is reconstructible from it at any time).
 wm_*.json
+
+# ACI reports (agent_concentration.py --report) are derived, reconstructible artifacts —
+# local only, never committed (the module re-derives them from the ledger deterministically).
+aci_report*.json
