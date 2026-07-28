@@ -696,19 +696,53 @@
       },
       "prev_hash": "2a2632b2d12333ef960a2b11ea4ffad59cb145dbdea3bc4a9bb652b6b61ed0bd",
       "timestamp": 1785222403.1909618
+    },
+    {
+      "hash": "02b04bbe9311bf2d4ed1a09401a2a64a78276db67abea246c05f6a7f2706055c",
+      "index": 19,
+      "payload": {
+        "anchored_at": 1785223772.6033401,
+        "coordinator_reconfirmed": {
+          "log_hash_matches": true,
+          "rerun_error": null,
+          "rerun_final_balance": 28,
+          "rerun_log_hash": "f7c8196fa6a2ff9e737194b6165c5d5aa1333e27632d1eaee7592ebe2f74f052"
+        },
+        "distinct_task_count": 13,
+        "economy_log_hash": "f7c8196fa6a2ff9e737194b6165c5d5aa1333e27632d1eaee7592ebe2f74f052",
+        "event": "economy_demo_summary_anchored",
+        "final_balance": 28,
+        "limitation_note": "Deterministic SIMULATED-day economy demo by the same operator \u2014 proves the earn->verify->spend loop MECHANICS with zero-value Test-META. The 30 days are simulated day indices, NOT real time; the loop is scripted determinism, NOT market behavior. The single rejection is a PLANNED tamper drill (labeled drill=true), not detected fraud. A matching log hash proves deterministic REPRODUCIBILITY of the simulation, not independence, not payment, not consensus, not a token; zero-value research-stage.",
+        "log_schema": "economy-log/0.1",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "planned_drill_rejections": 1,
+        "rejected_count": 1,
+        "simulated_days": 30,
+        "stage": "Phase-1",
+        "status": "economy-demo-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-simulated-economy",
+        "total_earned": 58,
+        "total_spent": 30,
+        "verified_count": 29,
+        "zero_value": true
+      },
+      "prev_hash": "224703633361aaa84b9c0d176d8d8879244ec9966568722947e5ceb879d614e7",
+      "timestamp": 1785223772.6034825
     }
   ],
   "snapshot_header": {
-    "entry_count": 19,
+    "entry_count": 20,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785222420.6628714,
+    "snapshot_timestamp": 1785223790.0593302,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "224703633361aaa84b9c0d176d8d8879244ec9966568722947e5ceb879d614e7",
-    "tip_index": 18,
+    "tip_hash": "02b04bbe9311bf2d4ed1a09401a2a64a78276db67abea246c05f6a7f2706055c",
+    "tip_index": 19,
     "zero_value": true
   }
 }
