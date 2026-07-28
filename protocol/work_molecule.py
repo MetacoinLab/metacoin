@@ -45,9 +45,17 @@ reimplemented. The canonical-JSON helper is deliberately per-module (house style
 file stands alone for external verifiers). Not legal, financial, investment, or
 security-certification advice. No NASA affiliation or endorsement.
 
+SCHEMA HISTORY:
+  work-molecule/0.1 — initial schema; ledger_anchor carried the build-time chain tip.
+  work-molecule/0.2 — ledger_anchor is ENTRY-LEVEL ONLY (entry_index/entry_hash of the
+    primary event). Entry-level citations are stable under append-only growth; a
+    build-time tip made WMIDs change whenever the ledger grew, breaking the promise
+    that the same records always reconstruct to the same WMID.
+
 Usage:
     python3 protocol/work_molecule.py --task task-0001
     python3 protocol/work_molecule.py --task task-0002 --submission jiyu_submission.json --out wm_task-0002.json
+    python3 protocol/work_molecule.py --catalog --out wm_catalog.json
     python3 protocol/work_molecule.py --validate wm_task-0002.json --ledger protocol/ledger_data.jsonl
     python3 protocol/work_molecule.py --selftest      # temp-only; writes nothing into the repo
 """
@@ -73,7 +81,14 @@ from protocol.verifier_cli import TASK_MODULES, normalize_task_id
 _PROTO_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_LEDGER_PATH = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
 
-SCHEMA_VERSION = "work-molecule/0.1"
+SCHEMA_VERSION = "work-molecule/0.2"
+CATALOG_SCHEMA_VERSION = "work-molecule-catalog/0.1"
+
+# Submission files with non-standard names (auto-discovery expects sub_<task-id>.json).
+# task-0002's external-pilot submission predates that naming convention. Used only when
+# the file actually exists (these are gitignored local artifacts, absent in CI/clones —
+# without them the molecule honestly records environment_summary as null + debt).
+_CATALOG_SUBMISSIONS = {"task-0002": "jiyu_submission.json"}
 
 # Declared derivation method for task_spec.spec_hash, plus the honest caveat that the
 # hash is taken from the CURRENT checkout while repo_commit is copied from the record.
@@ -273,7 +288,6 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
     if not cited:
         raise ValueError(f"no ledger entries reference {short} in {ledger_path}")
     cited.sort(key=lambda e: e["index"])
-    ledger_tip = entries[-1]
 
     # --- optional submission file (auto-discover sub_<task-id>.json) ------------------
     submission = None
@@ -482,12 +496,15 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
         for e in challenge_entries
     ]
 
-    # --- ledger_anchor (primary citation + the chain tip as of this build) ------------
+    # --- ledger_anchor: ENTRY-LEVEL ONLY (schema 0.2 stability fix) -------------------
+    # Entry-level citations are stable under append-only growth. 0.1 also recorded the
+    # build-time chain tip here, which made WMIDs change whenever the ledger grew —
+    # so the same records no longer reconstructed to the same WMID. The per-entry
+    # citations in verification_events plus this primary citation are sufficient;
+    # tip freshness is the committed anchor file's job, not the molecule's.
     ledger_anchor = {
         "entry_index": primary["index"],
         "entry_hash": primary["hash"],
-        "tip_index": ledger_tip["index"],
-        "tip_hash": ledger_tip["hash"],
     }
 
     # --- scope_and_limitations (verbatim from the primary entry) ----------------------
@@ -531,6 +548,51 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
 
 
 # ----------------------------------------------------------------------------
+# Catalog: the WMIDs of every task's molecule, content-addressed the same way
+# ----------------------------------------------------------------------------
+def compute_catalog_hash(catalog: dict) -> str:
+    """SHA-256 hex of the canonical JSON of the catalog WITHOUT its catalog_hash field
+    (same anti-circularity pattern as the WMID and the ledger entry hash)."""
+    content = {k: v for k, v in catalog.items() if k != "catalog_hash"}
+    return hashlib.sha256(canonical_json(content).encode("utf-8")).hexdigest()
+
+
+def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None) -> dict:
+    """Build + validate the molecule for every known task and return the catalog dict.
+
+    Deterministic and timestamp-free like the molecules themselves: two runs over the
+    same inputs are byte-identical. Each molecule is validated (with ledger recheck)
+    before its WMID enters the catalog; any invalid molecule raises ValueError.
+    `task_ids` narrows the set (used by self-tests over fixture ledgers); the default
+    is every task in the registry.
+    """
+    if task_ids is None:
+        task_ids = sorted(TASK_MODULES)
+    entries = []
+    for tid in sorted(task_ids):
+        short = normalize_task_id(tid)
+        submission_path = None
+        special = _CATALOG_SUBMISSIONS.get(short)
+        if special is not None:
+            candidate = os.path.join(_REPO_ROOT, special)
+            if os.path.exists(candidate):
+                submission_path = candidate
+        molecule = build_molecule(short, ledger_path=ledger_path,
+                                  submission_path=submission_path)
+        ok, reasons = validate(molecule, ledger_path=ledger_path)
+        if not ok:
+            raise ValueError(f"molecule for {short} does not validate: {reasons}")
+        entries.append({"task_id": short, "work_id": molecule["work_id"]})
+    catalog = {
+        "schema": CATALOG_SCHEMA_VERSION,
+        "molecule_schema": SCHEMA_VERSION,
+        "entries": entries,  # already sorted by task_id
+    }
+    catalog["catalog_hash"] = compute_catalog_hash(catalog)
+    return catalog
+
+
+# ----------------------------------------------------------------------------
 # Validation (mechanical, no LLM)
 # ----------------------------------------------------------------------------
 def validate(molecule, ledger_path: str = None):
@@ -540,8 +602,10 @@ def validate(molecule, ledger_path: str = None):
     (c) work_id recomputes from content; (d) provenance_debt bidirectional consistency
     (every null has a debt entry, every debt entry names a real field, partial entries
     point at populated fields, no nulls inside lists); (e) with a ledger: every cited
-    (ledger_index, entry_hash) exists, its hash RE-DERIVES from entry content, and the
-    entry actually references this task.
+    (ledger_index, entry_hash) — including the ledger_anchor's primary citation —
+    exists, its hash RE-DERIVES from entry content, and the entry actually references
+    this task. All checks are entry-level (never tip-level), so validation stays true
+    under append-only ledger growth.
     """
     reasons = []
     if not isinstance(molecule, dict):
@@ -589,7 +653,7 @@ def validate(molecule, ledger_path: str = None):
         if molecule["scope_and_limitations"].get(sub) is not True:
             reasons.append(f"scope_and_limitations.{sub} must be true "
                            "(research-stage honest labels are mandatory)")
-    for sub in ("entry_index", "entry_hash", "tip_index", "tip_hash"):
+    for sub in ("entry_index", "entry_hash"):
         if sub not in molecule["ledger_anchor"]:
             reasons.append(f"ledger_anchor.{sub} missing")
     if not molecule["verification_events"]:
@@ -655,8 +719,12 @@ def validate(molecule, ledger_path: str = None):
         if entries is not None:
             by_index = {e.get("index"): e for e in entries if isinstance(e, dict)}
             short = molecule["task_spec"].get("task_id")
+            anchor_citation = {
+                "ledger_index": molecule["ledger_anchor"].get("entry_index"),
+                "entry_hash": molecule["ledger_anchor"].get("entry_hash"),
+            }
             cited = list(molecule["verification_events"]) + \
-                list(molecule.get("challenge_events") or [])
+                list(molecule.get("challenge_events") or []) + [anchor_citation]
             for ve in cited:
                 if not isinstance(ve, dict):
                     continue
@@ -703,6 +771,9 @@ def main(argv=None) -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--task", help="task id to build a molecule for, e.g. task-0001")
+    parser.add_argument("--catalog", action="store_true",
+                        help="build + validate molecules for ALL known tasks and write "
+                             "the WMID catalog (default out: wm_catalog.json; gitignored)")
     parser.add_argument("--submission",
                         help="optional path to the submission JSON for this run "
                              "(default: auto-discover sub_<task-id>.json in repo root)")
@@ -733,8 +804,23 @@ def main(argv=None) -> int:
             print(f"  - {r}")
         return 0 if ok else 1
 
+    if args.catalog:
+        try:
+            catalog = build_catalog(ledger_path=args.ledger)
+        except (KeyError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        text = json.dumps(catalog, indent=2, sort_keys=True)
+        print(text)
+        out = args.out or "wm_catalog.json"
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+        print(f"wrote work-molecule catalog ({len(catalog['entries'])} entries) to {out}",
+              file=sys.stderr)
+        return 0
+
     if not args.task:
-        parser.error("one of --task, --validate, or --selftest is required")
+        parser.error("one of --task, --catalog, --validate, or --selftest is required")
 
     try:
         molecule = build_molecule(args.task, ledger_path=args.ledger,
@@ -877,6 +963,35 @@ def _selftest() -> int:
         t["work_id"] = compute_work_id(t)
         ok, _ = validate(t)
         checks.append(("asserted-empty ([]) needs no debt entry", ok))
+
+        # [7b] schema 0.2 stability: appending an UNRELATED entry to the ledger must
+        # NOT change the molecule's WMID (entry-level citations only — no build-time
+        # tip in the molecule), and the molecule must still validate afterwards.
+        led.append({"event": "unrelated_marker", "note": "selftest growth probe — "
+                    "must not appear in any molecule", "zero_value": True,
+                    "no_token": True})
+        m3 = build_molecule("task-0001", ledger_path=fixture_ledger,
+                            submission_path=fixture_sub)
+        checks.append(("ledger growth does not change the WMID (0.2)",
+                       m3["work_id"] == m1["work_id"]))
+        ok, reasons = validate(m3, ledger_path=fixture_ledger)
+        checks.append(("molecule still validates after ledger growth", ok))
+        if not ok:
+            for r in reasons:
+                print(f"    unexpected: {r}")
+
+        # [7c] catalog: deterministic, anti-circular hash, entries match the molecules
+        c1 = build_catalog(ledger_path=fixture_ledger, task_ids=["task-0001"])
+        c2 = build_catalog(ledger_path=fixture_ledger, task_ids=["task-0001"])
+        checks.append(("catalog builds byte-identical twice",
+                       canonical_json(c1) == canonical_json(c2)))
+        checks.append(("catalog_hash recomputes (anti-circularity)",
+                       compute_catalog_hash(c1) == c1["catalog_hash"]))
+        checks.append(("catalog entries are {task_id, work_id} pairs",
+                       c1["schema"] == CATALOG_SCHEMA_VERSION
+                       and c1["molecule_schema"] == SCHEMA_VERSION
+                       and [sorted(e) for e in c1["entries"]] ==
+                       [["task_id", "work_id"]]))
 
         # [8] a submission for the wrong task is rejected at build time
         wrong_sub = os.path.join(tmp_dir, "sub_wrong.json")

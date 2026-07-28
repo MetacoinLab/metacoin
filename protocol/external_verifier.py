@@ -44,6 +44,7 @@ if _REPO_ROOT not in sys.path:
 from protocol.ledger import Ledger, DEFAULT_LEDGER_PATH
 import protocol.verifier_cli as verifier_cli
 import protocol.audit as audit  # reused to independently re-derive chain/anchor claims
+import protocol.work_molecule as work_molecule  # reused to REBUILD molecule catalogs
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -126,6 +127,22 @@ AGENT_LIMITATION_NOTE = (
     "REPRODUCIBILITY, NOT independent third-party verification; verdicts/hashes can be "
     "copied. The agent is a deterministic script (no LLM judgment). Not consensus, not "
     "mainnet, not payment, not a token; zero-value research-stage."
+)
+
+# --- work-molecule catalog anchoring (a THIRD record type) -------------------------------
+# The catalog lists the WMID of every task's Work Molecule (protocol/work_molecule.py).
+# The coordinator REBUILDS all molecules itself and recomputes the catalog hash before
+# anchoring — the same coordinator-reconfirms pattern as agent results: never trust the file.
+_CATALOG_EVENT = "work_molecule_catalog_anchored"
+
+CATALOG_LIMITATION_NOTE = (
+    "Work Molecules are READ-ONLY ASSEMBLIES of same-operator records, assembled by the "
+    "same operator; a matching WMID proves DETERMINISTIC RECONSTRUCTIBILITY of the "
+    "provenance object from the recorded evidence, NOT independence and NOT execution "
+    "(hashes can be copied). Provenance-debt fields (energy/compute cost, TEE hardware "
+    "attestation, execution detail) remain open and are listed explicitly inside each "
+    "molecule. Not consensus, not mainnet, not payment, not a token; zero-value "
+    "research-stage."
 )
 
 
@@ -471,6 +488,122 @@ def anchor_agent_result(result: dict, ledger: Ledger, snapshot_path: str, anchor
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# ----------------------------------------------------------------------------
+# Work-molecule catalog anchoring: validate + REBUILD-and-compare + anchor.
+# ----------------------------------------------------------------------------
+def validate_molecule_catalog(catalog: dict):
+    """Structurally validate a work-molecule catalog file. Returns (ok, reason).
+
+    Internal inconsistency (a catalog_hash that does not recompute from the file's own
+    content) is MALFORMED input -> rejected before any ledger write. Whether the WMIDs
+    are actually RIGHT is decided by the rebuild in anchor_molecule_catalog.
+    """
+    if not isinstance(catalog, dict):
+        return (False, "catalog is not a JSON object")
+    if catalog.get("schema") != work_molecule.CATALOG_SCHEMA_VERSION:
+        return (False, f"field 'schema' must be {work_molecule.CATALOG_SCHEMA_VERSION!r} "
+                       f"(got {catalog.get('schema')!r})")
+    if catalog.get("molecule_schema") != work_molecule.SCHEMA_VERSION:
+        return (False, f"field 'molecule_schema' must be {work_molecule.SCHEMA_VERSION!r} "
+                       f"(got {catalog.get('molecule_schema')!r})")
+    entries = catalog.get("entries")
+    if not isinstance(entries, list) or not entries:
+        return (False, "entries must be a non-empty array")
+    seen = []
+    for i, e in enumerate(entries):
+        if not isinstance(e, dict) or set(e.keys()) != {"task_id", "work_id"}:
+            return (False, f"entries[{i}] must be exactly {{task_id, work_id}}")
+        wid = e["work_id"]
+        if not isinstance(wid, str) or len(wid) != 64 or any(c not in _HEX for c in wid):
+            return (False, f"entries[{i}].work_id must be a 64-char lowercase hex sha256")
+        try:
+            verifier_cli.normalize_task_id(e["task_id"])
+        except (KeyError, TypeError) as exc:
+            return (False, f"entries[{i}] unknown task_id: {exc}")
+        seen.append(e["task_id"])
+    if seen != sorted(seen) or len(seen) != len(set(seen)):
+        return (False, "entries must be unique and sorted by task_id")
+    ch = catalog.get("catalog_hash")
+    if not isinstance(ch, str) or len(ch) != 64 or any(c not in _HEX for c in ch):
+        return (False, "catalog_hash must be a 64-char lowercase hex sha256")
+    if work_molecule.compute_catalog_hash(catalog) != ch:
+        return (False, "catalog_hash does not recompute from the catalog's own content "
+                       "(internally inconsistent file)")
+    return (True, "ok: conforms to the work-molecule-catalog schema")
+
+
+def anchor_molecule_catalog(catalog: dict, ledger: Ledger) -> dict:
+    """Validate + REBUILD + anchor a work-molecule catalog. Returns {evaluation, ledger_entry}.
+
+    Malformed -> 'rejected', NOT anchored. Otherwise the coordinator REBUILDS every
+    listed molecule from the ledger itself (protocol/work_molecule.py), recomputes the
+    catalog hash, and compares: all-match -> 'molecule-catalog-confirmed'; anything
+    else -> 'molecule-catalog-mismatch' (a real audit event). Both outcomes anchored.
+    """
+    ok, reason = validate_molecule_catalog(catalog)
+    if not ok:
+        evaluation = {
+            "event": _CATALOG_EVENT,
+            "stage": "R-provenance",
+            "topology": "same-machine-molecule-assembly",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": CATALOG_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    # REBUILD the catalog from this ledger (coordinator-reconfirms; never trust the file).
+    task_ids = [e["task_id"] for e in catalog["entries"]]
+    rebuild_error = None
+    rebuilt = None
+    try:
+        rebuilt = work_molecule.build_catalog(ledger_path=ledger.path, task_ids=task_ids)
+    except (KeyError, ValueError) as exc:
+        rebuild_error = f"{type(exc).__name__}: {exc}"
+    hash_matches = bool(rebuilt is not None
+                        and rebuilt["catalog_hash"] == catalog["catalog_hash"])
+    entries_match = bool(rebuilt is not None
+                         and rebuilt["entries"] == catalog["entries"])
+    status = ("molecule-catalog-confirmed" if (hash_matches and entries_match)
+              else "molecule-catalog-mismatch")
+
+    evaluation = {
+        "event": _CATALOG_EVENT,
+        "stage": "R-provenance",
+        "topology": "same-machine-molecule-assembly",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "molecule_schema": catalog["molecule_schema"],
+        "catalog_schema": catalog["schema"],
+        "catalog_hash": catalog["catalog_hash"],
+        "catalog_entry_count": len(catalog["entries"]),
+        # DELIBERATELY under "catalog_entries", NOT "task_ids": work_molecule's citation
+        # scanner treats a payload "task_ids" list as "this record verifies those tasks"
+        # and would pull this record into every molecule's verification_events — changing
+        # every WMID each time a catalog is anchored. This record CITES molecules; it
+        # does not verify tasks, so it must stay invisible to the scanner.
+        "catalog_entries": catalog["entries"],
+        "coordinator_reconfirmed": {
+            "recomputed_catalog_hash": rebuilt["catalog_hash"] if rebuilt else None,
+            "catalog_hash_matches": hash_matches,
+            "entries_match": entries_match,
+            "rebuilt_entry_count": len(rebuilt["entries"]) if rebuilt else 0,
+            "rebuild_error": rebuild_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": CATALOG_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # ============================== SELF-TEST ====================================
 # NOTE: the following is a LOCAL TEST HARNESS (single-host simulation), NOT the product.
 # In real use the submission comes from a SEPARATE machine/person via verifier_cli.py.
@@ -696,6 +829,75 @@ def _selftest() -> int:
             f"{out_c['evaluation']['status']} ({out_c['evaluation'].get('reason')})",
         ))
 
+        # --- MOLECULE-CATALOG mode coverage (rebuild-and-compare anchoring) --------------
+        # Uses a copy of the main temp ledger (which holds task-0002 evaluations). All
+        # TEMP paths — the real ledger is never touched.
+        cat_ledger_path = os.path.join(tmp, "catalog_ledger.jsonl")
+        _copyfile(ledger_path, cat_ledger_path)
+        cat = work_molecule.build_catalog(ledger_path=cat_ledger_path, task_ids=[TASK])
+        out_cat = anchor_molecule_catalog(cat, Ledger(cat_ledger_path))
+        ev_cat = out_cat["evaluation"]
+        cat_chain_ok, _cat_reason = Ledger(cat_ledger_path).verify_chain()
+
+        # (9) valid catalog -> coordinator rebuild confirms -> anchored; and the payload
+        # must NOT carry "task_ids"/"task_id" (the key-name choice that keeps this record
+        # invisible to work_molecule's citation scanner).
+        checks.append((
+            "MOLECULE-CATALOG CONFIRMED (rebuilt from ledger -> anchored)",
+            ev_cat["status"] == "molecule-catalog-confirmed"
+            and out_cat["ledger_entry"] is not None
+            and ev_cat["coordinator_reconfirmed"]["catalog_hash_matches"] is True
+            and ev_cat["coordinator_reconfirmed"]["entries_match"] is True
+            and cat_chain_ok is True,
+            ev_cat["status"],
+        ))
+        checks.append((
+            "CATALOG RECORD carries no task_ids/task_id key (scanner-invisible)",
+            "task_ids" not in ev_cat and "task_id" not in ev_cat
+            and "catalog_entries" in ev_cat,
+            f"keys={sorted(k for k in ev_cat if k.startswith('task'))}",
+        ))
+
+        # (9b) WMID stability across the anchor append: rebuilding the catalog from the
+        # now-grown ledger must reproduce the SAME catalog_hash (work-molecule/0.2's
+        # entry-level anchoring + the catalog_entries key-name choice, both proven here).
+        cat_after = work_molecule.build_catalog(ledger_path=cat_ledger_path, task_ids=[TASK])
+        checks.append((
+            "CATALOG REBUILD AFTER ANCHOR unchanged (growth-stable WMIDs)",
+            cat_after["catalog_hash"] == cat["catalog_hash"]
+            and cat_after["entries"] == cat["entries"],
+            f"catalog_hash={cat_after['catalog_hash'][:16]}..",
+        ))
+
+        # (10) internally-inconsistent catalog_hash -> rejected -> NOT anchored
+        bad_cat = dict(cat)
+        bad_cat["catalog_hash"] = "0" * 64
+        cat_ledger_b = os.path.join(tmp, "catalog_ledger_b.jsonl")
+        _copyfile(ledger_path, cat_ledger_b)
+        out_badcat = anchor_molecule_catalog(bad_cat, Ledger(cat_ledger_b))
+        checks.append((
+            "CATALOG REJECTED (inconsistent catalog_hash -> NOT anchored)",
+            out_badcat["evaluation"]["status"] == "rejected"
+            and out_badcat["ledger_entry"] is None,
+            f"{out_badcat['evaluation']['status']} ({out_badcat['evaluation'].get('reason')})",
+        ))
+
+        # (11) internally consistent but WRONG work_id -> coordinator rebuild disagrees ->
+        # 'molecule-catalog-mismatch', anchored (a real audit event)
+        tampered_cat = json.loads(json.dumps(cat))
+        tampered_cat["entries"][0]["work_id"] = "1" * 64
+        tampered_cat["catalog_hash"] = work_molecule.compute_catalog_hash(tampered_cat)
+        cat_ledger_c = os.path.join(tmp, "catalog_ledger_c.jsonl")
+        _copyfile(ledger_path, cat_ledger_c)
+        out_tcat = anchor_molecule_catalog(tampered_cat, Ledger(cat_ledger_c))
+        checks.append((
+            "CATALOG MISMATCH (wrong work_id -> rebuild disagrees -> anchored audit event)",
+            out_tcat["evaluation"]["status"] == "molecule-catalog-mismatch"
+            and out_tcat["ledger_entry"] is not None
+            and out_tcat["evaluation"]["coordinator_reconfirmed"]["entries_match"] is False,
+            out_tcat["evaluation"]["status"],
+        ))
+
         # --- report ---------------------------------------------------------
         print("=== protocol/external_verifier.py self-test — R3 EXTERNAL-VERIFIER-PILOT ===")
         print("HONEST: a matching output_hash proves REPRODUCIBILITY, NOT execution (a hash")
@@ -914,6 +1116,65 @@ def _cmd_anchor_agent_result(result_path: str, ledger_path: str, snapshot_path: 
     return 0 if status == "agent-result-confirmed" else 1
 
 
+def _cmd_anchor_molecule_catalog(catalog_path: str, ledger_path: str) -> int:
+    """Load a work-molecule catalog, REBUILD it from the ledger, anchor the outcome.
+
+    Exit codes: 0 = molecule-catalog-confirmed; non-zero = mismatch or rejected.
+    A missing/invalid file is 'rejected' and anchors nothing.
+    """
+    print(BANNER)
+
+    # Load defensively; any load failure is a rejection (no anchor).
+    reason = None
+    catalog = None
+    try:
+        with open(catalog_path, "r", encoding="utf-8") as f:
+            catalog = json.load(f)
+    except FileNotFoundError:
+        reason = f"catalog file not found: {catalog_path}"
+    except json.JSONDecodeError as exc:
+        reason = f"catalog file is not valid JSON ({exc})"
+    except OSError as exc:
+        reason = f"could not read catalog file ({exc})"
+    if reason is None and not isinstance(catalog, dict):
+        reason = "catalog JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    out = anchor_molecule_catalog(catalog, ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}")
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed -> not written to the ledger)")
+        return 1
+
+    cr = ev["coordinator_reconfirmed"]
+    print(f"molecule_schema: {ev['molecule_schema']}")
+    print(f"catalog_hash:            {ev['catalog_hash']}")
+    print(f"recomputed_catalog_hash: {cr['recomputed_catalog_hash']}")
+    print("coordinator rebuild (independently re-assembled here — NOT trusting the file):")
+    print(f"  catalog_hash_matches : {cr['catalog_hash_matches']}")
+    print(f"  entries_match        : {cr['entries_match']}")
+    print(f"  rebuilt_entry_count  : {cr['rebuilt_entry_count']}")
+    for e in ev["catalog_entries"]:
+        print(f"    - {e['task_id']}: {e['work_id']}")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    # 0 only when the coordinator's rebuild confirms every WMID in the catalog.
+    return 0 if status == "molecule-catalog-confirmed" else 1
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -943,6 +1204,11 @@ def main(argv=None) -> int:
         "--anchor-agent-result", metavar="AGENT_RESULT_JSON",
         help="ingest an agent_verifier_attestation; RE-DERIVE its chain/anchor/task claims on this host and anchor the outcome",
     )
+    mode.add_argument(
+        "--anchor-molecule-catalog", metavar="CATALOG_JSON",
+        help="ingest a work-molecule catalog (work_molecule.py --catalog); REBUILD every "
+             "molecule from the ledger, recompute the catalog hash, and anchor the outcome",
+    )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
         help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
@@ -970,6 +1236,8 @@ def main(argv=None) -> int:
             args.anchor_agent_result, args.ledger, args.snapshot, args.anchor_file,
             args.operator_relationship,
         )
+    if args.anchor_molecule_catalog is not None:
+        return _cmd_anchor_molecule_catalog(args.anchor_molecule_catalog, args.ledger)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
