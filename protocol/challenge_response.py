@@ -294,24 +294,23 @@ def signature_check(response, ledger_source, as_of_index: int = None) -> dict:
                    if isinstance(e.get("index"), int) and e["index"] <= as_of_index]
 
     # (1) one-time discipline against the WHOLE anchored history — first, so a
-    # violation is always the headline reason. The scan SKIPS records of this
+    # violation is always the headline reason. The scan is LEDGER-WIDE and
+    # CROSS-TYPE (actor_identity.anchored_key_uses: signed challenge rounds AND
+    # batch records such as anchored uptime epochs). It SKIPS records of this
     # same round (same challenge_id): re-verifying an already-anchored signed
     # round must not self-collide, and same-round reuse reveals no new secrets
-    # (identical message digest). A DIFFERENT round reusing the index has a
-    # different challenge_id and is always caught.
-    for e in entries:
-        p = e.get("payload") if isinstance(e, dict) else None
-        if (isinstance(p, dict) and p.get("event") == _CHALLENGE_RECORD_EVENT
-                and p.get("signed") is True
-                and p.get("challenge_id") != response.get("challenge_id")
-                and p.get("signer_actor_id") == sig.get("actor_id")
-                and p.get("key_index") == sig.get("key_index")):
+    # (identical message digest). Any OTHER use of the index is always caught.
+    for use in actor_identity.anchored_key_uses(entries):
+        if (use["actor_id"] == sig.get("actor_id")
+                and use["key_index"] == sig.get("key_index")
+                and use["payload"].get("challenge_id")
+                != response.get("challenge_id")):
             info["reuse_detected"] = True
             info["reasons"].append(
                 f"one-time key index reuse (violation of OTS discipline): "
                 f"({sig.get('actor_id')!r}, index {sig.get('key_index')}) was "
                 f"already used in the anchored record at ledger index "
-                f"{e.get('index')}")
+                f"{use['ledger_index']}")
             break
 
     # (2) the signer must have an anchored key root

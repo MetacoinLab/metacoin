@@ -230,6 +230,35 @@ def sign(keychain: dict, key_index: int, message_bytes: bytes,
     return signature
 
 
+def anchored_key_uses(entries: list) -> list:
+    """Every anchored one-time-key use across ALL signed record types.
+
+    Returns [{actor_id, key_index, ledger_index, payload}]: a record counts as
+    a key use when it carries signer facts — a signed challenge round
+    (signed:true + signer_actor_id + key_index) or a batch record naming its
+    consumed indices (actor_id + key_indices list, e.g. an anchored uptime
+    epoch). The one-time discipline is LEDGER-WIDE: an index consumed by any
+    record type is consumed for every record type.
+    """
+    uses = []
+    for e in entries:
+        p = e.get("payload") if isinstance(e, dict) else None
+        if not isinstance(p, dict):
+            continue
+        if (p.get("signed") is True and isinstance(p.get("key_index"), int)
+                and isinstance(p.get("signer_actor_id"), str)):
+            uses.append({"actor_id": p["signer_actor_id"],
+                         "key_index": p["key_index"],
+                         "ledger_index": e.get("index"), "payload": p})
+        if (isinstance(p.get("key_indices"), list)
+                and isinstance(p.get("actor_id"), str)):
+            for ki in p["key_indices"]:
+                if isinstance(ki, int):
+                    uses.append({"actor_id": p["actor_id"], "key_index": ki,
+                                 "ledger_index": e.get("index"), "payload": p})
+    return uses
+
+
 def verify_signature(signature, expected_root: str, message_bytes: bytes):
     """Verify a Lamport-Merkle signature against `expected_root`. Returns
     (ok, reasons). Pure and deterministic; needs no key material beyond the

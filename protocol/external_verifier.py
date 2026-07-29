@@ -55,6 +55,7 @@ import protocol.challenge_response as challenge_response  # reused to VERIFY cha
 import protocol.actor_identity as actor_identity  # scheme constants for key registration
 import protocol.gate3_process as gate3_process  # reused to RECOMPUTE prechecks/windows
 import demo.metastar_treasury as metastar_treasury  # reused to RE-DERIVE anchored fees
+import demo.flow1_uptime as flow1_uptime  # reused to RE-VERIFY heartbeats + epochs
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -198,6 +199,39 @@ TV_LIMITATION_NOTE = (
     "empty pending Gate 3; a matching catalog hash proves deterministic "
     "re-derivability, not trustworthiness; not consensus, not payment, not a token; "
     "research-stage."
+)
+
+
+# --- Flow-1 uptime emission records ------------------------------------------------------
+# The uptime epoch record anchors Flow 1's flagship channel: OBJECTIVE per-slot
+# emission from Lamport-signed liveness proofs over SIMULATED slots. The record
+# carries NO task keys (emission concerns no task — scanner-invisible, asserted
+# in the self-test) and its key_indices list feeds the ledger-wide CROSS-TYPE
+# one-time-key scan (actor_identity.anchored_key_uses).
+_HEARTBEAT_EVENT = "heartbeat_rejected"
+_HEARTBEAT_REJECTED_STATUS = "heartbeat-forged-rejected"
+_EPOCH_EVENT = "uptime_epoch_anchored"
+_EPOCH_STATUS = "uptime-epoch-confirmed"
+
+FLOW1_LIMITATION_NOTE = (
+    "Flow 1 signed-heartbeat uptime emission v0: OBJECTIVE per-slot rule (a "
+    "valid signed heartbeat emits the fixed amount; a missed slot emits "
+    "exactly 0 — an objective fact, not a penalty), bounded by construction "
+    "(the epoch refuses to run if slots x per-slot could exceed the cap), over "
+    "SIMULATED slot indices, not wall-clock — the tip binding proves chain-"
+    "state ordering, never real-world time. Same-operator node whose keychain "
+    "the coordinator holds: liveness evidence, not third-party infrastructure. "
+    "Zero-value Test-META; not consensus, not payment, not a token; "
+    "research-stage."
+)
+MISSED_SLOT_STATEMENT = (
+    f"slot {flow1_uptime.MISSED_SLOT_DRILL} emitted 0 by objective rule — no "
+    "heartbeat, no emission, no discretion"
+)
+TWO_FLOW_SEPARATION_STATEMENT = (
+    "Flow 1 emission has no treasury path [flow1_uptime audit]; Flow 2 "
+    "treasury has no mint path [metastar_treasury audit] — the constitutional "
+    "separation is mechanical in both directions"
 )
 
 
@@ -1723,6 +1757,168 @@ def anchor_gate3_event(request: dict, ledger: Ledger, drill: bool = False) -> di
 
 
 # ----------------------------------------------------------------------------
+# Flow-1 anchoring: forged-heartbeat drill + uptime epoch, coordinator-reconfirmed.
+# ----------------------------------------------------------------------------
+def _find_actor_root(entries, actor_id):
+    """(ledger_index, merkle_root) of the actor's registration, or (None, None)."""
+    found = (None, None)
+    for e in entries:
+        p = e.get("payload") if isinstance(e, dict) else None
+        if (isinstance(p, dict) and p.get("event") == _REGISTRATION_EVENT
+                and p.get("status") == _REGISTRATION_STATUS
+                and p.get("actor_id") == actor_id):
+            found = (e["index"], p.get("merkle_root"))
+    return found
+
+
+def anchor_forged_heartbeat_drill(heartbeat: dict, ledger: Ledger) -> dict:
+    """Verify a claimed-forged heartbeat FAILS against the actor's anchored
+    root, then anchor the rejection as a drill. Returns {evaluation, ledger_entry}.
+
+    A heartbeat that actually VERIFIES is rejected as input — this path anchors
+    demonstrated rejections only, never real emissions. Flow 1's anchored
+    counter-demonstration, sibling to the copy-attack and key-reuse drills.
+    """
+    reason = None
+    if not isinstance(heartbeat, dict) or "signature" not in heartbeat:
+        reason = "heartbeat is not a JSON object with a signature"
+    entries = ledger.read_all()
+    root_idx, root = (None, None)
+    if reason is None:
+        root_idx, root = _find_actor_root(entries, heartbeat.get("actor_id"))
+        if root is None:
+            reason = (f"no anchored key root for actor "
+                      f"{heartbeat.get('actor_id')!r}")
+    verdict = None
+    hb_reasons = []
+    if reason is None:
+        verdict, hb_reasons = flow1_uptime.verify_heartbeat(
+            heartbeat, root, ledger_path=ledger.path)
+        if verdict:
+            reason = ("heartbeat VERIFIES against the anchored root — not a "
+                      "forgery; refusing to anchor a valid heartbeat as a "
+                      "rejection drill")
+    if reason is not None:
+        evaluation = {
+            "event": _HEARTBEAT_EVENT,
+            "stage": "R-flow1",
+            "topology": "same-operator-uptime-node",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": FLOW1_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    evaluation = {
+        "event": _HEARTBEAT_EVENT,
+        "stage": "R-flow1",
+        "topology": "same-operator-uptime-node",
+        "status": _HEARTBEAT_REJECTED_STATUS,
+        "task_class": _TASK_CLASS,
+        "actor_id": heartbeat["actor_id"],
+        "slot_index": heartbeat.get("slot_index"),
+        "key_root_ledger_index": root_idx,
+        "emitted": 0.0,  # a rejected heartbeat emits nothing, by objective rule
+        "first_failure_reason": hb_reasons[0] if hb_reasons else None,
+        "simulated_time": True,
+        "drill": True,
+        "operator_relationship": "same-operator",
+        "limitation_note": FLOW1_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+def anchor_uptime_epoch(epoch: dict, ledger: Ledger) -> dict:
+    """Validate + FULLY RE-VERIFY + anchor an uptime epoch. Returns
+    {evaluation, ledger_entry}.
+
+    Malformed (bad shape or an epoch_hash that does not recompute) ->
+    'rejected', NOT anchored; no anchored actor root -> rejected. Otherwise
+    the coordinator re-verifies EVERY heartbeat signature and replays the
+    emission arithmetic itself (flow1_uptime.verify_epoch): pass ->
+    'uptime-epoch-confirmed'; fail -> 'uptime-epoch-mismatch' (anchored audit
+    event). The record carries the consumed key_indices, feeding the
+    ledger-wide cross-type one-time-key scan.
+    """
+    reason = None
+    if not isinstance(epoch, dict):
+        reason = "epoch is not a JSON object"
+    elif epoch.get("schema") != flow1_uptime.SCHEMA_VERSION:
+        reason = f"field 'schema' must be {flow1_uptime.SCHEMA_VERSION!r}"
+    elif flow1_uptime.compute_epoch_hash(epoch) != epoch.get("epoch_hash"):
+        reason = ("epoch_hash does not recompute from the file's own content "
+                  "(internally inconsistent file)")
+    entries = ledger.read_all()
+    root_idx, root = (None, None)
+    if reason is None:
+        root_idx, root = _find_actor_root(entries, epoch.get("actor_id"))
+        if root is None:
+            reason = f"no anchored key root for actor {epoch.get('actor_id')!r}"
+    if reason is not None:
+        evaluation = {
+            "event": _EPOCH_EVENT,
+            "stage": "R-flow1",
+            "topology": "same-operator-uptime-node",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": FLOW1_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    ok, verify_reasons = flow1_uptime.verify_epoch(epoch, root,
+                                                   ledger_path=ledger.path)
+    status = _EPOCH_STATUS if ok else "uptime-epoch-mismatch"
+    s = epoch["summary"]
+    evaluation = {
+        "event": _EPOCH_EVENT,
+        "stage": "R-flow1",
+        "topology": "same-operator-uptime-node",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "epoch_schema": epoch["schema"],
+        "epoch_hash": epoch["epoch_hash"],
+        "actor_id": epoch["actor_id"],
+        "key_root_ledger_index": root_idx,
+        "slot_count": epoch["slot_count"],
+        "verified_slots": s["verified_slots"],
+        "missed_slots": list(s["missed_slots"]),
+        "per_slot_emission": epoch["per_slot_emission"],
+        "total_emitted": s["total_emitted"],
+        "epoch_cap": epoch["epoch_cap"],
+        "cap_respected": s["cap_respected"],
+        # the consumed one-time indices — feeds the CROSS-TYPE reuse scan
+        "key_indices": sorted(hb["key_index"] for hb in epoch["heartbeats"]),
+        "missed_slot_statement": MISSED_SLOT_STATEMENT,
+        "two_flow_separation": TWO_FLOW_SEPARATION_STATEMENT,
+        "coordinator_reconfirmed": {
+            "epoch_verified": ok,
+            "heartbeats_reverified": len(epoch["heartbeats"]),
+            "first_failure_reason": verify_reasons[0] if verify_reasons else None,
+        },
+        "simulated_time": True,
+        "operator_relationship": "same-operator",
+        "limitation_note": FLOW1_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+# ----------------------------------------------------------------------------
 # Actor-key registration: validate (public-only) + uniqueness + anchor.
 # ----------------------------------------------------------------------------
 def validate_key_declaration(declaration):
@@ -2885,6 +3081,102 @@ def _selftest() -> int:
             f"ch={sorted(ch_events)}",
         ))
 
+        # --- FLOW-1 (uptime emission) mode coverage ---------------------------------------
+        # Fresh copy of the ACI fixture ledger; register the uptime actor's
+        # root, run an epoch, anchor it; then the drills and the cross-type
+        # reuse extension. Small keychain (16 keys) for speed.
+        f1_ledger = os.path.join(tmp, "flow1_ledger.jsonl")
+        _copyfile(aci_ledger_path, f1_ledger)
+        f1_kc = actor_identity.generate_keychain(flow1_uptime.ACTOR_ID,
+                                                 key_count=16)
+        register_actor_key(actor_identity.public_declaration(f1_kc),
+                           Ledger(f1_ledger))
+        epoch = flow1_uptime.run_epoch(f1_kc, ledger_path=f1_ledger)
+
+        # (45) epoch confirmed: every signature re-verified, arithmetic
+        # replayed, statements + key_indices on record; scanner-invisible
+        out_ep = anchor_uptime_epoch(epoch, Ledger(f1_ledger))
+        ev_ep = out_ep["evaluation"]
+        f1_chain_ok, _f1_reason = Ledger(f1_ledger).verify_chain()
+        checks.append((
+            "UPTIME EPOCH CONFIRMED (9/10 slots, 4.5 under cap; statements + "
+            "key_indices on record; scanner-invisible)",
+            ev_ep["status"] == "uptime-epoch-confirmed"
+            and out_ep["ledger_entry"] is not None
+            and ev_ep["verified_slots"] == 9 and ev_ep["missed_slots"] == [6]
+            and ev_ep["total_emitted"] == 4.5
+            and ev_ep["cap_respected"] is True
+            and ev_ep["key_indices"] == list(range(9))
+            and "no discretion" in ev_ep["missed_slot_statement"]
+            and "both directions" in ev_ep["two_flow_separation"]
+            and "task_id" not in ev_ep and "task_ids" not in ev_ep
+            and f1_chain_ok is True,
+            ev_ep["status"],
+        ))
+
+        # (46) CROSS-TYPE reuse via the anchored epoch: a signed CHALLENGE
+        # round reusing an epoch-consumed index is rejected by the shared scan
+        ch_f1 = challenge_response.issue_challenge(TASK, flow1_uptime.ACTOR_ID,
+                                                   ledger_path=f1_ledger)
+        resp_f1 = challenge_response.respond(ch_f1, ledger_path=f1_ledger,
+                                             keychain=f1_kc, key_index=0,
+                                             force_reuse=True)
+        out_xr = anchor_challenge_result(ch_f1, resp_f1, Ledger(f1_ledger))
+        checks.append((
+            "CROSS-TYPE REUSE rejected (epoch consumed index 0; challenge "
+            "reusing it fails, citing the epoch record)",
+            out_xr["evaluation"]["status"] == "challenge-failed"
+            and "one-time key index reuse" in str(
+                out_xr["evaluation"]["coordinator_reconfirmed"]
+                ["first_failure_reason"]),
+            out_xr["evaluation"]["status"],
+        ))
+
+        # (47) forged-heartbeat drill: signed with the WRONG actor's keychain
+        # (internally valid Lamport material, wrong root) -> anchored rejection;
+        # an HONEST heartbeat is refused as drill input
+        wrong_kc = actor_identity.generate_keychain("selftest-agent",
+                                                    key_count=2)
+        forged = flow1_uptime.emit_heartbeat(wrong_kc, 0,
+                                             ledger_path=f1_ledger)
+        forged["actor_id"] = flow1_uptime.ACTOR_ID
+        forged["signature"]["actor_id"] = flow1_uptime.ACTOR_ID
+        out_fh = anchor_forged_heartbeat_drill(forged, Ledger(f1_ledger))
+        honest_hb = flow1_uptime.emit_heartbeat(f1_kc, 9,
+                                                ledger_path=f1_ledger)
+        out_hh = anchor_forged_heartbeat_drill(honest_hb, Ledger(f1_ledger))
+        checks.append((
+            "FORGED HEARTBEAT anchored as rejected (drill); honest heartbeat "
+            "refused as drill input",
+            out_fh["evaluation"]["status"] == "heartbeat-forged-rejected"
+            and out_fh["evaluation"].get("drill") is True
+            and out_fh["evaluation"]["emitted"] == 0.0
+            and out_fh["evaluation"]["first_failure_reason"] is not None
+            and out_hh["evaluation"]["status"] == "rejected"
+            and "not a forgery" in out_hh["evaluation"]["reason"],
+            f"{out_fh['evaluation']['status']} / {out_hh['evaluation']['status']}",
+        ))
+
+        # (48) malformed + mismatch epochs: hash-inconsistent -> rejected;
+        # consistent-but-wrong summary -> re-verification disagrees -> mismatch
+        bad_ep = dict(epoch)
+        bad_ep["epoch_hash"] = "0" * 64
+        out_badep = anchor_uptime_epoch(bad_ep, Ledger(f1_ledger))
+        tampered_ep = json.loads(json.dumps(epoch))
+        tampered_ep["summary"]["total_emitted"] = 5.0
+        tampered_ep["summary"]["verified_slots"] = 10
+        tampered_ep["epoch_hash"] = flow1_uptime.compute_epoch_hash(tampered_ep)
+        out_tep = anchor_uptime_epoch(tampered_ep, Ledger(f1_ledger))
+        checks.append((
+            "EPOCH REJECTED (bad hash) + MISMATCH (inflated emission -> "
+            "re-verification disagrees, anchored audit event)",
+            out_badep["evaluation"]["status"] == "rejected"
+            and out_badep["ledger_entry"] is None
+            and out_tep["evaluation"]["status"] == "uptime-epoch-mismatch"
+            and out_tep["ledger_entry"] is not None,
+            f"{out_badep['evaluation']['status']} / {out_tep['evaluation']['status']}",
+        ))
+
         # (41) STABILITY after temp anchors onto a copy of the REAL ledger
         # (conditional — the runtime ledger is gitignored and absent in CI): a fresh
         # economy anchor must leave the 0.2 catalog (idx-17), the ACI report_hash
@@ -3697,7 +3989,11 @@ def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
     for key in ("funding_root", "total_fees_collected",
                 "conservation_statement", "bounty_id", "task_id", "amount",
                 "amount_returned", "amount_paid", "window_note",
-                "process_statement", "treasury_totals"):
+                "process_statement", "treasury_totals", "actor_id",
+                "slot_index", "epoch_hash", "verified_slots", "missed_slots",
+                "total_emitted", "epoch_cap", "key_indices",
+                "first_failure_reason", "missed_slot_statement",
+                "two_flow_separation"):
         if key in ev:
             print(f"  {key}: {ev[key]}")
     if "bounded_failure" in ev:
@@ -3807,6 +4103,18 @@ def main(argv=None) -> int:
              "scripted adjudication, and treasury bounds from ANCHORED records "
              "(use --drill for planned demonstrations)",
     )
+    mode.add_argument(
+        "--anchor-forged-heartbeat-drill", metavar="HEARTBEAT_JSON",
+        help="anchor a demonstrated heartbeat REJECTION (the coordinator "
+             "verifies it FAILS against the actor's anchored root; a valid "
+             "heartbeat is refused as drill input)",
+    )
+    mode.add_argument(
+        "--anchor-uptime-epoch", metavar="EPOCH_JSON",
+        help="anchor a Flow-1 uptime epoch (flow1_uptime.py --run-epoch); the "
+             "coordinator re-verifies every heartbeat signature and replays "
+             "the objective emission arithmetic before anchoring",
+    )
     parser.add_argument(
         "--drill", action="store_true",
         help="with --anchor-challenge-result: label the anchored record as a "
@@ -3867,6 +4175,13 @@ def main(argv=None) -> int:
             args.anchor_gate3_event, args.ledger,
             lambda doc, led: anchor_gate3_event(doc, led, drill=args.drill),
             None)
+    if args.anchor_forged_heartbeat_drill is not None:
+        return _cmd_anchor_json(args.anchor_forged_heartbeat_drill, args.ledger,
+                                anchor_forged_heartbeat_drill,
+                                _HEARTBEAT_REJECTED_STATUS)
+    if args.anchor_uptime_epoch is not None:
+        return _cmd_anchor_json(args.anchor_uptime_epoch, args.ledger,
+                                anchor_uptime_epoch, _EPOCH_STATUS)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 

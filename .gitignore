@@ -97,6 +97,13 @@ actor_key*.json
 treasury_state.json
 gate3_*.json
 
+# Flow-1 uptime artifacts: epoch files carry heartbeat signatures (public
+# material, ~50 KB each) and are local working copies — the canonical record is
+# the ANCHORED epoch; anchored-round evidence copies live in protocol/evidence/
+# (re-included by the negation block below). Working heartbeat files likewise.
+uptime_epoch*.json
+heartbeat*.json
+
 # ============================================================================
 # PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to
 # every local-artifact ignore rule above. These are privacy-checked COPIES of
