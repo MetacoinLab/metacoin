@@ -1,5 +1,5 @@
 {
-  "catalog_hash": "23d22b900a3f8b81e809c191c65e94b1283e75a8825813f21a66c072fbfc6a0c",
+  "catalog_hash": "f488aa4fc512234642685b6c00fb63ec730a743259ec23e312b37cdd954e0ef7",
   "schema": "trust-vector-catalog/0.1",
   "vector_entries": [
     {
@@ -28,7 +28,7 @@
     },
     {
       "task_id": "task-0007",
-      "tv_hash": "bbfc1163dd094c97aa9c0820fa0dba7ff2ec940a707cee3d2cbf4ae36fd293d8"
+      "tv_hash": "a4f1a3b5d232328009e617b4ac0368c18e43fecdea2db8111716dda4ca4313a7"
     },
     {
       "task_id": "task-0008",

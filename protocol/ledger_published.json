@@ -913,19 +913,202 @@
       },
       "prev_hash": "e556ab404b9da38a05ba0330cec7554a88a888ab4933b039d8c45157e083faca",
       "timestamp": 1785294161.4362423
+    },
+    {
+      "hash": "b0f6ca41cf8d0fab751bb278233fdc429f8ecb49435271db1a128e5f5afdbd5e",
+      "index": 24,
+      "payload": {
+        "anchored_at": 1785295752.964167,
+        "challenge_id": "7f02e77986dd279ec80f36099eb7e114c8ed1e583951a2b1c3de5381383877a6",
+        "challenge_schema": "challenge-response/0.1",
+        "coordinator_reconfirmed": {
+          "first_failure_reason": null,
+          "reason_count": 0,
+          "verdict": true
+        },
+        "event": "challenge_response_result",
+        "issued_for": "spark-agent-same-operator",
+        "ledger_tip_at_issue": {
+          "hash": "3f323cff776b23296d162363d86a52d69f409e21abea65397af1462cde227dd0",
+          "index": 23
+        },
+        "limitation_note": "Nonce-bound possession proof \u2014 demonstrates the responder held the complete task result under a fresh challenge, defeating hash-copying from public records; it does NOT prove where/when execution occurred nor exclude result-sharing between cooperating parties (and the public task source means anyone can execute). This first exercise is same-operator (coordinator challenging its own agent identity) and says so. Not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "nonce": "78a2e77b6dfdb0ed626fa4b6b71f0cef36051011b2ccf380da656d6a0c7e4b2a",
+        "operator_relationship": "same-operator",
+        "output_hash": "2afce69a357044d983e47c2c3213ab52aed29a5c082244a2e140184e2feb7e4a",
+        "response_hash": "42e57c325a51c6b8bf2791b3c43ab724716853f4cba78057b623f2830d4213c2",
+        "stage": "R-challenge",
+        "status": "challenge-verified",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0007",
+        "topology": "challenge-response-same-operator",
+        "verifier_id": "spark-agent-same-operator",
+        "zero_value": true
+      },
+      "prev_hash": "3f323cff776b23296d162363d86a52d69f409e21abea65397af1462cde227dd0",
+      "timestamp": 1785295752.9642768
+    },
+    {
+      "hash": "a09557d7082333c732e5b8a35b2df1a8720863f40101a6d8963dc587ab569599",
+      "index": 25,
+      "payload": {
+        "anchored_at": 1785295761.5080054,
+        "challenge_id": "a5a051839f7d0ab88700d1f29ea2ae301839175c0f731017d2fd703f93b9c0ac",
+        "challenge_schema": "challenge-response/0.1",
+        "coordinator_reconfirmed": {
+          "first_failure_reason": "response_hash mismatch: the responder did NOT demonstrate possession of the full result under this nonce (a public output_hash cannot produce it \u2014 copy attack defeated)",
+          "reason_count": 1,
+          "verdict": false
+        },
+        "drill": true,
+        "event": "challenge_response_result",
+        "issued_for": "spark-agent-same-operator",
+        "ledger_tip_at_issue": {
+          "hash": "b0f6ca41cf8d0fab751bb278233fdc429f8ecb49435271db1a128e5f5afdbd5e",
+          "index": 24
+        },
+        "limitation_note": "Nonce-bound possession proof \u2014 demonstrates the responder held the complete task result under a fresh challenge, defeating hash-copying from public records; it does NOT prove where/when execution occurred nor exclude result-sharing between cooperating parties (and the public task source means anyone can execute). This first exercise is same-operator (coordinator challenging its own agent identity) and says so. Not consensus, not payment, not a token; research-stage. PLANNED COPY-ATTACK DRILL: this failure is a deliberate demonstration that a response forged from the PUBLIC output_hash alone is mechanically rejected \u2014 the protocol's oldest caveat ('a hash can be copied') now has an anchored counter-demonstration, not detected fraud.",
+        "no_token": true,
+        "nonce": "3326b0a988f082dc1caf8f3bec67c4d2dcef31a9662ffc9c1b2cc8c263839517",
+        "operator_relationship": "same-operator",
+        "output_hash": "2afce69a357044d983e47c2c3213ab52aed29a5c082244a2e140184e2feb7e4a",
+        "response_hash": "0b9609a1f1edf2098f2f5b9eaf9b505f963e345366f270b24b48190eac3343ec",
+        "stage": "R-challenge",
+        "status": "challenge-failed",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0007",
+        "topology": "challenge-response-same-operator",
+        "verifier_id": "spark-agent-same-operator",
+        "zero_value": true
+      },
+      "prev_hash": "b0f6ca41cf8d0fab751bb278233fdc429f8ecb49435271db1a128e5f5afdbd5e",
+      "timestamp": 1785295761.508123
+    },
+    {
+      "hash": "e994ecf28455e6e6c6f3c50d8a66bdee143df931819347df6a291576833128f3",
+      "index": 26,
+      "payload": {
+        "anchored_at": 1785295796.8487172,
+        "catalog_entries": [
+          {
+            "task_id": "task-0001",
+            "work_id": "58c095a58eb7b8830cc27025c0fbded3db4833bf3fcfb66627fd6ca7bc949454"
+          },
+          {
+            "task_id": "task-0002",
+            "work_id": "70ef999afc1bd2eee998e1b50df0ee3ff1ae078e855943fb1b30d8a925d04709"
+          },
+          {
+            "task_id": "task-0003",
+            "work_id": "7a3bf24bb1378e5e23930e9232e3db772c642978cd4a903c2f00700c975b5374"
+          },
+          {
+            "task_id": "task-0004",
+            "work_id": "765b059c0edb0537163ef49a2eed267591c65c0cb8ddff5ca5f11c0121b77ea3"
+          },
+          {
+            "task_id": "task-0005",
+            "work_id": "749db665f23456b107dafb209c983eebdd79e588600abc06225d77b1d722c8f4"
+          },
+          {
+            "task_id": "task-0006",
+            "work_id": "2070135fd7f1041f4e3548c0a601ad618132633a3cf87d657ef4ad86d805c1a2"
+          },
+          {
+            "task_id": "task-0007",
+            "work_id": "f5168449b7f43d400abc39c0afbaa123b74cc008c1496b3cf7a54a6031477844"
+          },
+          {
+            "task_id": "task-0008",
+            "work_id": "28a20d8f8a76d1023cdd6a083f6e391c7b33dea912aab503d25c1f269e00e0ba"
+          },
+          {
+            "task_id": "task-0009",
+            "work_id": "6bd3ff145195fe41e2aa3b95ef14d8ab41d884d720c7a18874e6864852d3c9a7"
+          },
+          {
+            "task_id": "task-0010",
+            "work_id": "1eb258a9b95e0bd198143008eae7b34b22d787298026a9ab3c6cd77ad3eb6438"
+          },
+          {
+            "task_id": "task-0011",
+            "work_id": "b707bf2456e8362296b0ff6997fe1dfe86aff35d267cb4885be0a40833ebf526"
+          },
+          {
+            "task_id": "task-0012",
+            "work_id": "c8fce1e477574cc6e3d3612fa7876ca235d36d027da22ed4498adb4dfe3e7aff"
+          },
+          {
+            "task_id": "task-0013",
+            "work_id": "a8596e8bb61e66d162e7ff2b8dafe259b0e98faa0d891f756e69fe29ac9384cf"
+          }
+        ],
+        "catalog_entry_count": 13,
+        "catalog_hash": "8ec2c23241a161f2d327eb81058f2a4b6b040b2117ae422df3fb47f7d7740440",
+        "catalog_schema": "work-molecule-catalog/0.2",
+        "coordinator_reconfirmed": {
+          "catalog_hash_matches": true,
+          "entries_match": true,
+          "rebuild_error": null,
+          "rebuilt_entry_count": 13,
+          "recomputed_catalog_hash": "8ec2c23241a161f2d327eb81058f2a4b6b040b2117ae422df3fb47f7d7740440"
+        },
+        "event": "work_molecule_catalog_anchored",
+        "limitation_note": "Work Molecules are READ-ONLY ASSEMBLIES of same-operator records, assembled by the same operator; a matching WMID proves DETERMINISTIC RECONSTRUCTIBILITY of the provenance object from the recorded evidence, NOT independence and NOT execution (hashes can be copied). Provenance-debt fields (energy/compute cost, TEE hardware attestation, execution detail) remain open and are listed explicitly inside each molecule. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "molecule_schema": "work-molecule/0.3",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R-provenance",
+        "status": "molecule-catalog-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-molecule-assembly",
+        "zero_value": true
+      },
+      "prev_hash": "a09557d7082333c732e5b8a35b2df1a8720863f40101a6d8963dc587ab569599",
+      "timestamp": 1785295796.8488302
+    },
+    {
+      "hash": "e873fc50cbb0e0ad8600c0f90d6c6f14884d57f026fb2aff3bcb21f796bb6596",
+      "index": 27,
+      "payload": {
+        "anchored_at": 1785295796.958442,
+        "catalog_hash": "f488aa4fc512234642685b6c00fb63ec730a743259ec23e312b37cdd954e0ef7",
+        "catalog_schema": "trust-vector-catalog/0.1",
+        "coordinator_reconfirmed": {
+          "catalog_hash_matches": true,
+          "entries_match": true,
+          "rebuild_error": null,
+          "rebuilt_vector_count": 13,
+          "recomputed_catalog_hash": "f488aa4fc512234642685b6c00fb63ec730a743259ec23e312b37cdd954e0ef7"
+        },
+        "event": "trust_vector_catalog_anchored",
+        "limitation_note": "Trust vectors are mechanical assemblies of same-operator evidence; component E cites the anchored maximal-concentration baseline; component U is honestly empty pending Gate 3; a matching catalog hash proves deterministic re-derivability, not trustworthiness; not consensus, not payment, not a token; research-stage.",
+        "no_combined_scalar": "no combined trust score exists by design",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R-trust",
+        "status": "trust-vector-catalog-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-trust-vector",
+        "vector_count": 13,
+        "zero_value": true
+      },
+      "prev_hash": "e994ecf28455e6e6c6f3c50d8a66bdee143df931819347df6a291576833128f3",
+      "timestamp": 1785295796.9585588
     }
   ],
   "snapshot_header": {
-    "entry_count": 24,
+    "entry_count": 28,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785294206.3173892,
+    "snapshot_timestamp": 1785295809.8744738,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "3f323cff776b23296d162363d86a52d69f409e21abea65397af1462cde227dd0",
-    "tip_index": 23,
+    "tip_hash": "e873fc50cbb0e0ad8600c0f90d6c6f14884d57f026fb2aff3bcb21f796bb6596",
+    "tip_index": 27,
     "zero_value": true
   }
 }

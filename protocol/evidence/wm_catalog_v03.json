@@ -1,5 +1,5 @@
 {
-  "catalog_hash": "dbc162aa198772f7834c8d16f3334f9c8a7d3ca83577a670635ef8807689f9c4",
+  "catalog_hash": "8ec2c23241a161f2d327eb81058f2a4b6b040b2117ae422df3fb47f7d7740440",
   "entries": [
     {
       "task_id": "task-0001",
@@ -27,7 +27,7 @@
     },
     {
       "task_id": "task-0007",
-      "work_id": "425260e7736546ff4065c034013634355ff2bdd2b467208e58d865c828e0252d"
+      "work_id": "f5168449b7f43d400abc39c0afbaa123b74cc008c1496b3cf7a54a6031477844"
     },
     {
       "task_id": "task-0008",
