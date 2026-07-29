@@ -104,6 +104,12 @@ gate3_*.json
 uptime_epoch*.json
 heartbeat*.json
 
+# MetaWork passport catalogs are derived, deterministic, reconstructible local
+# artifacts (the canonical record is the ANCHORED catalog; a passport is a
+# HISTORY, never a leaderboard); the anchored-catalog evidence copy lives in
+# protocol/evidence/ via the negation block below.
+passport_catalog*.json
+
 # ============================================================================
 # PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to
 # every local-artifact ignore rule above. These are privacy-checked COPIES of

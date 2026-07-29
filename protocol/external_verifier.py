@@ -56,6 +56,7 @@ import protocol.actor_identity as actor_identity  # scheme constants for key reg
 import protocol.gate3_process as gate3_process  # reused to RECOMPUTE prechecks/windows
 import demo.metastar_treasury as metastar_treasury  # reused to RE-DERIVE anchored fees
 import demo.flow1_uptime as flow1_uptime  # reused to RE-VERIFY heartbeats + epochs
+import protocol.metawork_passport as metawork_passport  # reused to REBUILD passports
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -199,6 +200,27 @@ TV_LIMITATION_NOTE = (
     "empty pending Gate 3; a matching catalog hash proves deterministic "
     "re-derivability, not trustworthiness; not consensus, not payment, not a token; "
     "research-stage."
+)
+
+
+# --- MetaWork passport catalog (per-actor histories, never a leaderboard) ----------------
+_PASSPORT_EVENT = "passport_catalog_anchored"
+_PASSPORT_STATUS = "passport-catalog-confirmed"
+
+NO_LEADERBOARD_AFFIRMATION = ("no rank, score, rating, leaderboard, or "
+                              "percentile exists anywhere, by mechanical rule")
+UWW_TRANSPARENCY_STATEMENT = (
+    "Useful-Work-per-Watt is transparency only, never a minting trigger: the "
+    "emission path [flow1_uptime grep audit] and the treasury path "
+    "[metastar_treasury grep audit] neither import nor read passport "
+    "artifacts — money modules are mechanically blind to this metric"
+)
+PASSPORT_LIMITATION_NOTE = (
+    "Passports are mechanical assemblies of same-operator anchored history; "
+    "work-per-watt is an illustrative transparency figure at demo scale "
+    "(estimated microjoule energies), mechanically unreadable by money paths; "
+    "a matching catalog hash proves deterministic re-derivability, not merit; "
+    "not consensus, not payment, not a token; research-stage."
 )
 
 
@@ -1757,6 +1779,74 @@ def anchor_gate3_event(request: dict, ledger: Ledger, drill: bool = False) -> di
 
 
 # ----------------------------------------------------------------------------
+# Passport-catalog anchoring: validate + REBUILD-and-compare + anchor.
+# ----------------------------------------------------------------------------
+def anchor_passport_catalog(catalog: dict, ledger: Ledger) -> dict:
+    """Validate + REBUILD + anchor a MetaWork passport catalog. Returns
+    {evaluation, ledger_entry}. Malformed -> 'rejected', NOT anchored;
+    otherwise the coordinator rediscovers every actor and rebuilds every
+    passport itself: match -> 'passport-catalog-confirmed', else
+    'passport-catalog-mismatch' (anchored audit event). COUNTS + catalog_hash
+    only — no actor lists, no task keys (scanner-invisible)."""
+    ok, reasons = metawork_passport.validate_catalog(catalog)
+    if not ok:
+        evaluation = {
+            "event": _PASSPORT_EVENT,
+            "stage": "R-passport",
+            "topology": "same-machine-passport-assembly",
+            "status": "rejected",
+            "reason": "; ".join(reasons),
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": PASSPORT_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    rebuild_error = None
+    rebuilt = None
+    try:
+        rebuilt = metawork_passport.build_passport_catalog(
+            ledger_path=ledger.path)
+    except (KeyError, ValueError) as exc:
+        rebuild_error = f"{type(exc).__name__}: {exc}"
+    hash_matches = bool(rebuilt is not None
+                        and rebuilt["catalog_hash"] == catalog["catalog_hash"])
+    entries_match = bool(rebuilt is not None
+                         and rebuilt["entries"] == catalog["entries"])
+    status = (_PASSPORT_STATUS if (hash_matches and entries_match)
+              else "passport-catalog-mismatch")
+
+    evaluation = {
+        "event": _PASSPORT_EVENT,
+        "stage": "R-passport",
+        "topology": "same-machine-passport-assembly",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "catalog_schema": catalog["schema"],
+        "catalog_hash": catalog["catalog_hash"],
+        "actor_count": len(catalog["entries"]),
+        "no_leaderboard": NO_LEADERBOARD_AFFIRMATION,
+        "uww_transparency": UWW_TRANSPARENCY_STATEMENT,
+        "coordinator_reconfirmed": {
+            "recomputed_catalog_hash": rebuilt["catalog_hash"] if rebuilt else None,
+            "catalog_hash_matches": hash_matches,
+            "entries_match": entries_match,
+            "rebuilt_actor_count": len(rebuilt["entries"]) if rebuilt else 0,
+            "rebuild_error": rebuild_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": PASSPORT_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+# ----------------------------------------------------------------------------
 # Flow-1 anchoring: forged-heartbeat drill + uptime epoch, coordinator-reconfirmed.
 # ----------------------------------------------------------------------------
 def _find_actor_root(entries, actor_id):
@@ -3177,6 +3267,45 @@ def _selftest() -> int:
             f"{out_badep['evaluation']['status']} / {out_tep['evaluation']['status']}",
         ))
 
+        # --- PASSPORT-CATALOG mode coverage -----------------------------------------------
+        # Reuses f1_ledger (rich history: 13 evals + registration + epoch +
+        # challenge records). (49) confirmed + scanner-invisible; (50)
+        # malformed rejected + tampered hash -> mismatch audit event.
+        pp_cat = metawork_passport.build_passport_catalog(ledger_path=f1_ledger)
+        out_pp = anchor_passport_catalog(pp_cat, Ledger(f1_ledger))
+        ev_pp = out_pp["evaluation"]
+        pp_chain_ok, _pp_reason = Ledger(f1_ledger).verify_chain()
+        checks.append((
+            "PASSPORT CATALOG CONFIRMED (all passports rebuilt; counts only; "
+            "no-leaderboard + UWW-transparency affirmations on record)",
+            ev_pp["status"] == "passport-catalog-confirmed"
+            and out_pp["ledger_entry"] is not None
+            and ev_pp["actor_count"] == len(pp_cat["entries"])
+            and "mechanical rule" in ev_pp["no_leaderboard"]
+            and "mechanically blind" in ev_pp["uww_transparency"]
+            and "task_id" not in ev_pp and "task_ids" not in ev_pp
+            and "entries" not in ev_pp
+            and pp_chain_ok is True,
+            f"{ev_pp['status']} ({ev_pp['actor_count']} actors)",
+        ))
+        bad_pp = dict(pp_cat)
+        bad_pp["catalog_hash"] = "0" * 64
+        out_badpp = anchor_passport_catalog(bad_pp, Ledger(f1_ledger))
+        tampered_pp = json.loads(json.dumps(pp_cat))
+        tampered_pp["entries"][0]["passport_hash"] = "1" * 64
+        tampered_pp["catalog_hash"] = metawork_passport.compute_catalog_hash(
+            tampered_pp)
+        out_tpp = anchor_passport_catalog(tampered_pp, Ledger(f1_ledger))
+        checks.append((
+            "PASSPORT REJECTED (bad hash) + MISMATCH (tampered passport_hash "
+            "-> rebuild disagrees, anchored audit event)",
+            out_badpp["evaluation"]["status"] == "rejected"
+            and out_badpp["ledger_entry"] is None
+            and out_tpp["evaluation"]["status"] == "passport-catalog-mismatch"
+            and out_tpp["ledger_entry"] is not None,
+            f"{out_badpp['evaluation']['status']} / {out_tpp['evaluation']['status']}",
+        ))
+
         # (41) STABILITY after temp anchors onto a copy of the REAL ledger
         # (conditional — the runtime ledger is gitignored and absent in CI): a fresh
         # economy anchor must leave the 0.2 catalog (idx-17), the ACI report_hash
@@ -4115,6 +4244,13 @@ def main(argv=None) -> int:
              "coordinator re-verifies every heartbeat signature and replays "
              "the objective emission arithmetic before anchoring",
     )
+    mode.add_argument(
+        "--anchor-passport-catalog", metavar="PASSPORT_CATALOG_JSON",
+        help="anchor a MetaWork passport catalog (metawork_passport.py --all); "
+             "the coordinator rediscovers every actor and rebuilds every "
+             "passport before anchoring (counts + hash only; no leaderboard "
+             "exists by mechanical rule)",
+    )
     parser.add_argument(
         "--drill", action="store_true",
         help="with --anchor-challenge-result: label the anchored record as a "
@@ -4182,6 +4318,9 @@ def main(argv=None) -> int:
     if args.anchor_uptime_epoch is not None:
         return _cmd_anchor_json(args.anchor_uptime_epoch, args.ledger,
                                 anchor_uptime_epoch, _EPOCH_STATUS)
+    if args.anchor_passport_catalog is not None:
+        return _cmd_anchor_json(args.anchor_passport_catalog, args.ledger,
+                                anchor_passport_catalog, _PASSPORT_STATUS)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
