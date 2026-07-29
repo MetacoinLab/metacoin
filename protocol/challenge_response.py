@@ -256,7 +256,7 @@ def validate_response(response):
     return (not reasons, reasons)
 
 
-def signature_check(response, ledger_source) -> dict:
+def signature_check(response, ledger_source, as_of_index: int = None) -> dict:
     """Check a response's OPTIONAL actor-identity signature against the ledger.
 
     `ledger_source` is a path or a pre-read entries list. Returns a dict:
@@ -267,6 +267,12 @@ def signature_check(response, ledger_source) -> dict:
     for the signer; (3) the signature verifies over
     sha256(canonical response-without-signature) under that root; (4) the
     signature's actor binds to the response's verifier_id.
+
+    `as_of_index` is the generation-lock idiom for HISTORICAL re-verification:
+    when re-verifying a round anchored at ledger index N, pass N-1 so the scan
+    sees exactly the history the coordinator saw at anchor time (a LATER
+    legitimate/rejected use — e.g. a subsequent drill — must not retroactively
+    fail an earlier honest round). Live anchoring omits it: full history.
     """
     info = {"signed": False, "signer_actor_id": None, "key_index": None,
             "signature_valid": None, "key_root_ledger_index": None,
@@ -283,13 +289,21 @@ def signature_check(response, ledger_source) -> dict:
 
     entries = (work_molecule._read_ledger(ledger_source)
                if isinstance(ledger_source, str) else ledger_source)
+    if as_of_index is not None:
+        entries = [e for e in entries
+                   if isinstance(e.get("index"), int) and e["index"] <= as_of_index]
 
     # (1) one-time discipline against the WHOLE anchored history — first, so a
-    # violation is always the headline reason
+    # violation is always the headline reason. The scan SKIPS records of this
+    # same round (same challenge_id): re-verifying an already-anchored signed
+    # round must not self-collide, and same-round reuse reveals no new secrets
+    # (identical message digest). A DIFFERENT round reusing the index has a
+    # different challenge_id and is always caught.
     for e in entries:
         p = e.get("payload") if isinstance(e, dict) else None
         if (isinstance(p, dict) and p.get("event") == _CHALLENGE_RECORD_EVENT
                 and p.get("signed") is True
+                and p.get("challenge_id") != response.get("challenge_id")
                 and p.get("signer_actor_id") == sig.get("actor_id")
                 and p.get("key_index") == sig.get("key_index")):
             info["reuse_detected"] = True
@@ -333,7 +347,8 @@ def signature_check(response, ledger_source) -> dict:
     return info
 
 
-def verify_response(challenge, response, ledger_path: str = DEFAULT_LEDGER_PATH):
+def verify_response(challenge, response, ledger_path: str = DEFAULT_LEDGER_PATH,
+                    as_of_index: int = None):
     """Coordinator-side verification: FULL recompute, trusting neither file.
 
     Re-runs the task itself, re-derives the expected response_hash from the
@@ -399,7 +414,7 @@ def verify_response(challenge, response, ledger_path: str = DEFAULT_LEDGER_PATH)
     # against the anchored root, and the one-time discipline is enforced against
     # the whole anchored history (reuse reasons come FIRST from signature_check).
     if "signature" in response:
-        sig_info = signature_check(response, entries)
+        sig_info = signature_check(response, entries, as_of_index=as_of_index)
         reasons = sig_info["reasons"] + reasons if sig_info["reasons"] else reasons
 
     return (not reasons, reasons)

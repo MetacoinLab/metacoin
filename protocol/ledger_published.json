@@ -1096,19 +1096,123 @@
       },
       "prev_hash": "e994ecf28455e6e6c6f3c50d8a66bdee143df931819347df6a291576833128f3",
       "timestamp": 1785295796.9585588
+    },
+    {
+      "hash": "a7795f582ca1457b887b38fb7831b33fa227993d307a6f489197314e41b92d24",
+      "index": 28,
+      "payload": {
+        "actor_id": "spark-agent-same-operator",
+        "anchored_at": 1785307861.8671098,
+        "event": "actor_key_registered",
+        "key_count": 32,
+        "leaf_hashes_hash": "f33d06114ccc514a07319aae9cd9aa02688006cae3305b56e341053b8bef5942",
+        "limitation_note": "Actor key registration under same-operator key custody: the coordinator generated and holds this keychain, so signatures under this root prove KEY-POSSESSION CONTINUITY, not third-party identity \u2014 the layer becomes identity-meaningful when an external actor generates and registers their OWN root. One-time discipline is a hard protocol rule: each key index signs exactly once, and anchored reuse is mechanically rejected. One active root per actor in v0; rotation is future work. Not consensus, not payment, not a token; research-stage.",
+        "merkle_root": "d3982dfa54ebdd7e2a1d3cfcddd08f401371a8594521573d8f971da066a73d59",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "scheme": "lamport-sha256-merkle/0.1",
+        "stage": "R-identity",
+        "status": "actor-key-registered",
+        "task_class": "illustrative-demo",
+        "topology": "same-operator-key-custody",
+        "zero_value": true
+      },
+      "prev_hash": "e873fc50cbb0e0ad8600c0f90d6c6f14884d57f026fb2aff3bcb21f796bb6596",
+      "timestamp": 1785307861.8672404
+    },
+    {
+      "hash": "8a1391c1056a39e1085a084c546a5b888fcad994dadd5d92249a2cf58dd62ba7",
+      "index": 29,
+      "payload": {
+        "anchored_at": 1785307867.059223,
+        "challenge_id": "c88ff2c3da8623e14eb120b01060be29566c65f2be977d2bab821f8293cd43ba",
+        "challenge_schema": "challenge-response/0.1",
+        "coordinator_reconfirmed": {
+          "first_failure_reason": null,
+          "reason_count": 0,
+          "verdict": true
+        },
+        "event": "challenge_response_result",
+        "issued_for": "spark-agent-same-operator",
+        "key_index": 0,
+        "key_root_ledger_index": 28,
+        "ledger_tip_at_issue": {
+          "hash": "a7795f582ca1457b887b38fb7831b33fa227993d307a6f489197314e41b92d24",
+          "index": 28
+        },
+        "limitation_note": "Nonce-bound possession proof \u2014 demonstrates the responder held the complete task result under a fresh challenge, defeating hash-copying from public records; it does NOT prove where/when execution occurred nor exclude result-sharing between cooperating parties (and the public task source means anyone can execute). This first exercise is same-operator (coordinator challenging its own agent identity) and says so. Not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "nonce": "62ec2a632d658e6fab63b4f8b0da2aeab1e80fc74245a78597ae77615a776018",
+        "operator_relationship": "same-operator",
+        "output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+        "response_hash": "7055975e2994a0f550fdcd9d7f157f32e3fc0dff9ca0e73ac3f70dda5c35b848",
+        "signature_valid": true,
+        "signed": true,
+        "signer_actor_id": "spark-agent-same-operator",
+        "stage": "R-challenge",
+        "status": "challenge-verified",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0008",
+        "topology": "challenge-response-same-operator",
+        "verifier_id": "spark-agent-same-operator",
+        "zero_value": true
+      },
+      "prev_hash": "a7795f582ca1457b887b38fb7831b33fa227993d307a6f489197314e41b92d24",
+      "timestamp": 1785307867.059361
+    },
+    {
+      "hash": "e36839f80a5a2b9d4109c1193b4bb84a489dac7f09997e2861e7c3f25b1da4c8",
+      "index": 30,
+      "payload": {
+        "anchored_at": 1785307879.100982,
+        "challenge_id": "64d458f9e70e9648a19c3f2f88fc6eb8add448152c383d08f06c4020f280ff62",
+        "challenge_schema": "challenge-response/0.1",
+        "coordinator_reconfirmed": {
+          "first_failure_reason": "one-time key index reuse (violation of OTS discipline): ('spark-agent-same-operator', index 0) was already used in the anchored record at ledger index 29",
+          "reason_count": 1,
+          "verdict": false
+        },
+        "drill": true,
+        "event": "challenge_response_result",
+        "issued_for": "spark-agent-same-operator",
+        "key_index": 0,
+        "key_root_ledger_index": 28,
+        "ledger_tip_at_issue": {
+          "hash": "8a1391c1056a39e1085a084c546a5b888fcad994dadd5d92249a2cf58dd62ba7",
+          "index": 29
+        },
+        "limitation_note": "Nonce-bound possession proof \u2014 demonstrates the responder held the complete task result under a fresh challenge, defeating hash-copying from public records; it does NOT prove where/when execution occurred nor exclude result-sharing between cooperating parties (and the public task source means anyone can execute). This first exercise is same-operator (coordinator challenging its own agent identity) and says so. Not consensus, not payment, not a token; research-stage. PLANNED COPY-ATTACK DRILL: this failure is a deliberate demonstration that a response forged from the PUBLIC output_hash alone is mechanically rejected \u2014 the protocol's oldest caveat ('a hash can be copied') now has an anchored counter-demonstration, not detected fraud.",
+        "no_token": true,
+        "nonce": "7b14c0a9681451a4a3538b199a2489cfb0105b29de2316d6ba0524ec1be03235",
+        "operator_relationship": "same-operator",
+        "output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+        "response_hash": "9647f5ce05ead08d9f4e7da8fc77fa488d86c7d4cf12d4e2e87cb369d21f54d3",
+        "signature_valid": true,
+        "signed": true,
+        "signer_actor_id": "spark-agent-same-operator",
+        "stage": "R-challenge",
+        "status": "challenge-failed",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0008",
+        "topology": "challenge-response-same-operator",
+        "verifier_id": "spark-agent-same-operator",
+        "zero_value": true
+      },
+      "prev_hash": "8a1391c1056a39e1085a084c546a5b888fcad994dadd5d92249a2cf58dd62ba7",
+      "timestamp": 1785307879.1011257
     }
   ],
   "snapshot_header": {
-    "entry_count": 28,
+    "entry_count": 31,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785295809.8744738,
+    "snapshot_timestamp": 1785308040.1210096,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "e873fc50cbb0e0ad8600c0f90d6c6f14884d57f026fb2aff3bcb21f796bb6596",
-    "tip_index": 27,
+    "tip_hash": "e36839f80a5a2b9d4109c1193b4bb84a489dac7f09997e2861e7c3f25b1da4c8",
+    "tip_index": 30,
     "zero_value": true
   }
 }

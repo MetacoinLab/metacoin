@@ -417,13 +417,76 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
             else:
                 n_failed += 1
                 if p["response_hash"] == expected:
-                    problems.append(f"idx {idx}: failed round actually re-derives "
-                                    "— its rejection was wrong")
+                    # possession re-derives — only legitimate when the rejection
+                    # was at the SIGNATURE level (e.g. the key-reuse drill:
+                    # honest possession, violated one-time discipline)
+                    reason = str(p.get("coordinator_reconfirmed", {})
+                                 .get("first_failure_reason"))
+                    if not (p.get("signed") and ("reuse" in reason
+                                                 or "signature" in reason)):
+                        problems.append(f"idx {idx}: failed round actually "
+                                        "re-derives — its rejection was wrong")
         rows.append(("challenges", FULL, not problems,
                      f"{n_verified} verified round(s) re-derive under their "
                      f"nonces; {n_failed} failed round(s) (planned drills) stay "
                      "refuted — possession proof holds"
                      if not problems else "; ".join(problems[:3])))
+
+    # --- layer 10: actor identity (registrations + signed rounds) -------------------
+    # Verification needs ONLY public material: the anchored root, and the signed
+    # challenge/response evidence copies (a signature carries its own leaf pubkey
+    # + Merkle path). The private keychain is never needed — asserted by the
+    # fresh-clone test, which has no keychain file at all.
+    reg_records = [(e["index"], e["payload"]) for e in entries
+                   if isinstance(e.get("payload"), dict)
+                   and e["payload"].get("event") == "actor_key_registered"
+                   and e["payload"].get("status") == "actor-key-registered"]
+    signed_records = [(i, p) for i, p in ch_records if p.get("signed")]
+    if not reg_records and not signed_records:
+        rows.append(("identity", FULL, True,
+                     "no actor-key registrations on the chain yet"))
+    else:
+        problems = []
+        roots = {}
+        for idx, p in reg_records:
+            root = p.get("merkle_root")
+            if not (isinstance(root, str) and len(root) == 64):
+                problems.append(f"idx {idx}: malformed registered root")
+            roots[idx] = root
+        n_ok = 0
+        for idx, p in signed_records:
+            cid12 = p["challenge_id"][:12]
+            ch = _load_evidence_json(f"challenge_{cid12}.json")
+            resp = _load_evidence_json(f"response_{cid12}.json")
+            if ch is None or resp is None:
+                problems.append(f"idx {idx}: signed-round evidence files missing")
+                continue
+            if (ch.get("challenge_id") != p["challenge_id"]
+                    or resp.get("response_hash") != p["response_hash"]):
+                problems.append(f"idx {idx}: evidence files do not match the "
+                                "anchored record")
+                continue
+            # historical re-verification: scan exactly the history the
+            # coordinator saw at anchor time (generation-lock idiom)
+            verdict, _reasons = challenge_response.verify_response(
+                ch, resp, ledger_path=source, as_of_index=idx - 1)
+            expected_ok = p["status"] == "challenge-verified"
+            if verdict != expected_ok:
+                problems.append(f"idx {idx}: re-verification verdict {verdict} "
+                                f"contradicts anchored status {p['status']}")
+                continue
+            sig = resp.get("signature", {})
+            reg_idx = p.get("key_root_ledger_index")
+            if roots.get(reg_idx) != sig.get("merkle_root"):
+                problems.append(f"idx {idx}: signature root does not match the "
+                                f"cited registration at idx {reg_idx}")
+                continue
+            n_ok += 1
+        rows.append(("identity", FULL, not problems,
+                     f"{len(reg_records)} key root(s) anchored; {n_ok} signed "
+                     "round(s) re-verified from public material only (signature "
+                     "authenticates under the anchored root; reuse drill stays "
+                     "rejected)" if not problems else "; ".join(problems[:3])))
 
     all_ok = all(ok for _l, _m, ok, _d in rows)
     return (all_ok, rows, source_note)
@@ -550,10 +613,15 @@ def _selftest() -> int:
                 [sys.executable, os.path.join(clone_dir, "protocol",
                                               "verify_everything.py"), "--full"],
                 cwd=clone_dir, capture_output=True, text=True, timeout=600)
-            passed = result.returncode == 0 and "ALL LAYERS PASS" in result.stdout
+            # the clone must contain NO private key material (keychains are
+            # untracked) — signed-round verification uses public material only
+            no_private = not any(
+                n.startswith("keychain") for n in os.listdir(clone_dir))
+            passed = (result.returncode == 0
+                      and "ALL LAYERS PASS" in result.stdout and no_private)
             checks.append(("FRESH-CLONE simulation: --full passes on tracked "
-                           "files only (no live ledger, no local artifacts)",
-                           passed))
+                           "files only (no live ledger, no local artifacts, NO "
+                           "private key material)", passed))
             if not passed:
                 print("    fresh-clone output tail:")
                 for line in result.stdout.splitlines()[-15:]:

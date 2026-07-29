@@ -1,0 +1,11 @@
+{
+  "challenge_id": "64d458f9e70e9648a19c3f2f88fc6eb8add448152c383d08f06c4020f280ff62",
+  "issued_for": "spark-agent-same-operator",
+  "ledger_tip_at_issue": {
+    "hash": "8a1391c1056a39e1085a084c546a5b888fcad994dadd5d92249a2cf58dd62ba7",
+    "index": 29
+  },
+  "nonce": "7b14c0a9681451a4a3538b199a2489cfb0105b29de2316d6ba0524ec1be03235",
+  "schema": "challenge-response/0.1",
+  "task_id": "task-0008"
+}
