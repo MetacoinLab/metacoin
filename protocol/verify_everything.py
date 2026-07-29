@@ -62,6 +62,7 @@ import protocol.agent_concentration as agent_concentration
 import protocol.challenge_response as challenge_response
 import protocol.cut_certificate as cut_certificate
 import protocol.gate3_process as gate3_process
+import protocol.metawork_passport as metawork_passport
 import protocol.trust_vector as trust_vector
 import demo.flow1_uptime as flow1_uptime
 import demo.metastar_treasury as metastar_treasury
@@ -632,6 +633,51 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      f"zero confirmed; {len(hb_drills)} forged drill(s) stay "
                      "rejected; separation statements present"
                      if not problems else "; ".join(problems[:3])))
+
+    # --- layer 13: MetaWork passports (both modes; full catalog rebuild) ------------
+    # The anchored catalog re-derives generation-locked; one rich passport is
+    # citation-rechecked against the chain; the no-leaderboard rule is scanned
+    # LIVE on the rebuilt passport (a history, never a leaderboard).
+    pp_records = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event") == "passport_catalog_anchored"
+                  and e["payload"].get("status") == "passport-catalog-confirmed"]
+    if not pp_records:
+        rows.append(("passports", FULL, True,
+                     "no passport catalog on the chain yet"))
+    else:
+        problems = []
+        for idx, p in pp_records[-1:]:
+            try:
+                cat = metawork_passport.build_passport_catalog(
+                    ledger_path=source, as_of_index=idx - 1)
+            except (KeyError, ValueError) as exc:
+                problems.append(f"idx {idx}: catalog rebuild failed: {exc}")
+                continue
+            if (cat["catalog_hash"] != p["catalog_hash"]
+                    or len(cat["entries"]) != p["actor_count"]):
+                problems.append(f"idx {idx}: rebuilt catalog does not match "
+                                "the anchored hash/count")
+                continue
+            sample_actor = cat["entries"][-1]["actor_id"]
+            sample = metawork_passport.build_passport(
+                sample_actor, ledger_path=source, as_of_index=idx - 1)
+            ok, _reasons = metawork_passport.validate_passport(
+                sample, ledger_path=source)
+            if not ok:
+                problems.append(f"idx {idx}: sample passport fails citation "
+                                "recheck")
+            if metawork_passport.leaderboard_violations(sample):
+                problems.append(f"idx {idx}: no-leaderboard rule violated live")
+            if ("mechanical rule" not in p.get("no_leaderboard", "")
+                    or "mechanically blind" not in p.get("uww_transparency", "")):
+                problems.append(f"idx {idx}: constitutional affirmations missing")
+        rows.append(("passports", FULL, not problems,
+                     f"catalog re-derived ({pp_records[-1][1]['actor_count']} "
+                     "actors, generation-locked); sample passport citation-"
+                     "rechecked; no-leaderboard rule scanned live; UWW stays "
+                     "transparency-only" if not problems
+                     else "; ".join(problems[:3])))
 
     all_ok = all(ok for _l, _m, ok, _d in rows)
     return (all_ok, rows, source_note)

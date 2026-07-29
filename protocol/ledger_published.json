@@ -1523,19 +1523,49 @@
       },
       "prev_hash": "4fbc876c8b2925ee6298c8fb3e9fa1da2692d024dcaf84db345b5cd7ded5eb1b",
       "timestamp": 1785309813.9654703
+    },
+    {
+      "hash": "806917198339033dd29020f23bfac22f8f96482f99371de46d8b2db2fbadf038",
+      "index": 40,
+      "payload": {
+        "actor_count": 6,
+        "anchored_at": 1785310356.8409863,
+        "catalog_hash": "382b80503b2eb472d1b1c16b4879e6c0ade4acaf0edda5b11dcf4939a4f5139a",
+        "catalog_schema": "metawork-passport-catalog/0.1",
+        "coordinator_reconfirmed": {
+          "catalog_hash_matches": true,
+          "entries_match": true,
+          "rebuild_error": null,
+          "rebuilt_actor_count": 6,
+          "recomputed_catalog_hash": "382b80503b2eb472d1b1c16b4879e6c0ade4acaf0edda5b11dcf4939a4f5139a"
+        },
+        "event": "passport_catalog_anchored",
+        "limitation_note": "Passports are mechanical assemblies of same-operator anchored history; work-per-watt is an illustrative transparency figure at demo scale (estimated microjoule energies), mechanically unreadable by money paths; a matching catalog hash proves deterministic re-derivability, not merit; not consensus, not payment, not a token; research-stage.",
+        "no_leaderboard": "no rank, score, rating, leaderboard, or percentile exists anywhere, by mechanical rule",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R-passport",
+        "status": "passport-catalog-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-passport-assembly",
+        "uww_transparency": "Useful-Work-per-Watt is transparency only, never a minting trigger: the emission path [flow1_uptime grep audit] and the treasury path [metastar_treasury grep audit] neither import nor read passport artifacts \u2014 money modules are mechanically blind to this metric",
+        "zero_value": true
+      },
+      "prev_hash": "dc5a502a2aeab6e644c669039b764d2d46be63881bf2c5738eb5fa7d7d611bff",
+      "timestamp": 1785310356.841154
     }
   ],
   "snapshot_header": {
-    "entry_count": 40,
+    "entry_count": 41,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785309883.2410176,
+    "snapshot_timestamp": 1785310402.5357776,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "dc5a502a2aeab6e644c669039b764d2d46be63881bf2c5738eb5fa7d7d611bff",
-    "tip_index": 39,
+    "tip_hash": "806917198339033dd29020f23bfac22f8f96482f99371de46d8b2db2fbadf038",
+    "tip_index": 40,
     "zero_value": true
   }
 }

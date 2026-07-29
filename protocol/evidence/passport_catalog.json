@@ -1,0 +1,30 @@
+{
+  "catalog_hash": "382b80503b2eb472d1b1c16b4879e6c0ade4acaf0edda5b11dcf4939a4f5139a",
+  "entries": [
+    {
+      "actor_id": "jiyu-agent-same-operator",
+      "passport_hash": "db7ef5eb3a0db1c9c2ec57194a74591c957dd4f833dcca8ad030d5fe0305302e"
+    },
+    {
+      "actor_id": "jiyu-laptop-same-operator",
+      "passport_hash": "358434e5031e4dbc25b858d42671bcb0e70232976b0ec1019b2e80738f7358ad"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "passport_hash": "3dff00cf118cb80e184393f2025bfc06be5c5a2c01b1aaa3033a2fcc33daa3d0"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "passport_hash": "e4855f2b27339ff777ae2b79f7366386705b19bc669a1196ae24ccc7c1209e7c"
+    },
+    {
+      "actor_id": "spark-uptime-node",
+      "passport_hash": "5124e6c42ed7dd4f1431d5e4218e4d53d276f70b60390e0bd89844a64844e82b"
+    },
+    {
+      "actor_id": "windows-laptop-same-operator",
+      "passport_hash": "30598d367fd56e0a86ec894214de3139bd5f870021b338d6d0f25d62f93aa959"
+    }
+  ],
+  "schema": "metawork-passport-catalog/0.1"
+}
