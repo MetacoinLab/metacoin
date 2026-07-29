@@ -63,3 +63,9 @@ economy_log.json
 # by a clone (the canonical record is the ANCHORED metering-evidence ledger entry,
 # which fixes the claim via report_hash + aggregate totals).
 metering_report.json
+
+# cut certificates (cut_certificate.py --build) are derived, deterministic,
+# reconstructible local artifacts, never committed (the canonical record is the
+# ANCHORED cut-certificate ledger entry; the certificate rebuilds byte-identically
+# from the ledger at any time).
+cut_cert*.json

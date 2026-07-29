@@ -48,6 +48,7 @@ import protocol.work_molecule as work_molecule  # reused to REBUILD molecule cat
 import protocol.agent_concentration as agent_concentration  # reused to RECOMPUTE ACI reports
 import demo.economy_demo as economy_demo  # reused to RE-RUN the full simulated economy
 import demo.task_metering as task_metering  # reused to RE-METER tasks (plausibility check)
+import protocol.cut_certificate as cut_certificate  # reused to FULLY VERIFY cut certificates
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -174,6 +175,27 @@ CATALOG_LIMITATION_NOTE = (
 _METERING_EVENT = "metering_evidence_anchored"
 _METERING_CONFIRMED_STATUS = "metering-evidence-confirmed"
 _METERING_SANITY_MAX_WALL_S = 60.0  # any task re-metering slower than this is implausible
+
+# --- cut-certificate anchoring (a SEVENTH record type) -----------------------------------
+# A cut certificate summarizes a verified provenance subgraph so later verifiers can
+# accept it at bounded cost (protocol/cut_certificate.py). THE COST ASYMMETRY IS THE
+# DESIGN: the coordinator performs the EXPENSIVE full verification (rebuild every
+# interior molecule, recompute every WMID and the aggregate) exactly once, HERE, at
+# anchoring — that anchor-time full proof is what makes every later cheap
+# accept_by_anchor (one anchored-hash lookup + one retrievability probe) sound.
+# Compression, never erasure: the summarized evidence stays retained and re-provable.
+_CUT_EVENT = cut_certificate.CUT_EVENT
+_CUT_CONFIRMED_STATUS = cut_certificate.CUT_CONFIRMED_STATUS
+
+CUT_LIMITATION_NOTE = (
+    "First-generation cut certificate over a FLAT provenance graph (no parent edges "
+    "exist yet among the thirteen molecules), so this is a degenerate cut exercising "
+    "the mechanism — non-trivial cuts await molecules with declared parents. Full "
+    "verification was performed by the coordinator at anchoring; subsequent cheap "
+    "acceptance is conditional on this anchor plus continued retrievability of the "
+    "molecules. Proves deterministic re-derivability of the summarized set, not "
+    "independence; not consensus, not payment, not a token; research-stage."
+)
 
 METERING_LIMITATION_NOTE = (
     "First-generation compute/energy evidence by the same operator on one host: "
@@ -1100,6 +1122,80 @@ def anchor_metering_report(report: dict, ledger: Ledger) -> dict:
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# ----------------------------------------------------------------------------
+# Cut-certificate anchoring: validate + FULL-verify + anchor.
+# ----------------------------------------------------------------------------
+def anchor_cut_certificate(cert: dict, ledger: Ledger) -> dict:
+    """Validate + FULLY VERIFY + anchor a cut certificate. Returns {evaluation, ledger_entry}.
+
+    Malformed (including an aggregate_hash or certificate_hash that does not
+    recompute from the file's own content) -> 'rejected', NOT anchored. Otherwise
+    the coordinator runs the EXPENSIVE full verification itself — rebuild every
+    interior molecule from the ledger, recompute every WMID and the aggregate_hash
+    (cut_certificate.verify_full): pass -> 'cut-certificate-confirmed'; anything
+    else -> 'cut-certificate-mismatch' (a real audit event). The full proof happens
+    exactly once, here — that is what makes later cheap accept_by_anchor sound.
+    """
+    ok, reasons = cut_certificate.validate_certificate(cert)
+    if not ok:
+        evaluation = {
+            "event": _CUT_EVENT,
+            "stage": "R-provenance",
+            "topology": "same-machine-cut-verification",
+            "status": "rejected",
+            "reason": "; ".join(reasons),
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": CUT_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    # ANCHOR-TIME FULL PROOF (the expensive path, run exactly once).
+    verify_error = None
+    full_ok = False
+    full_reasons = []
+    try:
+        full_ok, full_reasons = cut_certificate.verify_full(cert,
+                                                            ledger_path=ledger.path)
+    except (KeyError, ValueError) as exc:
+        verify_error = f"{type(exc).__name__}: {exc}"
+    status = _CUT_CONFIRMED_STATUS if full_ok else "cut-certificate-mismatch"
+
+    # COUNTS ONLY — no task/work-id lists: the molecule citation scanner treats
+    # payload task_id/task_ids keys as "this record verifies that task" and would
+    # pull this record into every molecule, moving every WMID. This record
+    # summarizes molecules; it verifies no task, so it stays scanner-invisible.
+    evaluation = {
+        "event": _CUT_EVENT,
+        "stage": "R-provenance",
+        "topology": "same-machine-cut-verification",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "certificate_schema": cert["schema"],
+        "certificate_hash": cert["certificate_hash"],
+        "aggregate_hash": cert["aggregate_hash"],
+        "molecule_schema": cert["molecule_schema"],
+        "interior_count": cert["interior_count"],
+        "boundary_count": len(cert["boundary_input_ids"]),
+        "verification_policy_version": cert["verification_policy_version"],
+        "coordinator_reconfirmed": {
+            "full_verification_passed": full_ok,
+            "rebuilt_interior_count": cert["interior_count"] if full_ok else None,
+            "first_failure_reason": (full_reasons[0] if full_reasons else None),
+            "verify_error": verify_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": CUT_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # ============================== SELF-TEST ====================================
 # NOTE: the following is a LOCAL TEST HARNESS (single-host simulation), NOT the product.
 # In real use the submission comes from a SEPARATE machine/person via verifier_cli.py.
@@ -1639,7 +1735,85 @@ def _selftest() -> int:
             f"{ev_cat03['status']} ({ev_cat03.get('molecule_schema')})",
         ))
 
-        # (25) STABILITY after temp anchors onto a copy of the REAL ledger
+        # --- CUT-CERTIFICATE mode coverage (anchor-time full proof) ----------------------
+        # Reuses met_ledger_a (13 tasks + metering + gen-2 catalog anchors), so the
+        # cut summarizes the same 0.3 generation the catalog anchored. All TEMP paths.
+        cut_cert = cut_certificate.build_cut(sorted(verifier_cli.TASK_MODULES),
+                                             ledger_path=met_ledger_a)
+
+        # (25) valid certificate -> coordinator FULL verification (the expensive
+        # proof, run exactly once, at anchoring) -> anchored
+        out_cut = anchor_cut_certificate(cut_cert, Ledger(met_ledger_a))
+        ev_cut = out_cut["evaluation"]
+        cut_chain_ok, _cut_reason = Ledger(met_ledger_a).verify_chain()
+        checks.append((
+            "CUT-CERT CONFIRMED (coordinator full proof at anchor time -> anchored)",
+            ev_cut["status"] == "cut-certificate-confirmed"
+            and out_cut["ledger_entry"] is not None
+            and ev_cut["coordinator_reconfirmed"]["full_verification_passed"] is True
+            and ev_cut["coordinator_reconfirmed"]["rebuilt_interior_count"] == 13
+            and cut_chain_ok is True,
+            ev_cut["status"],
+        ))
+
+        # (26) counts only, scanner-invisible; and the CHEAP path now works: one
+        # anchored-hash lookup + a single-molecule retrievability probe
+        accepted, cost_note = cut_certificate.accept_by_anchor(
+            cut_cert, ledger_path=met_ledger_a)
+        checks.append((
+            "CUT RECORD counts only, scanner-invisible; cheap acceptance works",
+            "task_id" not in ev_cut and "task_ids" not in ev_cut
+            and "interior" not in ev_cut and "root_work_ids" not in ev_cut
+            and "boundary_input_ids" not in ev_cut
+            and ev_cut["interior_count"] == 13 and ev_cut["boundary_count"] == 0
+            and accepted and "rebuilt 1 of 13" in cost_note,
+            f"task-keys={sorted(k for k in ev_cut if 'task_id' in k)}",
+        ))
+
+        # (27) internally-inconsistent aggregate_hash -> rejected -> NOT anchored
+        bad_agg = json.loads(json.dumps(cut_cert))
+        bad_agg["aggregate_hash"] = "0" * 64
+        bad_agg["certificate_hash"] = cut_certificate.compute_certificate_hash(bad_agg)
+        cut_ledger_b = os.path.join(tmp, "cut_ledger_b.jsonl")
+        _copyfile(aci_ledger_path, cut_ledger_b)
+        out_badagg = anchor_cut_certificate(bad_agg, Ledger(cut_ledger_b))
+        checks.append((
+            "CUT REJECTED (aggregate_hash mismatch -> NOT anchored)",
+            out_badagg["evaluation"]["status"] == "rejected"
+            and out_badagg["ledger_entry"] is None,
+            f"{out_badagg['evaluation']['status']} "
+            f"({out_badagg['evaluation'].get('reason')})",
+        ))
+
+        # (28) malformed certificate_hash -> rejected -> NOT anchored; and an
+        # internally CONSISTENT but wrong WMID -> full proof disagrees ->
+        # 'cut-certificate-mismatch', anchored (a real audit event)
+        bad_cut = dict(cut_cert)
+        bad_cut["certificate_hash"] = "0" * 64
+        out_badcut = anchor_cut_certificate(bad_cut, Ledger(cut_ledger_b))
+        tampered_cut = json.loads(json.dumps(cut_cert))
+        old_wid = tampered_cut["interior"][0]["work_id"]
+        tampered_cut["interior"][0]["work_id"] = "1" * 64
+        tampered_cut["root_work_ids"] = sorted(
+            ("1" * 64 if r == old_wid else r) for r in tampered_cut["root_work_ids"])
+        tampered_cut["aggregate_hash"] = cut_certificate.compute_aggregate_hash(
+            tampered_cut["molecule_schema"], tampered_cut["interior"],
+            tampered_cut["boundary_input_ids"])
+        tampered_cut["certificate_hash"] = cut_certificate.compute_certificate_hash(
+            tampered_cut)
+        out_tcut = anchor_cut_certificate(tampered_cut, Ledger(cut_ledger_b))
+        checks.append((
+            "CUT REJECTED (malformed) + CUT MISMATCH (wrong WMID -> audit event)",
+            out_badcut["evaluation"]["status"] == "rejected"
+            and out_badcut["ledger_entry"] is None
+            and out_tcut["evaluation"]["status"] == "cut-certificate-mismatch"
+            and out_tcut["ledger_entry"] is not None
+            and out_tcut["evaluation"]["coordinator_reconfirmed"]
+                ["full_verification_passed"] is False,
+            f"{out_badcut['evaluation']['status']} / {out_tcut['evaluation']['status']}",
+        ))
+
+        # (29) STABILITY after temp anchors onto a copy of the REAL ledger
         # (conditional — the runtime ledger is gitignored and absent in CI): a fresh
         # economy anchor must leave the 0.2 catalog (idx-17), the ACI report_hash
         # (idx-18), and the economy hash (idx-19) unchanged; and when the real ledger
@@ -1691,6 +1865,27 @@ def _selftest() -> int:
             else:
                 print("    (no anchored gen-2 catalog on the real ledger yet — 0.3 "
                       "stability leg SKIPPED; check (24) covers the mechanism)")
+            cut_anchor = next((e for e in reversed(real_entries)
+                               if e["payload"].get("event") == _CUT_EVENT
+                               and e["payload"].get("status") ==
+                               _CUT_CONFIRMED_STATUS), None)
+            if cut_anchor is not None:
+                cut_after = cut_certificate.build_cut(
+                    sorted(verifier_cli.TASK_MODULES), ledger_path=triple_ledger)
+                cut_accept, _cut_note = cut_certificate.accept_by_anchor(
+                    cut_after, ledger_path=triple_ledger)
+                checks.append((
+                    "QUINTUPLE STABILITY: cut rebuild matches the anchored "
+                    "certificate + cheap acceptance holds",
+                    cut_after["certificate_hash"] ==
+                    cut_anchor["payload"]["certificate_hash"]
+                    and cut_accept is True,
+                    f"cut={cut_after['certificate_hash'][:12]}..",
+                ))
+            else:
+                print("    (no anchored cut certificate on the real ledger yet — "
+                      "cut stability leg SKIPPED; checks (25)-(26) cover the "
+                      "mechanism)")
         else:
             print("    (no real ledger with idx-17/idx-18 anchors present — real-ledger "
                   "stability check SKIPPED; the scanner-invisibility checks above "
@@ -2157,6 +2352,66 @@ def _cmd_anchor_metering_report(report_path: str, ledger_path: str) -> int:
     return 0 if status == _METERING_CONFIRMED_STATUS else 1
 
 
+def _cmd_anchor_cut_certificate(cert_path: str, ledger_path: str) -> int:
+    """Load a cut certificate, FULLY VERIFY it (anchor-time full proof), anchor the outcome.
+
+    Exit codes: 0 = cut-certificate-confirmed; non-zero = mismatch or rejected.
+    A missing/invalid file is 'rejected' and anchors nothing.
+    """
+    print(BANNER)
+
+    # Load defensively; any load failure is a rejection (no anchor).
+    reason = None
+    cert = None
+    try:
+        with open(cert_path, "r", encoding="utf-8") as f:
+            cert = json.load(f)
+    except FileNotFoundError:
+        reason = f"certificate file not found: {cert_path}"
+    except json.JSONDecodeError as exc:
+        reason = f"certificate file is not valid JSON ({exc})"
+    except OSError as exc:
+        reason = f"could not read certificate file ({exc})"
+    if reason is None and not isinstance(cert, dict):
+        reason = "certificate JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    out = anchor_cut_certificate(cert, ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}")
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed -> not written to the ledger)")
+        return 1
+
+    cr = ev["coordinator_reconfirmed"]
+    print(f"certificate_hash : {ev['certificate_hash']}")
+    print(f"aggregate_hash   : {ev['aggregate_hash']}")
+    print(f"interior/boundary: {ev['interior_count']}/{ev['boundary_count']} "
+          f"({ev['molecule_schema']})")
+    print("coordinator full verification (the EXPENSIVE proof, run once, here — "
+          "later acceptance is cheap because of it):")
+    print(f"  full_verification_passed : {cr['full_verification_passed']}")
+    print(f"  rebuilt_interior_count   : {cr['rebuilt_interior_count']}")
+    if cr["first_failure_reason"]:
+        print(f"  first_failure_reason     : {cr['first_failure_reason']}")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    # 0 only when the coordinator's own full verification proved the certificate.
+    return 0 if status == _CUT_CONFIRMED_STATUS else 1
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -2210,6 +2465,13 @@ def main(argv=None) -> int:
              "non-deterministic) and anchor the outcome (aggregates + labels only; "
              "wall/CPU measured, energy ESTIMATED)",
     )
+    mode.add_argument(
+        "--anchor-cut-certificate", metavar="CUT_CERT_JSON",
+        help="ingest a cut certificate (cut_certificate.py --build); FULLY VERIFY it "
+             "(rebuild every interior molecule — the anchor-time full proof that "
+             "makes later cheap acceptance sound) and anchor the outcome "
+             "(counts only)",
+    )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
         help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
@@ -2245,6 +2507,8 @@ def main(argv=None) -> int:
         return _cmd_anchor_economy_summary(args.anchor_economy_summary, args.ledger)
     if args.anchor_metering_report is not None:
         return _cmd_anchor_metering_report(args.anchor_metering_report, args.ledger)
+    if args.anchor_cut_certificate is not None:
+        return _cmd_anchor_cut_certificate(args.anchor_cut_certificate, args.ledger)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
