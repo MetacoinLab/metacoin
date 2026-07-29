@@ -137,16 +137,21 @@ def compute_certificate_hash(cert: dict) -> str:
 
 
 def _read_ledger(ledger_path: str) -> list:
-    """Read a JSON-Lines ledger file into a list of entry dicts (read-only)."""
+    """Read ledger entries (read-only) from either the live JSONL ledger or a
+    published snapshot (one JSON object with an "entries" list) — the source a
+    fresh clone actually has. Same sniffing as work_molecule._read_ledger."""
     if not os.path.exists(ledger_path):
         raise ValueError(f"ledger file does not exist: {ledger_path}")
-    entries = []
     with open(ledger_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                entries.append(json.loads(line))
-    return entries
+        text = f.read()
+    if text.lstrip().startswith("{"):
+        try:
+            doc = json.loads(text)
+        except json.JSONDecodeError:
+            doc = None
+        if isinstance(doc, dict) and isinstance(doc.get("entries"), list):
+            return doc["entries"]  # published-snapshot form
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
 # ----------------------------------------------------------------------------
@@ -159,9 +164,9 @@ def _build_molecule_for(task_id: str, ledger_path: str) -> dict:
     submission_path = None
     special = work_molecule._CATALOG_SUBMISSIONS.get(short)
     if special is not None:
-        candidate = os.path.join(_REPO_ROOT, special)
-        if os.path.exists(candidate):
-            submission_path = candidate
+        # same discovery as the catalog builder (repo root -> published evidence
+        # bundle); citations are basename-only, so location never leaks into WMIDs
+        submission_path = work_molecule.find_evidence_file(special)
     return work_molecule.build_molecule(short, ledger_path=ledger_path,
                                         submission_path=submission_path)
 

@@ -1,0 +1,20 @@
+{
+  "environment_summary": {
+    "machine": "arm64",
+    "note": "coarse, non-identifying environment summary (no hostname/user/IP)",
+    "platform": "macOS-14.5-arm64-arm-64bit",
+    "python_version": "3.9.6"
+  },
+  "event": "external_verifier_submission",
+  "honest_note": "external-verifier-pilot (research-stage, zero-value). A matching output_hash proves REPRODUCIBILITY (independently re-derived to the same canonical value); it does NOT prove this verifier executed the task (a hash can be copied). Not consensus, not mainnet, not payment, not a token.",
+  "machine_fingerprint": "sha256:b4eb2914106b4ee9b2ba8df1def8b9deb521ddd9611d66f398e1212f72107258",
+  "no_token": true,
+  "output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+  "repo_commit": "2f9975d58324080e92c8c8d5ddd29f87f54fcfa8",
+  "stage": "R3",
+  "task_id": "task-0002",
+  "timestamp": 1780609034.329771,
+  "topology": "external-verifier-pilot",
+  "verifier_id": "jiyu-laptop-same-operator",
+  "zero_value": true
+}

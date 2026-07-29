@@ -126,8 +126,31 @@ _METERING_EVENT = "metering_evidence_anchored"
 _METERING_CONFIRMED_STATUS = "metering-evidence-confirmed"
 
 # Default local metering report artifact (gitignored; per-task figures are copied from
-# it only when its recomputed report_hash matches the anchored one).
+# it only when its recomputed report_hash matches the anchored one). When this DEFAULT
+# is in effect (no explicit path given), the published evidence bundle is tried as a
+# fallback so a fresh clone resolves the same figures — the hash guard makes the
+# location irrelevant to content: only a copy matching the anchored report_hash is
+# ever used, so discovery can never leak into molecule bytes.
 DEFAULT_METERING_REPORT_PATH = os.path.join(_REPO_ROOT, "metering_report.json")
+
+# The published evidence bundle: privacy-checked COPIES of the local evidence files
+# (submissions, metering report, ...) committed under protocol/evidence/ so a fresh
+# clone can rebuild every molecule. Discovery order: explicit path -> repo root
+# (local artifacts; existing behavior unchanged) -> the bundle. Citations always use
+# the BASENAME, so the discovery location never appears in molecule content.
+EVIDENCE_DIR = os.path.join(_PROTO_DIR, "evidence")
+
+
+def find_evidence_file(basename: str):
+    """Resolve an evidence file by discovery order (repo root, then the published
+    bundle). Returns an absolute path or None. Content-safety: consumers cite the
+    basename only, and hash-guarded consumers verify the file against an anchored
+    hash — so WHERE a file was found can never change WHAT is built."""
+    for directory in (_REPO_ROOT, EVIDENCE_DIR):
+        candidate = os.path.join(directory, basename)
+        if os.path.exists(candidate):
+            return candidate
+    return None
 
 # What the metering evidence does NOT cover — carried in every debt_reduction entry so
 # reduced debt is never mistaken for eliminated debt.
@@ -263,16 +286,28 @@ def _ledger_entry_hash(entry: dict) -> str:
 # Small helpers
 # ----------------------------------------------------------------------------
 def _read_ledger(ledger_path: str) -> list:
-    """Read a JSON-Lines ledger file into a list of entry dicts (read-only)."""
+    """Read ledger entries (read-only) from EITHER supported source format:
+
+      * the live JSON-Lines ledger (protocol/ledger_data.jsonl), or
+      * a published snapshot (audit.py --export: one JSON object with an
+        "entries" list) — the source third parties actually have in a clone.
+
+    Both carry the identical entry dicts, so every consumer of this function is
+    source-agnostic and everything built from a snapshot is byte-identical to the
+    same build from the live ledger.
+    """
     if not os.path.exists(ledger_path):
         raise ValueError(f"ledger file does not exist: {ledger_path}")
-    entries = []
     with open(ledger_path, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                entries.append(json.loads(line))
-    return entries
+        text = f.read()
+    if text.lstrip().startswith("{"):
+        try:
+            doc = json.loads(text)
+        except json.JSONDecodeError:
+            doc = None
+        if isinstance(doc, dict) and isinstance(doc.get("entries"), list):
+            return doc["entries"]  # published-snapshot form
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
 
 
 def _payload_references_task(payload, short_task_id: str) -> bool:
@@ -367,10 +402,24 @@ def _energy_evidence_from_anchor(anchor_entry: dict, short_task_id: str,
         evidence["labels"] = dict(payload["labels"])
 
     # Per-task figures: only from a local report file that hash-matches the anchor.
+    # When the caller left the DEFAULT path in effect, the published evidence bundle
+    # is tried too (fresh-clone support). The hash guard keeps this content-safe:
+    # whichever candidate matches the anchored report_hash yields identical figures,
+    # so the discovery location can never leak into molecule bytes.
+    candidates = []
+    if metering_report_path == DEFAULT_METERING_REPORT_PATH:
+        candidates = [DEFAULT_METERING_REPORT_PATH,
+                      os.path.join(EVIDENCE_DIR, "metering_report.json")]
+    elif metering_report_path:
+        candidates = [metering_report_path]
     row = None
-    if metering_report_path and os.path.exists(metering_report_path):
+    for candidate in candidates:
+        if row is not None:
+            break
+        if not os.path.exists(candidate):
+            continue
         try:
-            with open(metering_report_path, "r", encoding="utf-8") as f:
+            with open(candidate, "r", encoding="utf-8") as f:
                 report = json.load(f)
         except (json.JSONDecodeError, OSError):
             report = None
@@ -430,13 +479,13 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
         raise ValueError(f"no ledger entries reference {short} in {ledger_path}")
     cited.sort(key=lambda e: e["index"])
 
-    # --- optional submission file (auto-discover sub_<task-id>.json) ------------------
+    # --- optional submission file (auto-discover sub_<task-id>.json: repo root, then
+    # the published evidence bundle; the citation below uses the BASENAME only, so
+    # the discovery location never appears in molecule content) -----------------------
     submission = None
     submission_file = None
     if submission_path is None:
-        candidate = os.path.join(_REPO_ROOT, f"sub_{short}.json")
-        if os.path.exists(candidate):
-            submission_path = candidate
+        submission_path = find_evidence_file(f"sub_{short}.json")
     if submission_path is not None:
         with open(submission_path, "r", encoding="utf-8") as f:
             submission = json.load(f)
@@ -742,9 +791,7 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
         submission_path = None
         special = _CATALOG_SUBMISSIONS.get(short)
         if special is not None:
-            candidate = os.path.join(_REPO_ROOT, special)
-            if os.path.exists(candidate):
-                submission_path = candidate
+            submission_path = find_evidence_file(special)
         molecule = build_molecule(short, ledger_path=ledger_path,
                                   submission_path=submission_path,
                                   schema_version=schema_version,
@@ -1386,6 +1433,25 @@ def _selftest() -> int:
                        and compute_catalog_hash(c03) == c03["catalog_hash"]
                        and c03["catalog_hash"] != c1["catalog_hash"]))
 
+        # [7i] SNAPSHOT-SOURCE equivalence: molecules built from a published
+        # snapshot of the fixture ledger are byte-identical to live-ledger builds
+        # (the source a fresh clone actually has is a first-class equivalent).
+        import protocol.audit as audit
+        fixture_snap = os.path.join(tmp_dir, "fixture_published.json")
+        audit.export_snapshot(fixture_ledger, fixture_snap)
+        m02_snap = build_molecule("task-0001", ledger_path=fixture_snap,
+                                  submission_path=fixture_sub,
+                                  schema_version=SCHEMA_VERSION_02)
+        m03_snap = build_molecule("task-0001", ledger_path=fixture_snap,
+                                  submission_path=fixture_sub,
+                                  metering_report_path=fixture_report_path)
+        ok_snap, _ = validate(m03_snap, ledger_path=fixture_snap)
+        checks.append(("snapshot-source builds byte-identical to live-ledger builds "
+                       "(0.2 and 0.3) and validate against the snapshot",
+                       canonical_json(m02_snap) == canonical_json(m1_after)
+                       and canonical_json(m03_snap) == canonical_json(m03a)
+                       and ok_snap))
+
         # [8] a submission for the wrong task is rejected at build time
         wrong_sub = os.path.join(tmp_dir, "sub_wrong.json")
         with open(wrong_sub, "w", encoding="utf-8") as f:
@@ -1430,6 +1496,15 @@ def _selftest() -> int:
             else:
                 print("    (no anchored 0.2 catalog on the real ledger — regression "
                       "lock SKIPPED)")
+            real_snap = os.path.join(_PROTO_DIR, "ledger_published.json")
+            if os.path.exists(real_snap):
+                rm3_snap = build_molecule("task-0001", ledger_path=real_snap)
+                checks.append(("real snapshot-source molecule byte-identical to "
+                               "live-ledger molecule",
+                               canonical_json(rm3_snap) == canonical_json(rm3)))
+            else:
+                print("    (no published snapshot present — real snapshot-source "
+                      "check SKIPPED; the fixture snapshot check covers the path)")
         else:
             print("    (no runtime ledger present — real-ledger build SKIPPED; "
                   "fixture checks above cover the same paths)")

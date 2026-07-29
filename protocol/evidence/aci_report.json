@@ -1,0 +1,563 @@
+{
+  "concentration_profile": {
+    "machine_fingerprint": 0.9642857142857143,
+    "operator": 1.0,
+    "repo": 1.0
+  },
+  "dimension_breakdown": {
+    "environment": {
+      "mean_sigma": 0.9841269841269841,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 12,
+      "pairs_at_1.0": 366
+    },
+    "hardware": {
+      "mean_sigma": 0.9841269841269841,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 12,
+      "pairs_at_1.0": 366
+    },
+    "model": {
+      "mean_sigma": 1.0,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 0,
+      "pairs_at_1.0": 378
+    },
+    "operator": {
+      "mean_sigma": 1.0,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 0,
+      "pairs_at_1.0": 378
+    },
+    "source_repo": {
+      "mean_sigma": 1.0,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 0,
+      "pairs_at_1.0": 378
+    }
+  },
+  "eis": 0.006349206349206438,
+  "interpretation": "Measured on the protocol's own molecule catalog: every verification path today is operated by the SAME operator on a single repository \u2014 the maximal-concentration baseline, measured and published deliberately as the protocol's own honest starting point. ACI is DESCRIPTIVE evidence for readers and future calibration, NOT a minting trigger, NOT a reward signal, and a low value is NOT proof of independence. This v0 is pairwise only (ACI_2) and cannot see higher-order concentration structure. Missing metadata is scored as worst-case dependence (1.0) and flagged, never as independence. Zero-value research-stage; not consensus, not mainnet, not payment, not a token.",
+  "limitation_notes": [
+    "model dimension is DEGENERATE on current data: all paths are mechanical-no-LLM with models=[] \u2014 a shared no-model toolchain is still a shared dependency class (scored 1.0), but the dimension only becomes informative when model-using actors exist",
+    "weights are uniform v0 placeholders (aci-weights/0.1-uniform); category-specific weights are future calibration work",
+    "pairwise metric (ACI_2) only \u2014 higher-order concentration (dependencies shared by 3+ paths but invisible at the pair level) is not captured",
+    "unknown metadata contributes worst-case dependence (1.0) to the conservative ACI and is flagged; coverage is reported so readers can see how much was observed"
+  ],
+  "metadata_coverage": {
+    "coverage_ratio": 0.7785714285714286,
+    "observed_path_dimensions": 109,
+    "total_path_dimensions": 140
+  },
+  "missing_metadata_count": 31,
+  "missing_metadata_flags": [
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0001/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0001/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 2,
+      "path": "task-0002/jiyu-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 2,
+      "path": "task-0002/jiyu-agent-same-operator"
+    },
+    {
+      "dimension": "operator",
+      "ledger_index": 1,
+      "path": "task-0002/jiyu-laptop-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0002/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0002/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 3,
+      "path": "task-0002/windows-laptop-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 3,
+      "path": "task-0002/windows-laptop-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0003/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0003/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0004/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0004/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0005/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0005/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0006/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0006/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0007/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0007/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0008/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0008/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0009/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0009/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0010/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0010/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0011/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0011/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0012/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0012/spark-agent-same-operator"
+    },
+    {
+      "dimension": "environment",
+      "ledger_index": 16,
+      "path": "task-0013/spark-agent-same-operator"
+    },
+    {
+      "dimension": "hardware",
+      "ledger_index": 16,
+      "path": "task-0013/spark-agent-same-operator"
+    }
+  ],
+  "no_token": true,
+  "pair_count": 378,
+  "pairwise_aci": 0.9936507936507936,
+  "path_count": 28,
+  "paths": [
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 4,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0001",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0001",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "jiyu-laptop-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 1,
+      "machine_fingerprint": "sha256:b4eb2914106b4ee9b2ba8df1def8b9deb521ddd9611d66f398e1212f72107258",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": null,
+      "platform": "macOS-14.5-arm64-arm-64bit",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0002",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "jiyu-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 2,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0002",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "windows-laptop-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 3,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0002",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0002",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 5,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0003",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0003",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 6,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0004",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0004",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 7,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0005",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0005",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 8,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0006",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0006",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 9,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0007",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0007",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 10,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0008",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0008",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 11,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0009",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0009",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 12,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0010",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0010",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 13,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0011",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0011",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 14,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0012",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0012",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-local-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 15,
+      "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0013",
+      "toolchain": "python-stdlib-only"
+    },
+    {
+      "actor_id": "spark-agent-same-operator",
+      "hardware_ownership": null,
+      "ledger_index": 16,
+      "machine_fingerprint": null,
+      "model_class": "no-model-mechanical",
+      "operator_relationship": "same-operator",
+      "platform": null,
+      "repo_lineage": "metacoin-protocol-repo",
+      "task_id": "task-0013",
+      "toolchain": "python-stdlib-only"
+    }
+  ],
+  "report_hash": "610001a83f5bbaa4b0c6e62d052c0cc06b9608ca48b8efca785d98a84ac0f8ae",
+  "schema": "aci-report/0.1",
+  "weights": {
+    "environment": 0.2,
+    "hardware": 0.2,
+    "model": 0.2,
+    "operator": 0.2,
+    "source_repo": 0.2
+  },
+  "weights_version": "aci-weights/0.1-uniform",
+  "zero_value": true
+}

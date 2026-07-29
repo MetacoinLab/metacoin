@@ -282,9 +282,10 @@ def build_paths(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH) -> list:
         submission_path = None
         special = work_molecule._CATALOG_SUBMISSIONS.get(tid)
         if special is not None:
-            candidate = os.path.join(_REPO_ROOT, special)
-            if os.path.exists(candidate):
-                submission_path = candidate
+            # same discovery as the catalog builder (repo root, then the published
+            # evidence bundle) — citations stay basename-only, so location never
+            # leaks into molecule content or the ACI measurement
+            submission_path = work_molecule.find_evidence_file(special)
         molecule = work_molecule.build_molecule(tid, ledger_path=ledger_path,
                                                 submission_path=submission_path)
         ok, reasons = work_molecule.validate(molecule, ledger_path=ledger_path)
@@ -565,6 +566,18 @@ def _selftest() -> int:
         checks.append(("real-ledger Gamma(operator) and Gamma(repo) are 1.0",
                        r1["concentration_profile"]["operator"] == 1.0
                        and r1["concentration_profile"]["repo"] == 1.0))
+        # snapshot-source equivalence: the published snapshot (what a fresh clone
+        # has) must yield the byte-identical ACI report
+        _snap = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             "ledger_published.json")
+        if os.path.exists(_snap):
+            r_snap = compute_report(build_paths(ledger_path=_snap))
+            checks.append(("snapshot-source ACI report byte-identical to "
+                           "live-ledger report",
+                           canonical_json(r_snap) == canonical_json(r1)))
+        else:
+            print("    (no published snapshot present — snapshot-source ACI check "
+                  "SKIPPED)")
     else:
         print("    (no runtime ledger present — real-ledger report SKIPPED; "
               "fixture checks above cover the same code paths)")

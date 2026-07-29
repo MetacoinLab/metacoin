@@ -1,0 +1,164 @@
+{
+  "assumed_cpu_power_w": 15.0,
+  "per_task": [
+    {
+      "cpu_time_s": 4.4e-05,
+      "energy_j_estimate": 0.00066,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "0330435597a3402f1de3c31f6a9a02c273293c79652b9640d4cfd7c17c31832b",
+      "task_id": "task-0001",
+      "wall_time_s": 3.8e-05
+    },
+    {
+      "cpu_time_s": 0.000399,
+      "energy_j_estimate": 0.005985,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+      "task_id": "task-0002",
+      "wall_time_s": 0.000393
+    },
+    {
+      "cpu_time_s": 0.000178,
+      "energy_j_estimate": 0.00267,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "0fa5915205ec4e8a65b3b1a3c89ac707c28ea53c863f98f93b3775fb764e6f09",
+      "task_id": "task-0003",
+      "wall_time_s": 0.000175
+    },
+    {
+      "cpu_time_s": 0.006462,
+      "energy_j_estimate": 0.09693,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "31d7b7b300af556126d115fa6c099746b62a47fca67108ec22d072c04d65ddc0",
+      "task_id": "task-0004",
+      "wall_time_s": 0.006473
+    },
+    {
+      "cpu_time_s": 0.001407,
+      "energy_j_estimate": 0.021105,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "28e17f180000ce348d7d7d0c6ded27a34e1fd694f0379d21fd81247e89b6d4e6",
+      "task_id": "task-0005",
+      "wall_time_s": 0.001405
+    },
+    {
+      "cpu_time_s": 0.000203,
+      "energy_j_estimate": 0.003045,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "531c8c7f162a4e6ca283dc47e257fce2f0b08653b28b0304be5129dc7a407bef",
+      "task_id": "task-0006",
+      "wall_time_s": 0.000203
+    },
+    {
+      "cpu_time_s": 5e-06,
+      "energy_j_estimate": 7.5e-05,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "2afce69a357044d983e47c2c3213ab52aed29a5c082244a2e140184e2feb7e4a",
+      "task_id": "task-0007",
+      "wall_time_s": 4e-06
+    },
+    {
+      "cpu_time_s": 1e-05,
+      "energy_j_estimate": 0.00015,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+      "task_id": "task-0008",
+      "wall_time_s": 9e-06
+    },
+    {
+      "cpu_time_s": 6e-06,
+      "energy_j_estimate": 9e-05,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "4ae672f4a666f8ef01154ac44fdaa7e25295c7f8464b976377cf2a8d9a5a712e",
+      "task_id": "task-0009",
+      "wall_time_s": 5e-06
+    },
+    {
+      "cpu_time_s": 4e-06,
+      "energy_j_estimate": 6e-05,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "36c89922b18ddd9b6a00b70cb5b3bf012c832f1b27bcfc22afa3882d6f3a579f",
+      "task_id": "task-0010",
+      "wall_time_s": 3e-06
+    },
+    {
+      "cpu_time_s": 6e-06,
+      "energy_j_estimate": 9e-05,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "636c25bb38639c3a10005ae6e604cc8e6dbde38889bd1fe98008120c4be3a656",
+      "task_id": "task-0011",
+      "wall_time_s": 5e-06
+    },
+    {
+      "cpu_time_s": 6e-06,
+      "energy_j_estimate": 9e-05,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "183fccbd03f23be513194abfad2e855aef9a109c14260da0227ad1419cbda1ed",
+      "task_id": "task-0012",
+      "wall_time_s": 5e-06
+    },
+    {
+      "cpu_time_s": 3.1e-05,
+      "energy_j_estimate": 0.000465,
+      "labels": {
+        "cpu": "measured",
+        "energy": "estimated",
+        "wall": "measured"
+      },
+      "output_hash": "7b555bd00e5b7b061e82453122fe232e33519d81c9ea9d3716b084eb3c5a0439",
+      "task_id": "task-0013",
+      "wall_time_s": 3e-05
+    }
+  ],
+  "power_method": "assumed-nameplate; no hardware telemetry on this host",
+  "report_hash": "35c0ccfdc36b0b4d91b15659ed07a5325b1d7d0d36e0b215ceb329d28f8f7577",
+  "schema": "metering-report/0.1"
+}

@@ -69,3 +69,14 @@ metering_report.json
 # ANCHORED cut-certificate ledger entry; the certificate rebuilds byte-identically
 # from the ledger at any time).
 cut_cert*.json
+
+# ============================================================================
+# PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to
+# every local-artifact ignore rule above. These are privacy-checked COPIES of
+# the evidence files (submissions, metering report, catalogs, ACI report,
+# economy log, cut certificate) published so a FRESH CLONE can mechanically
+# rebuild and re-verify every layer with zero local-only inputs. The live
+# runtime ledger (protocol/ledger_data.jsonl) stays ignored — third parties
+# get the published snapshot instead. Negations must come LAST to win.
+!protocol/evidence/
+!protocol/evidence/**

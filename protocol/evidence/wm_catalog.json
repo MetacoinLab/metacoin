@@ -1,0 +1,59 @@
+{
+  "catalog_hash": "4bb0d5c3c351001ef4fba047bc9e4c11c422dd51f53b96f35c3ea80733241685",
+  "entries": [
+    {
+      "task_id": "task-0001",
+      "work_id": "290e7d978cb248015820bb3e9d21b021b63a709352b7a7cb3654ca6d902029cd"
+    },
+    {
+      "task_id": "task-0002",
+      "work_id": "0520e851063ee7f81de096b0bc59c68fd56cce95a276b6cc58420c058ae58296"
+    },
+    {
+      "task_id": "task-0003",
+      "work_id": "1c3b1d77b7527fbf9495e104ae27016c44abad5900e54da7a63f1c524d61bc29"
+    },
+    {
+      "task_id": "task-0004",
+      "work_id": "1bf93aff269cca44dc4eaeff5ba17d9f4aea037b38967af6947feafb7761638b"
+    },
+    {
+      "task_id": "task-0005",
+      "work_id": "2a675ee0083e790549bd8725856806445ba5b8ec79c5f45036a6ba5ea65e9fd4"
+    },
+    {
+      "task_id": "task-0006",
+      "work_id": "c39f44ad64ec653e0a12c4af806fb25cf446d984696c0d7875d3047999280866"
+    },
+    {
+      "task_id": "task-0007",
+      "work_id": "3e1ef23b49c4e954086f16fe97a5e313e0dbbfe08d8f024608811b0337b53ce1"
+    },
+    {
+      "task_id": "task-0008",
+      "work_id": "c44a3117ea4826a37f195cad6acb6741921aa6604bc9be596d29d9bd2e354cf3"
+    },
+    {
+      "task_id": "task-0009",
+      "work_id": "5719e7729709f559b10512401aa2b58833fdc82c52ef028c9127730b5ebf5faf"
+    },
+    {
+      "task_id": "task-0010",
+      "work_id": "254fe098789bb5292e71996a551b2bf33bd55380a4268b6a0a9236266c2aeaee"
+    },
+    {
+      "task_id": "task-0011",
+      "work_id": "df427c127d025a2b19a7e083183c6fe462198a99b06f8032cfc8cc7f102bb484"
+    },
+    {
+      "task_id": "task-0012",
+      "work_id": "3a742253182c1643f6e494a6150321e88c3584f7cf73f07e1b5787d5544e1381"
+    },
+    {
+      "task_id": "task-0013",
+      "work_id": "9241cdde9db5dcc5654e087bf25503eab2806898194f476ded2391107eb14fe1"
+    }
+  ],
+  "molecule_schema": "work-molecule/0.2",
+  "schema": "work-molecule-catalog/0.1"
+}

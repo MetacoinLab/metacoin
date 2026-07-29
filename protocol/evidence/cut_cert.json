@@ -1,0 +1,83 @@
+{
+  "aggregate_hash": "3236be9c83e0df7a41b872403d7a3541f92869d26555fa88d9f8c02d4a738dc6",
+  "boundary_input_ids": [],
+  "certificate_hash": "0c5ac6520339734b2cae5a34e6b4407d19d7a1bcf70b4aa1d413301aa759efe1",
+  "challenge_status": "none-filed",
+  "evidence_retention": {
+    "ledger_snapshot": "protocol/ledger_published.json",
+    "rebuild_recipe": "python3 protocol/work_molecule.py --task <task_id>"
+  },
+  "interior": [
+    {
+      "task_id": "task-0001",
+      "work_id": "58c095a58eb7b8830cc27025c0fbded3db4833bf3fcfb66627fd6ca7bc949454"
+    },
+    {
+      "task_id": "task-0002",
+      "work_id": "70ef999afc1bd2eee998e1b50df0ee3ff1ae078e855943fb1b30d8a925d04709"
+    },
+    {
+      "task_id": "task-0003",
+      "work_id": "7a3bf24bb1378e5e23930e9232e3db772c642978cd4a903c2f00700c975b5374"
+    },
+    {
+      "task_id": "task-0004",
+      "work_id": "765b059c0edb0537163ef49a2eed267591c65c0cb8ddff5ca5f11c0121b77ea3"
+    },
+    {
+      "task_id": "task-0005",
+      "work_id": "749db665f23456b107dafb209c983eebdd79e588600abc06225d77b1d722c8f4"
+    },
+    {
+      "task_id": "task-0006",
+      "work_id": "2070135fd7f1041f4e3548c0a601ad618132633a3cf87d657ef4ad86d805c1a2"
+    },
+    {
+      "task_id": "task-0007",
+      "work_id": "425260e7736546ff4065c034013634355ff2bdd2b467208e58d865c828e0252d"
+    },
+    {
+      "task_id": "task-0008",
+      "work_id": "28a20d8f8a76d1023cdd6a083f6e391c7b33dea912aab503d25c1f269e00e0ba"
+    },
+    {
+      "task_id": "task-0009",
+      "work_id": "6bd3ff145195fe41e2aa3b95ef14d8ab41d884d720c7a18874e6864852d3c9a7"
+    },
+    {
+      "task_id": "task-0010",
+      "work_id": "1eb258a9b95e0bd198143008eae7b34b22d787298026a9ab3c6cd77ad3eb6438"
+    },
+    {
+      "task_id": "task-0011",
+      "work_id": "b707bf2456e8362296b0ff6997fe1dfe86aff35d267cb4885be0a40833ebf526"
+    },
+    {
+      "task_id": "task-0012",
+      "work_id": "c8fce1e477574cc6e3d3612fa7876ca235d36d027da22ed4498adb4dfe3e7aff"
+    },
+    {
+      "task_id": "task-0013",
+      "work_id": "a8596e8bb61e66d162e7ff2b8dafe259b0e98faa0d891f756e69fe29ac9384cf"
+    }
+  ],
+  "interior_count": 13,
+  "molecule_schema": "work-molecule/0.3",
+  "root_work_ids": [
+    "1eb258a9b95e0bd198143008eae7b34b22d787298026a9ab3c6cd77ad3eb6438",
+    "2070135fd7f1041f4e3548c0a601ad618132633a3cf87d657ef4ad86d805c1a2",
+    "28a20d8f8a76d1023cdd6a083f6e391c7b33dea912aab503d25c1f269e00e0ba",
+    "425260e7736546ff4065c034013634355ff2bdd2b467208e58d865c828e0252d",
+    "58c095a58eb7b8830cc27025c0fbded3db4833bf3fcfb66627fd6ca7bc949454",
+    "6bd3ff145195fe41e2aa3b95ef14d8ab41d884d720c7a18874e6864852d3c9a7",
+    "70ef999afc1bd2eee998e1b50df0ee3ff1ae078e855943fb1b30d8a925d04709",
+    "749db665f23456b107dafb209c983eebdd79e588600abc06225d77b1d722c8f4",
+    "765b059c0edb0537163ef49a2eed267591c65c0cb8ddff5ca5f11c0121b77ea3",
+    "7a3bf24bb1378e5e23930e9232e3db772c642978cd4a903c2f00700c975b5374",
+    "a8596e8bb61e66d162e7ff2b8dafe259b0e98faa0d891f756e69fe29ac9384cf",
+    "b707bf2456e8362296b0ff6997fe1dfe86aff35d267cb4885be0a40833ebf526",
+    "c8fce1e477574cc6e3d3612fa7876ca235d36d027da22ed4498adb4dfe3e7aff"
+  ],
+  "schema": "cut-certificate/0.1",
+  "verification_policy_version": "cut-verify/0.1"
+}
