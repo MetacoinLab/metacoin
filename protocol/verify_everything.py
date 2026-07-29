@@ -3,8 +3,8 @@
 ================== PRODUCT GOAL (READ ME) ==================
 Any stranger clones the public repo and runs ONE command that mechanically
 re-verifies every layer — chain, tasks, molecules (both generations),
-concentration, economy, metering claims, cut certificate, trust vectors — with
-ZERO local-only inputs and ZERO LLM judgment:
+concentration, economy, metering claims, cut certificate, trust vectors,
+challenge-response records — with ZERO local-only inputs and ZERO LLM judgment:
 
     python3 protocol/verify_everything.py --full
 
@@ -59,6 +59,7 @@ if _REPO_ROOT not in sys.path:
 # REUSE every existing verified component — this module only orchestrates.
 import protocol.audit as audit
 import protocol.agent_concentration as agent_concentration
+import protocol.challenge_response as challenge_response
 import protocol.cut_certificate as cut_certificate
 import protocol.trust_vector as trust_vector
 import protocol.verifier_cli as verifier_cli
@@ -238,17 +239,25 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
     if gen1 is None or gen2 is None:
         rows.append(("molecules", FULL, False, "missing anchored catalog(s)"))
     elif full:
+        # GENERATION-LOCKED rebuilds (as_of = anchor index - 1): an anchored
+        # catalog re-derives against the chain state it was built over, while
+        # unbounded rebuilds legitimately absorb later task-referencing events
+        # (challenge records) — those get NEW generations, never rewrites.
         cat02 = work_molecule.build_catalog(
-            ledger_path=source, schema_version=work_molecule.SCHEMA_VERSION_02)
-        cat03 = work_molecule.build_catalog(ledger_path=source)
+            ledger_path=source, schema_version=work_molecule.SCHEMA_VERSION_02,
+            as_of_index=gen1_i - 1)
+        cat03 = work_molecule.build_catalog(ledger_path=source,
+                                            as_of_index=gen2_i - 1)
         ok02 = (cat02["catalog_hash"] == gen1["catalog_hash"]
                 and cat02["entries"] == gen1["catalog_entries"])
         ok03 = (cat03["catalog_hash"] == gen2["catalog_hash"]
                 and cat03["entries"] == gen2["catalog_entries"])
         rows.append(("molecules 0.2", FULL, ok02,
-                     f"13 WMIDs rebuilt == anchored idx-{gen1_i} catalog"))
+                     f"13 WMIDs rebuilt == anchored idx-{gen1_i} catalog "
+                     "(generation-locked)"))
         rows.append(("molecules 0.3", FULL, ok03,
-                     f"13 WMIDs rebuilt == anchored idx-{gen2_i} catalog"))
+                     f"13 WMIDs rebuilt == anchored idx-{gen2_i} catalog "
+                     "(generation-locked)"))
     else:
         ok02 = ok03 = False
         f02 = _load_evidence_json("wm_catalog.json")
@@ -271,12 +280,13 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         rows.append(("concentration", FULL, False, "no anchored ACI baseline"))
     elif full:
         report = agent_concentration.compute_report(
-            agent_concentration.build_paths(ledger_path=source))
+            agent_concentration.build_paths(ledger_path=source,
+                                            as_of_index=idx18_i - 1))
         ok = (report["report_hash"] == idx18["report_hash"]
               and report["path_count"] == idx18["path_count"])
         rows.append(("concentration", FULL, ok,
-                     f"ACI re-measured: hash == anchored idx-{idx18_i}, "
-                     f"{report['path_count']} paths, "
+                     f"ACI re-measured (generation-locked): hash == anchored "
+                     f"idx-{idx18_i}, {report['path_count']} paths, "
                      f"pairwise {report['pairwise_aci']:.5f} (same-operator)"))
     else:
         f = _load_evidence_json("aci_report.json")
@@ -339,12 +349,14 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
     if idx22 is None:
         rows.append(("cut certificate", FULL, False, "no anchored cut certificate"))
     elif full:
-        cert = cut_certificate.build_cut(task_ids, ledger_path=source)
+        cert = cut_certificate.build_cut(task_ids, ledger_path=source,
+                                         as_of_index=idx22_i - 1)
         hash_ok = cert["certificate_hash"] == idx22["certificate_hash"]
-        v_ok, _v_reasons = cut_certificate.verify_full(cert, ledger_path=source)
+        v_ok, _v_reasons = cut_certificate.verify_full(cert, ledger_path=source,
+                                                       as_of_index=idx22_i - 1)
         rows.append(("cut certificate", FULL, hash_ok and v_ok,
                      f"rebuilt cut == anchored idx-{idx22_i}; full verification "
-                     "re-proved (13 interior molecules)"))
+                     "re-proved (13 interior molecules, generation-locked)"))
     else:
         cert = _load_evidence_json("cut_cert.json")
         if cert is None:
@@ -361,12 +373,13 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         rows.append(("trust vectors", FULL, False,
                      "no anchored trust-vector catalog"))
     elif full:
-        tv = trust_vector.build_tv_catalog(ledger_path=source)
+        tv = trust_vector.build_tv_catalog(ledger_path=source,
+                                           as_of_index=idx23_i - 1)
         ok = (tv["catalog_hash"] == idx23["catalog_hash"]
               and len(tv["vector_entries"]) == idx23["vector_count"])
         rows.append(("trust vectors", FULL, ok,
                      f"13 six-component vectors rebuilt == anchored idx-{idx23_i} "
-                     "(no combined scalar exists, by design)"))
+                     "(generation-locked; no combined scalar exists, by design)"))
     else:
         f = _load_evidence_json("tv_catalog.json")
         ok = (isinstance(f, dict)
@@ -375,6 +388,42 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         rows.append(("trust vectors", ANCHORED, ok,
                      f"shipped catalog hash-matches anchored idx-{idx23_i} "
                      "(no rebuild)"))
+
+    # --- layer 9: challenge-response records (both modes; cheap) --------------------
+    # Each anchored round is re-derived: the task is re-run HERE and the expected
+    # response_hash recomputed from the anchored nonce. Verified rounds must
+    # re-derive; failed rounds (planned drills) must stay refuted.
+    ch_records = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event") == "challenge_response_result"
+                  and e["payload"].get("status") in ("challenge-verified",
+                                                     "challenge-failed")]
+    if not ch_records:
+        rows.append(("challenges", FULL, True,
+                     "no challenge records on the chain yet (nothing to re-verify)"))
+    else:
+        problems = []
+        n_verified = n_failed = 0
+        for idx, p in ch_records:
+            module = verifier_cli.load_task(p["task_id"])
+            result = module.compute()
+            expected = challenge_response.compute_response_hash(
+                p["nonce"], module.canonical_json(result))
+            own_hash = module.output_hash(result)
+            if p["status"] == "challenge-verified":
+                n_verified += 1
+                if p["response_hash"] != expected or p["output_hash"] != own_hash:
+                    problems.append(f"idx {idx}: verified round does not re-derive")
+            else:
+                n_failed += 1
+                if p["response_hash"] == expected:
+                    problems.append(f"idx {idx}: failed round actually re-derives "
+                                    "— its rejection was wrong")
+        rows.append(("challenges", FULL, not problems,
+                     f"{n_verified} verified round(s) re-derive under their "
+                     f"nonces; {n_failed} failed round(s) (planned drills) stay "
+                     "refuted — possession proof holds"
+                     if not problems else "; ".join(problems[:3])))
 
     all_ok = all(ok for _l, _m, ok, _d in rows)
     return (all_ok, rows, source_note)

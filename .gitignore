@@ -76,6 +76,14 @@ cut_cert*.json
 # from the ledger + evidence bundle at any time).
 tv_catalog*.json
 
+# challenge/response artifacts (challenge_response.py) are EPHEMERAL local files:
+# the challenge nonce and the response hashes live verbatim in the ANCHORED ledger
+# record, and the full task result they prove possession of is deliberately never
+# published — so these files are never committed (must stay ABOVE the evidence-
+# bundle negation block, which is last on purpose).
+challenge*.json
+response*.json
+
 # ============================================================================
 # PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to
 # every local-artifact ignore rule above. These are privacy-checked COPIES of

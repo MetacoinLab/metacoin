@@ -452,7 +452,8 @@ def _energy_evidence_from_anchor(anchor_entry: dict, short_task_id: str,
 def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
                    submission_path: str = None,
                    schema_version: str = DEFAULT_SCHEMA_VERSION,
-                   metering_report_path: str = DEFAULT_METERING_REPORT_PATH) -> dict:
+                   metering_report_path: str = DEFAULT_METERING_REPORT_PATH,
+                   as_of_index: int = None) -> dict:
     """Assemble the Work Molecule for `task_id` from existing records, read-only.
 
     Scans the ledger for every entry referencing the task (payload task_id match or
@@ -465,14 +466,25 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
     the idx-17 generation byte-for-byte; 0.3 (default) additionally absorbs a confirmed
     metering-evidence anchor into energy_and_compute_evidence and converts that debt
     entry into a debt_reduction entry — appending evidence, never altering records.
+
+    `as_of_index` is the GENERATION-LOCK rebuild mode: when set, only ledger entries
+    with index <= as_of_index are considered, reconstructing the molecule exactly as
+    it stood at that chain state. An anchored catalog at ledger index N was built
+    from entries 0..N-1, so its generation-locked rebuild uses as_of_index = N - 1.
+    This is how FROZEN generations stay verifiable forever while unbounded rebuilds
+    legitimately absorb new task-referencing events (e.g. challenge records) —
+    append-only evolution, never rewriting an anchored generation.
     """
     if schema_version not in SUPPORTED_SCHEMAS:
         raise ValueError(f"unsupported molecule schema {schema_version!r}; "
                          f"supported: {SUPPORTED_SCHEMAS}")
     short = normalize_task_id(task_id)  # KeyError (with known ids) on unknown task
 
-    # --- gather the cited ledger entries (read-only) ----------------------------------
+    # --- gather the cited ledger entries (read-only; generation-locked if asked) ------
     entries = _read_ledger(ledger_path)
+    if as_of_index is not None:
+        entries = [e for e in entries
+                   if isinstance(e.get("index"), int) and e["index"] <= as_of_index]
     cited = [e for e in entries
              if isinstance(e, dict) and _payload_references_task(e.get("payload"), short)]
     if not cited:
@@ -769,7 +781,8 @@ def compute_catalog_hash(catalog: dict) -> str:
 
 def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
                   schema_version: str = DEFAULT_SCHEMA_VERSION,
-                  metering_report_path: str = DEFAULT_METERING_REPORT_PATH) -> dict:
+                  metering_report_path: str = DEFAULT_METERING_REPORT_PATH,
+                  as_of_index: int = None) -> dict:
     """Build + validate the molecule for every known task and return the catalog dict.
 
     Deterministic and timestamp-free like the molecules themselves: two runs over the
@@ -778,7 +791,9 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
     `task_ids` narrows the set (used by self-tests over fixture ledgers); the default
     is every task in the registry. `schema_version` selects the molecule generation;
     the catalog schema follows it (0.2 molecules -> catalog/0.1, the regression-locked
-    idx-17 generation; 0.3 molecules -> catalog/0.2).
+    idx-17 generation; 0.3 molecules -> catalog/0.2). `as_of_index` is the
+    generation-lock rebuild mode (see build_molecule): an anchored catalog at ledger
+    index N rebuilds exactly with as_of_index = N - 1.
     """
     if schema_version not in SUPPORTED_SCHEMAS:
         raise ValueError(f"unsupported molecule schema {schema_version!r}; "
@@ -795,7 +810,8 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
         molecule = build_molecule(short, ledger_path=ledger_path,
                                   submission_path=submission_path,
                                   schema_version=schema_version,
-                                  metering_report_path=metering_report_path)
+                                  metering_report_path=metering_report_path,
+                                  as_of_index=as_of_index)
         ok, reasons = validate(molecule, ledger_path=ledger_path)
         if not ok:
             raise ValueError(f"molecule for {short} does not validate: {reasons}")
@@ -1066,6 +1082,10 @@ def main(argv=None) -> int:
                         help="local metering report for 0.3 per-task energy figures "
                              f"(default: {DEFAULT_METERING_REPORT_PATH}; used only "
                              "when it hash-matches the anchored report)")
+    parser.add_argument("--as-of-entry", type=int, default=None, metavar="N",
+                        help="GENERATION-LOCK rebuild: consider only ledger entries "
+                             "with index <= N (an anchored catalog at index K "
+                             "rebuilds with N = K-1); default: full chain")
     parser.add_argument("--submission",
                         help="optional path to the submission JSON for this run "
                              "(default: auto-discover sub_<task-id>.json in repo root)")
@@ -1100,7 +1120,8 @@ def main(argv=None) -> int:
         try:
             catalog = build_catalog(ledger_path=args.ledger,
                                     schema_version=args.molecule_schema,
-                                    metering_report_path=args.metering_report)
+                                    metering_report_path=args.metering_report,
+                                    as_of_index=args.as_of_entry)
         except (KeyError, ValueError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
@@ -1122,7 +1143,8 @@ def main(argv=None) -> int:
         molecule = build_molecule(args.task, ledger_path=args.ledger,
                                   submission_path=args.submission,
                                   schema_version=args.molecule_schema,
-                                  metering_report_path=args.metering_report)
+                                  metering_report_path=args.metering_report,
+                                  as_of_index=args.as_of_entry)
     except (KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -1487,10 +1509,15 @@ def _selftest() -> int:
                           and e["payload"].get("molecule_schema") ==
                           SCHEMA_VERSION_02), None)
             if idx17 is not None:
+                # GENERATION-LOCKED rebuild: the catalog anchored at index K was
+                # built from entries 0..K-1. Unbounded rebuilds may legitimately
+                # differ once later task-referencing events (e.g. challenge
+                # records) exist — the frozen generation stays valid via the lock.
                 cat02 = build_catalog(ledger_path=DEFAULT_LEDGER_PATH,
-                                      schema_version=SCHEMA_VERSION_02)
-                checks.append(("0.2 catalog REGRESSION-LOCK: rebuild matches the "
-                               "anchored idx-17 catalog_hash",
+                                      schema_version=SCHEMA_VERSION_02,
+                                      as_of_index=idx17["index"] - 1)
+                checks.append(("0.2 catalog REGRESSION-LOCK: generation-locked "
+                               "rebuild matches the anchored idx-17 catalog_hash",
                                cat02["catalog_hash"] ==
                                idx17["payload"]["catalog_hash"]))
             else:

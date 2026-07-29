@@ -146,16 +146,19 @@ def scalar_rule_violations(obj, prefix="") -> list:
 # ----------------------------------------------------------------------------
 # Molecule access (same discovery as the anchored catalog generation)
 # ----------------------------------------------------------------------------
-def _build_molecule_for(task_id: str, ledger_path: str) -> dict:
+def _build_molecule_for(task_id: str, ledger_path: str,
+                        as_of_index: int = None) -> dict:
     """Build the 0.3 molecule with the SAME submission discovery build_catalog uses,
-    so the vector describes exactly the anchored idx-21 generation."""
+    so the vector describes exactly the anchored catalog generation. `as_of_index`
+    is the generation-lock rebuild mode (see work_molecule)."""
     short = normalize_task_id(task_id)
     submission_path = None
     special = work_molecule._CATALOG_SUBMISSIONS.get(short)
     if special is not None:
         submission_path = work_molecule.find_evidence_file(special)
     return work_molecule.build_molecule(short, ledger_path=ledger_path,
-                                        submission_path=submission_path)
+                                        submission_path=submission_path,
+                                        as_of_index=as_of_index)
 
 
 def _find_anchor(entries: list, event: str, status: str):
@@ -341,13 +344,19 @@ def _component_verification_cost(molecule: dict) -> dict:
 # ----------------------------------------------------------------------------
 # Vector + catalog construction
 # ----------------------------------------------------------------------------
-def build_vector(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH) -> dict:
-    """Build T(W) for one task's 0.3 molecule. Deterministic; raises on bad input."""
-    molecule = _build_molecule_for(task_id, ledger_path)
+def build_vector(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
+                 as_of_index: int = None) -> dict:
+    """Build T(W) for one task's 0.3 molecule. Deterministic; raises on bad input.
+    `as_of_index` is the generation-lock rebuild mode: a catalog anchored at ledger
+    index N rebuilds exactly with as_of_index = N - 1."""
+    molecule = _build_molecule_for(task_id, ledger_path, as_of_index=as_of_index)
     ok, reasons = work_molecule.validate(molecule, ledger_path=ledger_path)
     if not ok:
         raise ValueError(f"molecule for {task_id} does not validate: {reasons}")
     entries = work_molecule._read_ledger(ledger_path)
+    if as_of_index is not None:
+        entries = [e for e in entries
+                   if isinstance(e.get("index"), int) and e["index"] <= as_of_index]
     vector = {
         "schema": SCHEMA_VERSION,
         "task_id": molecule["task_spec"]["task_id"],
@@ -369,14 +378,17 @@ def build_vector(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH) -> dict:
     return vector
 
 
-def build_tv_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None) -> dict:
+def build_tv_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
+                     as_of_index: int = None) -> dict:
     """Build + validate the vector for every known task; return the catalog dict
-    ({schema, vector_entries, catalog_hash} — the idx-17 record-shape precedent)."""
+    ({schema, vector_entries, catalog_hash} — the idx-17 record-shape precedent).
+    `as_of_index` is the generation-lock rebuild mode (see build_vector)."""
     if task_ids is None:
         task_ids = sorted(TASK_MODULES)
     vector_entries = []
     for tid in sorted(normalize_task_id(t) for t in task_ids):
-        vector = build_vector(tid, ledger_path=ledger_path)
+        vector = build_vector(tid, ledger_path=ledger_path,
+                              as_of_index=as_of_index)
         ok, reasons = validate_vector(vector, ledger_path=ledger_path)
         if not ok:
             raise ValueError(f"vector for {tid} does not validate: {reasons}")

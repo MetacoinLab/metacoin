@@ -157,9 +157,11 @@ def _read_ledger(ledger_path: str) -> list:
 # ----------------------------------------------------------------------------
 # Molecule access (REUSED construction, same discovery as the anchored catalog)
 # ----------------------------------------------------------------------------
-def _build_molecule_for(task_id: str, ledger_path: str) -> dict:
+def _build_molecule_for(task_id: str, ledger_path: str,
+                        as_of_index: int = None) -> dict:
     """Build the 0.3 molecule for `task_id` with the SAME submission auto-discovery
-    build_catalog uses, so WMIDs here match the anchored catalog generation."""
+    build_catalog uses, so WMIDs here match the anchored catalog generation.
+    `as_of_index` is the generation-lock rebuild mode (see work_molecule)."""
     short = normalize_task_id(task_id)
     submission_path = None
     special = work_molecule._CATALOG_SUBMISSIONS.get(short)
@@ -168,10 +170,11 @@ def _build_molecule_for(task_id: str, ledger_path: str) -> dict:
         # bundle); citations are basename-only, so location never leaks into WMIDs
         submission_path = work_molecule.find_evidence_file(special)
     return work_molecule.build_molecule(short, ledger_path=ledger_path,
-                                        submission_path=submission_path)
+                                        submission_path=submission_path,
+                                        as_of_index=as_of_index)
 
 
-def _molecule_pool(ledger_path: str) -> dict:
+def _molecule_pool(ledger_path: str, as_of_index: int = None) -> dict:
     """Every buildable+valid registry molecule, keyed by WMID (the cut's resolver).
 
     Registry tasks with no ledger records are silently absent (they cannot be part
@@ -179,7 +182,7 @@ def _molecule_pool(ledger_path: str) -> dict:
     pool = {}
     for tid in sorted(TASK_MODULES):
         try:
-            m = _build_molecule_for(tid, ledger_path)
+            m = _build_molecule_for(tid, ledger_path, as_of_index=as_of_index)
         except (KeyError, ValueError):
             continue
         ok, reasons = work_molecule.validate(m, ledger_path=ledger_path)
@@ -276,16 +279,19 @@ def assemble_certificate(interior_molecules: list, boundary_input_ids: list,
     return cert
 
 
-def build_cut(root_task_ids, ledger_path: str = DEFAULT_LEDGER_PATH) -> dict:
+def build_cut(root_task_ids, ledger_path: str = DEFAULT_LEDGER_PATH,
+              as_of_index: int = None) -> dict:
     """Build the cut certificate rooted at `root_task_ids` over the real ledger.
 
     Builds the 0.3 molecule pool, closes the interior transitively over
     parent_work_ids (rejecting cycles), computes the boundary (declared parents that
     resolve to no molecule), and assembles the certificate. On the current FLAT graph
-    every closure is degenerate (interior == roots, boundary == []).
+    every closure is degenerate (interior == roots, boundary == []). `as_of_index`
+    is the generation-lock rebuild mode: a certificate anchored at ledger index N
+    rebuilds exactly with as_of_index = N - 1.
     """
     roots = sorted({normalize_task_id(t) for t in root_task_ids})
-    pool = _molecule_pool(ledger_path)
+    pool = _molecule_pool(ledger_path, as_of_index=as_of_index)
     by_task = {m["task_spec"]["task_id"]: m for m in pool.values()}
     missing = [t for t in roots if t not in by_task]
     if missing:
@@ -398,8 +404,13 @@ def validate_certificate(cert):
 # ----------------------------------------------------------------------------
 # The EXPENSIVE path: full verification (what PROVES a certificate)
 # ----------------------------------------------------------------------------
-def verify_full(cert, ledger_path: str = DEFAULT_LEDGER_PATH):
+def verify_full(cert, ledger_path: str = DEFAULT_LEDGER_PATH,
+                as_of_index: int = None):
     """Fully verify a certificate against the ledger. Returns (ok, reasons).
+
+    `as_of_index` is the generation-lock rebuild mode: pass anchor_index - 1 to
+    re-prove a certificate against the chain state it was anchored over (unbounded
+    rebuilds may legitimately differ once later task-referencing events exist).
 
     Rebuilds EVERY interior molecule from the ledger, recomputes every WMID and the
     aggregate_hash from the rebuilt set, and checks graph closure: every declared
@@ -417,7 +428,8 @@ def verify_full(cert, ledger_path: str = DEFAULT_LEDGER_PATH):
     rebuilt = []
     for e in cert["interior"]:
         try:
-            m = _build_molecule_for(e["task_id"], ledger_path)
+            m = _build_molecule_for(e["task_id"], ledger_path,
+                                    as_of_index=as_of_index)
         except (KeyError, ValueError) as exc:
             reasons.append(f"interior molecule {e['task_id']} cannot be rebuilt: "
                            f"{exc}")
@@ -497,9 +509,14 @@ def accept_by_anchor(cert, ledger_path: str = DEFAULT_LEDGER_PATH):
                        "certificate_hash exists on the ledger (cheap acceptance is "
                        "only sound after the coordinator's anchor-time full proof)")
 
+    # The probe rebuilds GENERATION-LOCKED to the chain state the anchor proved
+    # (anchor index - 1): later task-referencing events legitimately change
+    # unbounded rebuilds, but retrievability of the ANCHORED generation is what
+    # cheap acceptance is conditional on.
     probe = cert["interior"][0]
     try:
-        m = _build_molecule_for(probe["task_id"], ledger_path)
+        m = _build_molecule_for(probe["task_id"], ledger_path,
+                                as_of_index=anchor["index"] - 1)
     except (KeyError, ValueError) as exc:
         return (False, f"not accepted — retrievability probe failed: interior "
                        f"molecule {probe['task_id']} cannot be rebuilt ({exc})")

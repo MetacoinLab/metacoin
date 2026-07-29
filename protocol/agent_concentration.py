@@ -275,8 +275,13 @@ def extract_paths(molecules: list) -> list:
     return paths
 
 
-def build_paths(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH) -> list:
-    """Rebuild all Work Molecules from the ledger (read-only) and extract the paths."""
+def build_paths(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH,
+                as_of_index: int = None) -> list:
+    """Rebuild all Work Molecules from the ledger (read-only) and extract the paths.
+
+    `as_of_index` is the generation-lock rebuild mode (see work_molecule): the ACI
+    baseline anchored at ledger index N re-measures exactly with as_of_index = N-1,
+    while an unbounded re-measurement reflects the current chain."""
     molecules = []
     for tid in sorted(work_molecule.TASK_MODULES):
         submission_path = None
@@ -287,7 +292,8 @@ def build_paths(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH) -> list:
             # leaks into molecule content or the ACI measurement
             submission_path = work_molecule.find_evidence_file(special)
         molecule = work_molecule.build_molecule(tid, ledger_path=ledger_path,
-                                                submission_path=submission_path)
+                                                submission_path=submission_path,
+                                                as_of_index=as_of_index)
         ok, reasons = work_molecule.validate(molecule, ledger_path=ledger_path)
         if not ok:
             raise ValueError(f"molecule for {tid} does not validate: {reasons}")

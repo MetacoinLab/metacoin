@@ -31,6 +31,7 @@ below, clearly labeled "local test harness, not the product".
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -50,6 +51,7 @@ import demo.economy_demo as economy_demo  # reused to RE-RUN the full simulated 
 import demo.task_metering as task_metering  # reused to RE-METER tasks (plausibility check)
 import protocol.cut_certificate as cut_certificate  # reused to FULLY VERIFY cut certificates
 import protocol.trust_vector as trust_vector  # reused to REBUILD trust-vector catalogs
+import protocol.challenge_response as challenge_response  # reused to VERIFY challenges
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -193,6 +195,35 @@ TV_LIMITATION_NOTE = (
     "empty pending Gate 3; a matching catalog hash proves deterministic "
     "re-derivability, not trustworthiness; not consensus, not payment, not a token; "
     "research-stage."
+)
+
+
+# --- challenge-response anchoring (a NINTH record type) ----------------------------------
+# A challenge-response round (protocol/challenge_response.py) upgrades "reproduced
+# the hash" to "demonstrated possession of the full result under a fresh nonce" —
+# the first defense against the ledger's oldest caveat, "a hash can be copied".
+# The record carries a SINGULAR task_id key ON PURPOSE: it IS a genuine
+# verification event for that task and SHOULD join the task's molecule history
+# (the scanner classifies its 'challenge' event name into challenge_events).
+# Anchored FROZEN generations stay valid via generation-locked (as_of) rebuilds.
+_CHALLENGE_EVENT = "challenge_response_result"
+_CHALLENGE_VERIFIED_STATUS = "challenge-verified"
+_CHALLENGE_FAILED_STATUS = "challenge-failed"
+
+CHALLENGE_LIMITATION_NOTE = (
+    "Nonce-bound possession proof — demonstrates the responder held the complete "
+    "task result under a fresh challenge, defeating hash-copying from public "
+    "records; it does NOT prove where/when execution occurred nor exclude "
+    "result-sharing between cooperating parties (and the public task source means "
+    "anyone can execute). This first exercise is same-operator (coordinator "
+    "challenging its own agent identity) and says so. Not consensus, not payment, "
+    "not a token; research-stage."
+)
+CHALLENGE_DRILL_NOTE = (
+    " PLANNED COPY-ATTACK DRILL: this failure is a deliberate demonstration that a "
+    "response forged from the PUBLIC output_hash alone is mechanically rejected — "
+    "the protocol's oldest caveat ('a hash can be copied') now has an anchored "
+    "counter-demonstration, not detected fraud."
 )
 
 
@@ -1291,6 +1322,79 @@ def anchor_trust_vector_catalog(catalog: dict, ledger: Ledger) -> dict:
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# ----------------------------------------------------------------------------
+# Challenge-response anchoring: validate + FULL-recompute-verify + anchor.
+# ----------------------------------------------------------------------------
+def anchor_challenge_result(challenge: dict, response: dict, ledger: Ledger,
+                            drill: bool = False) -> dict:
+    """Validate + VERIFY (full recompute) + anchor a challenge-response round.
+
+    Malformed challenge/response -> 'rejected', NOT anchored. Otherwise the
+    coordinator runs verify_response ITSELF (re-runs the task, re-derives both
+    hashes from the nonce — the reconfirm pattern): pass -> 'challenge-verified';
+    fail -> 'challenge-failed' (a real, anchorable audit event — and with
+    drill=True, a PLANNED demonstration labeled as such). Returns
+    {evaluation, ledger_entry}.
+    """
+    ok_c, c_reasons = challenge_response.validate_challenge(challenge)
+    ok_r, r_reasons = challenge_response.validate_response(response)
+    if not (ok_c and ok_r):
+        evaluation = {
+            "event": _CHALLENGE_EVENT,
+            "stage": "R-challenge",
+            "topology": "challenge-response-same-operator",
+            "status": "rejected",
+            "reason": "; ".join([f"challenge: {r}" for r in c_reasons] +
+                                [f"response: {r}" for r in r_reasons]),
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": CHALLENGE_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    # FULL recompute verification by the coordinator (never trust the files).
+    verdict, reasons = challenge_response.verify_response(challenge, response,
+                                                          ledger_path=ledger.path)
+    status = _CHALLENGE_VERIFIED_STATUS if verdict else _CHALLENGE_FAILED_STATUS
+    note = CHALLENGE_LIMITATION_NOTE + (CHALLENGE_DRILL_NOTE if drill else "")
+
+    evaluation = {
+        "event": _CHALLENGE_EVENT,
+        "stage": "R-challenge",
+        "topology": "challenge-response-same-operator",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        # SINGULAR task_id on purpose — this IS a genuine verification event for
+        # the task and should join its molecule history (frozen generations stay
+        # valid via generation-locked rebuilds; asserted in the self-test).
+        "task_id": challenge["task_id"],
+        "challenge_schema": challenge["schema"],
+        "challenge_id": challenge["challenge_id"],
+        "nonce": challenge["nonce"],
+        "issued_for": challenge["issued_for"],
+        "ledger_tip_at_issue": dict(challenge["ledger_tip_at_issue"]),
+        "verifier_id": response["verifier_id"],
+        "output_hash": response["output_hash"],
+        "response_hash": response["response_hash"],
+        "coordinator_reconfirmed": {
+            "verdict": verdict,
+            "reason_count": len(reasons),
+            "first_failure_reason": reasons[0] if reasons else None,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": note,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    if drill:
+        evaluation["drill"] = True
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # ============================== SELF-TEST ====================================
 # NOTE: the following is a LOCAL TEST HARNESS (single-host simulation), NOT the product.
 # In real use the submission comes from a SEPARATE machine/person via verifier_cli.py.
@@ -1964,7 +2068,90 @@ def _selftest() -> int:
             out_ttv["evaluation"]["status"],
         ))
 
-        # (32) STABILITY after temp anchors onto a copy of the REAL ledger
+        # --- CHALLENGE-RESPONSE mode coverage (verify-and-anchor + copy attack) ----------
+        # Fresh copy of the ACI fixture ledger (genesis + 13 task evaluations).
+        ch_ledger = os.path.join(tmp, "challenge_ledger.jsonl")
+        _copyfile(aci_ledger_path, ch_ledger)
+        pre_tip = Ledger(ch_ledger).read_all()[-1]["index"]
+        cat02_frozen_before = work_molecule.build_catalog(
+            ledger_path=ch_ledger, task_ids=[TASK],
+            schema_version=work_molecule.SCHEMA_VERSION_02, as_of_index=pre_tip)
+
+        # (32) honest round anchored as challenge-verified (task_id joins history)
+        ch_c = challenge_response.issue_challenge(TASK, "selftest-agent",
+                                                  ledger_path=ch_ledger)
+        ch_resp = challenge_response.respond(ch_c, ledger_path=ch_ledger)
+        out_chv = anchor_challenge_result(ch_c, ch_resp, Ledger(ch_ledger))
+        ev_chv = out_chv["evaluation"]
+        ch_chain_ok, _ch_reason = Ledger(ch_ledger).verify_chain()
+        checks.append((
+            "CHALLENGE VERIFIED (full recompute -> anchored; task_id joins history)",
+            ev_chv["status"] == "challenge-verified"
+            and out_chv["ledger_entry"] is not None
+            and ev_chv["coordinator_reconfirmed"]["verdict"] is True
+            and ev_chv["task_id"] == TASK
+            and ch_chain_ok is True,
+            ev_chv["status"],
+        ))
+
+        # (33) the COPY ATTACK anchored as a failed audit event (drill-labeled):
+        # a response forged from the PUBLIC output_hash alone must be rejected by
+        # the possession check and anchored as 'challenge-failed'.
+        ch_c2 = challenge_response.issue_challenge(TASK, "selftest-agent",
+                                                   ledger_path=ch_ledger)
+        honest2 = challenge_response.respond(ch_c2, ledger_path=ch_ledger)
+        forged = dict(honest2)
+        forged["response_hash"] = hashlib.sha256(
+            (ch_c2["nonce"] + ":" + honest2["output_hash"]).encode("utf-8")
+        ).hexdigest()
+        out_chf = anchor_challenge_result(ch_c2, forged, Ledger(ch_ledger),
+                                          drill=True)
+        ev_chf = out_chf["evaluation"]
+        checks.append((
+            "COPY ATTACK anchored as challenge-failed (drill-labeled audit event)",
+            ev_chf["status"] == "challenge-failed"
+            and out_chf["ledger_entry"] is not None
+            and ev_chf.get("drill") is True
+            and "possession" in str(
+                ev_chf["coordinator_reconfirmed"]["first_failure_reason"])
+            and "PLANNED COPY-ATTACK DRILL" in ev_chf["limitation_note"],
+            ev_chf["status"],
+        ))
+
+        # (34) malformed challenge/response -> rejected -> NOT anchored
+        bad_resp = dict(honest2)
+        del bad_resp["response_hash"]
+        out_badch = anchor_challenge_result(ch_c2, bad_resp, Ledger(ch_ledger))
+        checks.append((
+            "CHALLENGE REJECTED (malformed response -> NOT anchored)",
+            out_badch["evaluation"]["status"] == "rejected"
+            and out_badch["ledger_entry"] is None,
+            f"{out_badch['evaluation']['status']} "
+            f"({out_badch['evaluation'].get('reason')})",
+        ))
+
+        # (35) FROZEN vs EVOLVING after the challenge anchors: the generation-locked
+        # 0.2 rebuild is UNCHANGED (frozen generations stay valid forever), while
+        # the unbounded rebuild LEGITIMATELY changes (the challenge records join the
+        # task's molecule as challenge_events — new genuine evidence, new WMID).
+        cat02_frozen_after = work_molecule.build_catalog(
+            ledger_path=ch_ledger, task_ids=[TASK],
+            schema_version=work_molecule.SCHEMA_VERSION_02, as_of_index=pre_tip)
+        cat02_unbounded_after = work_molecule.build_catalog(
+            ledger_path=ch_ledger, task_ids=[TASK],
+            schema_version=work_molecule.SCHEMA_VERSION_02)
+        mol_after = work_molecule.build_molecule(TASK, ledger_path=ch_ledger)
+        checks.append((
+            "FROZEN generation unchanged (as-of lock); unbounded rebuild absorbs "
+            "the challenge events (designed evolution)",
+            cat02_frozen_after["catalog_hash"] == cat02_frozen_before["catalog_hash"]
+            and cat02_unbounded_after["catalog_hash"] !=
+            cat02_frozen_before["catalog_hash"]
+            and len(mol_after["challenge_events"]) == 2,
+            f"challenge_events={len(mol_after['challenge_events'])}",
+        ))
+
+        # (36) STABILITY after temp anchors onto a copy of the REAL ledger
         # (conditional — the runtime ledger is gitignored and absent in CI): a fresh
         # economy anchor must leave the 0.2 catalog (idx-17), the ACI report_hash
         # (idx-18), and the economy hash (idx-19) unchanged; and when the real ledger
@@ -1987,11 +2174,16 @@ def _selftest() -> int:
             triple_ledger = os.path.join(tmp, "triple_ledger.jsonl")
             _copyfile(real_ledger, triple_ledger)
             out_triple = anchor_economy_summary(econ_log, Ledger(triple_ledger))
+            # GENERATION-LOCKED rebuilds (as_of = anchor index - 1): frozen
+            # generations must re-derive forever; unbounded rebuilds legitimately
+            # drift once later task-referencing events (challenge records) exist.
             cat_after = work_molecule.build_catalog(
                 ledger_path=triple_ledger,
-                schema_version=work_molecule.SCHEMA_VERSION_02)
+                schema_version=work_molecule.SCHEMA_VERSION_02,
+                as_of_index=idx17["index"] - 1)
             aci_after = agent_concentration.compute_report(
-                agent_concentration.build_paths(ledger_path=triple_ledger)
+                agent_concentration.build_paths(ledger_path=triple_ledger,
+                                                as_of_index=idx18["index"] - 1)
             )
             checks.append((
                 "TRIPLE STABILITY after temp anchor (0.2 WMIDs + ACI hash + economy hash)",
@@ -2007,7 +2199,8 @@ def _selftest() -> int:
                          and e["payload"].get("molecule_schema") ==
                          work_molecule.SCHEMA_VERSION_03), None)
             if gen2 is not None:
-                cat03_after = work_molecule.build_catalog(ledger_path=triple_ledger)
+                cat03_after = work_molecule.build_catalog(
+                    ledger_path=triple_ledger, as_of_index=gen2["index"] - 1)
                 checks.append((
                     "QUADRUPLE STABILITY: 0.3 rebuild matches the anchored gen-2 catalog",
                     cat03_after["catalog_hash"] == gen2["payload"]["catalog_hash"],
@@ -2022,7 +2215,8 @@ def _selftest() -> int:
                                _CUT_CONFIRMED_STATUS), None)
             if cut_anchor is not None:
                 cut_after = cut_certificate.build_cut(
-                    sorted(verifier_cli.TASK_MODULES), ledger_path=triple_ledger)
+                    sorted(verifier_cli.TASK_MODULES), ledger_path=triple_ledger,
+                    as_of_index=cut_anchor["index"] - 1)
                 cut_accept, _cut_note = cut_certificate.accept_by_anchor(
                     cut_after, ledger_path=triple_ledger)
                 checks.append((
@@ -2042,7 +2236,8 @@ def _selftest() -> int:
                               and e["payload"].get("status") ==
                               _TV_CONFIRMED_STATUS), None)
             if tv_anchor is not None:
-                tv_after = trust_vector.build_tv_catalog(ledger_path=triple_ledger)
+                tv_after = trust_vector.build_tv_catalog(
+                    ledger_path=triple_ledger, as_of_index=tv_anchor["index"] - 1)
                 checks.append((
                     "SEXTUPLE STABILITY: trust-vector rebuild matches the "
                     "anchored catalog",
@@ -2637,6 +2832,65 @@ def _cmd_anchor_trust_vector_catalog(catalog_path: str, ledger_path: str) -> int
     return 0 if status == _TV_CONFIRMED_STATUS else 1
 
 
+def _cmd_anchor_challenge_result(challenge_path: str, response_path: str,
+                                 ledger_path: str, drill: bool) -> int:
+    """Load a challenge + response, VERIFY by full recompute, anchor the outcome.
+
+    Exit codes: 0 = challenge-verified; non-zero = challenge-failed or rejected.
+    (With --drill a 'challenge-failed' outcome is the EXPECTED demonstration, but
+    the exit code still reports the verification result truthfully.)
+    """
+    print(BANNER)
+
+    # Load defensively; any load failure is a rejection (no anchor).
+    docs = []
+    for label, path in (("challenge", challenge_path), ("response", response_path)):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                doc = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+            print("status: rejected")
+            print(f"reason: {label} file unreadable: {exc}")
+            print("anchored: no (nothing written to the ledger)")
+            return 1
+        if not isinstance(doc, dict):
+            print("status: rejected")
+            print(f"reason: {label} JSON is not an object")
+            print("anchored: no (nothing written to the ledger)")
+            return 1
+        docs.append(doc)
+    challenge, response = docs
+
+    ledger = Ledger(ledger_path)
+    out = anchor_challenge_result(challenge, response, ledger, drill=drill)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}" + ("  (PLANNED DRILL)" if ev.get("drill") else ""))
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed -> not written to the ledger)")
+        return 1
+
+    cr = ev["coordinator_reconfirmed"]
+    print(f"task_id      : {ev['task_id']}   issued_for: {ev['issued_for']}")
+    print(f"challenge_id : {ev['challenge_id']}")
+    print(f"nonce        : {ev['nonce']}")
+    print(f"output_hash  : {ev['output_hash']}")
+    print(f"response_hash: {ev['response_hash']}")
+    print("coordinator verification (task re-run + both hashes re-derived here):")
+    print(f"  verdict              : {cr['verdict']}")
+    if cr["first_failure_reason"]:
+        print(f"  first_failure_reason : {cr['first_failure_reason']}")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    return 0 if status == _CHALLENGE_VERIFIED_STATUS else 1
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -2704,6 +2958,20 @@ def main(argv=None) -> int:
              "anchor the outcome (counts only; no combined trust score exists by "
              "design)",
     )
+    mode.add_argument(
+        "--anchor-challenge-result", nargs=2,
+        metavar=("CHALLENGE_JSON", "RESPONSE_JSON"),
+        help="ingest a challenge + response (challenge_response.py); VERIFY by full "
+             "recompute (task re-run, both hashes re-derived from the nonce) and "
+             "anchor the outcome — verified AND failed rounds are both real audit "
+             "events",
+    )
+    parser.add_argument(
+        "--drill", action="store_true",
+        help="with --anchor-challenge-result: label the anchored record as a "
+             "PLANNED demonstration (e.g. the copy-attack drill), never detected "
+             "fraud",
+    )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
         help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
@@ -2744,6 +3012,10 @@ def main(argv=None) -> int:
     if args.anchor_trust_vector_catalog is not None:
         return _cmd_anchor_trust_vector_catalog(args.anchor_trust_vector_catalog,
                                                 args.ledger)
+    if args.anchor_challenge_result is not None:
+        ch_path, resp_path = args.anchor_challenge_result
+        return _cmd_anchor_challenge_result(ch_path, resp_path, args.ledger,
+                                            args.drill)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 

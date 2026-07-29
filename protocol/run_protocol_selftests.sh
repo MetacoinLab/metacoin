@@ -30,6 +30,7 @@ TESTS=(
     "cut_certificate.py --selftest"
     "trust_vector.py --selftest"
     "verify_everything.py --selftest"
+    "challenge_response.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.
