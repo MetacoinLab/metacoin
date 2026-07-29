@@ -853,19 +853,50 @@
       },
       "prev_hash": "07b2d573d80dccfa3fe13f75e030ec9bba0372aa08cf4d039b822530c2f672c4",
       "timestamp": 1785290960.9149523
+    },
+    {
+      "hash": "e556ab404b9da38a05ba0330cec7554a88a888ab4933b039d8c45157e083faca",
+      "index": 22,
+      "payload": {
+        "aggregate_hash": "3236be9c83e0df7a41b872403d7a3541f92869d26555fa88d9f8c02d4a738dc6",
+        "anchored_at": 1785292101.539573,
+        "boundary_count": 0,
+        "certificate_hash": "0c5ac6520339734b2cae5a34e6b4407d19d7a1bcf70b4aa1d413301aa759efe1",
+        "certificate_schema": "cut-certificate/0.1",
+        "coordinator_reconfirmed": {
+          "first_failure_reason": null,
+          "full_verification_passed": true,
+          "rebuilt_interior_count": 13,
+          "verify_error": null
+        },
+        "event": "cut_certificate_anchored",
+        "interior_count": 13,
+        "limitation_note": "First-generation cut certificate over a FLAT provenance graph (no parent edges exist yet among the thirteen molecules), so this is a degenerate cut exercising the mechanism \u2014 non-trivial cuts await molecules with declared parents. Full verification was performed by the coordinator at anchoring; subsequent cheap acceptance is conditional on this anchor plus continued retrievability of the molecules. Proves deterministic re-derivability of the summarized set, not independence; not consensus, not payment, not a token; research-stage.",
+        "molecule_schema": "work-molecule/0.3",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R-provenance",
+        "status": "cut-certificate-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-cut-verification",
+        "verification_policy_version": "cut-verify/0.1",
+        "zero_value": true
+      },
+      "prev_hash": "4bbeb90490530343888075930d137f90c4105baebc839a42e5e48fbf7fd2ef6c",
+      "timestamp": 1785292101.539668
     }
   ],
   "snapshot_header": {
-    "entry_count": 22,
+    "entry_count": 23,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785290980.0282624,
+    "snapshot_timestamp": 1785292127.3813074,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "4bbeb90490530343888075930d137f90c4105baebc839a42e5e48fbf7fd2ef6c",
-    "tip_index": 21,
+    "tip_hash": "e556ab404b9da38a05ba0330cec7554a88a888ab4933b039d8c45157e083faca",
+    "tip_index": 22,
     "zero_value": true
   }
 }
