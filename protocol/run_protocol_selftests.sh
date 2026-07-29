@@ -31,6 +31,7 @@ TESTS=(
     "trust_vector.py --selftest"
     "verify_everything.py --selftest"
     "challenge_response.py --selftest"
+    "actor_identity.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.

@@ -80,9 +80,16 @@ tv_catalog*.json
 # the challenge nonce and the response hashes live verbatim in the ANCHORED ledger
 # record, and the full task result they prove possession of is deliberately never
 # published — so these files are never committed (must stay ABOVE the evidence-
-# bundle negation block, which is last on purpose).
+# bundle negation block, which is last on purpose; signed round evidence copies
+# under protocol/evidence/ are re-included by that block).
 challenge*.json
 response*.json
+
+# actor-identity PRIVATE keychains (actor_identity.py --generate) hold one-time
+# signing SECRETS — NEVER commit them. The public declaration (actor_key*.json)
+# is also a local artifact: the canonical record is the ANCHORED registration.
+keychain*.json
+actor_key*.json
 
 # ============================================================================
 # PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to

@@ -107,6 +107,15 @@ DEFAULT_LEDGER_PATH = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
 # idx-17 generation (must rebuild byte-identical forever), 0.3 is the default going
 # forward (absorbs append-only supplementary evidence). Each maps to its own catalog
 # schema so the two catalog generations are distinguishable at a glance.
+#
+# GENERATION CADENCE POLICY: new ledger events (challenge records, future
+# verification types) legitimately evolve UNBOUNDED molecule rebuilds the moment
+# they are anchored — that is designed absorption, not breakage. Anchored catalog
+# generations are snapshots taken at MILESTONES, not per-event (matching the
+# README's monthly-batch spirit): generation-locked (as_of_index) rebuilds keep
+# every anchored generation verifiable forever, and the NEXT generation anchor is
+# batched to the next milestone. Between milestones, live-vs-latest-anchor drift
+# for recently-exercised tasks is expected, reported, and deliberately unanchored.
 SCHEMA_VERSION_02 = "work-molecule/0.2"
 SCHEMA_VERSION_03 = "work-molecule/0.3"
 DEFAULT_SCHEMA_VERSION = SCHEMA_VERSION_03

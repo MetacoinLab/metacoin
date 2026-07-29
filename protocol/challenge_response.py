@@ -64,6 +64,7 @@ if _REPO_ROOT not in sys.path:
 # REUSE existing components — do NOT reimplement them.
 from protocol.verifier_cli import load_task, normalize_task_id
 import protocol.work_molecule as work_molecule  # source-agnostic _read_ledger
+import protocol.actor_identity as actor_identity  # Lamport OTS sign/verify
 
 _PROTO_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_LEDGER_PATH = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
@@ -76,6 +77,14 @@ _CHALLENGE_KEYS = ("schema", "challenge_id", "task_id", "nonce", "issued_for",
                    "ledger_tip_at_issue")
 _RESPONSE_KEYS = ("schema", "challenge_id", "task_id", "verifier_id",
                   "output_hash", "response_hash", "responded_against_tip")
+# "signature" is the one OPTIONAL response field (actor-identity layer): a
+# Lamport-Merkle signature over sha256(canonical response-without-signature).
+_OPTIONAL_RESPONSE_KEYS = ("signature",)
+
+# The ledger record types the signature layer reads (registration + prior use).
+_REGISTRATION_EVENT = "actor_key_registered"
+_REGISTRATION_STATUS = "actor-key-registered"
+_CHALLENGE_RECORD_EVENT = "challenge_response_result"
 
 
 # ----------------------------------------------------------------------------
@@ -170,12 +179,20 @@ def validate_challenge(challenge):
     return (not reasons, reasons)
 
 
-def respond(challenge: dict, ledger_path: str = DEFAULT_LEDGER_PATH) -> dict:
+def respond(challenge: dict, ledger_path: str = DEFAULT_LEDGER_PATH,
+            keychain: dict = None, key_index: int = None,
+            force_reuse: bool = False) -> dict:
     """Answer a challenge honestly: run the task, prove possession under the nonce.
 
-    Deterministic downstream of the challenge: the same challenge answered twice
-    (over the same ledger) yields byte-identical responses. Raises ValueError on a
-    malformed challenge.
+    With a `keychain`, the response additionally carries a Lamport-Merkle
+    signature over sha256(canonical response-without-signature), binding the
+    response to the actor's anchored key root (key_index defaults to the first
+    unused index; the caller must persist the keychain's used-index mark).
+    `force_reuse` exists ONLY for the planned reuse drill.
+
+    Deterministic downstream of the challenge (and of the key material): the same
+    challenge answered twice yields byte-identical responses. Raises ValueError
+    on a malformed challenge.
     """
     ok, reasons = validate_challenge(challenge)
     if not ok:
@@ -185,7 +202,7 @@ def respond(challenge: dict, ledger_path: str = DEFAULT_LEDGER_PATH) -> dict:
     canonical_result = module.canonical_json(result)
     entries = work_molecule._read_ledger(ledger_path)
     tip = entries[-1]
-    return {
+    response = {
         "schema": SCHEMA_VERSION,
         "challenge_id": challenge["challenge_id"],
         "task_id": challenge["task_id"],
@@ -194,6 +211,18 @@ def respond(challenge: dict, ledger_path: str = DEFAULT_LEDGER_PATH) -> dict:
         "response_hash": compute_response_hash(challenge["nonce"], canonical_result),
         "responded_against_tip": {"index": tip["index"], "hash": tip["hash"]},
     }
+    if keychain is not None:
+        if key_index is None:
+            unused = [i for i in range(keychain["key_count"])
+                      if i not in keychain["used_indices"]]
+            if not unused:
+                raise ValueError("keychain exhausted: every one-time key index "
+                                 "is used")
+            key_index = unused[0]
+        message = canonical_json(response).encode("utf-8")
+        response["signature"] = actor_identity.sign(
+            keychain, key_index, message, force_reuse=force_reuse)
+    return response
 
 
 def validate_response(response):
@@ -202,7 +231,10 @@ def validate_response(response):
     if not isinstance(response, dict):
         return (False, ["response is not a JSON object"])
     missing = [k for k in _RESPONSE_KEYS if k not in response]
-    unknown = [k for k in response if k not in _RESPONSE_KEYS]
+    unknown = [k for k in response
+               if k not in _RESPONSE_KEYS and k not in _OPTIONAL_RESPONSE_KEYS]
+    if "signature" in response and not isinstance(response["signature"], dict):
+        reasons.append("signature, when present, must be a JSON object")
     if missing:
         reasons.append(f"missing fields: {missing}")
     if unknown:
@@ -222,6 +254,83 @@ def validate_response(response):
             and isinstance(tip.get("hash"), str)):
         reasons.append("responded_against_tip must be {index: int, hash: str}")
     return (not reasons, reasons)
+
+
+def signature_check(response, ledger_source) -> dict:
+    """Check a response's OPTIONAL actor-identity signature against the ledger.
+
+    `ledger_source` is a path or a pre-read entries list. Returns a dict:
+    {signed, signer_actor_id, key_index, signature_valid, key_root_ledger_index,
+    reuse_detected, reasons}. Checks, in order: (1) ONE-TIME DISCIPLINE — the
+    (actor_id, key_index) pair must not appear in ANY anchored signed challenge
+    record (reuse = hard reject, listed FIRST); (2) an anchored key root exists
+    for the signer; (3) the signature verifies over
+    sha256(canonical response-without-signature) under that root; (4) the
+    signature's actor binds to the response's verifier_id.
+    """
+    info = {"signed": False, "signer_actor_id": None, "key_index": None,
+            "signature_valid": None, "key_root_ledger_index": None,
+            "reuse_detected": False, "reasons": []}
+    sig = response.get("signature") if isinstance(response, dict) else None
+    if sig is None:
+        return info
+    info["signed"] = True
+    if not isinstance(sig, dict):
+        info["reasons"].append("signature is not a JSON object")
+        return info
+    info["signer_actor_id"] = sig.get("actor_id")
+    info["key_index"] = sig.get("key_index")
+
+    entries = (work_molecule._read_ledger(ledger_source)
+               if isinstance(ledger_source, str) else ledger_source)
+
+    # (1) one-time discipline against the WHOLE anchored history — first, so a
+    # violation is always the headline reason
+    for e in entries:
+        p = e.get("payload") if isinstance(e, dict) else None
+        if (isinstance(p, dict) and p.get("event") == _CHALLENGE_RECORD_EVENT
+                and p.get("signed") is True
+                and p.get("signer_actor_id") == sig.get("actor_id")
+                and p.get("key_index") == sig.get("key_index")):
+            info["reuse_detected"] = True
+            info["reasons"].append(
+                f"one-time key index reuse (violation of OTS discipline): "
+                f"({sig.get('actor_id')!r}, index {sig.get('key_index')}) was "
+                f"already used in the anchored record at ledger index "
+                f"{e.get('index')}")
+            break
+
+    # (2) the signer must have an anchored key root
+    registration = None
+    for e in entries:
+        p = e.get("payload") if isinstance(e, dict) else None
+        if (isinstance(p, dict) and p.get("event") == _REGISTRATION_EVENT
+                and p.get("status") == _REGISTRATION_STATUS
+                and p.get("actor_id") == sig.get("actor_id")):
+            registration = e
+    if registration is None:
+        info["signature_valid"] = False
+        info["reasons"].append(f"no anchored key root registered for actor "
+                               f"{sig.get('actor_id')!r} — a signature is only "
+                               "meaningful under an anchored root")
+        return info
+    info["key_root_ledger_index"] = registration["index"]
+
+    # (3) full signature verification under the anchored root, over the
+    # canonical response WITHOUT its signature field
+    message = canonical_json(
+        {k: v for k, v in response.items() if k != "signature"}).encode("utf-8")
+    ok, sig_reasons = actor_identity.verify_signature(
+        sig, registration["payload"]["merkle_root"], message)
+    info["signature_valid"] = ok
+    info["reasons"].extend(f"signature: {r}" for r in sig_reasons)
+
+    # (4) the signature must bind to the response's verifier identity
+    if sig.get("actor_id") != response.get("verifier_id"):
+        info["reasons"].append(
+            f"signature actor_id {sig.get('actor_id')!r} does not match the "
+            f"response verifier_id {response.get('verifier_id')!r}")
+    return info
 
 
 def verify_response(challenge, response, ledger_path: str = DEFAULT_LEDGER_PATH):
@@ -286,6 +395,13 @@ def verify_response(challenge, response, ledger_path: str = DEFAULT_LEDGER_PATH)
                        "possession of the full result under this nonce (a public "
                        "output_hash cannot produce it — copy attack defeated)")
 
+    # OPTIONAL actor-identity signature: when present it must fully verify
+    # against the anchored root, and the one-time discipline is enforced against
+    # the whole anchored history (reuse reasons come FIRST from signature_check).
+    if "signature" in response:
+        sig_info = signature_check(response, entries)
+        reasons = sig_info["reasons"] + reasons if sig_info["reasons"] else reasons
+
     return (not reasons, reasons)
 
 
@@ -321,6 +437,17 @@ def main(argv=None) -> int:
     parser.add_argument("--task", help="with --issue: task id, e.g. task-0007")
     parser.add_argument("--verifier",
                         help="with --issue: verifier id the challenge is bound to")
+    parser.add_argument("--keychain",
+                        help="with --respond: PRIVATE keychain file (actor_identity"
+                             ".py) — the response gains a Lamport-Merkle signature; "
+                             "the file's used-index mark is persisted back")
+    parser.add_argument("--index", type=int,
+                        help="with --respond --keychain: one-time key index "
+                             "(default: first unused)")
+    parser.add_argument("--drill-force-index", action="store_true",
+                        help="DRILL ONLY: bypass the local one-time refusal to "
+                             "construct a planned reuse demonstration — ledger "
+                             "verification still hard-rejects reuse")
     parser.add_argument("--ledger", default=DEFAULT_LEDGER_PATH,
                         help=f"ledger source (default: {DEFAULT_LEDGER_PATH})")
     parser.add_argument("--out", help="write the challenge/response JSON here")
@@ -349,11 +476,21 @@ def main(argv=None) -> int:
     if args.respond:
         with open(args.respond, "r", encoding="utf-8") as f:
             challenge = json.load(f)
+        keychain = None
+        if args.keychain:
+            with open(args.keychain, "r", encoding="utf-8") as f:
+                keychain = json.load(f)
         try:
-            response = respond(challenge, ledger_path=args.ledger)
+            response = respond(challenge, ledger_path=args.ledger,
+                               keychain=keychain, key_index=args.index,
+                               force_reuse=args.drill_force_index)
         except (KeyError, ValueError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
+        if keychain is not None:
+            # persist the used-index mark (the keychain file is stateful)
+            with open(args.keychain, "w", encoding="utf-8") as f:
+                json.dump(keychain, f, indent=2, sort_keys=True)
         text = json.dumps(response, indent=2, sort_keys=True)
         print(text)
         if args.out:

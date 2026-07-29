@@ -52,6 +52,7 @@ import demo.task_metering as task_metering  # reused to RE-METER tasks (plausibi
 import protocol.cut_certificate as cut_certificate  # reused to FULLY VERIFY cut certificates
 import protocol.trust_vector as trust_vector  # reused to REBUILD trust-vector catalogs
 import protocol.challenge_response as challenge_response  # reused to VERIFY challenges
+import protocol.actor_identity as actor_identity  # scheme constants for key registration
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -196,6 +197,38 @@ TV_LIMITATION_NOTE = (
     "re-derivability, not trustworthiness; not consensus, not payment, not a token; "
     "research-stage."
 )
+
+
+# --- actor-key registration (a TENTH record type) ----------------------------------------
+# An actor registers the PUBLIC Merkle root of their one-time-signature keychain
+# (protocol/actor_identity.py). v0 policy: ONE active root per actor — duplicate
+# actor or duplicate root registrations are rejected; key ROTATION is future
+# work behind this same record type, and we say so rather than pretend.
+# The validator rejects any declaration containing private material anywhere.
+_REGISTRATION_EVENT = "actor_key_registered"
+_REGISTRATION_STATUS = "actor-key-registered"
+
+REGISTRATION_LIMITATION_NOTE = (
+    "Actor key registration under same-operator key custody: the coordinator "
+    "generated and holds this keychain, so signatures under this root prove "
+    "KEY-POSSESSION CONTINUITY, not third-party identity — the layer becomes "
+    "identity-meaningful when an external actor generates and registers their "
+    "OWN root. One-time discipline is a hard protocol rule: each key index "
+    "signs exactly once, and anchored reuse is mechanically rejected. One "
+    "active root per actor in v0; rotation is future work. Not consensus, not "
+    "payment, not a token; research-stage."
+)
+
+
+def _contains_private_material(obj) -> bool:
+    """True if any dict key anywhere contains 'private' — registration must be
+    public-only, mechanically enforced."""
+    if isinstance(obj, dict):
+        return any("private" in str(k).lower() or _contains_private_material(v)
+                   for k, v in obj.items())
+    if isinstance(obj, list):
+        return any(_contains_private_material(v) for v in obj)
+    return False
 
 
 # --- challenge-response anchoring (a NINTH record type) ----------------------------------
@@ -1323,6 +1356,105 @@ def anchor_trust_vector_catalog(catalog: dict, ledger: Ledger) -> dict:
 
 
 # ----------------------------------------------------------------------------
+# Actor-key registration: validate (public-only) + uniqueness + anchor.
+# ----------------------------------------------------------------------------
+def validate_key_declaration(declaration):
+    """Structurally validate a PUBLIC key declaration. Returns (ok, reason).
+
+    Rejects, before any ledger write: wrong schema/scheme, malformed root or
+    counts, and — hard rule — ANY private material anywhere in the file.
+    """
+    if not isinstance(declaration, dict):
+        return (False, "declaration is not a JSON object")
+    if _contains_private_material(declaration):
+        return (False, "declaration contains PRIVATE key material — registration "
+                       "is public-only (root + counts + leaf-hash commitment); "
+                       "never submit a keychain file")
+    for field in ("schema", "actor_id", "scheme", "key_count", "merkle_root",
+                  "leaf_hashes_hash"):
+        if field not in declaration:
+            return (False, f"missing required field '{field}'")
+    if declaration["schema"] != actor_identity.DECLARATION_SCHEMA:
+        return (False, f"field 'schema' must be "
+                       f"{actor_identity.DECLARATION_SCHEMA!r}")
+    if declaration["scheme"] != actor_identity.SCHEME:
+        return (False, f"field 'scheme' must be {actor_identity.SCHEME!r} "
+                       f"(got {declaration['scheme']!r})")
+    if not isinstance(declaration["actor_id"], str) or not declaration["actor_id"]:
+        return (False, "actor_id must be a non-empty string")
+    kc = declaration["key_count"]
+    if not isinstance(kc, int) or isinstance(kc, bool) or kc < 1 or kc & (kc - 1):
+        return (False, "key_count must be a positive power of two")
+    for field in ("merkle_root", "leaf_hashes_hash"):
+        v = declaration[field]
+        if not (isinstance(v, str) and len(v) == 64
+                and all(c in _HEX for c in v)):
+            return (False, f"{field} must be a 64-char lowercase hex sha256")
+    return (True, "ok: conforms to the actor-key-declaration schema")
+
+
+def register_actor_key(declaration: dict, ledger: Ledger) -> dict:
+    """Validate + uniqueness-check + anchor an actor key registration.
+
+    Malformed or private-material-carrying declarations -> 'rejected', NOT
+    anchored. A duplicate actor_id or duplicate merkle_root is also rejected
+    (one active root per actor in v0). Returns {evaluation, ledger_entry}.
+    """
+    ok, reason = validate_key_declaration(declaration)
+    if ok:
+        for e in ledger.read_all():
+            p = e.get("payload", {})
+            if (p.get("event") == _REGISTRATION_EVENT
+                    and p.get("status") == _REGISTRATION_STATUS):
+                if p.get("actor_id") == declaration["actor_id"]:
+                    ok, reason = (False,
+                                  f"actor {declaration['actor_id']!r} already has "
+                                  f"an active root (ledger index {e['index']}) — "
+                                  "one active root per actor in v0; rotation is "
+                                  "future work")
+                    break
+                if p.get("merkle_root") == declaration["merkle_root"]:
+                    ok, reason = (False,
+                                  f"this merkle_root is already registered "
+                                  f"(ledger index {e['index']})")
+                    break
+    if not ok:
+        evaluation = {
+            "event": _REGISTRATION_EVENT,
+            "stage": "R-identity",
+            "topology": "same-operator-key-custody",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": REGISTRATION_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    evaluation = {
+        "event": _REGISTRATION_EVENT,
+        "stage": "R-identity",
+        "topology": "same-operator-key-custody",
+        "status": _REGISTRATION_STATUS,
+        "task_class": _TASK_CLASS,
+        "actor_id": declaration["actor_id"],
+        "scheme": declaration["scheme"],
+        "key_count": declaration["key_count"],
+        "merkle_root": declaration["merkle_root"],
+        "leaf_hashes_hash": declaration["leaf_hashes_hash"],
+        "operator_relationship": "same-operator",
+        "limitation_note": REGISTRATION_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+# ----------------------------------------------------------------------------
 # Challenge-response anchoring: validate + FULL-recompute-verify + anchor.
 # ----------------------------------------------------------------------------
 def anchor_challenge_result(challenge: dict, response: dict, ledger: Ledger,
@@ -1359,6 +1491,10 @@ def anchor_challenge_result(challenge: dict, response: dict, ledger: Ledger,
                                                           ledger_path=ledger.path)
     status = _CHALLENGE_VERIFIED_STATUS if verdict else _CHALLENGE_FAILED_STATUS
     note = CHALLENGE_LIMITATION_NOTE + (CHALLENGE_DRILL_NOTE if drill else "")
+    # actor-identity layer: record the signature FACTS (never the ~50 KB
+    # signature itself — that lives in the evidence bundle; the record carries
+    # what history-scanning needs: who signed with which one-time index).
+    sig_info = challenge_response.signature_check(response, ledger.path)
 
     evaluation = {
         "event": _CHALLENGE_EVENT,
@@ -1378,6 +1514,7 @@ def anchor_challenge_result(challenge: dict, response: dict, ledger: Ledger,
         "verifier_id": response["verifier_id"],
         "output_hash": response["output_hash"],
         "response_hash": response["response_hash"],
+        "signed": sig_info["signed"],
         "coordinator_reconfirmed": {
             "verdict": verdict,
             "reason_count": len(reasons),
@@ -1389,6 +1526,11 @@ def anchor_challenge_result(challenge: dict, response: dict, ledger: Ledger,
         "no_token": True,
         "anchored_at": time.time(),
     }
+    if sig_info["signed"]:
+        evaluation["signer_actor_id"] = sig_info["signer_actor_id"]
+        evaluation["key_index"] = sig_info["key_index"]
+        evaluation["signature_valid"] = sig_info["signature_valid"]
+        evaluation["key_root_ledger_index"] = sig_info["key_root_ledger_index"]
     if drill:
         evaluation["drill"] = True
     entry = ledger.append(evaluation)
@@ -2151,7 +2293,94 @@ def _selftest() -> int:
             f"challenge_events={len(mol_after['challenge_events'])}",
         ))
 
-        # (36) STABILITY after temp anchors onto a copy of the REAL ledger
+        # --- ACTOR-IDENTITY mode coverage (registration + signed challenges) -------------
+        # Continues on ch_ledger (which already carries unsigned challenge
+        # records — proving backward compatibility below). Small keychain (4
+        # one-time keys) for speed; the scheme is size-independent.
+        kc = actor_identity.generate_keychain("selftest-agent", key_count=4)
+        decl = actor_identity.public_declaration(kc)
+        out_reg = register_actor_key(decl, Ledger(ch_ledger))
+        reg_idx = (out_reg["ledger_entry"] or {}).get("index")
+
+        # (36) registration anchored; duplicate + private-material rejected
+        out_dup = register_actor_key(decl, Ledger(ch_ledger))
+        bad_decl = dict(decl)
+        bad_decl["private_backup"] = {"keys": "oops"}
+        out_priv = register_actor_key(bad_decl, Ledger(ch_ledger))
+        checks.append((
+            "ACTOR KEY REGISTERED; duplicate + private-material rejected",
+            out_reg["evaluation"]["status"] == "actor-key-registered"
+            and out_reg["ledger_entry"] is not None
+            and out_dup["evaluation"]["status"] == "rejected"
+            and "one active root" in out_dup["evaluation"]["reason"]
+            and out_priv["evaluation"]["status"] == "rejected"
+            and "PRIVATE" in out_priv["evaluation"]["reason"],
+            f"root@idx {reg_idx}",
+        ))
+
+        # (37) SIGNED honest round -> verified, with the signature facts recorded
+        ch_s = challenge_response.issue_challenge(TASK, "selftest-agent",
+                                                  ledger_path=ch_ledger)
+        resp_s = challenge_response.respond(ch_s, ledger_path=ch_ledger,
+                                            keychain=kc, key_index=0)
+        out_sv = anchor_challenge_result(ch_s, resp_s, Ledger(ch_ledger))
+        ev_sv = out_sv["evaluation"]
+        checks.append((
+            "SIGNED CHALLENGE VERIFIED (signature facts on the record)",
+            ev_sv["status"] == "challenge-verified"
+            and ev_sv["signed"] is True
+            and ev_sv["signature_valid"] is True
+            and ev_sv["key_index"] == 0
+            and ev_sv["signer_actor_id"] == "selftest-agent"
+            and ev_sv["key_root_ledger_index"] == reg_idx,
+            ev_sv["status"],
+        ))
+
+        # (38) UNSIGNED rounds still work (backward compatible)
+        ch_u = challenge_response.issue_challenge(TASK, "selftest-agent",
+                                                  ledger_path=ch_ledger)
+        resp_u = challenge_response.respond(ch_u, ledger_path=ch_ledger)
+        out_uv = anchor_challenge_result(ch_u, resp_u, Ledger(ch_ledger))
+        checks.append((
+            "UNSIGNED round still verifies (backward compatible; signed=false)",
+            out_uv["evaluation"]["status"] == "challenge-verified"
+            and out_uv["evaluation"]["signed"] is False,
+            out_uv["evaluation"]["status"],
+        ))
+
+        # (39) KEY-REUSE attack: sign a NEW challenge with the already-anchored
+        # index 0 (drill-force path) -> hard reject naming the OTS violation
+        ch_r = challenge_response.issue_challenge(TASK, "selftest-agent",
+                                                  ledger_path=ch_ledger)
+        resp_r = challenge_response.respond(ch_r, ledger_path=ch_ledger,
+                                            keychain=kc, key_index=0,
+                                            force_reuse=True)
+        out_rv = anchor_challenge_result(ch_r, resp_r, Ledger(ch_ledger),
+                                         drill=True)
+        ev_rv = out_rv["evaluation"]
+        checks.append((
+            "KEY-REUSE rejected (one-time discipline; drill-labeled audit event)",
+            ev_rv["status"] == "challenge-failed"
+            and ev_rv.get("drill") is True
+            and "one-time key index reuse" in str(
+                ev_rv["coordinator_reconfirmed"]["first_failure_reason"]),
+            ev_rv["status"],
+        ))
+
+        # (40) FORGED signature: flip a revealed secret -> challenge-failed with
+        # signature_valid False
+        resp_f = challenge_response.respond(ch_r, ledger_path=ch_ledger,
+                                            keychain=kc, key_index=1)
+        resp_f["signature"]["revealed_secrets"][3] = "0" * 64
+        out_fv = anchor_challenge_result(ch_r, resp_f, Ledger(ch_ledger))
+        checks.append((
+            "FORGED signature rejected (signature_valid False on the record)",
+            out_fv["evaluation"]["status"] == "challenge-failed"
+            and out_fv["evaluation"]["signature_valid"] is False,
+            out_fv["evaluation"]["status"],
+        ))
+
+        # (41) STABILITY after temp anchors onto a copy of the REAL ledger
         # (conditional — the runtime ledger is gitignored and absent in CI): a fresh
         # economy anchor must leave the 0.2 catalog (idx-17), the ACI report_hash
         # (idx-18), and the economy hash (idx-19) unchanged; and when the real ledger
@@ -2883,12 +3112,58 @@ def _cmd_anchor_challenge_result(challenge_path: str, response_path: str,
     print(f"  verdict              : {cr['verdict']}")
     if cr["first_failure_reason"]:
         print(f"  first_failure_reason : {cr['first_failure_reason']}")
+    if ev.get("signed"):
+        print(f"  signed               : True (actor {ev['signer_actor_id']!r}, "
+              f"one-time key index {ev['key_index']}, signature_valid "
+              f"{ev['signature_valid']}, root registered at ledger index "
+              f"{ev['key_root_ledger_index']})")
     if entry is not None:
         print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
     ok, vreason = ledger.verify_chain()
     print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
 
     return 0 if status == _CHALLENGE_VERIFIED_STATUS else 1
+
+
+def _cmd_register_actor_key(decl_path: str, ledger_path: str) -> int:
+    """Load a public key declaration, validate (public-only), anchor the registration.
+
+    Exit codes: 0 = actor-key-registered; non-zero = rejected.
+    """
+    print(BANNER)
+    reason = None
+    declaration = None
+    try:
+        with open(decl_path, "r", encoding="utf-8") as f:
+            declaration = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        reason = f"declaration file unreadable: {exc}"
+    if reason is None and not isinstance(declaration, dict):
+        reason = "declaration JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    out = register_actor_key(declaration, ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    print(f"status: {ev['status']}")
+    if ev["status"] == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+    print(f"actor_id    : {ev['actor_id']}   ({ev['scheme']}, "
+          f"{ev['key_count']} one-time keys)")
+    print(f"merkle_root : {ev['merkle_root']}")
+    print("NOTE: same-operator key custody — possession-continuity, not identity.")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+    return 0
 
 
 def main(argv=None) -> int:
@@ -2966,11 +3241,17 @@ def main(argv=None) -> int:
              "anchor the outcome — verified AND failed rounds are both real audit "
              "events",
     )
+    mode.add_argument(
+        "--register-actor-key", metavar="DECLARATION_JSON",
+        help="register an actor's PUBLIC one-time-signature key root "
+             "(actor_identity.py --declare); rejects any file containing private "
+             "material; one active root per actor in v0",
+    )
     parser.add_argument(
         "--drill", action="store_true",
         help="with --anchor-challenge-result: label the anchored record as a "
-             "PLANNED demonstration (e.g. the copy-attack drill), never detected "
-             "fraud",
+             "PLANNED demonstration (e.g. the copy-attack or key-reuse drill), "
+             "never detected fraud",
     )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
@@ -3016,6 +3297,8 @@ def main(argv=None) -> int:
         ch_path, resp_path = args.anchor_challenge_result
         return _cmd_anchor_challenge_result(ch_path, resp_path, args.ledger,
                                             args.drill)
+    if args.register_actor_key is not None:
+        return _cmd_register_actor_key(args.register_actor_key, args.ledger)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
