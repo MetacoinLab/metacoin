@@ -730,19 +730,142 @@
       },
       "prev_hash": "224703633361aaa84b9c0d176d8d8879244ec9966568722947e5ceb879d614e7",
       "timestamp": 1785223772.6034825
+    },
+    {
+      "hash": "07b2d573d80dccfa3fe13f75e030ec9bba0372aa08cf4d039b822530c2f672c4",
+      "index": 20,
+      "payload": {
+        "anchored_at": 1785290956.6994565,
+        "assumed_cpu_power_w": 15.0,
+        "coordinator_reconfirmed": {
+          "remeter_error": null,
+          "remetered_max_task_wall_time_s": 0.003482,
+          "remetered_output_hashes_match_ledger": true,
+          "remetered_task_count": 13,
+          "remetered_total_cpu_time_s": 0.005458,
+          "remetered_total_wall_time_s": 0.005449,
+          "timings_within_sanity_band": true
+        },
+        "event": "metering_evidence_anchored",
+        "labels": {
+          "cpu": "measured",
+          "energy": "estimated",
+          "wall": "measured"
+        },
+        "limitation_note": "First-generation compute/energy evidence by the same operator on one host: wall/CPU times MEASURED (time.perf_counter / resource.getrusage), energy ESTIMATED from an assumed constant power figure (no hardware power telemetry exists on this host \u2014 that debt remains open). Timing is non-reproducible by nature, so this record fixes the CLAIM made at measurement time, not a reproducible computation; verification of plausibility = re-metering reproduces the same output_hashes and same order-of-magnitude timings, not identical bytes. Reduces but does not eliminate the energy_and_compute_evidence provenance debt. Not consensus, not payment, not a token; zero-value research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "power_method": "assumed-nameplate; no hardware telemetry on this host",
+        "report_hash": "35c0ccfdc36b0b4d91b15659ed07a5325b1d7d0d36e0b215ceb329d28f8f7577",
+        "report_schema": "metering-report/0.1",
+        "stage": "R-provenance-debt",
+        "status": "metering-evidence-confirmed",
+        "task_class": "illustrative-demo",
+        "task_count": 13,
+        "topology": "same-machine-metering",
+        "total_cpu_time_s": 0.008761,
+        "total_energy_j_estimate": 0.131415,
+        "total_wall_time_s": 0.008748,
+        "zero_value": true
+      },
+      "prev_hash": "02b04bbe9311bf2d4ed1a09401a2a64a78276db67abea246c05f6a7f2706055c",
+      "timestamp": 1785290956.699548
+    },
+    {
+      "hash": "4bbeb90490530343888075930d137f90c4105baebc839a42e5e48fbf7fd2ef6c",
+      "index": 21,
+      "payload": {
+        "anchored_at": 1785290960.914869,
+        "catalog_entries": [
+          {
+            "task_id": "task-0001",
+            "work_id": "58c095a58eb7b8830cc27025c0fbded3db4833bf3fcfb66627fd6ca7bc949454"
+          },
+          {
+            "task_id": "task-0002",
+            "work_id": "70ef999afc1bd2eee998e1b50df0ee3ff1ae078e855943fb1b30d8a925d04709"
+          },
+          {
+            "task_id": "task-0003",
+            "work_id": "7a3bf24bb1378e5e23930e9232e3db772c642978cd4a903c2f00700c975b5374"
+          },
+          {
+            "task_id": "task-0004",
+            "work_id": "765b059c0edb0537163ef49a2eed267591c65c0cb8ddff5ca5f11c0121b77ea3"
+          },
+          {
+            "task_id": "task-0005",
+            "work_id": "749db665f23456b107dafb209c983eebdd79e588600abc06225d77b1d722c8f4"
+          },
+          {
+            "task_id": "task-0006",
+            "work_id": "2070135fd7f1041f4e3548c0a601ad618132633a3cf87d657ef4ad86d805c1a2"
+          },
+          {
+            "task_id": "task-0007",
+            "work_id": "425260e7736546ff4065c034013634355ff2bdd2b467208e58d865c828e0252d"
+          },
+          {
+            "task_id": "task-0008",
+            "work_id": "28a20d8f8a76d1023cdd6a083f6e391c7b33dea912aab503d25c1f269e00e0ba"
+          },
+          {
+            "task_id": "task-0009",
+            "work_id": "6bd3ff145195fe41e2aa3b95ef14d8ab41d884d720c7a18874e6864852d3c9a7"
+          },
+          {
+            "task_id": "task-0010",
+            "work_id": "1eb258a9b95e0bd198143008eae7b34b22d787298026a9ab3c6cd77ad3eb6438"
+          },
+          {
+            "task_id": "task-0011",
+            "work_id": "b707bf2456e8362296b0ff6997fe1dfe86aff35d267cb4885be0a40833ebf526"
+          },
+          {
+            "task_id": "task-0012",
+            "work_id": "c8fce1e477574cc6e3d3612fa7876ca235d36d027da22ed4498adb4dfe3e7aff"
+          },
+          {
+            "task_id": "task-0013",
+            "work_id": "a8596e8bb61e66d162e7ff2b8dafe259b0e98faa0d891f756e69fe29ac9384cf"
+          }
+        ],
+        "catalog_entry_count": 13,
+        "catalog_hash": "dbc162aa198772f7834c8d16f3334f9c8a7d3ca83577a670635ef8807689f9c4",
+        "catalog_schema": "work-molecule-catalog/0.2",
+        "coordinator_reconfirmed": {
+          "catalog_hash_matches": true,
+          "entries_match": true,
+          "rebuild_error": null,
+          "rebuilt_entry_count": 13,
+          "recomputed_catalog_hash": "dbc162aa198772f7834c8d16f3334f9c8a7d3ca83577a670635ef8807689f9c4"
+        },
+        "event": "work_molecule_catalog_anchored",
+        "limitation_note": "Work Molecules are READ-ONLY ASSEMBLIES of same-operator records, assembled by the same operator; a matching WMID proves DETERMINISTIC RECONSTRUCTIBILITY of the provenance object from the recorded evidence, NOT independence and NOT execution (hashes can be copied). Provenance-debt fields (energy/compute cost, TEE hardware attestation, execution detail) remain open and are listed explicitly inside each molecule. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "molecule_schema": "work-molecule/0.3",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R-provenance",
+        "status": "molecule-catalog-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-molecule-assembly",
+        "zero_value": true
+      },
+      "prev_hash": "07b2d573d80dccfa3fe13f75e030ec9bba0372aa08cf4d039b822530c2f672c4",
+      "timestamp": 1785290960.9149523
     }
   ],
   "snapshot_header": {
-    "entry_count": 20,
+    "entry_count": 22,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785223790.0593302,
+    "snapshot_timestamp": 1785290980.0282624,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "02b04bbe9311bf2d4ed1a09401a2a64a78276db67abea246c05f6a7f2706055c",
-    "tip_index": 19,
+    "tip_hash": "4bbeb90490530343888075930d137f90c4105baebc839a42e5e48fbf7fd2ef6c",
+    "tip_index": 21,
     "zero_value": true
   }
 }
