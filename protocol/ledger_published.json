@@ -1425,19 +1425,117 @@
       },
       "prev_hash": "3deaf9dd6df9c07b1cfcb769acc793c5e66f5327c571bd02eaf83c9f6055efda",
       "timestamp": 1785309032.2775083
+    },
+    {
+      "hash": "830df994bc8946f773223b8f99bd6f4517d9cae9786577c51bbf0e82ab439084",
+      "index": 37,
+      "payload": {
+        "actor_id": "spark-uptime-node",
+        "anchored_at": 1785309792.4789312,
+        "event": "actor_key_registered",
+        "key_count": 32,
+        "leaf_hashes_hash": "1539ee2d9e248f63772c940fbcf3a8ed50d7dbceea0031ae2415575daee937ad",
+        "limitation_note": "Actor key registration under same-operator key custody: the coordinator generated and holds this keychain, so signatures under this root prove KEY-POSSESSION CONTINUITY, not third-party identity \u2014 the layer becomes identity-meaningful when an external actor generates and registers their OWN root. One-time discipline is a hard protocol rule: each key index signs exactly once, and anchored reuse is mechanically rejected. One active root per actor in v0; rotation is future work. Not consensus, not payment, not a token; research-stage.",
+        "merkle_root": "3356dd92b30dcd35c276f184698b0d4168365a50ca5f0296bbce018a0c6da4cc",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "scheme": "lamport-sha256-merkle/0.1",
+        "stage": "R-identity",
+        "status": "actor-key-registered",
+        "task_class": "illustrative-demo",
+        "topology": "same-operator-key-custody",
+        "zero_value": true
+      },
+      "prev_hash": "65390bbce6536b5f81ff52439b3228fd218c910f5e927ed99ee4f79b30aab29e",
+      "timestamp": 1785309792.4790978
+    },
+    {
+      "hash": "4fbc876c8b2925ee6298c8fb3e9fa1da2692d024dcaf84db345b5cd7ded5eb1b",
+      "index": 38,
+      "payload": {
+        "actor_id": "spark-uptime-node",
+        "anchored_at": 1785309802.9413059,
+        "drill": true,
+        "emitted": 0.0,
+        "event": "heartbeat_rejected",
+        "first_failure_reason": "signature: message_digest mismatch: the signature is over DIFFERENT bytes than the presented message",
+        "key_root_ledger_index": 37,
+        "limitation_note": "Flow 1 signed-heartbeat uptime emission v0: OBJECTIVE per-slot rule (a valid signed heartbeat emits the fixed amount; a missed slot emits exactly 0 \u2014 an objective fact, not a penalty), bounded by construction (the epoch refuses to run if slots x per-slot could exceed the cap), over SIMULATED slot indices, not wall-clock \u2014 the tip binding proves chain-state ordering, never real-world time. Same-operator node whose keychain the coordinator holds: liveness evidence, not third-party infrastructure. Zero-value Test-META; not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "simulated_time": true,
+        "slot_index": 0,
+        "stage": "R-flow1",
+        "status": "heartbeat-forged-rejected",
+        "task_class": "illustrative-demo",
+        "topology": "same-operator-uptime-node",
+        "zero_value": true
+      },
+      "prev_hash": "830df994bc8946f773223b8f99bd6f4517d9cae9786577c51bbf0e82ab439084",
+      "timestamp": 1785309802.94148
+    },
+    {
+      "hash": "dc5a502a2aeab6e644c669039b764d2d46be63881bf2c5738eb5fa7d7d611bff",
+      "index": 39,
+      "payload": {
+        "actor_id": "spark-uptime-node",
+        "anchored_at": 1785309813.9653118,
+        "cap_respected": true,
+        "coordinator_reconfirmed": {
+          "epoch_verified": true,
+          "first_failure_reason": null,
+          "heartbeats_reverified": 9
+        },
+        "epoch_cap": 5.0,
+        "epoch_hash": "8d88efb17f434c320bec221bb8df53a519e088f505310fad6b7fcfe55c570425",
+        "epoch_schema": "uptime-emission/0.1",
+        "event": "uptime_epoch_anchored",
+        "key_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "key_root_ledger_index": 37,
+        "limitation_note": "Flow 1 signed-heartbeat uptime emission v0: OBJECTIVE per-slot rule (a valid signed heartbeat emits the fixed amount; a missed slot emits exactly 0 \u2014 an objective fact, not a penalty), bounded by construction (the epoch refuses to run if slots x per-slot could exceed the cap), over SIMULATED slot indices, not wall-clock \u2014 the tip binding proves chain-state ordering, never real-world time. Same-operator node whose keychain the coordinator holds: liveness evidence, not third-party infrastructure. Zero-value Test-META; not consensus, not payment, not a token; research-stage.",
+        "missed_slot_statement": "slot 6 emitted 0 by objective rule \u2014 no heartbeat, no emission, no discretion",
+        "missed_slots": [
+          6
+        ],
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "per_slot_emission": 0.5,
+        "simulated_time": true,
+        "slot_count": 10,
+        "stage": "R-flow1",
+        "status": "uptime-epoch-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-operator-uptime-node",
+        "total_emitted": 4.5,
+        "two_flow_separation": "Flow 1 emission has no treasury path [flow1_uptime audit]; Flow 2 treasury has no mint path [metastar_treasury audit] \u2014 the constitutional separation is mechanical in both directions",
+        "verified_slots": 9,
+        "zero_value": true
+      },
+      "prev_hash": "4fbc876c8b2925ee6298c8fb3e9fa1da2692d024dcaf84db345b5cd7ded5eb1b",
+      "timestamp": 1785309813.9654703
     }
   ],
   "snapshot_header": {
-    "entry_count": 37,
+    "entry_count": 40,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785309140.295284,
+    "snapshot_timestamp": 1785309883.2410176,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "65390bbce6536b5f81ff52439b3228fd218c910f5e927ed99ee4f79b30aab29e",
-    "tip_index": 36,
+    "tip_hash": "dc5a502a2aeab6e644c669039b764d2d46be63881bf2c5738eb5fa7d7d611bff",
+    "tip_index": 39,
     "zero_value": true
   }
 }

@@ -63,6 +63,7 @@ import protocol.challenge_response as challenge_response
 import protocol.cut_certificate as cut_certificate
 import protocol.gate3_process as gate3_process
 import protocol.trust_vector as trust_vector
+import demo.flow1_uptime as flow1_uptime
 import demo.metastar_treasury as metastar_treasury
 import protocol.verifier_cli as verifier_cli
 import protocol.work_molecule as work_molecule
@@ -563,6 +564,73 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "bounded-failure drill(s) stay upheld, "
                      f"{n_final} finalization(s) replay with closed windows; "
                      "prechecks recompute with citations"
+                     if not problems else "; ".join(problems[:3])))
+
+    # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------
+    # Root integrity via the identity layer's registrations; every anchored
+    # epoch's heartbeat signatures re-verified from the shipped evidence copy
+    # (public material only); emission arithmetic replayed under the objective
+    # rule; the missed-slot zero confirmed; the forged drill stays rejected;
+    # the two-flow separation statements present on the record.
+    ep_records = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event") == "uptime_epoch_anchored"
+                  and e["payload"].get("status") == "uptime-epoch-confirmed"]
+    hb_drills = [(e["index"], e["payload"]) for e in entries
+                 if isinstance(e.get("payload"), dict)
+                 and e["payload"].get("event") == "heartbeat_rejected"
+                 and e["payload"].get("status") == "heartbeat-forged-rejected"]
+    if not ep_records and not hb_drills:
+        rows.append(("flow1 emission", FULL, True,
+                     "no uptime-emission records on the chain yet"))
+    else:
+        problems = []
+        reg_roots = {e["index"]: e["payload"].get("merkle_root")
+                     for e in entries
+                     if isinstance(e.get("payload"), dict)
+                     and e["payload"].get("event") == "actor_key_registered"}
+        n_hb = 0
+        for idx, p in ep_records:
+            f = _load_evidence_json(f"uptime_epoch_{p['epoch_hash'][:12]}.json")
+            if not isinstance(f, dict) or f.get("epoch_hash") != p["epoch_hash"]:
+                problems.append(f"idx {idx}: epoch evidence file missing or "
+                                "hash-mismatched")
+                continue
+            root = reg_roots.get(p.get("key_root_ledger_index"))
+            ok, _reasons = flow1_uptime.verify_epoch(f, root,
+                                                     ledger_path=source,
+                                                     as_of_index=idx - 1)
+            if not ok:
+                problems.append(f"idx {idx}: anchored epoch does not re-verify")
+                continue
+            s = f["summary"]
+            if (p["total_emitted"] != round(
+                    s["verified_slots"] * f["per_slot_emission"], 6)
+                    or p["total_emitted"] > p["epoch_cap"]
+                    or any(row["emitted"] != 0.0 for row in f["emission_table"]
+                           if row["slot"] in s["missed_slots"])):
+                problems.append(f"idx {idx}: emission arithmetic violates the "
+                                "objective rule")
+            if ("no discretion" not in p.get("missed_slot_statement", "")
+                    or "both directions" not in p.get("two_flow_separation", "")):
+                problems.append(f"idx {idx}: constitutional statements missing")
+            n_hb += len(f.get("heartbeats", []))
+        for idx, p in hb_drills:
+            f = _load_evidence_json("heartbeat_forged_drill.json")
+            if not isinstance(f, dict):
+                problems.append(f"idx {idx}: forged-drill evidence file missing")
+                continue
+            root = reg_roots.get(p.get("key_root_ledger_index"))
+            still_fails, _r = flow1_uptime.verify_heartbeat(
+                f, root, ledger_path=source, as_of_index=idx - 1)
+            if still_fails or p.get("emitted") != 0.0:
+                problems.append(f"idx {idx}: forged heartbeat no longer rejects "
+                                "or emitted nonzero")
+        rows.append(("flow1 emission", FULL, not problems,
+                     f"{len(ep_records)} epoch(s): {n_hb} heartbeat signatures "
+                     "re-verified, objective arithmetic replayed, missed-slot "
+                     f"zero confirmed; {len(hb_drills)} forged drill(s) stay "
+                     "rejected; separation statements present"
                      if not problems else "; ".join(problems[:3])))
 
     all_ok = all(ok for _l, _m, ok, _d in rows)
