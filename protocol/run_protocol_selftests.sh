@@ -32,6 +32,7 @@ TESTS=(
     "verify_everything.py --selftest"
     "challenge_response.py --selftest"
     "actor_identity.py --selftest"
+    "gate3_process.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.

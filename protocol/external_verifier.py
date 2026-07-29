@@ -53,6 +53,8 @@ import protocol.cut_certificate as cut_certificate  # reused to FULLY VERIFY cut
 import protocol.trust_vector as trust_vector  # reused to REBUILD trust-vector catalogs
 import protocol.challenge_response as challenge_response  # reused to VERIFY challenges
 import protocol.actor_identity as actor_identity  # scheme constants for key registration
+import protocol.gate3_process as gate3_process  # reused to RECOMPUTE prechecks/windows
+import demo.metastar_treasury as metastar_treasury  # reused to RE-DERIVE anchored fees
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -197,6 +199,83 @@ TV_LIMITATION_NOTE = (
     "re-derivability, not trustworthiness; not consensus, not payment, not a token; "
     "research-stage."
 )
+
+
+# --- treasury + Gate-3 records (the Two-Flow constitution on-ledger) ---------------------
+# The treasury config record anchors the SECOND flow's constitution: fee-funded
+# from the anchored economy, bounded caps/budgets, conservation asserted, no
+# mint path. Gate-3 lifecycle records (provisional/challenge/clawback/
+# finalization) carry a SINGULAR top-level task_id ON PURPOSE: a Gate-3 process
+# event about a work item SHOULD join that task's molecule history — the
+# challenge phase's event name contains 'challenge', so the molecule assembler
+# files it under challenge_events; the other phases land in verification_events
+# as process events (routing asserted in the self-test). Frozen anchored
+# generations stay valid via generation-locked rebuilds (cadence policy).
+_TREASURY_EVENT = "treasury_config_anchored"
+_TREASURY_STATUS = "treasury-config-confirmed"
+
+TREASURY_LIMITATION_NOTE = (
+    "MetaStar Treasury v0 under same-operator custody over a SIMULATED economy: "
+    "zero-value Test-META accounting, not payment. Its only inflow is fees "
+    "derived from the anchored economy record; its only outflows are bounded "
+    "bounty payments; conservation (balance + outstanding == fees) is asserted "
+    "at every operation and no mint path exists — an adjudication failure can "
+    "at worst drain one capped bounty, never the monetary base. Not consensus, "
+    "not payment, not a token; research-stage."
+)
+
+_GATE3_STATUS = {
+    gate3_process.EVENT_PROVISIONAL: "gate3-provisional-confirmed",
+    gate3_process.EVENT_CHALLENGE: "gate3-challenge-filed",
+    gate3_process.EVENT_CLAWBACK: "gate3-clawback-confirmed",
+    gate3_process.EVENT_FINALIZATION: "gate3-finalization-confirmed",
+}
+
+GATE3_LIMITATION_NOTE = (
+    "Gate-3 bounded optimistic process v0: the machine pre-check is a "
+    "MECHANICAL checklist with ledger citations (no LLM anywhere); the "
+    "challenge window is entry-count-based (simulated, deterministic); the "
+    "council is a same-operator SINGLE SEAT executing a fixed scripted rule — "
+    "no discretion exists yet. The PROCESS is real; substantive usefulness "
+    "judgment is honestly absent: process-passed is NOT useful. Zero-value, "
+    "not consensus, not payment, not a token; research-stage."
+)
+PROCESS_PASSED_STATEMENT = (
+    "process-passed under mechanical pre-check and an unchallenged window; "
+    "substantive usefulness not assessed — the judgment seat is honestly vacant"
+)
+
+
+def _anchored_treasury_flows(entries):
+    """(config_entry, fees, granted, clawed, by_bounty) replayed from ANCHORED
+    records only — the coordinator never trusts local treasury state."""
+    config_entry = None
+    granted = clawed = 0.0
+    by_bounty = {}
+    for e in entries:
+        p = e.get("payload") if isinstance(e, dict) else None
+        if not isinstance(p, dict):
+            continue
+        if (p.get("event") == _TREASURY_EVENT
+                and p.get("status") == _TREASURY_STATUS):
+            config_entry = e
+        elif (p.get("event") == gate3_process.EVENT_PROVISIONAL
+                and p.get("status") == _GATE3_STATUS[gate3_process.EVENT_PROVISIONAL]):
+            granted = round(granted + p.get("amount", 0), 6)
+            by_bounty.setdefault(p.get("bounty_id"), {})["provisional"] = e
+        elif (p.get("event") == gate3_process.EVENT_CHALLENGE
+                and p.get("status") == _GATE3_STATUS[gate3_process.EVENT_CHALLENGE]):
+            by_bounty.setdefault(p.get("bounty_id"), {})["challenge"] = e
+        elif (p.get("event") == gate3_process.EVENT_CLAWBACK
+                and p.get("status") == _GATE3_STATUS[gate3_process.EVENT_CLAWBACK]):
+            clawed = round(clawed + p.get("amount_returned", 0), 6)
+            by_bounty.setdefault(p.get("bounty_id"), {})["clawback"] = e
+        elif (p.get("event") == gate3_process.EVENT_FINALIZATION
+                and p.get("status") == _GATE3_STATUS[gate3_process.EVENT_FINALIZATION]):
+            by_bounty.setdefault(p.get("bounty_id"), {})["finalization"] = e
+    fees = (config_entry["payload"]["total_fees_collected"]
+            if config_entry else 0.0)
+    return (config_entry, fees, granted, clawed, by_bounty)
 
 
 # --- actor-key registration (a TENTH record type) ----------------------------------------
@@ -1356,6 +1435,294 @@ def anchor_trust_vector_catalog(catalog: dict, ledger: Ledger) -> dict:
 
 
 # ----------------------------------------------------------------------------
+# Treasury config anchoring: validate + independent fee re-derivation + anchor.
+# ----------------------------------------------------------------------------
+def anchor_treasury_config(state: dict, ledger: Ledger) -> dict:
+    """Validate + RE-DERIVE + anchor the treasury constitution. Returns
+    {evaluation, ledger_entry}.
+
+    The coordinator re-derives the fees INDEPENDENTLY from the anchored economy
+    (never trusting the submitted state): a state claiming more fees than the
+    anchored log yields, or violating conservation, is REJECTED — the
+    conservation-violation path is the whole point of anchoring a constitution.
+    """
+    reason = None
+    if not isinstance(state, dict):
+        reason = "treasury state is not a JSON object"
+    elif state.get("schema") != metastar_treasury.SCHEMA_VERSION:
+        reason = (f"field 'schema' must be "
+                  f"{metastar_treasury.SCHEMA_VERSION!r}")
+    elif not isinstance(state.get("config"), dict):
+        reason = "config must be a JSON object"
+    else:
+        try:
+            metastar_treasury.assert_conservation(state)
+        except (AssertionError, KeyError, TypeError) as exc:
+            reason = f"conservation audit failed: {exc}"
+    rederived = None
+    if reason is None:
+        try:
+            funding_root, _per_day, total = metastar_treasury.derive_fees(
+                ledger.path)
+            rederived = (funding_root, total)
+        except ValueError as exc:
+            reason = f"fee re-derivation failed: {exc}"
+    if reason is None:
+        if state.get("funding_root") != rederived[0]:
+            reason = (f"funding_root {state.get('funding_root')!r} does not "
+                      f"match the anchored economy record ({rederived[0]})")
+        elif round(state.get("total_fees_collected", -1), 6) != rederived[1]:
+            reason = (f"claimed total_fees_collected "
+                      f"{state.get('total_fees_collected')} does not re-derive "
+                      f"from the anchored economy log (coordinator derived "
+                      f"{rederived[1]}) — the treasury cannot claim units the "
+                      "economy never produced")
+    if reason is not None:
+        evaluation = {
+            "event": _TREASURY_EVENT,
+            "stage": "R-treasury",
+            "topology": "same-machine-treasury",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": TREASURY_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    evaluation = {
+        "event": _TREASURY_EVENT,
+        "stage": "R-treasury",
+        "topology": "same-machine-treasury",
+        "status": _TREASURY_STATUS,
+        "task_class": _TASK_CLASS,
+        "treasury_schema": state["schema"],
+        "fee_rate": state["config"]["fee_rate"],
+        "per_bounty_cap": state["config"]["per_bounty_cap"],
+        "category_budgets": dict(state["config"]["category_budgets"]),
+        "funding_root": state["funding_root"],
+        "total_fees_collected": state["total_fees_collected"],
+        "conservation_statement": (
+            "total_outflow + balance == total_fees_collected, asserted at "
+            "every operation; the only inflow is anchored-economy fees; no "
+            "mint path exists in the module"),
+        "coordinator_reconfirmed": {
+            "rederived_funding_root": rederived[0],
+            "rederived_total_fees": rederived[1],
+            "fees_match": True,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": TREASURY_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+# ----------------------------------------------------------------------------
+# Gate-3 lifecycle anchoring: per-phase coordinator reconfirm + anchor.
+# ----------------------------------------------------------------------------
+def anchor_gate3_event(request: dict, ledger: Ledger, drill: bool = False) -> dict:
+    """Validate + RECONFIRM + anchor one Gate-3 lifecycle event. Returns
+    {evaluation, ledger_entry}.
+
+    request = {phase, bounty_id, and per-phase fields: work_ref+amount+category
+    (provisional), grounds (challenge)}. The coordinator recomputes everything
+    itself before anchoring: the machine pre-check (provisional), window
+    arithmetic against the CURRENT chain (challenge/finalization — never
+    fudged: a window that has not closed rejects finalization), the scripted
+    adjudication rule and the bounded-failure arithmetic (clawback), and the
+    treasury bounds from ANCHORED records only. Precondition failures ->
+    'rejected', NOT anchored.
+    """
+    phase = request.get("phase") if isinstance(request, dict) else None
+    bounty_id = request.get("bounty_id") if isinstance(request, dict) else None
+    reason = None
+    extra = {}
+    if phase not in gate3_process.LIFECYCLE_EVENTS:
+        reason = (f"phase must be one of {list(gate3_process.LIFECYCLE_EVENTS)} "
+                  f"(got {phase!r})")
+    elif not isinstance(bounty_id, str) or not bounty_id:
+        reason = "bounty_id must be a non-empty string"
+
+    entries = ledger.read_all()
+    config_entry, fees, granted, clawed, by_bounty = (
+        _anchored_treasury_flows(entries))
+    slot = by_bounty.get(bounty_id, {})
+
+    if reason is None and phase == gate3_process.EVENT_PROVISIONAL:
+        work_ref = request.get("work_ref")
+        amount = request.get("amount")
+        category = request.get("category")
+        if not (isinstance(work_ref, dict) and isinstance(amount, (int, float))
+                and isinstance(category, str)):
+            reason = "provisional requires work_ref, amount, category"
+        elif config_entry is None:
+            reason = "no anchored treasury config — bounties need a constitution"
+        elif "provisional" in slot:
+            reason = f"bounty {bounty_id!r} already has a provisional grant"
+        else:
+            amount = round(amount, 6)
+            cfg = config_entry["payload"]
+            gross = round(sum(
+                b["provisional"]["payload"]["amount"] for b in by_bounty.values()
+                if "provisional" in b
+                and b["provisional"]["payload"].get("category") == category), 6)
+            precheck = gate3_process.submit_work_item(work_ref,
+                                                     ledger_path=ledger.path)
+            if amount > cfg["per_bounty_cap"]:
+                reason = (f"amount {amount} exceeds the anchored per_bounty_cap "
+                          f"{cfg['per_bounty_cap']}")
+            elif category not in cfg["category_budgets"]:
+                reason = f"unknown category {category!r}"
+            elif round(gross + amount, 6) > cfg["category_budgets"][category]:
+                reason = (f"category {category!r} gross {gross} + {amount} "
+                          f"would exceed budget "
+                          f"{cfg['category_budgets'][category]}")
+            elif round(amount, 6) > round(fees - (granted - clawed), 6):
+                reason = (f"amount {amount} exceeds the anchored treasury "
+                          f"balance {round(fees - (granted - clawed), 6)}")
+            elif not precheck["passed"]:
+                failed = [c["name"] for c in precheck["checks"]
+                          if not c["passed"]]
+                reason = f"machine pre-check FAILED: {failed}"
+            else:
+                extra = {
+                    "task_id": work_ref["task_id"],  # deliberate molecule routing
+                    "work_id": work_ref["work_id"],
+                    "taxonomy_tag": work_ref["taxonomy_tag"],
+                    "amount": amount,
+                    "category": category,
+                    "precheck": {"passed": True, "checks": precheck["checks"]},
+                    "treasury_config_ledger_index": config_entry["index"],
+                }
+
+    if reason is None and phase == gate3_process.EVENT_CHALLENGE:
+        grounds = request.get("grounds")
+        if not isinstance(grounds, str) or not grounds:
+            reason = "challenge requires grounds"
+        elif "provisional" not in slot:
+            reason = f"no provisional grant anchored for {bounty_id!r}"
+        else:
+            prov_idx = slot["provisional"]["index"]
+            next_index = entries[-1]["index"] + 1  # where THIS record will land
+            if not gate3_process.challenge_in_window(prov_idx, next_index):
+                reason = (f"challenge window expired: this challenge would "
+                          f"anchor at index {next_index}, outside "
+                          f"{prov_idx}+1..{prov_idx}+"
+                          f"{gate3_process.WINDOW_ENTRIES}")
+            else:
+                extra = {
+                    "task_id": slot["provisional"]["payload"]["task_id"],
+                    "grounds": grounds,
+                    "provisional_ledger_index": prov_idx,
+                    "window_entries": gate3_process.WINDOW_ENTRIES,
+                }
+
+    if reason is None and phase == gate3_process.EVENT_CLAWBACK:
+        if "provisional" not in slot:
+            reason = f"no provisional grant anchored for {bounty_id!r}"
+        elif "challenge" not in slot:
+            reason = (f"no challenge anchored for {bounty_id!r} — clawback "
+                      "requires an adjudicated challenge")
+        elif "clawback" in slot or "finalization" in slot:
+            reason = f"bounty {bounty_id!r} is already resolved"
+        else:
+            prov = slot["provisional"]
+            amount = prov["payload"]["amount"]
+            verdict = gate3_process.adjudicate(slot["challenge"]["payload"])
+            cap = config_entry["payload"]["per_bounty_cap"]
+            balance_after = round(fees - (granted - clawed - amount), 6)
+            extra = {
+                "task_id": prov["payload"]["task_id"],
+                "amount_returned": amount,
+                "provisional_ledger_index": prov["index"],
+                "challenge_ledger_index": slot["challenge"]["index"],
+                "adjudication": verdict,
+                "bounded_failure": {
+                    "max_exposure": amount,
+                    "per_bounty_cap": cap,
+                    "statement": (
+                        f"maximum possible exposure was {amount} (per-bounty "
+                        f"cap {cap}); the monetary base (faucet flow) was "
+                        "untouchable from this flow by construction; treasury "
+                        f"balance restored to {balance_after} (fees {fees} "
+                        f"minus outstanding "
+                        f"{round(granted - clawed - amount, 6)}) — a failed "
+                        "bounty costs the treasury budget, never the base"),
+                },
+            }
+
+    if reason is None and phase == gate3_process.EVENT_FINALIZATION:
+        if "provisional" not in slot:
+            reason = f"no provisional grant anchored for {bounty_id!r}"
+        elif "clawback" in slot:
+            reason = f"bounty {bounty_id!r} was clawed back"
+        elif "finalization" in slot:
+            reason = f"bounty {bounty_id!r} already finalized"
+        else:
+            prov = slot["provisional"]
+            closed, note = gate3_process.window_closed(prov["index"], entries,
+                                                       bounty_id)
+            if not closed:
+                reason = f"cannot finalize: {note}"
+            else:
+                amount = prov["payload"]["amount"]
+                extra = {
+                    "task_id": prov["payload"]["task_id"],
+                    "amount_paid": amount,
+                    "provisional_ledger_index": prov["index"],
+                    "window_note": note,
+                    "process_statement": PROCESS_PASSED_STATEMENT,
+                    "treasury_totals": {
+                        "total_fees_collected": fees,
+                        "total_paid": amount,
+                        "balance": round(fees - (granted - clawed), 6),
+                    },
+                }
+
+    if reason is not None:
+        evaluation = {
+            "event": phase if phase in gate3_process.LIFECYCLE_EVENTS
+            else "gate3_process_event",
+            "stage": "R-gate3",
+            "topology": "same-operator-single-seat-council",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": GATE3_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    evaluation = {
+        "event": phase,
+        "stage": "R-gate3",
+        "topology": "same-operator-single-seat-council",
+        "status": _GATE3_STATUS[phase],
+        "task_class": _TASK_CLASS,
+        "bounty_id": bounty_id,
+        "process_schema": gate3_process.SCHEMA_VERSION,
+        "operator_relationship": "same-operator",
+        "limitation_note": GATE3_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    evaluation.update(extra)
+    if drill:
+        evaluation["drill"] = True
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+# ----------------------------------------------------------------------------
 # Actor-key registration: validate (public-only) + uniqueness + anchor.
 # ----------------------------------------------------------------------------
 def validate_key_declaration(declaration):
@@ -2380,6 +2747,144 @@ def _selftest() -> int:
             out_fv["evaluation"]["status"],
         ))
 
+        # --- TWO-FLOW (treasury + Gate-3) mode coverage -----------------------------------
+        # Fresh copy of the ACI fixture ledger + an anchored economy (funding
+        # root) + an anchored 0.3 catalog (provenance standing). The lifecycle
+        # rehearses EXACTLY the real exercise's ordering, including the honest
+        # window arithmetic for the finalized bounty.
+        g3_ledger = os.path.join(tmp, "gate3_ledger.jsonl")
+        _copyfile(aci_ledger_path, g3_ledger)
+        anchor_economy_summary(econ_log, Ledger(g3_ledger))
+        g3_cat = work_molecule.build_catalog(ledger_path=g3_ledger,
+                                             task_ids=["task-0002", "task-0008"])
+        anchor_molecule_catalog(g3_cat, Ledger(g3_ledger))
+        wid2 = g3_cat["entries"][0]["work_id"]
+        wid8 = g3_cat["entries"][1]["work_id"]
+
+        # (41) treasury constitution: confirmed; forged fees + malformed rejected
+        t_state = metastar_treasury.collect_fees(
+            metastar_treasury._new_state(), ledger_path=g3_ledger)
+        out_tc = anchor_treasury_config(t_state, Ledger(g3_ledger))
+        forged = json.loads(json.dumps(t_state))
+        forged["total_fees_collected"] = 999.0
+        forged["balance"] = 999.0
+        forged["entries"][0]["amount"] = 999.0
+        out_forged = anchor_treasury_config(forged, Ledger(g3_ledger))
+        out_malformed = anchor_treasury_config({"schema": "nope"},
+                                               Ledger(g3_ledger))
+        checks.append((
+            "TREASURY CONFIG CONFIRMED (fees re-derived); forged fees + "
+            "malformed REJECTED",
+            out_tc["evaluation"]["status"] == "treasury-config-confirmed"
+            and out_tc["ledger_entry"] is not None
+            and out_tc["evaluation"]["total_fees_collected"] == 3.0
+            and out_forged["evaluation"]["status"] == "rejected"
+            and "never produced" in out_forged["evaluation"]["reason"]
+            and out_malformed["evaluation"]["status"] == "rejected",
+            out_tc["evaluation"]["status"],
+        ))
+
+        # (42) the full two-bounty lifecycle, real-exercise ordering:
+        # prov#1 -> prov#2 -> challenge#1 (drill, in-window at G1+2) ->
+        # clawback#1 -> finalize#2 (window G2+1..G2+2 = the two #1 events,
+        # challenge-free for #2 -> closed clean)
+        g3l = Ledger(g3_ledger)
+        out_p1 = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_PROVISIONAL, "bounty_id": "b-1",
+             "work_ref": {"task_id": "task-0002", "work_id": wid2,
+                          "taxonomy_tag": "TX17"},
+             "amount": 1.0, "category": "reproducible-space-task"}, g3l)
+        out_p2 = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_PROVISIONAL, "bounty_id": "b-2",
+             "work_ref": {"task_id": "task-0008", "work_id": wid8,
+                          "taxonomy_tag": "TX04"},
+             "amount": 0.8, "category": "reproducible-space-task"}, g3l)
+        out_ch = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_CHALLENGE, "bounty_id": "b-1",
+             "grounds": "planned bounded-failure demonstration"}, g3l,
+            drill=True)
+        out_cb = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_CLAWBACK, "bounty_id": "b-1"}, g3l,
+            drill=True)
+        out_fin = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_FINALIZATION, "bounty_id": "b-2"},
+            g3l)
+        g3_chain_ok, _g3_reason = g3l.verify_chain()
+        checks.append((
+            "GATE-3 LIFECYCLE: grant+grant+challenge(drill)+clawback+finalize "
+            "all confirmed, chain intact",
+            out_p1["evaluation"]["status"] == "gate3-provisional-confirmed"
+            and out_p1["evaluation"]["precheck"]["passed"] is True
+            and out_p2["evaluation"]["status"] == "gate3-provisional-confirmed"
+            and out_ch["evaluation"]["status"] == "gate3-challenge-filed"
+            and out_ch["evaluation"].get("drill") is True
+            and out_cb["evaluation"]["status"] == "gate3-clawback-confirmed"
+            and out_cb["evaluation"]["adjudication"]["verdict"] == "upheld"
+            and "never the base" in
+            out_cb["evaluation"]["bounded_failure"]["statement"]
+            and out_fin["evaluation"]["status"] == "gate3-finalization-confirmed"
+            and "closed clean" in out_fin["evaluation"]["window_note"]
+            and out_fin["evaluation"]["treasury_totals"]["balance"] == 2.2
+            and g3_chain_ok is True,
+            f"{out_fin['evaluation']['status']} "
+            f"(balance {out_fin['evaluation'].get('treasury_totals', {}).get('balance')})",
+        ))
+
+        # (43) violations rejected: late challenge (window expired for b-2),
+        # premature finalize (fresh grant, window open), failed-precheck grant
+        out_late = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_CHALLENGE, "bounty_id": "b-2",
+             "grounds": "too late"}, g3l)
+        out_p3 = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_PROVISIONAL, "bounty_id": "b-3",
+             "work_ref": {"task_id": "task-0002", "work_id": wid2,
+                          "taxonomy_tag": "TX17"},
+             "amount": 0.1, "category": "reproducible-space-task"}, g3l)
+        out_early = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_FINALIZATION, "bounty_id": "b-3"},
+            g3l)
+        out_badpre = anchor_gate3_event(
+            {"phase": gate3_process.EVENT_PROVISIONAL, "bounty_id": "b-4",
+             "work_ref": {"task_id": "task-0002", "work_id": "0" * 64,
+                          "taxonomy_tag": "TX17"},
+             "amount": 0.05, "category": "reproducible-space-task"}, g3l)
+        checks.append((
+            "GATE-3 VIOLATIONS REJECTED: late challenge, premature finalize, "
+            "failed pre-check",
+            out_late["evaluation"]["status"] == "rejected"
+            and "window expired" in out_late["evaluation"]["reason"]
+            and out_p3["evaluation"]["status"] == "gate3-provisional-confirmed"
+            and out_early["evaluation"]["status"] == "rejected"
+            and "window OPEN" in out_early["evaluation"]["reason"]
+            and out_badpre["evaluation"]["status"] == "rejected"
+            and "pre-check FAILED" in out_badpre["evaluation"]["reason"],
+            f"late={out_late['evaluation']['status']} "
+            f"early={out_early['evaluation']['status']}",
+        ))
+
+        # (44) DELIBERATE MOLECULE ROUTING: the gate3 records join task-0002's
+        # molecule — the challenge under challenge_events (event name contains
+        # 'challenge'), provisional/clawback among verification_events — while
+        # the FROZEN pre-gate3 generation stays locked (as-of rebuild unchanged)
+        pre_g3_tip = out_tc["ledger_entry"]["index"] - 1
+        mol_before = work_molecule.build_molecule(
+            "task-0002", ledger_path=g3_ledger, as_of_index=pre_g3_tip)
+        mol_after = work_molecule.build_molecule("task-0002",
+                                                 ledger_path=g3_ledger)
+        ch_events = {e["event"] for e in mol_after["challenge_events"]}
+        ve_events = {e["event"] for e in mol_after["verification_events"]}
+        mol_frozen = work_molecule.build_molecule(
+            "task-0002", ledger_path=g3_ledger, as_of_index=pre_g3_tip)
+        checks.append((
+            "GATE-3 ROUTING: challenge->challenge_events, grant/clawback->"
+            "verification_events; frozen as-of rebuild unchanged",
+            gate3_process.EVENT_CHALLENGE in ch_events
+            and gate3_process.EVENT_PROVISIONAL in ve_events
+            and gate3_process.EVENT_CLAWBACK in ve_events
+            and work_molecule.canonical_json(mol_frozen) == work_molecule.canonical_json(mol_before),
+            f"ch={sorted(ch_events)}",
+        ))
+
         # (41) STABILITY after temp anchors onto a copy of the REAL ledger
         # (conditional — the runtime ledger is gitignored and absent in CI): a fresh
         # economy anchor must leave the 0.2 catalog (idx-17), the ACI report_hash
@@ -3166,6 +3671,48 @@ def _cmd_register_actor_key(decl_path: str, ledger_path: str) -> int:
     return 0
 
 
+def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
+    """Generic JSON-file anchoring command: load defensively, run `anchor_fn`,
+    print the outcome payload. Exit 0 iff the record anchored (and matched
+    `expected_status` when one is given)."""
+    print(BANNER)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            doc = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        print("status: rejected")
+        print(f"reason: input file unreadable: {exc}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+    ledger = Ledger(ledger_path)
+    out = anchor_fn(doc, ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    print(f"status: {ev['status']}" + ("  (PLANNED DRILL)" if ev.get("drill")
+                                       else ""))
+    if entry is None:
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+    for key in ("funding_root", "total_fees_collected",
+                "conservation_statement", "bounty_id", "task_id", "amount",
+                "amount_returned", "amount_paid", "window_note",
+                "process_statement", "treasury_totals"):
+        if key in ev:
+            print(f"  {key}: {ev[key]}")
+    if "bounded_failure" in ev:
+        print(f"  bounded_failure: {ev['bounded_failure']['statement']}")
+    if "precheck" in ev:
+        for c in ev["precheck"]["checks"]:
+            print(f"  precheck {c['name']}: {c['passed']} ({c['evidence']})")
+    print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+    if expected_status is not None and ev["status"] != expected_status:
+        return 1
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -3247,6 +3794,19 @@ def main(argv=None) -> int:
              "(actor_identity.py --declare); rejects any file containing private "
              "material; one active root per actor in v0",
     )
+    mode.add_argument(
+        "--anchor-treasury-config", metavar="TREASURY_STATE_JSON",
+        help="anchor the MetaStar Treasury constitution (metastar_treasury.py); "
+             "the coordinator RE-DERIVES the fees from the anchored economy and "
+             "rejects any state claiming units the economy never produced",
+    )
+    mode.add_argument(
+        "--anchor-gate3-event", metavar="REQUEST_JSON",
+        help="anchor one Gate-3 lifecycle event ({phase, bounty_id, ...}); the "
+             "coordinator recomputes the machine pre-check, window arithmetic, "
+             "scripted adjudication, and treasury bounds from ANCHORED records "
+             "(use --drill for planned demonstrations)",
+    )
     parser.add_argument(
         "--drill", action="store_true",
         help="with --anchor-challenge-result: label the anchored record as a "
@@ -3299,6 +3859,14 @@ def main(argv=None) -> int:
                                             args.drill)
     if args.register_actor_key is not None:
         return _cmd_register_actor_key(args.register_actor_key, args.ledger)
+    if args.anchor_treasury_config is not None:
+        return _cmd_anchor_json(args.anchor_treasury_config, args.ledger,
+                                anchor_treasury_config, _TREASURY_STATUS)
+    if args.anchor_gate3_event is not None:
+        return _cmd_anchor_json(
+            args.anchor_gate3_event, args.ledger,
+            lambda doc, led: anchor_gate3_event(doc, led, drill=args.drill),
+            None)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 

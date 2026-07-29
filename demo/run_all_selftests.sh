@@ -36,6 +36,7 @@ TESTS=(
     "agent_loop.py"
     "economy_demo.py"
     "task_metering.py --selftest"
+    "metastar_treasury.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.
