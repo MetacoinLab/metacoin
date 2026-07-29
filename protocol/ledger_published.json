@@ -884,19 +884,48 @@
       },
       "prev_hash": "4bbeb90490530343888075930d137f90c4105baebc839a42e5e48fbf7fd2ef6c",
       "timestamp": 1785292101.539668
+    },
+    {
+      "hash": "3f323cff776b23296d162363d86a52d69f409e21abea65397af1462cde227dd0",
+      "index": 23,
+      "payload": {
+        "anchored_at": 1785294161.4361424,
+        "catalog_hash": "23d22b900a3f8b81e809c191c65e94b1283e75a8825813f21a66c072fbfc6a0c",
+        "catalog_schema": "trust-vector-catalog/0.1",
+        "coordinator_reconfirmed": {
+          "catalog_hash_matches": true,
+          "entries_match": true,
+          "rebuild_error": null,
+          "rebuilt_vector_count": 13,
+          "recomputed_catalog_hash": "23d22b900a3f8b81e809c191c65e94b1283e75a8825813f21a66c072fbfc6a0c"
+        },
+        "event": "trust_vector_catalog_anchored",
+        "limitation_note": "Trust vectors are mechanical assemblies of same-operator evidence; component E cites the anchored maximal-concentration baseline; component U is honestly empty pending Gate 3; a matching catalog hash proves deterministic re-derivability, not trustworthiness; not consensus, not payment, not a token; research-stage.",
+        "no_combined_scalar": "no combined trust score exists by design",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R-trust",
+        "status": "trust-vector-catalog-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-trust-vector",
+        "vector_count": 13,
+        "zero_value": true
+      },
+      "prev_hash": "e556ab404b9da38a05ba0330cec7554a88a888ab4933b039d8c45157e083faca",
+      "timestamp": 1785294161.4362423
     }
   ],
   "snapshot_header": {
-    "entry_count": 23,
+    "entry_count": 24,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785292127.3813074,
+    "snapshot_timestamp": 1785294206.3173892,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "e556ab404b9da38a05ba0330cec7554a88a888ab4933b039d8c45157e083faca",
-    "tip_index": 22,
+    "tip_hash": "3f323cff776b23296d162363d86a52d69f409e21abea65397af1462cde227dd0",
+    "tip_index": 23,
     "zero_value": true
   }
 }

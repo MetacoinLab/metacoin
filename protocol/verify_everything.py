@@ -1,0 +1,531 @@
+"""verify_everything.py — MetaCoin ONE-COMMAND FULL-STACK VERIFIER.
+
+================== PRODUCT GOAL (READ ME) ==================
+Any stranger clones the public repo and runs ONE command that mechanically
+re-verifies every layer — chain, tasks, molecules (both generations),
+concentration, economy, metering claims, cut certificate, trust vectors — with
+ZERO local-only inputs and ZERO LLM judgment:
+
+    python3 protocol/verify_everything.py --full
+
+Everything needed ships in the clone: the published ledger snapshot
+(protocol/ledger_published.json), the committed tip anchor
+(protocol/ledger_anchor.json), and the privacy-checked evidence bundle
+(protocol/evidence/). The live runtime ledger is NOT required (it is used
+automatically when present, i.e. on the coordinator's machine).
+
+Two modes, honestly labeled per layer:
+  --full  : every layer is RE-DERIVED from scratch and compared to its anchored
+            ledger record — lines are labeled VERIFIED-FULL (metering is the one
+            honest exception: timing is non-reproducible, so that layer is a
+            CLAIM-CHECK — the shipped report must hash-match the anchored claim,
+            its arithmetic and labels must be exact, and its output hashes must
+            match fresh re-runs; the timings themselves cannot be re-derived).
+  --quick : bounded-cost acceptance — anchored-hash lookups over the shipped
+            evidence artifacts plus the cut certificate's one-molecule
+            retrievability probe. Lines are labeled ACCEPTED-BY-ANCHOR and quick
+            is NEVER presented as proof: it is conditional on the anchors and on
+            continued retrievability, exactly like accept_by_anchor.
+
+Exit code 0 only if every layer passes. The final block prints the honest
+boundary: everything verified here is SAME-OPERATOR, zero-value evidence; a pass
+proves deterministic re-derivability of the recorded claims, NOT independence,
+NOT usefulness, NOT value.
+
+Standard library only. Every layer REUSES the existing verified component —
+nothing is reimplemented. Not legal, financial, investment, or
+security-certification advice.
+
+Usage:
+    python3 protocol/verify_everything.py --full
+    python3 protocol/verify_everything.py --quick
+    python3 protocol/verify_everything.py --selftest   # temp-only
+"""
+
+# Suppress __pycache__/*.pyc so importing protocol modules below leaves no stray files.
+import sys
+sys.dont_write_bytecode = True
+
+import argparse
+import hashlib
+import json
+import os
+
+# Make `from protocol...` resolve when run directly (repo root on path).
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+# REUSE every existing verified component — this module only orchestrates.
+import protocol.audit as audit
+import protocol.agent_concentration as agent_concentration
+import protocol.cut_certificate as cut_certificate
+import protocol.trust_vector as trust_vector
+import protocol.verifier_cli as verifier_cli
+import protocol.work_molecule as work_molecule
+import demo.economy_demo as economy_demo
+import demo.task_metering as task_metering
+
+_PROTO_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_LIVE_LEDGER = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
+DEFAULT_SNAPSHOT = os.path.join(_PROTO_DIR, "ledger_published.json")
+DEFAULT_ANCHOR = os.path.join(_PROTO_DIR, "ledger_anchor.json")
+
+FULL = "VERIFIED-FULL"
+CLAIM = "CLAIM-CHECK"
+ANCHORED = "ACCEPTED-BY-ANCHOR"
+
+HONEST_BOUNDARY = """\
+------------------------------------------------------------------ honest boundary
+Everything above is SAME-OPERATOR, zero-value, research-stage evidence. A full
+pass establishes that every anchored claim RE-DERIVES deterministically from the
+shipped evidence on YOUR machine. It does NOT establish: independent multi-party
+verification (the anchored ACI baseline quantifies maximal same-operator
+concentration), usefulness of the work (Gate 3 is not implemented; every trust
+vector says 'not-assessed'), hardware-rooted execution proof (no TEE — open
+debt), measured energy (estimates from an assumed power figure), or any monetary
+value (no token exists). ACCEPTED-BY-ANCHOR lines are bounded-cost acceptance
+conditional on the committed anchors — not re-proof. Not consensus, not payment,
+not investment advice."""
+
+
+def _canonical(obj) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _find_task_hash(entries, task_id):
+    """First recorded output hash for task_id (the agent_verifier convention)."""
+    for e in entries:
+        p = e.get("payload", {})
+        if p.get("task_id") == task_id:
+            for key in ("local_output_hash", "output_hash", "submitted_output_hash"):
+                if isinstance(p.get(key), str):
+                    return p[key]
+    return None
+
+
+def _find_anchor_payload(entries, event, status):
+    """(index, payload) of the highest-index entry with event+status, else (None, None)."""
+    found = (None, None)
+    for e in entries:
+        p = e.get("payload") if isinstance(e, dict) else None
+        if isinstance(p, dict) and p.get("event") == event and p.get("status") == status:
+            found = (e["index"], p)
+    return found
+
+
+def _sha256_excluding(doc: dict, field: str) -> str:
+    content = {k: v for k, v in doc.items() if k != field}
+    return hashlib.sha256(_canonical(content).encode("utf-8")).hexdigest()
+
+
+def _load_evidence_json(basename: str):
+    """Load an evidence artifact via the standard discovery (repo root -> bundle)."""
+    path = work_molecule.find_evidence_file(basename)
+    if path is None:
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+# ----------------------------------------------------------------------------
+# The layered verification (each layer returns (label, ok, detail))
+# ----------------------------------------------------------------------------
+def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
+                     anchor_path: str = DEFAULT_ANCHOR,
+                     live_ledger_path: str = DEFAULT_LIVE_LEDGER) -> tuple:
+    """Run every layer. Returns (all_ok, result_rows, source_note).
+
+    result_rows: [(layer_name, mode_label, ok, detail_str), ...]. The ledger
+    SOURCE is the live ledger when present (coordinator machine), else the
+    published snapshot (fresh clone) — entry content is identical either way,
+    which layer 1 confirms whenever both exist.
+    """
+    rows = []
+
+    # --- layer 1: chain + anchor (always fully verified — it is cheap) ------------
+    snap_ok, snap_reason, snap_details = audit.verify_snapshot_file(snapshot_path)
+    anchor_ok = False
+    anchor_detail = "anchor file unreadable"
+    try:
+        with open(anchor_path, "r", encoding="utf-8") as f:
+            anchor = json.load(f)
+        anchor_ok = (snap_ok
+                     and anchor.get("tip_hash") == snap_details.get("tip_hash")
+                     and anchor.get("entry_count") == snap_details.get("entry_count"))
+        anchor_detail = (f"tip {str(anchor.get('tip_hash'))[:12]}.. "
+                         f"({anchor.get('entry_count')} entries)")
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        anchor_detail = f"anchor file unreadable: {exc}"
+
+    have_live = os.path.exists(live_ledger_path)
+    live_ok = True
+    live_note = "no live ledger (fresh clone) — published snapshot is the source"
+    if have_live:
+        from protocol.ledger import Ledger
+        live_ok, live_reason = Ledger(live_ledger_path).verify_chain()
+        live_entries = work_molecule._read_ledger(live_ledger_path)
+        live_tip = live_entries[-1]["hash"] if live_entries else None
+        live_ok = bool(live_ok and snap_ok
+                       and live_tip == snap_details.get("tip_hash"))
+        live_note = ("live ledger verifies and its tip matches the snapshot"
+                     if live_ok else
+                     f"live ledger problem: {live_reason}; or tip != snapshot tip")
+    chain_ok = bool(snap_ok and anchor_ok and live_ok)
+    rows.append(("chain+anchor", FULL, chain_ok,
+                 f"{snap_reason}; anchor: {anchor_detail}; {live_note}"))
+    if not snap_ok:
+        return (False, rows, "aborted: the published snapshot does not verify")
+
+    source = live_ledger_path if have_live else snapshot_path
+    source_note = ("source: live ledger (coordinator machine)" if have_live
+                   else "source: published snapshot (fresh clone)")
+    entries = work_molecule._read_ledger(source)
+
+    # anchored records every later layer compares against
+    idx17_i, idx17 = _find_anchor_payload(entries, "work_molecule_catalog_anchored",
+                                          "molecule-catalog-confirmed")
+    idx18_i, idx18 = _find_anchor_payload(entries, "aci_baseline_anchored",
+                                          "aci-baseline-confirmed")
+    idx19_i, idx19 = _find_anchor_payload(entries, "economy_demo_summary_anchored",
+                                          "economy-demo-confirmed")
+    idx20_i, idx20 = _find_anchor_payload(entries, "metering_evidence_anchored",
+                                          "metering-evidence-confirmed")
+    idx22_i, idx22 = _find_anchor_payload(entries, "cut_certificate_anchored",
+                                          "cut-certificate-confirmed")
+    idx23_i, idx23 = _find_anchor_payload(entries, "trust_vector_catalog_anchored",
+                                          "trust-vector-catalog-confirmed")
+    # idx17 helper found the HIGHEST catalog anchor; split by generation instead:
+    gen1 = gen2 = None
+    gen1_i = gen2_i = None
+    for e in entries:
+        p = e.get("payload", {})
+        if (p.get("event") == "work_molecule_catalog_anchored"
+                and p.get("status") == "molecule-catalog-confirmed"):
+            if p.get("molecule_schema") == work_molecule.SCHEMA_VERSION_02:
+                gen1_i, gen1 = e["index"], p
+            elif p.get("molecule_schema") == work_molecule.SCHEMA_VERSION_03:
+                gen2_i, gen2 = e["index"], p
+
+    # --- layer 2: the thirteen tasks ---------------------------------------------
+    task_ids = sorted(verifier_cli.TASK_MODULES)
+    canonical = {}
+    if full:
+        bad = []
+        for tid in task_ids:
+            module = verifier_cli.load_task(tid)
+            local = module.output_hash(module.compute())
+            canonical[tid] = local
+            recorded = _find_task_hash(entries, tid)
+            if recorded != local:
+                bad.append(tid)
+        rows.append(("tasks (13 re-run)", FULL, not bad,
+                     "all 13 canonical hashes re-derived and match the ledger"
+                     if not bad else f"hash mismatch: {bad}"))
+    else:
+        probe = "task-0002"
+        module = verifier_cli.load_task(probe)
+        local = module.output_hash(module.compute())
+        ok = _find_task_hash(entries, probe) == local
+        rows.append(("tasks (1 probe)", FULL, ok,
+                     f"probe {probe} re-run matches the ledger (12 others not "
+                     "re-run in --quick)"))
+
+    # --- layer 3: molecule catalogs, both generations ------------------------------
+    if gen1 is None or gen2 is None:
+        rows.append(("molecules", FULL, False, "missing anchored catalog(s)"))
+    elif full:
+        cat02 = work_molecule.build_catalog(
+            ledger_path=source, schema_version=work_molecule.SCHEMA_VERSION_02)
+        cat03 = work_molecule.build_catalog(ledger_path=source)
+        ok02 = (cat02["catalog_hash"] == gen1["catalog_hash"]
+                and cat02["entries"] == gen1["catalog_entries"])
+        ok03 = (cat03["catalog_hash"] == gen2["catalog_hash"]
+                and cat03["entries"] == gen2["catalog_entries"])
+        rows.append(("molecules 0.2", FULL, ok02,
+                     f"13 WMIDs rebuilt == anchored idx-{gen1_i} catalog"))
+        rows.append(("molecules 0.3", FULL, ok03,
+                     f"13 WMIDs rebuilt == anchored idx-{gen2_i} catalog"))
+    else:
+        ok02 = ok03 = False
+        f02 = _load_evidence_json("wm_catalog.json")
+        f03 = _load_evidence_json("wm_catalog_v03.json")
+        if isinstance(f02, dict):
+            ok02 = (_sha256_excluding(f02, "catalog_hash") == f02.get("catalog_hash")
+                    == gen1["catalog_hash"])
+        if isinstance(f03, dict):
+            ok03 = (_sha256_excluding(f03, "catalog_hash") == f03.get("catalog_hash")
+                    == gen2["catalog_hash"])
+        rows.append(("molecules 0.2", ANCHORED, ok02,
+                     f"shipped catalog hash-matches anchored idx-{gen1_i} "
+                     "(no rebuild)"))
+        rows.append(("molecules 0.3", ANCHORED, ok03,
+                     f"shipped catalog hash-matches anchored idx-{gen2_i} "
+                     "(no rebuild)"))
+
+    # --- layer 4: concentration (ACI) ----------------------------------------------
+    if idx18 is None:
+        rows.append(("concentration", FULL, False, "no anchored ACI baseline"))
+    elif full:
+        report = agent_concentration.compute_report(
+            agent_concentration.build_paths(ledger_path=source))
+        ok = (report["report_hash"] == idx18["report_hash"]
+              and report["path_count"] == idx18["path_count"])
+        rows.append(("concentration", FULL, ok,
+                     f"ACI re-measured: hash == anchored idx-{idx18_i}, "
+                     f"{report['path_count']} paths, "
+                     f"pairwise {report['pairwise_aci']:.5f} (same-operator)"))
+    else:
+        f = _load_evidence_json("aci_report.json")
+        ok = (isinstance(f, dict)
+              and agent_concentration.compute_report_hash(f) == f.get("report_hash")
+              == idx18["report_hash"])
+        rows.append(("concentration", ANCHORED, ok,
+                     f"shipped report hash-matches anchored idx-{idx18_i} "
+                     "(no re-measurement)"))
+
+    # --- layer 5: simulated economy -------------------------------------------------
+    if idx19 is None:
+        rows.append(("economy", FULL, False, "no anchored economy summary"))
+    elif full:
+        log = economy_demo.simulate_all()
+        ok = log["economy_log_hash"] == idx19["economy_log_hash"]
+        rows.append(("economy", FULL, ok,
+                     f"30-simulated-day economy re-run: log hash == anchored "
+                     f"idx-{idx19_i}"))
+    else:
+        f = _load_evidence_json("economy_log.json")
+        ok = (isinstance(f, dict)
+              and economy_demo.compute_log_hash(f) == f.get("economy_log_hash")
+              == idx19["economy_log_hash"])
+        rows.append(("economy", ANCHORED, ok,
+                     f"shipped log hash-matches anchored idx-{idx19_i} (no re-run)"))
+
+    # --- layer 6: metering claims (CLAIM-CHECK by nature: timing is not
+    #     byte-reproducible; what is checkable is the anchored claim's integrity,
+    #     its exact arithmetic/labels, and that its output hashes match re-runs) ----
+    if idx20 is None:
+        rows.append(("metering", CLAIM, False, "no anchored metering evidence"))
+    else:
+        f = _load_evidence_json("metering_report.json")
+        problems = []
+        if not isinstance(f, dict):
+            problems.append("shipped metering_report.json missing/unreadable")
+        else:
+            if not (task_metering.compute_report_hash(f) == f.get("report_hash")
+                    == idx20["report_hash"]):
+                problems.append("report_hash != anchored claim")
+            for row in f.get("per_task", []):
+                if row.get("labels") != task_metering.LABELS:
+                    problems.append(f"labels wrong for {row.get('task_id')}")
+                if row.get("energy_j_estimate") != round(
+                        row.get("cpu_time_s", 0) * f.get("assumed_cpu_power_w", 0), 6):
+                    problems.append(f"energy arithmetic wrong for {row.get('task_id')}")
+                expected = (canonical.get(row.get("task_id"))
+                            if full else _find_task_hash(entries, row.get("task_id")))
+                if row.get("output_hash") != expected:
+                    problems.append(f"output_hash wrong for {row.get('task_id')}")
+        rows.append(("metering", CLAIM, not problems,
+                     f"anchored idx-{idx20_i} claim intact: hashes match "
+                     f"{'re-runs' if full else 'ledger'}, labels honest "
+                     "(energy=estimated), arithmetic exact — timings themselves "
+                     "are claims, not re-derivable"
+                     if not problems else "; ".join(problems[:3])))
+
+    # --- layer 7: cut certificate ----------------------------------------------------
+    if idx22 is None:
+        rows.append(("cut certificate", FULL, False, "no anchored cut certificate"))
+    elif full:
+        cert = cut_certificate.build_cut(task_ids, ledger_path=source)
+        hash_ok = cert["certificate_hash"] == idx22["certificate_hash"]
+        v_ok, _v_reasons = cut_certificate.verify_full(cert, ledger_path=source)
+        rows.append(("cut certificate", FULL, hash_ok and v_ok,
+                     f"rebuilt cut == anchored idx-{idx22_i}; full verification "
+                     "re-proved (13 interior molecules)"))
+    else:
+        cert = _load_evidence_json("cut_cert.json")
+        if cert is None:
+            rows.append(("cut certificate", ANCHORED, False,
+                         "shipped cut_cert.json missing/unreadable"))
+        else:
+            accepted, note = cut_certificate.accept_by_anchor(cert,
+                                                              ledger_path=source)
+            rows.append(("cut certificate", ANCHORED, accepted,
+                         note.split(". ")[0] if accepted else note))
+
+    # --- layer 8: trust vectors ------------------------------------------------------
+    if idx23 is None:
+        rows.append(("trust vectors", FULL, False,
+                     "no anchored trust-vector catalog"))
+    elif full:
+        tv = trust_vector.build_tv_catalog(ledger_path=source)
+        ok = (tv["catalog_hash"] == idx23["catalog_hash"]
+              and len(tv["vector_entries"]) == idx23["vector_count"])
+        rows.append(("trust vectors", FULL, ok,
+                     f"13 six-component vectors rebuilt == anchored idx-{idx23_i} "
+                     "(no combined scalar exists, by design)"))
+    else:
+        f = _load_evidence_json("tv_catalog.json")
+        ok = (isinstance(f, dict)
+              and trust_vector.compute_catalog_hash(f) == f.get("catalog_hash")
+              == idx23["catalog_hash"])
+        rows.append(("trust vectors", ANCHORED, ok,
+                     f"shipped catalog hash-matches anchored idx-{idx23_i} "
+                     "(no rebuild)"))
+
+    all_ok = all(ok for _l, _m, ok, _d in rows)
+    return (all_ok, rows, source_note)
+
+
+def _print_report(all_ok, rows, source_note, mode_name):
+    print("=" * 78)
+    print(f"MetaCoin FULL-STACK VERIFICATION ({mode_name}) — research-stage, "
+          "zero-value, no token")
+    print(f"{source_note}")
+    print("=" * 78)
+    for layer, mode, ok, detail in rows:
+        print(f"  [{'PASS' if ok else 'FAIL'}] {layer:18s} {mode:18s} {detail}")
+    print("-" * 78)
+    print(f"RESULT: {'ALL LAYERS PASS' if all_ok else 'FAILURE — see above'}")
+    print(HONEST_BOUNDARY)
+
+
+# ----------------------------------------------------------------------------
+# CLI
+# ----------------------------------------------------------------------------
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="verify_everything.py",
+        description=("MetaCoin one-command full-stack verifier (research-stage, "
+                     "ZERO-VALUE, no token). Mechanically re-verifies every layer "
+                     "from a fresh clone; no LLM judgment anywhere."),
+        epilog=("--full re-derives everything (metering is a claim-check by "
+                "nature); --quick is bounded-cost anchored acceptance, never "
+                "presented as proof. Exit 0 only when every layer passes."),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--full", action="store_true",
+                      help="re-derive every layer and compare to its anchor")
+    mode.add_argument("--quick", action="store_true",
+                      help="bounded-cost anchored acceptance (labeled, conditional)")
+    mode.add_argument("--selftest", action="store_true",
+                      help="run the mechanical self-test (temp files only)")
+    parser.add_argument("--snapshot", default=DEFAULT_SNAPSHOT,
+                        help=f"published snapshot (default {DEFAULT_SNAPSHOT})")
+    parser.add_argument("--anchor-file", default=DEFAULT_ANCHOR,
+                        help=f"committed tip anchor (default {DEFAULT_ANCHOR})")
+    parser.add_argument("--ledger", default=DEFAULT_LIVE_LEDGER,
+                        help="live ledger path if present (default "
+                             f"{DEFAULT_LIVE_LEDGER}; absent in a fresh clone)")
+    args = parser.parse_args(argv)
+
+    if args.selftest or not (args.full or args.quick):
+        return _selftest()
+
+    all_ok, rows, source_note = run_verification(
+        full=args.full, snapshot_path=args.snapshot,
+        anchor_path=args.anchor_file, live_ledger_path=args.ledger)
+    _print_report(all_ok, rows, source_note, "--full" if args.full else "--quick")
+    return 0 if all_ok else 1
+
+
+# ============================== SELF-TEST ====================================
+def _selftest() -> int:
+    """Mechanical self-test: the real full run must pass; a tampered snapshot must
+    fail; and THE PRODUCT ACCEPTANCE TEST — a fresh-clone simulation (git-tracked
+    files only, copied to a temp dir) must fully verify with no access to the live
+    ledger or any untracked file."""
+    import shutil
+    import subprocess
+    import tempfile
+
+    print("=== protocol/verify_everything.py self-test (the product acceptance) ===\n")
+
+    checks = []
+    tmp_dir = tempfile.mkdtemp(prefix=f"verify_everything_selftest_{os.getpid()}_")
+    try:
+        # [1] the real stack verifies end-to-end (uses live ledger when present,
+        # else the committed snapshot — both paths are the product)
+        all_ok, rows, _note = run_verification(full=True)
+        checks.append(("real --full run: every layer passes", all_ok))
+        if not all_ok:
+            for layer, mode, ok, detail in rows:
+                if not ok:
+                    print(f"    FAIL {layer}: {detail}")
+
+        # [1b] --quick also passes and is honestly labeled (no full-proof claims
+        # on anchored-acceptance lines)
+        q_ok, q_rows, _ = run_verification(full=False)
+        anchored_labels = [m for _l, m, _o, _d in q_rows if m == ANCHORED]
+        checks.append(("--quick run passes with ACCEPTED-BY-ANCHOR labeling",
+                       q_ok and len(anchored_labels) >= 5))
+
+        # [2] tampered snapshot -> chain layer fails -> overall failure
+        tampered = os.path.join(tmp_dir, "tampered_published.json")
+        with open(DEFAULT_SNAPSHOT, "r", encoding="utf-8") as f:
+            snap = json.load(f)
+        snap["entries"][1]["payload"]["status"] = "TAMPERED"
+        with open(tampered, "w", encoding="utf-8") as f:
+            json.dump(snap, f)
+        t_ok, t_rows, _ = run_verification(full=True, snapshot_path=tampered,
+                                           live_ledger_path=os.path.join(
+                                               tmp_dir, "no_such_ledger.jsonl"))
+        checks.append(("tampered snapshot is detected (chain layer fails)",
+                       not t_ok and not t_rows[0][2]))
+
+        # [3] FRESH-CLONE SIMULATION (the product acceptance test): copy ONLY
+        # git-tracked files to a temp dir and run --full there. No live ledger, no
+        # untracked artifacts — exactly what a stranger's clone contains.
+        clone_dir = os.path.join(tmp_dir, "fresh_clone")
+        try:
+            tracked = subprocess.run(
+                ["git", "ls-files", "-z"], cwd=_REPO_ROOT, capture_output=True,
+                timeout=30).stdout.decode("utf-8").split("\0")
+        except (FileNotFoundError, subprocess.SubprocessError, OSError):
+            tracked = None
+        if tracked:
+            for rel in tracked:
+                if not rel:
+                    continue
+                src = os.path.join(_REPO_ROOT, rel)
+                if not os.path.exists(src):
+                    continue  # tracked but deleted locally
+                dst = os.path.join(clone_dir, rel)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copyfile(src, dst)
+            result = subprocess.run(
+                [sys.executable, os.path.join(clone_dir, "protocol",
+                                              "verify_everything.py"), "--full"],
+                cwd=clone_dir, capture_output=True, text=True, timeout=600)
+            passed = result.returncode == 0 and "ALL LAYERS PASS" in result.stdout
+            checks.append(("FRESH-CLONE simulation: --full passes on tracked "
+                           "files only (no live ledger, no local artifacts)",
+                           passed))
+            if not passed:
+                print("    fresh-clone output tail:")
+                for line in result.stdout.splitlines()[-15:]:
+                    print(f"      {line}")
+        else:
+            print("    (git unavailable — fresh-clone simulation SKIPPED)")
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    print("--- self-test invariants ---")
+    failures = 0
+    for name, passed in checks:
+        print(f"{name:70s}: {'PASS' if passed else 'FAIL'}")
+        if not passed:
+            failures += 1
+
+    ok = failures == 0
+    print("\n=== self-test summary: " +
+          ("ALL CHECKS BEHAVED CORRECTLY" if ok else "FAILURE — see above") + " ===")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

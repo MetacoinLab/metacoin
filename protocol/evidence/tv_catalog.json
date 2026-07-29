@@ -1,0 +1,58 @@
+{
+  "catalog_hash": "23d22b900a3f8b81e809c191c65e94b1283e75a8825813f21a66c072fbfc6a0c",
+  "schema": "trust-vector-catalog/0.1",
+  "vector_entries": [
+    {
+      "task_id": "task-0001",
+      "tv_hash": "4be9161302337049098d96937ad6076dda6d86f22d8bf416d6f2c0fe75000d23"
+    },
+    {
+      "task_id": "task-0002",
+      "tv_hash": "35d844f10287bb082632a48f106f4a8cb32d46546394b3c9ace554798c1aafaa"
+    },
+    {
+      "task_id": "task-0003",
+      "tv_hash": "962f6ca88369f285ef38ddd31101a20b6db2470eb6e4c45cc73b03b0803b96fa"
+    },
+    {
+      "task_id": "task-0004",
+      "tv_hash": "08df6c83643e26bc5e809ca50ced796958eeb1de88a539d703b4ffd903832fdd"
+    },
+    {
+      "task_id": "task-0005",
+      "tv_hash": "70cc10a325555ef4c31938b6da3d0a3f16f8f4c82f2ca48ee2ed03bbf742e6c4"
+    },
+    {
+      "task_id": "task-0006",
+      "tv_hash": "255bfa14cbc81ebe5fddd2d3261d1c55761010c3dc0cc4e0a4b3086bf2837b2e"
+    },
+    {
+      "task_id": "task-0007",
+      "tv_hash": "bbfc1163dd094c97aa9c0820fa0dba7ff2ec940a707cee3d2cbf4ae36fd293d8"
+    },
+    {
+      "task_id": "task-0008",
+      "tv_hash": "2845294400e58cc81445befe6b8aaf280fe9e818e3434d4281df155c8a86c959"
+    },
+    {
+      "task_id": "task-0009",
+      "tv_hash": "bc6d69b9f99466ec48d71939d58712c91d1a188b388e7dcebc46ec8bc862f67b"
+    },
+    {
+      "task_id": "task-0010",
+      "tv_hash": "54b4cab6487535b3e08452b2db88f3efd6eb9b14c566f553209731295a991a03"
+    },
+    {
+      "task_id": "task-0011",
+      "tv_hash": "de6d0e9c0cfc613ea3f0aebb1c37655508d8bdc29c347f7b2ce6f0fba03e2f86"
+    },
+    {
+      "task_id": "task-0012",
+      "tv_hash": "72c0ba3b7626a9efb6119c197c1c462fcb43cf18c9000cba458317101502ff25"
+    },
+    {
+      "task_id": "task-0013",
+      "tv_hash": "e99900f982cd78d758d11c5b52387c208af03e0eb30f2de697107e818331f9d1"
+    }
+  ]
+}
