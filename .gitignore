@@ -70,6 +70,12 @@ metering_report.json
 # from the ledger at any time).
 cut_cert*.json
 
+# trust-vector catalogs (trust_vector.py --all) are derived, deterministic,
+# reconstructible local artifacts, never committed (the canonical record is the
+# ANCHORED trust-vector-catalog ledger entry; the catalog rebuilds byte-identically
+# from the ledger + evidence bundle at any time).
+tv_catalog*.json
+
 # ============================================================================
 # PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to
 # every local-artifact ignore rule above. These are privacy-checked COPIES of

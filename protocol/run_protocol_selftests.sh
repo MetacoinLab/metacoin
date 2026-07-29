@@ -28,6 +28,7 @@ TESTS=(
     "work_molecule.py --selftest"
     "agent_concentration.py --selftest"
     "cut_certificate.py --selftest"
+    "trust_vector.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.

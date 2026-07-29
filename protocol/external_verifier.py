@@ -49,6 +49,7 @@ import protocol.agent_concentration as agent_concentration  # reused to RECOMPUT
 import demo.economy_demo as economy_demo  # reused to RE-RUN the full simulated economy
 import demo.task_metering as task_metering  # reused to RE-METER tasks (plausibility check)
 import protocol.cut_certificate as cut_certificate  # reused to FULLY VERIFY cut certificates
+import protocol.trust_vector as trust_vector  # reused to REBUILD trust-vector catalogs
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -175,6 +176,25 @@ CATALOG_LIMITATION_NOTE = (
 _METERING_EVENT = "metering_evidence_anchored"
 _METERING_CONFIRMED_STATUS = "metering-evidence-confirmed"
 _METERING_SANITY_MAX_WALL_S = 60.0  # any task re-metering slower than this is implausible
+
+# --- trust-vector-catalog anchoring (an EIGHTH record type) ------------------------------
+# The Trust Vector catalog lists the tv_hash of every task's six-component evidence
+# vector (protocol/trust_vector.py). The coordinator REBUILDS all vectors itself and
+# recomputes the catalog hash before anchoring — the same coordinator-reconfirms
+# pattern: never trust the file. The anchored record AFFIRMS the no-scalar rule: no
+# combined trust score exists anywhere, by design.
+_TV_EVENT = "trust_vector_catalog_anchored"
+_TV_CONFIRMED_STATUS = "trust-vector-catalog-confirmed"
+NO_SCALAR_AFFIRMATION = "no combined trust score exists by design"
+
+TV_LIMITATION_NOTE = (
+    "Trust vectors are mechanical assemblies of same-operator evidence; component E "
+    "cites the anchored maximal-concentration baseline; component U is honestly "
+    "empty pending Gate 3; a matching catalog hash proves deterministic "
+    "re-derivability, not trustworthiness; not consensus, not payment, not a token; "
+    "research-stage."
+)
+
 
 # --- cut-certificate anchoring (a SEVENTH record type) -----------------------------------
 # A cut certificate summarizes a verified provenance subgraph so later verifiers can
@@ -1196,6 +1216,81 @@ def anchor_cut_certificate(cert: dict, ledger: Ledger) -> dict:
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# ----------------------------------------------------------------------------
+# Trust-vector-catalog anchoring: validate + REBUILD-and-compare + anchor.
+# ----------------------------------------------------------------------------
+def anchor_trust_vector_catalog(catalog: dict, ledger: Ledger) -> dict:
+    """Validate + REBUILD + anchor a trust-vector catalog. Returns {evaluation, ledger_entry}.
+
+    Malformed -> 'rejected', NOT anchored. Otherwise the coordinator REBUILDS every
+    listed vector from the ledger itself (protocol/trust_vector.py), recomputes the
+    catalog hash, and compares: match -> 'trust-vector-catalog-confirmed'; anything
+    else -> 'trust-vector-catalog-mismatch' (a real audit event). Both outcomes
+    anchored. The record carries COUNTS only plus the no-scalar affirmation.
+    """
+    ok, reasons = trust_vector.validate_catalog(catalog)
+    if not ok:
+        evaluation = {
+            "event": _TV_EVENT,
+            "stage": "R-trust",
+            "topology": "same-machine-trust-vector",
+            "status": "rejected",
+            "reason": "; ".join(reasons),
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": TV_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    # REBUILD the catalog from this ledger (coordinator-reconfirms; never trust the file).
+    task_ids = [e["task_id"] for e in catalog["vector_entries"]]
+    rebuild_error = None
+    rebuilt = None
+    try:
+        rebuilt = trust_vector.build_tv_catalog(ledger_path=ledger.path,
+                                                task_ids=task_ids)
+    except (KeyError, ValueError) as exc:
+        rebuild_error = f"{type(exc).__name__}: {exc}"
+    hash_matches = bool(rebuilt is not None
+                        and rebuilt["catalog_hash"] == catalog["catalog_hash"])
+    entries_match = bool(rebuilt is not None
+                         and rebuilt["vector_entries"] == catalog["vector_entries"])
+    status = (_TV_CONFIRMED_STATUS if (hash_matches and entries_match)
+              else "trust-vector-catalog-mismatch")
+
+    # COUNTS ONLY — no task or hash lists: the molecule citation scanner treats
+    # payload task_id/task_ids keys as "this record verifies that task" and would
+    # pull this record into every molecule, moving every WMID (and therefore every
+    # trust vector). This record catalogs vectors; it verifies no task.
+    evaluation = {
+        "event": _TV_EVENT,
+        "stage": "R-trust",
+        "topology": "same-machine-trust-vector",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "catalog_schema": catalog["schema"],
+        "catalog_hash": catalog["catalog_hash"],
+        "vector_count": len(catalog["vector_entries"]),
+        "no_combined_scalar": NO_SCALAR_AFFIRMATION,
+        "coordinator_reconfirmed": {
+            "recomputed_catalog_hash": rebuilt["catalog_hash"] if rebuilt else None,
+            "catalog_hash_matches": hash_matches,
+            "entries_match": entries_match,
+            "rebuilt_vector_count": len(rebuilt["vector_entries"]) if rebuilt else 0,
+            "rebuild_error": rebuild_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": TV_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # ============================== SELF-TEST ====================================
 # NOTE: the following is a LOCAL TEST HARNESS (single-host simulation), NOT the product.
 # In real use the submission comes from a SEPARATE machine/person via verifier_cli.py.
@@ -1813,7 +1908,63 @@ def _selftest() -> int:
             f"{out_badcut['evaluation']['status']} / {out_tcut['evaluation']['status']}",
         ))
 
-        # (29) STABILITY after temp anchors onto a copy of the REAL ledger
+        # --- TRUST-VECTOR-CATALOG mode coverage (rebuild-and-compare anchoring) ----------
+        # Reuses met_ledger_a (13 tasks + metering + gen-2 catalog + cut anchors);
+        # vectors there use aggregate-citation C and no global baseline (no ACI
+        # anchor on the fixture) — both honest, both deterministic. All TEMP paths.
+        tv_cat = trust_vector.build_tv_catalog(ledger_path=met_ledger_a)
+
+        # (29) valid catalog -> coordinator rebuilds all 13 vectors -> anchored;
+        # counts only + the no-scalar affirmation; scanner-invisible.
+        out_tv = anchor_trust_vector_catalog(tv_cat, Ledger(met_ledger_a))
+        ev_tv = out_tv["evaluation"]
+        tv_chain_ok, _tv_reason = Ledger(met_ledger_a).verify_chain()
+        checks.append((
+            "TRUST-VECTOR CATALOG CONFIRMED (13 vectors rebuilt -> anchored)",
+            ev_tv["status"] == "trust-vector-catalog-confirmed"
+            and out_tv["ledger_entry"] is not None
+            and ev_tv["vector_count"] == 13
+            and ev_tv["coordinator_reconfirmed"]["catalog_hash_matches"] is True
+            and tv_chain_ok is True,
+            ev_tv["status"],
+        ))
+        checks.append((
+            "TV RECORD counts only + no-scalar affirmation (scanner-invisible)",
+            "task_id" not in ev_tv and "task_ids" not in ev_tv
+            and "vector_entries" not in ev_tv
+            and ev_tv["no_combined_scalar"] == NO_SCALAR_AFFIRMATION,
+            f"task-keys={sorted(k for k in ev_tv if 'task_id' in k)}",
+        ))
+
+        # (30) internally-inconsistent catalog_hash -> rejected -> NOT anchored
+        bad_tv = dict(tv_cat)
+        bad_tv["catalog_hash"] = "0" * 64
+        tv_ledger_b = os.path.join(tmp, "tv_ledger_b.jsonl")
+        _copyfile(aci_ledger_path, tv_ledger_b)
+        out_badtv = anchor_trust_vector_catalog(bad_tv, Ledger(tv_ledger_b))
+        checks.append((
+            "TV REJECTED (inconsistent catalog_hash -> NOT anchored)",
+            out_badtv["evaluation"]["status"] == "rejected"
+            and out_badtv["ledger_entry"] is None,
+            f"{out_badtv['evaluation']['status']} "
+            f"({out_badtv['evaluation'].get('reason')})",
+        ))
+
+        # (31) internally consistent but WRONG tv_hash -> coordinator rebuild
+        # disagrees -> 'trust-vector-catalog-mismatch', anchored (audit event)
+        tampered_tv = json.loads(json.dumps(tv_cat))
+        tampered_tv["vector_entries"][0]["tv_hash"] = "1" * 64
+        tampered_tv["catalog_hash"] = trust_vector.compute_catalog_hash(tampered_tv)
+        out_ttv = anchor_trust_vector_catalog(tampered_tv, Ledger(tv_ledger_b))
+        checks.append((
+            "TV MISMATCH (wrong tv_hash -> rebuild disagrees -> anchored audit event)",
+            out_ttv["evaluation"]["status"] == "trust-vector-catalog-mismatch"
+            and out_ttv["ledger_entry"] is not None
+            and out_ttv["evaluation"]["coordinator_reconfirmed"]["entries_match"] is False,
+            out_ttv["evaluation"]["status"],
+        ))
+
+        # (32) STABILITY after temp anchors onto a copy of the REAL ledger
         # (conditional — the runtime ledger is gitignored and absent in CI): a fresh
         # economy anchor must leave the 0.2 catalog (idx-17), the ACI report_hash
         # (idx-18), and the economy hash (idx-19) unchanged; and when the real ledger
@@ -1885,6 +2036,23 @@ def _selftest() -> int:
             else:
                 print("    (no anchored cut certificate on the real ledger yet — "
                       "cut stability leg SKIPPED; checks (25)-(26) cover the "
+                      "mechanism)")
+            tv_anchor = next((e for e in reversed(real_entries)
+                              if e["payload"].get("event") == _TV_EVENT
+                              and e["payload"].get("status") ==
+                              _TV_CONFIRMED_STATUS), None)
+            if tv_anchor is not None:
+                tv_after = trust_vector.build_tv_catalog(ledger_path=triple_ledger)
+                checks.append((
+                    "SEXTUPLE STABILITY: trust-vector rebuild matches the "
+                    "anchored catalog",
+                    tv_after["catalog_hash"] ==
+                    tv_anchor["payload"]["catalog_hash"],
+                    f"tv={tv_after['catalog_hash'][:12]}..",
+                ))
+            else:
+                print("    (no anchored trust-vector catalog on the real ledger "
+                      "yet — TV stability leg SKIPPED; checks (29)-(31) cover the "
                       "mechanism)")
         else:
             print("    (no real ledger with idx-17/idx-18 anchors present — real-ledger "
@@ -2412,6 +2580,63 @@ def _cmd_anchor_cut_certificate(cert_path: str, ledger_path: str) -> int:
     return 0 if status == _CUT_CONFIRMED_STATUS else 1
 
 
+def _cmd_anchor_trust_vector_catalog(catalog_path: str, ledger_path: str) -> int:
+    """Load a trust-vector catalog, REBUILD all vectors from the ledger, anchor the outcome.
+
+    Exit codes: 0 = trust-vector-catalog-confirmed; non-zero = mismatch or rejected.
+    A missing/invalid file is 'rejected' and anchors nothing.
+    """
+    print(BANNER)
+
+    # Load defensively; any load failure is a rejection (no anchor).
+    reason = None
+    catalog = None
+    try:
+        with open(catalog_path, "r", encoding="utf-8") as f:
+            catalog = json.load(f)
+    except FileNotFoundError:
+        reason = f"catalog file not found: {catalog_path}"
+    except json.JSONDecodeError as exc:
+        reason = f"catalog file is not valid JSON ({exc})"
+    except OSError as exc:
+        reason = f"could not read catalog file ({exc})"
+    if reason is None and not isinstance(catalog, dict):
+        reason = "catalog JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    out = anchor_trust_vector_catalog(catalog, ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}")
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed -> not written to the ledger)")
+        return 1
+
+    cr = ev["coordinator_reconfirmed"]
+    print(f"catalog_hash:            {ev['catalog_hash']}")
+    print(f"recomputed_catalog_hash: {cr['recomputed_catalog_hash']}")
+    print(f"vectors: {ev['vector_count']}  ({ev['no_combined_scalar']})")
+    print("coordinator rebuild (all vectors re-derived here — NOT trusting the file):")
+    print(f"  catalog_hash_matches : {cr['catalog_hash_matches']}")
+    print(f"  entries_match        : {cr['entries_match']}")
+    print(f"  rebuilt_vector_count : {cr['rebuilt_vector_count']}")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    # 0 only when the coordinator's rebuild confirms every tv_hash in the catalog.
+    return 0 if status == _TV_CONFIRMED_STATUS else 1
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -2472,6 +2697,13 @@ def main(argv=None) -> int:
              "makes later cheap acceptance sound) and anchor the outcome "
              "(counts only)",
     )
+    mode.add_argument(
+        "--anchor-trust-vector-catalog", metavar="TV_CATALOG_JSON",
+        help="ingest a trust-vector catalog (trust_vector.py --all); REBUILD every "
+             "six-component vector from the ledger, recompute the catalog hash, and "
+             "anchor the outcome (counts only; no combined trust score exists by "
+             "design)",
+    )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
         help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
@@ -2509,6 +2741,9 @@ def main(argv=None) -> int:
         return _cmd_anchor_metering_report(args.anchor_metering_report, args.ledger)
     if args.anchor_cut_certificate is not None:
         return _cmd_anchor_cut_certificate(args.anchor_cut_certificate, args.ledger)
+    if args.anchor_trust_vector_catalog is not None:
+        return _cmd_anchor_trust_vector_catalog(args.anchor_trust_vector_catalog,
+                                                args.ledger)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
