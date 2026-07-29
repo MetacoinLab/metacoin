@@ -12,7 +12,10 @@
 # Resolve the demo/ directory so the script works from any CWD.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Self-tests to run, in order.
+# Self-tests to run, in order. Entries may include arguments (e.g.
+# "task_metering.py --selftest"); the invocation below word-splits the entry while
+# keeping SCRIPT_DIR (which may contain spaces) intact — same pattern as
+# protocol/run_protocol_selftests.sh.
 TESTS=(
     "tasks/task_0001_lunar_link_budget.py"
     "tasks/task_0002_orbit_propagation.py"
@@ -32,6 +35,7 @@ TESTS=(
     "x402_spend_stub.py"
     "agent_loop.py"
     "economy_demo.py"
+    "task_metering.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.
@@ -44,7 +48,9 @@ for test in "${TESTS[@]}"; do
     echo ">>> RUNNING: $test"
     echo "============================================================"
 
-    python3 "$SCRIPT_DIR/$test"
+    # Quoted prefix keeps a space-containing SCRIPT_DIR intact; unquoted $test
+    # word-splits so any trailing arguments (e.g. --selftest) are passed separately.
+    python3 "$SCRIPT_DIR/"$test
     code=$?
 
     NAMES+=("$test")

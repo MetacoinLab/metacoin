@@ -47,6 +47,7 @@ import protocol.audit as audit  # reused to independently re-derive chain/anchor
 import protocol.work_molecule as work_molecule  # reused to REBUILD molecule catalogs
 import protocol.agent_concentration as agent_concentration  # reused to RECOMPUTE ACI reports
 import demo.economy_demo as economy_demo  # reused to RE-RUN the full simulated economy
+import demo.task_metering as task_metering  # reused to RE-METER tasks (plausibility check)
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -135,7 +136,15 @@ AGENT_LIMITATION_NOTE = (
 # The catalog lists the WMID of every task's Work Molecule (protocol/work_molecule.py).
 # The coordinator REBUILDS all molecules itself and recomputes the catalog hash before
 # anchoring — the same coordinator-reconfirms pattern as agent results: never trust the file.
+# Generation-aware (CONSTITUTIONAL RULE: debt is reduced only by APPENDING evidence):
+# both catalog generations are acceptable and each is rebuilt in ITS OWN molecule
+# schema, so the anchored idx-17 0.2 generation and any later 0.3 generation coexist —
+# neither replaces the other, and the anchored record names its molecule_schema.
 _CATALOG_EVENT = "work_molecule_catalog_anchored"
+_CATALOG_GENERATIONS = {
+    work_molecule.CATALOG_SCHEMA_VERSION_01: work_molecule.SCHEMA_VERSION_02,
+    work_molecule.CATALOG_SCHEMA_VERSION_02: work_molecule.SCHEMA_VERSION_03,
+}
 
 CATALOG_LIMITATION_NOTE = (
     "Work Molecules are READ-ONLY ASSEMBLIES of same-operator records, assembled by the "
@@ -145,6 +154,37 @@ CATALOG_LIMITATION_NOTE = (
     "attestation, execution detail) remain open and are listed explicitly inside each "
     "molecule. Not consensus, not mainnet, not payment, not a token; zero-value "
     "research-stage."
+)
+
+# --- metering-evidence anchoring (a SIXTH record type) -----------------------------------
+# CONSTITUTIONAL RULE: provenance debt is reduced ONLY by appending new evidence
+# objects — this record is that appended evidence. No existing ledger record,
+# submission file, or anchored artifact is modified; the idx-17 catalog's 0.2 WMIDs
+# stay valid forever (the record carries no task_id/task_ids keys, so the molecule
+# citation scanner never sees it).
+#
+# The coordinator PLAUSIBILITY-reconfirms, NOT byte-reconfirms: timing is inherently
+# non-deterministic run to run, so re-metering can never reproduce the submitted
+# report's bytes. What CAN be mechanically re-derived is (a) every output_hash matches
+# the canonical ledger-recorded hash, (b) the report is well-formed with honest labels,
+# (c) the energy arithmetic is exact, and (d) the coordinator's own re-metered timings
+# land inside a sanity band. The anchored report_hash therefore fixes WHAT WAS CLAIMED
+# at measurement time — a different integrity model than the byte-reproducible task
+# hashes, stated on the record itself.
+_METERING_EVENT = "metering_evidence_anchored"
+_METERING_CONFIRMED_STATUS = "metering-evidence-confirmed"
+_METERING_SANITY_MAX_WALL_S = 60.0  # any task re-metering slower than this is implausible
+
+METERING_LIMITATION_NOTE = (
+    "First-generation compute/energy evidence by the same operator on one host: "
+    "wall/CPU times MEASURED (time.perf_counter / resource.getrusage), energy "
+    "ESTIMATED from an assumed constant power figure (no hardware power telemetry "
+    "exists on this host — that debt remains open). Timing is non-reproducible by "
+    "nature, so this record fixes the CLAIM made at measurement time, not a "
+    "reproducible computation; verification of plausibility = re-metering reproduces "
+    "the same output_hashes and same order-of-magnitude timings, not identical bytes. "
+    "Reduces but does not eliminate the energy_and_compute_evidence provenance debt. "
+    "Not consensus, not payment, not a token; zero-value research-stage."
 )
 
 
@@ -774,11 +814,15 @@ def validate_molecule_catalog(catalog: dict):
     """
     if not isinstance(catalog, dict):
         return (False, "catalog is not a JSON object")
-    if catalog.get("schema") != work_molecule.CATALOG_SCHEMA_VERSION:
-        return (False, f"field 'schema' must be {work_molecule.CATALOG_SCHEMA_VERSION!r} "
-                       f"(got {catalog.get('schema')!r})")
-    if catalog.get("molecule_schema") != work_molecule.SCHEMA_VERSION:
-        return (False, f"field 'molecule_schema' must be {work_molecule.SCHEMA_VERSION!r} "
+    # Generation-aware: both catalog generations are valid; the molecule schema must
+    # match its own catalog schema (0.1<->molecule/0.2, 0.2<->molecule/0.3).
+    if catalog.get("schema") not in _CATALOG_GENERATIONS:
+        return (False, f"field 'schema' must be one of "
+                       f"{sorted(_CATALOG_GENERATIONS)} (got {catalog.get('schema')!r})")
+    expected_molecule_schema = _CATALOG_GENERATIONS[catalog["schema"]]
+    if catalog.get("molecule_schema") != expected_molecule_schema:
+        return (False, f"field 'molecule_schema' must be {expected_molecule_schema!r} "
+                       f"for catalog schema {catalog['schema']!r} "
                        f"(got {catalog.get('molecule_schema')!r})")
     entries = catalog.get("entries")
     if not isinstance(entries, list) or not entries:
@@ -830,12 +874,15 @@ def anchor_molecule_catalog(catalog: dict, ledger: Ledger) -> dict:
         }
         return {"evaluation": evaluation, "ledger_entry": None}
 
-    # REBUILD the catalog from this ledger (coordinator-reconfirms; never trust the file).
+    # REBUILD the catalog from this ledger (coordinator-reconfirms; never trust the
+    # file) — in the submitted catalog's OWN generation, so a 0.2 catalog is verified
+    # against a 0.2 rebuild and a 0.3 catalog against a 0.3 rebuild.
     task_ids = [e["task_id"] for e in catalog["entries"]]
     rebuild_error = None
     rebuilt = None
     try:
-        rebuilt = work_molecule.build_catalog(ledger_path=ledger.path, task_ids=task_ids)
+        rebuilt = work_molecule.build_catalog(ledger_path=ledger.path, task_ids=task_ids,
+                                              schema_version=catalog["molecule_schema"])
     except (KeyError, ValueError) as exc:
         rebuild_error = f"{type(exc).__name__}: {exc}"
     hash_matches = bool(rebuilt is not None
@@ -870,6 +917,181 @@ def anchor_molecule_catalog(catalog: dict, ledger: Ledger) -> dict:
         },
         "operator_relationship": "same-operator",
         "limitation_note": CATALOG_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+# ----------------------------------------------------------------------------
+# Metering-evidence anchoring: validate + PLAUSIBILITY-reconfirm + anchor.
+# ----------------------------------------------------------------------------
+def validate_metering_report(report: dict):
+    """Structurally validate a metering report file. Returns (ok, reason).
+
+    Malformed input (wrong shape, missing/dishonest labels, inexact energy
+    arithmetic, or a report_hash that does not recompute from the file's own
+    content) is rejected BEFORE the ledger is touched. Whether the CLAIMED
+    measurements are plausible is decided in anchor_metering_report.
+    """
+    if not isinstance(report, dict):
+        return (False, "metering report is not a JSON object")
+    if report.get("schema") != task_metering.SCHEMA_VERSION:
+        return (False, f"field 'schema' must be {task_metering.SCHEMA_VERSION!r} "
+                       f"(got {report.get('schema')!r})")
+    power = report.get("assumed_cpu_power_w")
+    if not isinstance(power, (int, float)) or isinstance(power, bool) or power <= 0:
+        return (False, "assumed_cpu_power_w must be a positive number")
+    if not isinstance(report.get("power_method"), str) or not report["power_method"]:
+        return (False, "power_method must be a non-empty string")
+    rows = report.get("per_task")
+    if not isinstance(rows, list) or not rows:
+        return (False, "per_task must be a non-empty array")
+    seen = []
+    for i, row in enumerate(rows):
+        if not isinstance(row, dict):
+            return (False, f"per_task[{i}] is not a JSON object")
+        if not isinstance(row.get("task_id"), str):
+            return (False, f"per_task[{i}].task_id must be a string")
+        try:
+            verifier_cli.normalize_task_id(row["task_id"])
+        except KeyError as exc:
+            return (False, f"per_task[{i}] unknown task_id: {exc}")
+        seen.append(row["task_id"])
+        oh = row.get("output_hash")
+        if not isinstance(oh, str) or len(oh) != 64 or any(c not in _HEX for c in oh):
+            return (False, f"per_task[{i}].output_hash must be a 64-char lowercase "
+                           "hex sha256")
+        for key in ("wall_time_s", "cpu_time_s", "energy_j_estimate"):
+            v = row.get(key)
+            if not isinstance(v, (int, float)) or isinstance(v, bool) or v <= 0:
+                return (False, f"per_task[{i}].{key} must be a positive number")
+        # honesty labels are mandatory and exact: times measured, energy estimated —
+        # a report claiming its energy figure is 'measured' is dishonest input.
+        if row.get("labels") != task_metering.LABELS:
+            return (False, f"per_task[{i}].labels must be exactly "
+                           f"{task_metering.LABELS} (honest labels are mandatory)")
+        # the energy ESTIMATE must be exactly its documented derivation from the
+        # row's own recorded fields (re-checkable arithmetic, not a free claim)
+        expected = round(row["cpu_time_s"] * power, 6)
+        if row["energy_j_estimate"] != expected:
+            return (False, f"per_task[{i}].energy_j_estimate must equal "
+                           f"round(cpu_time_s x assumed_cpu_power_w, 6) = {expected}")
+    if seen != sorted(seen) or len(seen) != len(set(seen)):
+        return (False, "per_task rows must be unique and sorted by task_id")
+    rh = report.get("report_hash")
+    if not isinstance(rh, str) or len(rh) != 64 or any(c not in _HEX for c in rh):
+        return (False, "report_hash must be a 64-char lowercase hex sha256")
+    if task_metering.compute_report_hash(report) != rh:
+        return (False, "report_hash does not recompute from the report's own content "
+                       "(internally inconsistent file)")
+    return (True, "ok: conforms to the metering-report schema")
+
+
+def anchor_metering_report(report: dict, ledger: Ledger) -> dict:
+    """Validate + PLAUSIBILITY-reconfirm + anchor a metering report.
+
+    Returns {evaluation, ledger_entry}. Malformed -> 'rejected', NOT anchored. A
+    report whose output_hashes do not all match the canonical ledger-recorded hashes
+    is also 'rejected', NOT anchored — it does not describe the canonical work.
+    Otherwise the coordinator RE-METERS every listed task itself and checks its own
+    run's plausibility (output hashes match the ledger; every wall time inside the
+    sanity band): all-good -> 'metering-evidence-confirmed'; anything else ->
+    'metering-evidence-mismatch' (a real audit event). NOT byte-reconfirmed on
+    purpose: timing is non-deterministic, so the anchored report_hash fixes the
+    claim, not a recomputable value (see the block comment at _METERING_EVENT).
+    """
+    ok, reason = validate_metering_report(report)
+    rejected = None
+    if not ok:
+        rejected = reason
+    else:
+        # (a) every submitted output_hash must match the canonical hash the ledger
+        # already records for that task — checked BEFORE any ledger write.
+        entries = ledger.read_all()
+        bad = []
+        for row in report["per_task"]:
+            recorded = _find_ledger_task_hash(entries, row["task_id"])
+            if recorded is None or recorded != row["output_hash"]:
+                bad.append(row["task_id"])
+        if bad:
+            rejected = ("output_hash does not match the canonical ledger-recorded "
+                        f"hash for: {bad}")
+    if rejected is not None:
+        evaluation = {
+            "event": _METERING_EVENT,
+            "stage": "R-provenance-debt",
+            "topology": "same-machine-metering",
+            "status": "rejected",
+            "reason": rejected,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": METERING_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    # PLAUSIBILITY-reconfirm: the coordinator re-meters the same tasks itself. It can
+    # never reproduce the submitted bytes (timing varies), so it checks what IS
+    # re-derivable: its own output hashes match the ledger, and its own wall times
+    # stay inside the sanity band.
+    remeter_error = None
+    own = None
+    try:
+        own = task_metering.build_report(
+            task_ids=[row["task_id"] for row in report["per_task"]])
+    except (KeyError, RuntimeError) as exc:
+        remeter_error = f"{type(exc).__name__}: {exc}"
+    own_rows = own["per_task"] if own else []
+    entries = ledger.read_all()
+    own_hashes_ok = bool(own_rows) and all(
+        _find_ledger_task_hash(entries, r["task_id"]) == r["output_hash"]
+        for r in own_rows
+    )
+    max_wall = max((r["wall_time_s"] for r in own_rows), default=None)
+    sanity_ok = bool(own_rows) and all(
+        r["wall_time_s"] < _METERING_SANITY_MAX_WALL_S for r in own_rows
+    )
+    status = (_METERING_CONFIRMED_STATUS if (own_hashes_ok and sanity_ok)
+              else "metering-evidence-mismatch")
+
+    rows = report["per_task"]
+    evaluation = {
+        "event": _METERING_EVENT,
+        "stage": "R-provenance-debt",
+        "topology": "same-machine-metering",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "report_schema": report["schema"],
+        "report_hash": report["report_hash"],
+        # a COUNT, never a task list — the molecule citation scanner treats payload
+        # task_id/task_ids keys as "this record verifies that task" and would pull
+        # this record into every molecule, changing every 0.2 WMID. This record
+        # meters tasks; it verifies none, so it must stay invisible to the scanner.
+        "task_count": len(rows),
+        "assumed_cpu_power_w": report["assumed_cpu_power_w"],
+        "power_method": report["power_method"],
+        "total_wall_time_s": round(sum(r["wall_time_s"] for r in rows), 6),
+        "total_cpu_time_s": round(sum(r["cpu_time_s"] for r in rows), 6),
+        "total_energy_j_estimate": round(
+            sum(r["energy_j_estimate"] for r in rows), 6),
+        "labels": dict(task_metering.LABELS),
+        "coordinator_reconfirmed": {
+            "remetered_task_count": len(own_rows),
+            "remetered_output_hashes_match_ledger": own_hashes_ok,
+            "remetered_total_wall_time_s": (
+                round(sum(r["wall_time_s"] for r in own_rows), 6) if own_rows else None),
+            "remetered_total_cpu_time_s": (
+                round(sum(r["cpu_time_s"] for r in own_rows), 6) if own_rows else None),
+            "remetered_max_task_wall_time_s": max_wall,
+            "timings_within_sanity_band": sanity_ok,
+            "remeter_error": remeter_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": METERING_LIMITATION_NOTE,
         "zero_value": True,
         "no_token": True,
         "anchored_at": time.time(),
@@ -1310,10 +1532,119 @@ def _selftest() -> int:
             out_tecon["evaluation"]["status"],
         ))
 
-        # (18) TRIPLE STABILITY after a temp anchor onto a copy of the REAL ledger
-        # (conditional — the runtime ledger is gitignored and absent in CI): the
-        # economy record must leave molecule WMIDs (idx-17 catalog), the ACI
-        # report_hash (idx-18), and the economy's own hash all unchanged.
+        # --- METERING-EVIDENCE mode coverage (plausibility-reconfirm anchoring) ----------
+        # Uses copies of the ACI fixture ledger (genesis + one evaluation per task, so
+        # every task has a canonical ledger-recorded hash). All TEMP paths.
+        met_report = task_metering.build_report()
+
+        # (19) valid report -> coordinator re-meters, confirms plausibility -> anchored;
+        # and the 0.2 catalog rebuild is UNCHANGED by the anchor (append-only: new
+        # evidence must never move an old WMID).
+        met_ledger_a = os.path.join(tmp, "met_ledger_a.jsonl")
+        _copyfile(aci_ledger_path, met_ledger_a)
+        cat02_before = work_molecule.build_catalog(
+            ledger_path=met_ledger_a, task_ids=[TASK],
+            schema_version=work_molecule.SCHEMA_VERSION_02)
+        out_met = anchor_metering_report(met_report, Ledger(met_ledger_a))
+        ev_met = out_met["evaluation"]
+        met_chain_ok, _met_reason = Ledger(met_ledger_a).verify_chain()
+        cr_met = ev_met.get("coordinator_reconfirmed", {})
+        checks.append((
+            "METERING CONFIRMED (re-metered plausibility, NOT byte-reconfirm -> anchored)",
+            ev_met["status"] == "metering-evidence-confirmed"
+            and out_met["ledger_entry"] is not None
+            and cr_met.get("remetered_output_hashes_match_ledger") is True
+            and cr_met.get("timings_within_sanity_band") is True
+            and met_chain_ok is True,
+            ev_met["status"],
+        ))
+        cat02_after_met = work_molecule.build_catalog(
+            ledger_path=met_ledger_a, task_ids=[TASK],
+            schema_version=work_molecule.SCHEMA_VERSION_02)
+        checks.append((
+            "METERING RECORD scanner-invisible (no task keys; 0.2 WMIDs unmoved)",
+            "task_id" not in ev_met and "task_ids" not in ev_met
+            and "per_task" not in ev_met
+            and ev_met["task_count"] == len(met_report["per_task"])
+            and cat02_after_met["catalog_hash"] == cat02_before["catalog_hash"],
+            f"task-keys={sorted(k for k in ev_met if 'task_id' in k)}",
+        ))
+
+        # (20) honest labels on the anchored record: times measured, energy ESTIMATED
+        checks.append((
+            "METERING RECORD honest labels (wall/cpu measured, energy estimated)",
+            ev_met.get("labels") == {"wall": "measured", "cpu": "measured",
+                                     "energy": "estimated"}
+            and ev_met.get("assumed_cpu_power_w") == task_metering.ASSUMED_CPU_POWER_W
+            and ev_met.get("power_method") == task_metering.POWER_METHOD,
+            f"labels={ev_met.get('labels')}",
+        ))
+
+        # (21) internally consistent report whose output_hash does NOT match the
+        # canonical ledger-recorded hash -> rejected, NOT anchored (the report does
+        # not describe the canonical work)
+        bad_hash_report = json.loads(json.dumps(met_report))
+        bad_hash_report["per_task"][0]["output_hash"] = "2" * 64
+        bad_hash_report["report_hash"] = task_metering.compute_report_hash(bad_hash_report)
+        met_ledger_b = os.path.join(tmp, "met_ledger_b.jsonl")
+        _copyfile(aci_ledger_path, met_ledger_b)
+        out_badhash = anchor_metering_report(bad_hash_report, Ledger(met_ledger_b))
+        checks.append((
+            "METERING REJECTED (output_hash not the canonical one -> NOT anchored)",
+            out_badhash["evaluation"]["status"] == "rejected"
+            and out_badhash["ledger_entry"] is None,
+            f"{out_badhash['evaluation']['status']} "
+            f"({out_badhash['evaluation'].get('reason')})",
+        ))
+
+        # (22) internally-inconsistent report_hash -> rejected -> NOT anchored
+        bad_met = dict(met_report)
+        bad_met["report_hash"] = "0" * 64
+        out_badmet = anchor_metering_report(bad_met, Ledger(met_ledger_b))
+        checks.append((
+            "METERING REJECTED (inconsistent report_hash -> NOT anchored)",
+            out_badmet["evaluation"]["status"] == "rejected"
+            and out_badmet["ledger_entry"] is None,
+            f"{out_badmet['evaluation']['status']} "
+            f"({out_badmet['evaluation'].get('reason')})",
+        ))
+
+        # (23) missing honesty labels -> rejected -> NOT anchored (labels mandatory)
+        nolabel_report = json.loads(json.dumps(met_report))
+        del nolabel_report["per_task"][0]["labels"]
+        nolabel_report["report_hash"] = task_metering.compute_report_hash(nolabel_report)
+        out_nolabel = anchor_metering_report(nolabel_report, Ledger(met_ledger_b))
+        checks.append((
+            "METERING REJECTED (missing labels -> NOT anchored)",
+            out_nolabel["evaluation"]["status"] == "rejected"
+            and out_nolabel["ledger_entry"] is None,
+            f"{out_nolabel['evaluation']['status']} "
+            f"({out_nolabel['evaluation'].get('reason')})",
+        ))
+
+        # (24) SECOND-GENERATION catalog: with the metering anchor on the ledger, the
+        # 0.3 catalog absorbs the evidence and anchors through the SAME path, its
+        # record naming its own generation — while the 0.2 generation stays valid.
+        cat03 = work_molecule.build_catalog(
+            ledger_path=met_ledger_a, task_ids=sorted(verifier_cli.TASK_MODULES))
+        out_cat03 = anchor_molecule_catalog(cat03, Ledger(met_ledger_a))
+        ev_cat03 = out_cat03["evaluation"]
+        checks.append((
+            "CATALOG GEN-2 CONFIRMED (0.3 rebuild -> anchored, generation on record)",
+            ev_cat03["status"] == "molecule-catalog-confirmed"
+            and out_cat03["ledger_entry"] is not None
+            and ev_cat03["molecule_schema"] == work_molecule.SCHEMA_VERSION_03
+            and ev_cat03["catalog_schema"] == work_molecule.CATALOG_SCHEMA_VERSION_02
+            and ev_cat03["coordinator_reconfirmed"]["catalog_hash_matches"] is True,
+            f"{ev_cat03['status']} ({ev_cat03.get('molecule_schema')})",
+        ))
+
+        # (25) STABILITY after temp anchors onto a copy of the REAL ledger
+        # (conditional — the runtime ledger is gitignored and absent in CI): a fresh
+        # economy anchor must leave the 0.2 catalog (idx-17), the ACI report_hash
+        # (idx-18), and the economy hash (idx-19) unchanged; and when the real ledger
+        # already carries metering evidence + a gen-2 catalog, the 0.3 rebuild must
+        # match its anchored catalog_hash too (QUADRUPLE stability).
         real_ledger = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "ledger_data.jsonl"
         )
@@ -1322,20 +1653,23 @@ def _selftest() -> int:
             with open(real_ledger, "r", encoding="utf-8") as f:
                 real_entries = [json.loads(ln) for ln in f if ln.strip()]
         idx17 = next((e for e in real_entries
-                      if e["payload"].get("event") == "work_molecule_catalog_anchored"),
-                     None)
+                      if e["payload"].get("event") == "work_molecule_catalog_anchored"
+                      and e["payload"].get("molecule_schema") ==
+                      work_molecule.SCHEMA_VERSION_02), None)
         idx18 = next((e for e in real_entries
                       if e["payload"].get("event") == "aci_baseline_anchored"), None)
         if idx17 is not None and idx18 is not None:
             triple_ledger = os.path.join(tmp, "triple_ledger.jsonl")
             _copyfile(real_ledger, triple_ledger)
             out_triple = anchor_economy_summary(econ_log, Ledger(triple_ledger))
-            cat_after = work_molecule.build_catalog(ledger_path=triple_ledger)
+            cat_after = work_molecule.build_catalog(
+                ledger_path=triple_ledger,
+                schema_version=work_molecule.SCHEMA_VERSION_02)
             aci_after = agent_concentration.compute_report(
                 agent_concentration.build_paths(ledger_path=triple_ledger)
             )
             checks.append((
-                "TRIPLE STABILITY after temp anchor (WMIDs + ACI hash + economy hash)",
+                "TRIPLE STABILITY after temp anchor (0.2 WMIDs + ACI hash + economy hash)",
                 out_triple["evaluation"]["status"] == "economy-demo-confirmed"
                 and cat_after["catalog_hash"] == idx17["payload"]["catalog_hash"]
                 and aci_after["report_hash"] == idx18["payload"]["report_hash"]
@@ -1343,8 +1677,22 @@ def _selftest() -> int:
                 f"catalog={cat_after['catalog_hash'][:12]}.. "
                 f"aci={aci_after['report_hash'][:12]}..",
             ))
+            gen2 = next((e for e in reversed(real_entries)
+                         if e["payload"].get("event") == "work_molecule_catalog_anchored"
+                         and e["payload"].get("molecule_schema") ==
+                         work_molecule.SCHEMA_VERSION_03), None)
+            if gen2 is not None:
+                cat03_after = work_molecule.build_catalog(ledger_path=triple_ledger)
+                checks.append((
+                    "QUADRUPLE STABILITY: 0.3 rebuild matches the anchored gen-2 catalog",
+                    cat03_after["catalog_hash"] == gen2["payload"]["catalog_hash"],
+                    f"catalog_v03={cat03_after['catalog_hash'][:12]}..",
+                ))
+            else:
+                print("    (no anchored gen-2 catalog on the real ledger yet — 0.3 "
+                      "stability leg SKIPPED; check (24) covers the mechanism)")
         else:
-            print("    (no real ledger with idx-17/idx-18 anchors present — triple "
+            print("    (no real ledger with idx-17/idx-18 anchors present — real-ledger "
                   "stability check SKIPPED; the scanner-invisibility checks above "
                   "cover the mechanism)")
 
@@ -1745,6 +2093,70 @@ def _cmd_anchor_economy_summary(log_path: str, ledger_path: str) -> int:
     return 0 if status == "economy-demo-confirmed" else 1
 
 
+def _cmd_anchor_metering_report(report_path: str, ledger_path: str) -> int:
+    """Load a metering report, RE-METER the tasks for plausibility, anchor the outcome.
+
+    Exit codes: 0 = metering-evidence-confirmed; non-zero = mismatch or rejected.
+    A missing/invalid file is 'rejected' and anchors nothing. Plausibility, NOT
+    byte-reconfirmation: timing is non-deterministic, so the anchored report_hash
+    fixes the claim made at measurement time.
+    """
+    print(BANNER)
+
+    # Load defensively; any load failure is a rejection (no anchor).
+    reason = None
+    report = None
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            report = json.load(f)
+    except FileNotFoundError:
+        reason = f"metering report file not found: {report_path}"
+    except json.JSONDecodeError as exc:
+        reason = f"metering report file is not valid JSON ({exc})"
+    except OSError as exc:
+        reason = f"could not read metering report file ({exc})"
+    if reason is None and not isinstance(report, dict):
+        reason = "metering report JSON is not an object"
+    if reason is not None:
+        print("status: rejected")
+        print(f"reason: {reason}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    out = anchor_metering_report(report, ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    status = ev["status"]
+
+    print(f"status: {status}")
+    if status == "rejected":
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (malformed/non-canonical -> not written to the ledger)")
+        return 1
+
+    cr = ev["coordinator_reconfirmed"]
+    print(f"report_hash: {ev['report_hash']}  (fixes the CLAIM; timing is not "
+          "byte-reproducible)")
+    print(f"tasks metered: {ev['task_count']}  labels: {ev['labels']}")
+    print(f"totals: wall {ev['total_wall_time_s']}s  cpu {ev['total_cpu_time_s']}s  "
+          f"energy~{ev['total_energy_j_estimate']}J "
+          f"(ESTIMATED @ {ev['assumed_cpu_power_w']} W assumed)")
+    print("coordinator re-metering (plausibility re-derived here — NOT trusting the file):")
+    print(f"  output_hashes_match_ledger : {cr['remetered_output_hashes_match_ledger']}")
+    print(f"  timings_within_sanity_band : {cr['timings_within_sanity_band']} "
+          f"(max task wall {cr['remetered_max_task_wall_time_s']}s)")
+    print(f"  remetered totals           : wall {cr['remetered_total_wall_time_s']}s  "
+          f"cpu {cr['remetered_total_cpu_time_s']}s")
+    if entry is not None:
+        print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+
+    # 0 only when the coordinator's own re-metering confirms plausibility.
+    return 0 if status == _METERING_CONFIRMED_STATUS else 1
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="external_verifier.py",
@@ -1791,6 +2203,13 @@ def main(argv=None) -> int:
              "the entire simulation, compare log hashes, and anchor the outcome "
              "(aggregates only)",
     )
+    mode.add_argument(
+        "--anchor-metering-report", metavar="METERING_REPORT_JSON",
+        help="ingest a metering report (demo/task_metering.py --all); RE-METER every "
+             "listed task for PLAUSIBILITY (not byte-reconfirmation — timing is "
+             "non-deterministic) and anchor the outcome (aggregates + labels only; "
+             "wall/CPU measured, energy ESTIMATED)",
+    )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
         help=f"ledger path (default: the REAL persistent ledger at {DEFAULT_LEDGER_PATH})",
@@ -1824,6 +2243,8 @@ def main(argv=None) -> int:
         return _cmd_anchor_aci_report(args.anchor_aci_report, args.ledger)
     if args.anchor_economy_summary is not None:
         return _cmd_anchor_economy_summary(args.anchor_economy_summary, args.ledger)
+    if args.anchor_metering_report is not None:
+        return _cmd_anchor_metering_report(args.anchor_metering_report, args.ledger)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 

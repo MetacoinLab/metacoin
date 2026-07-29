@@ -57,3 +57,9 @@ aci_report*.json
 # record is the ANCHORED summary; simulated day indices, zero value, no token).
 economy_state.json
 economy_log.json
+
+# metering reports (task_metering.py --all) are local measurement artifacts, never
+# committed: timing is non-reproducible run to run, so the file cannot be re-derived
+# by a clone (the canonical record is the ANCHORED metering-evidence ledger entry,
+# which fixes the claim via report_hash + aggregate totals).
+metering_report.json

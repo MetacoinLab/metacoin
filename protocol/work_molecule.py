@@ -1,4 +1,12 @@
-"""work_molecule.py — MetaCoin WORK MOLECULE v0 (schema "work-molecule/0.1").
+"""work_molecule.py — MetaCoin WORK MOLECULE v0 (schemas "work-molecule/0.2" and "/0.3").
+
+================== CONSTITUTIONAL RULE (READ ME) ==================
+Provenance debt is reduced ONLY by appending new evidence objects. No existing ledger
+record, submission file, or anchored artifact is modified. The idx-17 catalog's
+work-molecule/0.2 WMIDs must remain valid forever: a 0.2-mode rebuild must still match
+them after any later evidence exists. New measurements produce NEW records; molecules
+built at schema 0.3 absorb them and get NEW WMIDs — both generations verifiable,
+neither replacing the other.
 
 ================== HONESTY / SCOPE (READ ME) ==================
 Research-stage, ZERO-VALUE, no token, no money, no mainnet, no networking, no payments.
@@ -51,11 +59,25 @@ SCHEMA HISTORY:
     primary event). Entry-level citations are stable under append-only growth; a
     build-time tip made WMIDs change whenever the ledger grew, breaking the promise
     that the same records always reconstruct to the same WMID.
+  work-molecule/0.3 — absorbs APPEND-ONLY supplementary evidence (the current default).
+    If a confirmed metering-evidence anchor exists on the ledger for this catalog,
+    energy_and_compute_evidence is POPULATED from it (per-task wall/CPU/energy figures
+    copied from the local metering report file when present and hash-matching the
+    anchor, else an aggregate-only citation with a note), and the energy provenance_debt
+    entry is REPLACED by a debt_reduction entry that preserves the debt HISTORY (the
+    original reason, the reducing ledger citation, and what still remains open). Wall
+    and CPU times are MEASURED; energy is an ESTIMATE from an assumed constant power
+    figure — the labels are copied verbatim and never upgraded. 0.3 molecules are
+    deterministic GIVEN the ledger + the metering report file (every timestamp/figure
+    is copied, none created). tee_attestation debt and the execution_records partial
+    debt remain open. 0.2-mode builds remain byte-for-byte identical to the idx-17
+    generation — the two generations coexist; neither replaces the other.
 
 Usage:
     python3 protocol/work_molecule.py --task task-0001
     python3 protocol/work_molecule.py --task task-0002 --submission jiyu_submission.json --out wm_task-0002.json
-    python3 protocol/work_molecule.py --catalog --out wm_catalog.json
+    python3 protocol/work_molecule.py --catalog --out wm_catalog_v03.json
+    python3 protocol/work_molecule.py --catalog --molecule-schema work-molecule/0.2 --out wm_catalog.json
     python3 protocol/work_molecule.py --validate wm_task-0002.json --ledger protocol/ledger_data.jsonl
     python3 protocol/work_molecule.py --selftest      # temp-only; writes nothing into the repo
 """
@@ -81,8 +103,52 @@ from protocol.verifier_cli import TASK_MODULES, normalize_task_id
 _PROTO_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_LEDGER_PATH = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
 
-SCHEMA_VERSION = "work-molecule/0.2"
-CATALOG_SCHEMA_VERSION = "work-molecule-catalog/0.1"
+# Both molecule generations are first-class citizens: 0.2 is the regression-locked
+# idx-17 generation (must rebuild byte-identical forever), 0.3 is the default going
+# forward (absorbs append-only supplementary evidence). Each maps to its own catalog
+# schema so the two catalog generations are distinguishable at a glance.
+SCHEMA_VERSION_02 = "work-molecule/0.2"
+SCHEMA_VERSION_03 = "work-molecule/0.3"
+DEFAULT_SCHEMA_VERSION = SCHEMA_VERSION_03
+SUPPORTED_SCHEMAS = (SCHEMA_VERSION_02, SCHEMA_VERSION_03)
+CATALOG_SCHEMA_VERSION_01 = "work-molecule-catalog/0.1"
+CATALOG_SCHEMA_VERSION_02 = "work-molecule-catalog/0.2"
+_CATALOG_SCHEMA_FOR_MOLECULE = {
+    SCHEMA_VERSION_02: CATALOG_SCHEMA_VERSION_01,
+    SCHEMA_VERSION_03: CATALOG_SCHEMA_VERSION_02,
+}
+
+# The metering-evidence ledger record 0.3 molecules absorb (see external_verifier.py's
+# --anchor-metering-report). Only a CONFIRMED anchor reduces debt; the record itself
+# carries no task_id/task_ids keys, so it is invisible to the citation scan below and
+# can never change a 0.2 WMID.
+_METERING_EVENT = "metering_evidence_anchored"
+_METERING_CONFIRMED_STATUS = "metering-evidence-confirmed"
+
+# Default local metering report artifact (gitignored; per-task figures are copied from
+# it only when its recomputed report_hash matches the anchored one).
+DEFAULT_METERING_REPORT_PATH = os.path.join(_REPO_ROOT, "metering_report.json")
+
+# What the metering evidence does NOT cover — carried in every debt_reduction entry so
+# reduced debt is never mistaken for eliminated debt.
+ENERGY_DEBT_REMAINING = "hardware power telemetry; per-step traces"
+
+# Fixed honesty notes for the absorbed energy evidence. Timing data lives ONLY in the
+# supplementary evidence chain (report + anchor); it is non-reproducible by nature, so
+# these notes state the claim-fixing (not recompute-verifiable) integrity model.
+_ENERGY_PER_TASK_NOTE = (
+    "wall/CPU times MEASURED, energy ESTIMATED (cpu_time x assumed constant power; no "
+    "hardware power telemetry on this host). Figures copied verbatim from the anchored "
+    "metering report; timing is non-reproducible run to run, so the cited report_hash "
+    "fixes the claim made at measurement time, not a recomputable value."
+)
+_ENERGY_AGGREGATE_NOTE = (
+    "per-task figures not available locally (metering report file absent or not "
+    "hash-matching the anchored report_hash); citing the anchored aggregate totals "
+    "only. wall/CPU times MEASURED, energy ESTIMATED (assumed constant power; no "
+    "hardware power telemetry). Timing is non-reproducible run to run, so the cited "
+    "report_hash fixes the claim made at measurement time, not a recomputable value."
+)
 
 # Submission files with non-standard names (auto-discovery expects sub_<task-id>.json).
 # task-0002's external-pilot submission predates that naming convention. Used only when
@@ -266,19 +332,94 @@ def _role_for_topology(topology) -> str:
     return "verifier"
 
 
+def _find_metering_anchor(entries: list):
+    """Return the highest-index CONFIRMED metering-evidence entry, or None.
+
+    Only a confirmed anchor reduces debt; rejected/mismatch outcomes never do.
+    """
+    anchor = None
+    for e in entries:
+        if not isinstance(e, dict):
+            continue
+        p = e.get("payload")
+        if (isinstance(p, dict) and p.get("event") == _METERING_EVENT
+                and p.get("status") == _METERING_CONFIRMED_STATUS):
+            anchor = e
+    return anchor
+
+
+def _energy_evidence_from_anchor(anchor_entry: dict, short_task_id: str,
+                                 metering_report_path) -> dict:
+    """Assemble the 0.3 energy_and_compute_evidence object from a metering anchor.
+
+    Everything is COPIED, never created: the citation/labels/power figures come from
+    the anchored ledger record; the per-task wall/CPU/energy figures come from the
+    local metering report file ONLY when its recomputed report_hash matches the
+    anchored one (else the anchored aggregate totals are cited with an honest note).
+    Deterministic given the ledger + the report file — no timestamps are minted here.
+    """
+    payload = anchor_entry["payload"]
+    evidence = {"source": f"ledger:{anchor_entry['index']}"}
+    evidence.update(_copy_present(payload, (
+        "report_schema", "report_hash", "assumed_cpu_power_w", "power_method",
+    )))
+    if isinstance(payload.get("labels"), dict):
+        evidence["labels"] = dict(payload["labels"])
+
+    # Per-task figures: only from a local report file that hash-matches the anchor.
+    row = None
+    if metering_report_path and os.path.exists(metering_report_path):
+        try:
+            with open(metering_report_path, "r", encoding="utf-8") as f:
+                report = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            report = None
+        if isinstance(report, dict):
+            content = {k: v for k, v in report.items() if k != "report_hash"}
+            recomputed = hashlib.sha256(
+                canonical_json(content).encode("utf-8")).hexdigest()
+            if recomputed == report.get("report_hash") == payload.get("report_hash"):
+                for r in report.get("per_task", []):
+                    if isinstance(r, dict) and r.get("task_id") == short_task_id:
+                        row = r
+                        break
+
+    if row is not None:
+        evidence.update(_copy_present(row, (
+            "wall_time_s", "cpu_time_s", "energy_j_estimate",
+        )))
+        evidence["note"] = _ENERGY_PER_TASK_NOTE
+    else:
+        evidence["aggregate_totals"] = _copy_present(payload, (
+            "total_wall_time_s", "total_cpu_time_s", "total_energy_j_estimate",
+        ))
+        evidence["note"] = _ENERGY_AGGREGATE_NOTE
+    return evidence
+
+
 # ----------------------------------------------------------------------------
 # Construction (read-only assembly; NO new claims, NO ledger writes)
 # ----------------------------------------------------------------------------
 def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
-                   submission_path: str = None) -> dict:
-    """Assemble the v0 Work Molecule for `task_id` from existing records, read-only.
+                   submission_path: str = None,
+                   schema_version: str = DEFAULT_SCHEMA_VERSION,
+                   metering_report_path: str = DEFAULT_METERING_REPORT_PATH) -> dict:
+    """Assemble the Work Molecule for `task_id` from existing records, read-only.
 
     Scans the ledger for every entry referencing the task (payload task_id match or
     membership in a batch attestation's task_ids), plus the matching submission file
     (sub_<task-id>.json auto-discovered in the repo root, or `submission_path`).
     Fills all 14 target-field groups per the three-state rule and auto-generates the
     provenance_debt list from the actual nulls. Raises ValueError on missing inputs.
+
+    `schema_version` selects the generation (CONSTITUTIONAL RULE above): 0.2 rebuilds
+    the idx-17 generation byte-for-byte; 0.3 (default) additionally absorbs a confirmed
+    metering-evidence anchor into energy_and_compute_evidence and converts that debt
+    entry into a debt_reduction entry — appending evidence, never altering records.
     """
+    if schema_version not in SUPPORTED_SCHEMAS:
+        raise ValueError(f"unsupported molecule schema {schema_version!r}; "
+                         f"supported: {SUPPORTED_SCHEMAS}")
     short = normalize_task_id(task_id)  # KeyError (with known ids) on unknown task
 
     # --- gather the cited ledger entries (read-only) ----------------------------------
@@ -517,8 +658,18 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
     }
     scope.update(_copy_present(primary_payload, ("operator_relationship",)))
 
+    # --- energy_and_compute_evidence: 0.2 is always not-captured; 0.3 absorbs a
+    # confirmed metering anchor when one exists (APPEND-ONLY debt reduction) ----------
+    metering_anchor = None
+    energy_evidence = None
+    if schema_version == SCHEMA_VERSION_03:
+        metering_anchor = _find_metering_anchor(entries)
+        if metering_anchor is not None:
+            energy_evidence = _energy_evidence_from_anchor(
+                metering_anchor, short, metering_report_path)
+
     molecule = {
-        "schema": SCHEMA_VERSION,
+        "schema": schema_version,
         "task_spec": task_spec,
         "parent_work_ids": [],        # asserted-empty: v0 tasks have no work lineage
         "actors": actors,
@@ -528,7 +679,7 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
         "manifests": manifests,
         "execution_records": execution_records,
         "hardware_evidence": hardware_evidence,
-        "energy_and_compute_evidence": None,  # not-captured -> provenance_debt
+        "energy_and_compute_evidence": energy_evidence,  # null = not-captured -> debt
         "verification_events": verification_events,
         "challenge_events": challenge_events,
         "result_artifact_hash": result_artifact_hash,
@@ -540,6 +691,16 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
     debt = [{"field": path, "reason": _DEBT_REASONS.get(path, _DEBT_FALLBACK_REASON)}
             for path in sorted(_find_null_paths(molecule))]
     debt.append(dict(_EXECUTION_PARTIAL_DEBT))
+    # 0.3 debt reduction: the energy field is populated by ledger evidence, so its debt
+    # entry becomes a debt_reduction entry — history preserved (original_reason), the
+    # reducing citation named (reduced_by), and what stays open stated (remaining).
+    if energy_evidence is not None:
+        debt.append({
+            "field": "energy_and_compute_evidence",
+            "reduced_by": f"ledger:{metering_anchor['index']}",
+            "remaining": ENERGY_DEBT_REMAINING,
+            "original_reason": _DEBT_REASONS["energy_and_compute_evidence"],
+        })
     debt.sort(key=lambda d: (d["field"], d.get("severity", "")))
     molecule["provenance_debt"] = debt
 
@@ -557,15 +718,22 @@ def compute_catalog_hash(catalog: dict) -> str:
     return hashlib.sha256(canonical_json(content).encode("utf-8")).hexdigest()
 
 
-def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None) -> dict:
+def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
+                  schema_version: str = DEFAULT_SCHEMA_VERSION,
+                  metering_report_path: str = DEFAULT_METERING_REPORT_PATH) -> dict:
     """Build + validate the molecule for every known task and return the catalog dict.
 
     Deterministic and timestamp-free like the molecules themselves: two runs over the
     same inputs are byte-identical. Each molecule is validated (with ledger recheck)
     before its WMID enters the catalog; any invalid molecule raises ValueError.
     `task_ids` narrows the set (used by self-tests over fixture ledgers); the default
-    is every task in the registry.
+    is every task in the registry. `schema_version` selects the molecule generation;
+    the catalog schema follows it (0.2 molecules -> catalog/0.1, the regression-locked
+    idx-17 generation; 0.3 molecules -> catalog/0.2).
     """
+    if schema_version not in SUPPORTED_SCHEMAS:
+        raise ValueError(f"unsupported molecule schema {schema_version!r}; "
+                         f"supported: {SUPPORTED_SCHEMAS}")
     if task_ids is None:
         task_ids = sorted(TASK_MODULES)
     entries = []
@@ -578,14 +746,16 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None) -> dict
             if os.path.exists(candidate):
                 submission_path = candidate
         molecule = build_molecule(short, ledger_path=ledger_path,
-                                  submission_path=submission_path)
+                                  submission_path=submission_path,
+                                  schema_version=schema_version,
+                                  metering_report_path=metering_report_path)
         ok, reasons = validate(molecule, ledger_path=ledger_path)
         if not ok:
             raise ValueError(f"molecule for {short} does not validate: {reasons}")
         entries.append({"task_id": short, "work_id": molecule["work_id"]})
     catalog = {
-        "schema": CATALOG_SCHEMA_VERSION,
-        "molecule_schema": SCHEMA_VERSION,
+        "schema": _CATALOG_SCHEMA_FOR_MOLECULE[schema_version],
+        "molecule_schema": schema_version,
         "entries": entries,  # already sorted by task_id
     }
     catalog["catalog_hash"] = compute_catalog_hash(catalog)
@@ -598,23 +768,28 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None) -> dict
 def validate(molecule, ledger_path: str = None):
     """Mechanically validate a molecule. Returns (ok, reasons).
 
-    Checks: (a) supported schema version; (b) exact top-level key set + types;
-    (c) work_id recomputes from content; (d) provenance_debt bidirectional consistency
-    (every null has a debt entry, every debt entry names a real field, partial entries
-    point at populated fields, no nulls inside lists); (e) with a ledger: every cited
-    (ledger_index, entry_hash) — including the ledger_anchor's primary citation —
-    exists, its hash RE-DERIVES from entry content, and the entry actually references
-    this task. All checks are entry-level (never tip-level), so validation stays true
-    under append-only ledger growth.
+    Checks: (a) supported schema version (0.2 or 0.3); (b) exact top-level key set +
+    types; (c) work_id recomputes from content; (d) provenance_debt bidirectional
+    consistency (every null has a debt entry, every debt entry names a real field,
+    partial entries point at populated fields, no nulls inside lists; 0.3 only:
+    debt_reduction entries point at POPULATED fields, a populated-via-reduction energy
+    field has a debt_reduction entry and vice versa, and 0.2 molecules may carry no
+    reduction entries at all); (e) with a ledger: every cited (ledger_index,
+    entry_hash) — including the ledger_anchor's primary citation — exists, its hash
+    RE-DERIVES from entry content, and the entry actually references this task; a
+    debt_reduction's reduced_by citation must name a confirmed metering-evidence entry
+    whose report_hash matches the absorbed evidence. All checks are entry-level (never
+    tip-level), so validation stays true under append-only ledger growth.
     """
     reasons = []
     if not isinstance(molecule, dict):
         return (False, ["molecule is not a JSON object"])
 
-    # (a) schema version
-    if molecule.get("schema") != SCHEMA_VERSION:
+    # (a) schema version — both generations are valid forever (constitutional rule)
+    if molecule.get("schema") not in SUPPORTED_SCHEMAS:
         reasons.append(f"unsupported schema {molecule.get('schema')!r}; "
-                       f"expected {SCHEMA_VERSION!r}")
+                       f"supported: {SUPPORTED_SCHEMAS}")
+    is_03 = molecule.get("schema") == SCHEMA_VERSION_03
 
     # (b) exact key set + types
     missing = [k for k in _TOP_KEYS if k not in molecule]
@@ -681,7 +856,11 @@ def validate(molecule, ledger_path: str = None):
                            f"(stored {wid}, recomputed {recomputed}) — "
                            "molecule content was altered")
 
-    # (d) provenance_debt bidirectional consistency
+    # (d) provenance_debt bidirectional consistency. Three entry shapes:
+    #   plain full     {field, reason}                       <-> a null field
+    #   partial        {field, reason, severity: "partial"}  <-> a populated field
+    #   debt_reduction {field, reduced_by, remaining, original_reason} (0.3 only)
+    #                                                        <-> a populated field
     body = {k: v for k, v in molecule.items() if k != "provenance_debt"}
     null_paths = set(_find_null_paths(body))
     for p in sorted(null_paths):
@@ -689,12 +868,26 @@ def validate(molecule, ledger_path: str = None):
             reasons.append(f"null inside a list at {p} — the three-state rule places "
                            "not-captured markers only in object fields")
     null_paths = {p for p in null_paths if "[" not in p}
-    full_debt, partial_debt = set(), set()
+    full_debt, partial_debt, reduced_debt = set(), set(), set()
     for i, d in enumerate(molecule["provenance_debt"]):
-        if not (isinstance(d, dict) and isinstance(d.get("field"), str)
-                and isinstance(d.get("reason"), str)):
-            reasons.append(f"provenance_debt[{i}] must be an object with string "
-                           "'field' and 'reason'")
+        if not (isinstance(d, dict) and isinstance(d.get("field"), str)):
+            reasons.append(f"provenance_debt[{i}] must be an object with a string "
+                           "'field'")
+            continue
+        if "reduced_by" in d:
+            # debt_reduction entry: history preserved, remaining debt stated
+            if not is_03:
+                reasons.append(f"provenance_debt[{i}] is a debt_reduction entry, which "
+                               f"only exists in {SCHEMA_VERSION_03} molecules")
+            for key in ("reduced_by", "remaining", "original_reason"):
+                if not isinstance(d.get(key), str) or not d.get(key):
+                    reasons.append(f"provenance_debt[{i}].{key} missing or not a "
+                                   "non-empty string (debt_reduction entries must "
+                                   "preserve the debt history)")
+            reduced_debt.add(d["field"])
+            continue
+        if not isinstance(d.get("reason"), str):
+            reasons.append(f"provenance_debt[{i}] must carry a string 'reason'")
             continue
         (partial_debt if d.get("severity") == "partial" else full_debt).add(d["field"])
     for p in sorted(null_paths - full_debt):
@@ -708,6 +901,19 @@ def validate(molecule, ledger_path: str = None):
         if not found or value is None:
             reasons.append(f"partial provenance_debt entry {p} must point at a "
                            "populated field")
+    for p in sorted(reduced_debt):
+        found, value = _resolve_path(molecule, p)
+        if not found or value is None:
+            reasons.append(f"debt_reduction entry {p} must point at a populated field "
+                           "— a reduction claim over a still-missing value is a lie")
+    # A populated-via-reduction energy field must carry its debt_reduction entry (and
+    # vice versa, covered just above): at this stage ledger evidence is the ONLY way
+    # energy_and_compute_evidence gets populated, so the pairing is mandatory.
+    if (is_03 and isinstance(molecule.get("energy_and_compute_evidence"), dict)
+            and "energy_and_compute_evidence" not in reduced_debt):
+        reasons.append("energy_and_compute_evidence is populated but carries no "
+                       "debt_reduction entry — reduced debt must stay on the record, "
+                       "never silently erased")
 
     # (e) ledger recheck (optional): re-derive every citation against the chain
     if ledger_path is not None:
@@ -749,6 +955,35 @@ def validate(molecule, ledger_path: str = None):
                     reasons.append(f"cited ledger entry {idx} does not reference "
                                    f"{short}")
 
+            # debt_reduction citations: reduced_by must name a CONFIRMED metering
+            # anchor whose report_hash matches the absorbed evidence. (Checked apart
+            # from the loop above — a metering record deliberately references no task.)
+            energy = molecule.get("energy_and_compute_evidence")
+            for d in molecule["provenance_debt"]:
+                if not (isinstance(d, dict) and isinstance(d.get("reduced_by"), str)):
+                    continue
+                ref = d["reduced_by"]
+                idx = None
+                if ref.startswith("ledger:"):
+                    try:
+                        idx = int(ref.split(":", 1)[1])
+                    except ValueError:
+                        idx = None
+                entry = by_index.get(idx)
+                if entry is None:
+                    reasons.append(f"debt_reduction cites {ref!r}, which does not "
+                                   "exist in the ledger")
+                    continue
+                p = entry.get("payload") or {}
+                if (p.get("event") != _METERING_EVENT
+                        or p.get("status") != _METERING_CONFIRMED_STATUS):
+                    reasons.append(f"debt_reduction cites ledger entry {idx}, which is "
+                                   "not a confirmed metering-evidence record")
+                if (isinstance(energy, dict)
+                        and energy.get("report_hash") != p.get("report_hash")):
+                    reasons.append(f"absorbed energy evidence report_hash does not "
+                                   f"match the cited metering anchor at index {idx}")
+
     return (not reasons, reasons)
 
 
@@ -773,7 +1008,17 @@ def main(argv=None) -> int:
     parser.add_argument("--task", help="task id to build a molecule for, e.g. task-0001")
     parser.add_argument("--catalog", action="store_true",
                         help="build + validate molecules for ALL known tasks and write "
-                             "the WMID catalog (default out: wm_catalog.json; gitignored)")
+                             "the WMID catalog (default out: wm_catalog_v03.json for "
+                             "0.3, wm_catalog.json for 0.2; gitignored)")
+    parser.add_argument("--molecule-schema", default=DEFAULT_SCHEMA_VERSION,
+                        choices=list(SUPPORTED_SCHEMAS),
+                        help="molecule generation to build (default "
+                             f"{DEFAULT_SCHEMA_VERSION}; {SCHEMA_VERSION_02} rebuilds "
+                             "the regression-locked idx-17 generation byte-for-byte)")
+    parser.add_argument("--metering-report", default=DEFAULT_METERING_REPORT_PATH,
+                        help="local metering report for 0.3 per-task energy figures "
+                             f"(default: {DEFAULT_METERING_REPORT_PATH}; used only "
+                             "when it hash-matches the anchored report)")
     parser.add_argument("--submission",
                         help="optional path to the submission JSON for this run "
                              "(default: auto-discover sub_<task-id>.json in repo root)")
@@ -806,17 +1051,21 @@ def main(argv=None) -> int:
 
     if args.catalog:
         try:
-            catalog = build_catalog(ledger_path=args.ledger)
+            catalog = build_catalog(ledger_path=args.ledger,
+                                    schema_version=args.molecule_schema,
+                                    metering_report_path=args.metering_report)
         except (KeyError, ValueError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
         text = json.dumps(catalog, indent=2, sort_keys=True)
         print(text)
-        out = args.out or "wm_catalog.json"
+        out = args.out or ("wm_catalog.json"
+                           if args.molecule_schema == SCHEMA_VERSION_02
+                           else "wm_catalog_v03.json")
         with open(out, "w", encoding="utf-8") as f:
             f.write(text + "\n")
-        print(f"wrote work-molecule catalog ({len(catalog['entries'])} entries) to {out}",
-              file=sys.stderr)
+        print(f"wrote work-molecule catalog ({len(catalog['entries'])} entries, "
+              f"{catalog['molecule_schema']}) to {out}", file=sys.stderr)
         return 0
 
     if not args.task:
@@ -824,7 +1073,9 @@ def main(argv=None) -> int:
 
     try:
         molecule = build_molecule(args.task, ledger_path=args.ledger,
-                                  submission_path=args.submission)
+                                  submission_path=args.submission,
+                                  schema_version=args.molecule_schema,
+                                  metering_report_path=args.metering_report)
     except (KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -903,9 +1154,10 @@ def _selftest() -> int:
                 "no_token": True,
             }, f)
 
-        # [1] build + validate
+        # [1] build + validate (0.2 mode — the regression-locked idx-17 generation)
         m1 = build_molecule("task-0001", ledger_path=fixture_ledger,
-                            submission_path=fixture_sub)
+                            submission_path=fixture_sub,
+                            schema_version=SCHEMA_VERSION_02)
         ok, reasons = validate(m1, ledger_path=fixture_ledger)
         checks.append(("fixture molecule validates (with ledger recheck)", ok))
         if not ok:
@@ -914,7 +1166,8 @@ def _selftest() -> int:
 
         # [2] determinism: second build is byte-identical, same WMID
         m2 = build_molecule("task-0001", ledger_path=fixture_ledger,
-                            submission_path=fixture_sub)
+                            submission_path=fixture_sub,
+                            schema_version=SCHEMA_VERSION_02)
         checks.append(("two builds byte-identical (canonical JSON)",
                        canonical_json(m1) == canonical_json(m2)))
         checks.append(("two builds share the same work_id",
@@ -971,7 +1224,8 @@ def _selftest() -> int:
                     "must not appear in any molecule", "zero_value": True,
                     "no_token": True})
         m3 = build_molecule("task-0001", ledger_path=fixture_ledger,
-                            submission_path=fixture_sub)
+                            submission_path=fixture_sub,
+                            schema_version=SCHEMA_VERSION_02)
         checks.append(("ledger growth does not change the WMID (0.2)",
                        m3["work_id"] == m1["work_id"]))
         ok, reasons = validate(m3, ledger_path=fixture_ledger)
@@ -981,17 +1235,156 @@ def _selftest() -> int:
                 print(f"    unexpected: {r}")
 
         # [7c] catalog: deterministic, anti-circular hash, entries match the molecules
-        c1 = build_catalog(ledger_path=fixture_ledger, task_ids=["task-0001"])
-        c2 = build_catalog(ledger_path=fixture_ledger, task_ids=["task-0001"])
+        c1 = build_catalog(ledger_path=fixture_ledger, task_ids=["task-0001"],
+                           schema_version=SCHEMA_VERSION_02)
+        c2 = build_catalog(ledger_path=fixture_ledger, task_ids=["task-0001"],
+                           schema_version=SCHEMA_VERSION_02)
         checks.append(("catalog builds byte-identical twice",
                        canonical_json(c1) == canonical_json(c2)))
         checks.append(("catalog_hash recomputes (anti-circularity)",
                        compute_catalog_hash(c1) == c1["catalog_hash"]))
         checks.append(("catalog entries are {task_id, work_id} pairs",
-                       c1["schema"] == CATALOG_SCHEMA_VERSION
-                       and c1["molecule_schema"] == SCHEMA_VERSION
+                       c1["schema"] == CATALOG_SCHEMA_VERSION_01
+                       and c1["molecule_schema"] == SCHEMA_VERSION_02
                        and [sorted(e) for e in c1["entries"]] ==
                        [["task_id", "work_id"]]))
+
+        # ---- schema 0.3: append-only absorption of metering evidence -----------------
+        # [7d] a ledger WITHOUT a metering anchor still builds 0.3 gracefully: the
+        # energy field stays not-captured (null) with its plain debt entry intact.
+        m03_bare = build_molecule("task-0001", ledger_path=fixture_ledger,
+                                  submission_path=fixture_sub,
+                                  metering_report_path=None)
+        ok, reasons = validate(m03_bare, ledger_path=fixture_ledger)
+        checks.append(("0.3 without metering anchor: debt intact, validates",
+                       ok and m03_bare["schema"] == SCHEMA_VERSION_03
+                       and m03_bare["energy_and_compute_evidence"] is None
+                       and any(d["field"] == "energy_and_compute_evidence"
+                               and "reason" in d
+                               for d in m03_bare["provenance_debt"])))
+        if not ok:
+            for r in reasons:
+                print(f"    unexpected: {r}")
+
+        # Fixture metering evidence: a report file + its CONFIRMED anchor, appended to
+        # the fixture ledger (append-only — nothing above is modified).
+        fixture_labels = {"wall": "measured", "cpu": "measured", "energy": "estimated"}
+        fixture_report = {
+            "schema": "metering-report/0.1",
+            "assumed_cpu_power_w": 15.0,
+            "power_method": "assumed-nameplate; no hardware telemetry on this host",
+            "per_task": [{
+                "task_id": "task-0001", "output_hash": "f" * 64,
+                "wall_time_s": 0.001, "cpu_time_s": 0.0008,
+                "energy_j_estimate": 0.012, "labels": dict(fixture_labels),
+            }],
+        }
+        fixture_report["report_hash"] = hashlib.sha256(canonical_json(
+            {k: v for k, v in fixture_report.items() if k != "report_hash"}
+        ).encode("utf-8")).hexdigest()
+        fixture_report_path = os.path.join(tmp_dir, "metering_report_fixture.json")
+        with open(fixture_report_path, "w", encoding="utf-8") as f:
+            json.dump(fixture_report, f)
+        metering_entry = led.append({
+            "event": _METERING_EVENT, "status": _METERING_CONFIRMED_STATUS,
+            "stage": "R-provenance-debt", "topology": "same-machine-metering",
+            "report_schema": "metering-report/0.1",
+            "report_hash": fixture_report["report_hash"],
+            "task_count": 1, "assumed_cpu_power_w": 15.0,
+            "power_method": "assumed-nameplate; no hardware telemetry on this host",
+            "labels": dict(fixture_labels),
+            "total_wall_time_s": 0.001, "total_cpu_time_s": 0.0008,
+            "total_energy_j_estimate": 0.012,
+            "operator_relationship": "same-operator",
+            "limitation_note": "selftest fixture — synthetic metering anchor",
+            "zero_value": True, "no_token": True,
+        })
+
+        # [7e] 0.3 with the anchor + hash-matching report: energy populated per-task,
+        # debt_reduction present (history preserved), validates, deterministic, and the
+        # 0.2 build is UNCHANGED (append-only: new evidence never rewrites the past).
+        m03a = build_molecule("task-0001", ledger_path=fixture_ledger,
+                              submission_path=fixture_sub,
+                              metering_report_path=fixture_report_path)
+        m03b = build_molecule("task-0001", ledger_path=fixture_ledger,
+                              submission_path=fixture_sub,
+                              metering_report_path=fixture_report_path)
+        ok, reasons = validate(m03a, ledger_path=fixture_ledger)
+        energy = m03a["energy_and_compute_evidence"]
+        reduction = next((d for d in m03a["provenance_debt"] if "reduced_by" in d), None)
+        checks.append(("0.3 absorbs metering evidence (per-task figures + labels)",
+                       ok and isinstance(energy, dict)
+                       and energy["source"] == f"ledger:{metering_entry['index']}"
+                       and energy["wall_time_s"] == 0.001
+                       and energy["cpu_time_s"] == 0.0008
+                       and energy["energy_j_estimate"] == 0.012
+                       and energy["labels"] == fixture_labels))
+        if not ok:
+            for r in reasons:
+                print(f"    unexpected: {r}")
+        checks.append(("debt_reduction preserves history (original_reason+remaining)",
+                       reduction is not None
+                       and reduction["field"] == "energy_and_compute_evidence"
+                       and reduction["reduced_by"] == f"ledger:{metering_entry['index']}"
+                       and reduction["remaining"] == ENERGY_DEBT_REMAINING
+                       and reduction["original_reason"] ==
+                       _DEBT_REASONS["energy_and_compute_evidence"]))
+        checks.append(("0.3 deterministic given ledger + report (byte-identical)",
+                       canonical_json(m03a) == canonical_json(m03b)))
+        checks.append(("0.3 WMID is a NEW identity (differs from 0.2)",
+                       m03a["work_id"] != m1["work_id"]))
+        m1_after = build_molecule("task-0001", ledger_path=fixture_ledger,
+                                  submission_path=fixture_sub,
+                                  schema_version=SCHEMA_VERSION_02)
+        checks.append(("0.2 build UNCHANGED by the metering anchor (append-only)",
+                       canonical_json(m1_after) == canonical_json(m1)))
+
+        # [7f] no local report file -> aggregate-only citation, still valid+deterministic
+        m03agg = build_molecule("task-0001", ledger_path=fixture_ledger,
+                                submission_path=fixture_sub,
+                                metering_report_path=None)
+        ok, _ = validate(m03agg, ledger_path=fixture_ledger)
+        checks.append(("0.3 aggregate-only citation when report file absent",
+                       ok and "wall_time_s" not in m03agg["energy_and_compute_evidence"]
+                       and m03agg["energy_and_compute_evidence"]["aggregate_totals"] ==
+                       {"total_wall_time_s": 0.001, "total_cpu_time_s": 0.0008,
+                        "total_energy_j_estimate": 0.012}))
+
+        # [7g] debt_reduction bidirectional consistency is enforced both ways, and a
+        # forged reduced_by citation is caught by the ledger recheck.
+        t = copy.deepcopy(m03a)
+        t["provenance_debt"] = [d for d in t["provenance_debt"]
+                                if "reduced_by" not in d]
+        t["work_id"] = compute_work_id(t)
+        ok, _ = validate(t)
+        checks.append(("populated-via-reduction without a reduction entry fails",
+                       not ok))
+        t = copy.deepcopy(m03a)
+        t["energy_and_compute_evidence"] = None
+        t["work_id"] = compute_work_id(t)
+        ok, _ = validate(t)
+        checks.append(("reduction entry over a null field fails (a reduction claim "
+                       "over a missing value is a lie)", not ok))
+        t = copy.deepcopy(m03a)
+        for d in t["provenance_debt"]:
+            if "reduced_by" in d:
+                d["reduced_by"] = "ledger:0"  # genesis: exists, but not a metering record
+        t["work_id"] = compute_work_id(t)
+        ok, _ = validate(t, ledger_path=fixture_ledger)
+        checks.append(("forged reduced_by citation is detected (chain recheck)",
+                       not ok))
+
+        # [7h] the 0.3 catalog is its own generation: catalog/0.2 + molecule/0.3
+        c03 = build_catalog(ledger_path=fixture_ledger, task_ids=["task-0001"],
+                            metering_report_path=fixture_report_path)
+        c03b = build_catalog(ledger_path=fixture_ledger, task_ids=["task-0001"],
+                             metering_report_path=fixture_report_path)
+        checks.append(("0.3 catalog: schema pair + deterministic + anti-circular hash",
+                       c03["schema"] == CATALOG_SCHEMA_VERSION_02
+                       and c03["molecule_schema"] == SCHEMA_VERSION_03
+                       and canonical_json(c03) == canonical_json(c03b)
+                       and compute_catalog_hash(c03) == c03["catalog_hash"]
+                       and c03["catalog_hash"] != c1["catalog_hash"]))
 
         # [8] a submission for the wrong task is rejected at build time
         wrong_sub = os.path.join(tmp_dir, "sub_wrong.json")
@@ -1004,14 +1397,39 @@ def _selftest() -> int:
         except ValueError:
             checks.append(("mismatched submission file is rejected", True))
 
-        # [9] real-ledger build (READ-ONLY) when the runtime ledger exists locally
+        # [9] real-ledger build (READ-ONLY) when the runtime ledger exists locally:
+        # both generations validate, and the 0.2 catalog is REGRESSION-LOCKED to the
+        # anchored idx-17 generation (the constitutional rule, mechanically enforced).
         if os.path.exists(DEFAULT_LEDGER_PATH):
-            rm = build_molecule("task-0001", ledger_path=DEFAULT_LEDGER_PATH)
+            rm = build_molecule("task-0001", ledger_path=DEFAULT_LEDGER_PATH,
+                                schema_version=SCHEMA_VERSION_02)
             ok, reasons = validate(rm, ledger_path=DEFAULT_LEDGER_PATH)
-            checks.append(("real-ledger molecule (task-0001) validates", ok))
+            checks.append(("real-ledger 0.2 molecule (task-0001) validates", ok))
             if not ok:
                 for r in reasons:
                     print(f"    unexpected: {r}")
+            rm3 = build_molecule("task-0001", ledger_path=DEFAULT_LEDGER_PATH)
+            ok, reasons = validate(rm3, ledger_path=DEFAULT_LEDGER_PATH)
+            checks.append(("real-ledger 0.3 molecule (task-0001) validates", ok))
+            if not ok:
+                for r in reasons:
+                    print(f"    unexpected: {r}")
+            real_entries = _read_ledger(DEFAULT_LEDGER_PATH)
+            idx17 = next((e for e in real_entries
+                          if e["payload"].get("event") ==
+                          "work_molecule_catalog_anchored"
+                          and e["payload"].get("molecule_schema") ==
+                          SCHEMA_VERSION_02), None)
+            if idx17 is not None:
+                cat02 = build_catalog(ledger_path=DEFAULT_LEDGER_PATH,
+                                      schema_version=SCHEMA_VERSION_02)
+                checks.append(("0.2 catalog REGRESSION-LOCK: rebuild matches the "
+                               "anchored idx-17 catalog_hash",
+                               cat02["catalog_hash"] ==
+                               idx17["payload"]["catalog_hash"]))
+            else:
+                print("    (no anchored 0.2 catalog on the real ledger — regression "
+                      "lock SKIPPED)")
         else:
             print("    (no runtime ledger present — real-ledger build SKIPPED; "
                   "fixture checks above cover the same paths)")
