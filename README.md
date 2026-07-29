@@ -104,7 +104,7 @@ Agentic payment rails let agents *pay*. MetaCoin defines what useful space-machi
 
 Everything in this section exists in the repository and is exercised by CI. Each item is deliberately scoped — these are mechanical, deterministic facts, not marketing.
 
-- **Reproducible task demo** — thirteen reproducible space-engineering tasks spanning NASA-taxonomy domains (orbital mechanics & Lambert transfer, propulsion/Hohmann, robotics/ISAM arm IK, power budget, thermal equilibrium, ballistic re-entry/EDL, deep-space comms & Doppler, comms access windows, rover path planning, rendezvous/docking), wired into a task-agnostic verifier and an earn→verify→spend agent loop. CI 19/19 (demo) + 7/7 (protocol).
+- **Reproducible task demo** — thirteen reproducible space-engineering tasks spanning NASA-taxonomy domains (orbital mechanics & Lambert transfer, propulsion/Hohmann, robotics/ISAM arm IK, power budget, thermal equilibrium, ballistic re-entry/EDL, deep-space comms & Doppler, comms access windows, rover path planning, rendezvous/docking), wired into a task-agnostic verifier and an earn→verify→spend agent loop. CI 19/19 (demo) + 10/10 (protocol).
 - **R1 — Tamper-evident ledger** — an append-only, hash-chained ledger; verification recomputes every hash from content and detects mutation, reordering, insertion, and deletion.
 - **R2 — Honest attestation** — software-rooted HMAC attestation, anchored to the ledger. The hardware was investigated and found to have **no usable TPM/TEE**, so the mechanism is honestly labeled *software-rooted, not hardware* — a future hardware/public-key root drops into the same interface.
 - **R3 — External verifier + coordinator** — an external party re-derives a task hash; the coordinator anchors the outcome only after **independently recomputing it** (a matching hash proves reproducibility, not who executed the task).
@@ -117,6 +117,8 @@ Everything in this section exists in the repository and is exercised by CI. Each
 - **30-day agent economy demo (simulated time)** — a deterministic earn→verify→spend loop over **30 simulated day indices** (not wall-clock time — nothing ran for 30 real days) rotating through all thirteen tasks: zero-value Test-META is earned only on verified work, spent on simulated compute via the x402 stub, and a **planned day-17 tamper drill** (labeled in-log as a drill, not fraud) proves the rejection path — no earnings, economy continues. Summary (29 verified / 1 drill rejection, 58 earned / 30 spent / 28 final) anchored after the coordinator re-ran the entire simulation and matched the log hash.
 - **Provenance debt paydown — compute/energy evidence** (`metering-report/0.1`, `work-molecule/0.3`) — wall-clock and CPU time were **measured** for all thirteen tasks and anchored **append-only** (idx 20); energy is labeled **estimated** (CPU time × an assumed 15 W nameplate figure — no hardware power telemetry exists on this host, and that remains open debt). Timing is non-reproducible by nature, so the anchored `report_hash` fixes the claim made at measurement time, not a recomputable value; the coordinator re-metered every task for plausibility (same output hashes, sane timings) before anchoring. Molecules absorb the evidence as a **new generation** (`work-molecule/0.3`, thirteen new WMIDs, idx 21) with machine-readable **debt_reduction** records that preserve the debt history — while the original 0.2 catalog stays verifiable forever: debt is reduced only by appending evidence, never by modifying a record.
 - **Cut certificates** (`cut-certificate/0.1`) — bounded verification of the provenance graph: the coordinator runs the **expensive full proof once, at anchoring** (rebuild every interior molecule, recompute every WMID and the aggregate hash), and every later verifier can **accept cheaply** — one anchored-hash lookup plus a single-molecule retrievability probe — with acceptance explicitly **conditional on the anchor plus continued retrievability** of the molecules (compression, never erasure). The first anchored certificate (idx 22) covers the current **flat** 13-molecule graph — no parent edges exist yet, so it is a degenerate cut exercising the mechanism, and its record says so; non-trivial traversal, boundary computation, and cycle rejection are proven by synthetic self-test fixtures.
+- **Trust Vector** (`trust-vector/0.1`) — the per-work evidence vector: **six separately-verified components** per task — integrity (deterministic re-run, software-rooted, no TEE), reproducibility (facts: event counts, statuses, canonical hash), independence (per-work actor count **plus the anchored ACI 0.99365 maximal-concentration baseline**), provenance completeness (counted three-state slots, open debts and debt-reductions listed), usefulness (**honestly empty**: "not-assessed" — Gate 3 does not exist), and verification cost (estimated energy; ρ ≈ 1 stated as trivially uninformative). **No combined score exists, by mechanical rule** — the self-test scans every key for aggregation-shaped names and validation rejects any smuggled scalar. The 13-vector catalog was anchored (idx 23) only after the coordinator independently rebuilt every vector.
+- **One-command full-stack verification** — `python3 protocol/verify_everything.py --full` mechanically re-verifies every layer (chain, 13 tasks, both molecule generations, concentration, economy, metering claims, cut certificate, trust vectors) with zero LLM judgment, and is **fresh-clone proven**: the CI self-test copies only git-tracked files to a temp dir and requires a full pass there — every layer's evidence ships in-repo (`protocol/evidence/`, privacy-checked), so a stranger's clone verifies end-to-end with no local-only inputs.
 
 ### Current ledger
 
@@ -133,28 +135,25 @@ idx 19     30-day simulated-economy summary — 29 verified / 1 planned drill re
 idx 20     metering evidence — 13 tasks, measured wall/CPU + estimated energy (append-only)
 idx 21     work-molecule catalog generation 2 — 13 new 0.3 WMIDs (0.2 catalog stays valid)
 idx 22     cut certificate — degenerate flat cut over the 13 molecules (full-proof at anchor)
-public tip anchor: e556ab40…
+idx 23     trust-vector catalog — 13 six-component vectors, no combined score by design
+public tip anchor: 3f323cff…
 ```
 
 **Honest boundary.** Every entry so far is the **same operator** on machines under direct control — and the entries now include **same-machine self-recompute** records that are explicitly labeled as adding *no cross-party independence* (this host generated and re-evaluated its own submissions). The anchored concentration baseline **quantifies** that status: pairwise ACI 0.99365 across all 28 verification paths — maximal same-operator concentration, measured and published by the protocol itself. The catalog-wide claim remains **cross-platform reproducibility under one operator** — *not* independent multi-party consensus. The next meaningful milestone is still operational, not code: an unaffiliated third party running the public verifier and submitting a result.
 
 ### Verify it yourself
 
-Don't trust — reproduce. Anyone can independently re-derive the published chain and the recorded task, mechanically, with no LLM/AI judgment:
+Don't trust — reproduce. One command mechanically re-verifies **every layer** — chain, all thirteen tasks, both molecule-catalog generations, the concentration baseline, the simulated economy, the metering claims, the cut certificate, and the trust vectors — with no LLM/AI judgment anywhere:
 
 ```bash
 git clone https://github.com/MetacoinLab/metacoin.git
 cd metacoin
 
-# 1. verify the published chain stands alone (no original ledger needed)
-python3 protocol/audit.py --verify protocol/ledger_published.json
-
-# 2. run the autonomous agent-verifier: re-checks the chain, confirms the
-#    tip against the committed anchor, and RE-RUNS the recorded task
-python3 protocol/agent_verifier.py --verifier-id "$(whoami)-independent"
+python3 protocol/verify_everything.py --full     # re-derive everything, ~seconds
+python3 protocol/verify_everything.py --quick    # bounded-cost anchored acceptance
 ```
 
-The published snapshot now records all **thirteen** task hashes, any of which the agent-verifier re-derives on your machine. If yours reaches the same canonical hash `ff03231f…ba300c` (the worked example, task-0002), you have independently confirmed the result — on your hardware, by computation, trusting no one.
+Every layer's evidence ships in the repo (the published snapshot, the committed tip anchor, and the privacy-checked bundle in `protocol/evidence/`), so a fresh clone verifies completely — the CI self-test proves it by re-running the whole stack from a tracked-files-only copy. Each report line is labeled `VERIFIED-FULL`, `CLAIM-CHECK` (metering: timing is honestly non-reproducible), or `ACCEPTED-BY-ANCHOR` (`--quick`: conditional acceptance, never presented as proof), and the report ends with the honest boundary — what a pass does **not** establish. The layer-by-layer tools remain available (`audit.py --verify`, `agent_verifier.py --verifier-id "$(whoami)-independent"`, and the canonical worked example `ff03231f…ba300c` for task-0002).
 
 ### Submit your verification
 
