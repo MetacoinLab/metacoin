@@ -1200,19 +1200,244 @@
       },
       "prev_hash": "8a1391c1056a39e1085a084c546a5b888fcad994dadd5d92249a2cf58dd62ba7",
       "timestamp": 1785307879.1011257
+    },
+    {
+      "hash": "3483689aa7009b2aaa24684f109bea7a276289954799305eeb9a3c3fc563c52e",
+      "index": 31,
+      "payload": {
+        "anchored_at": 1785309012.6062884,
+        "category_budgets": {
+          "reproducible-space-task": 2.0
+        },
+        "conservation_statement": "total_outflow + balance == total_fees_collected, asserted at every operation; the only inflow is anchored-economy fees; no mint path exists in the module",
+        "coordinator_reconfirmed": {
+          "fees_match": true,
+          "rederived_funding_root": "ledger:19",
+          "rederived_total_fees": 3.0
+        },
+        "event": "treasury_config_anchored",
+        "fee_rate": 0.1,
+        "funding_root": "ledger:19",
+        "limitation_note": "MetaStar Treasury v0 under same-operator custody over a SIMULATED economy: zero-value Test-META accounting, not payment. Its only inflow is fees derived from the anchored economy record; its only outflows are bounded bounty payments; conservation (balance + outstanding == fees) is asserted at every operation and no mint path exists \u2014 an adjudication failure can at worst drain one capped bounty, never the monetary base. Not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "per_bounty_cap": 1.0,
+        "stage": "R-treasury",
+        "status": "treasury-config-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-treasury",
+        "total_fees_collected": 3.0,
+        "treasury_schema": "treasury-ledger/0.1",
+        "zero_value": true
+      },
+      "prev_hash": "e36839f80a5a2b9d4109c1193b4bb84a489dac7f09997e2861e7c3f25b1da4c8",
+      "timestamp": 1785309012.6064708
+    },
+    {
+      "hash": "47c7591f59b6dc7a69501c3bcd1a9361d9009ce29254a0f705056a1543e5c4c1",
+      "index": 32,
+      "payload": {
+        "amount": 1.0,
+        "anchored_at": 1785309022.8391182,
+        "bounty_id": "bounty-0001",
+        "category": "reproducible-space-task",
+        "event": "gate3_provisional_grant",
+        "limitation_note": "Gate-3 bounded optimistic process v0: the machine pre-check is a MECHANICAL checklist with ledger citations (no LLM anywhere); the challenge window is entry-count-based (simulated, deterministic); the council is a same-operator SINGLE SEAT executing a fixed scripted rule \u2014 no discretion exists yet. The PROCESS is real; substantive usefulness judgment is honestly absent: process-passed is NOT useful. Zero-value, not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "precheck": {
+          "checks": [
+            {
+              "evidence": "module:TASK_TAXONOMY[task-0002]=TX17",
+              "name": "taxonomy-tag-allowlisted",
+              "passed": true
+            },
+            {
+              "evidence": "ledger:1",
+              "name": "gate12-standing",
+              "passed": true
+            },
+            {
+              "evidence": "ledger:26",
+              "name": "provenance-standing",
+              "passed": true
+            },
+            {
+              "evidence": "none-filed (vacuous: no challenge rounds exist for this task)",
+              "name": "challenge-standing",
+              "passed": true
+            }
+          ],
+          "passed": true
+        },
+        "process_schema": "gate3-process/0.1",
+        "stage": "R-gate3",
+        "status": "gate3-provisional-confirmed",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0002",
+        "taxonomy_tag": "TX17",
+        "topology": "same-operator-single-seat-council",
+        "treasury_config_ledger_index": 31,
+        "work_id": "70ef999afc1bd2eee998e1b50df0ee3ff1ae078e855943fb1b30d8a925d04709",
+        "zero_value": true
+      },
+      "prev_hash": "3483689aa7009b2aaa24684f109bea7a276289954799305eeb9a3c3fc563c52e",
+      "timestamp": 1785309022.8392684
+    },
+    {
+      "hash": "de1d33ebb6ce06fc36a7e2256f87f5397f99882417faa6836bdfd99414fd94b3",
+      "index": 33,
+      "payload": {
+        "amount": 0.8,
+        "anchored_at": 1785309022.9378805,
+        "bounty_id": "bounty-0002",
+        "category": "reproducible-space-task",
+        "event": "gate3_provisional_grant",
+        "limitation_note": "Gate-3 bounded optimistic process v0: the machine pre-check is a MECHANICAL checklist with ledger citations (no LLM anywhere); the challenge window is entry-count-based (simulated, deterministic); the council is a same-operator SINGLE SEAT executing a fixed scripted rule \u2014 no discretion exists yet. The PROCESS is real; substantive usefulness judgment is honestly absent: process-passed is NOT useful. Zero-value, not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "precheck": {
+          "checks": [
+            {
+              "evidence": "module:TASK_TAXONOMY[task-0008]=TX04",
+              "name": "taxonomy-tag-allowlisted",
+              "passed": true
+            },
+            {
+              "evidence": "ledger:10",
+              "name": "gate12-standing",
+              "passed": true
+            },
+            {
+              "evidence": "ledger:26",
+              "name": "provenance-standing",
+              "passed": true
+            },
+            {
+              "evidence": "ledger:29",
+              "name": "challenge-standing",
+              "passed": true
+            }
+          ],
+          "passed": true
+        },
+        "process_schema": "gate3-process/0.1",
+        "stage": "R-gate3",
+        "status": "gate3-provisional-confirmed",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0008",
+        "taxonomy_tag": "TX04",
+        "topology": "same-operator-single-seat-council",
+        "treasury_config_ledger_index": 31,
+        "work_id": "28a20d8f8a76d1023cdd6a083f6e391c7b33dea912aab503d25c1f269e00e0ba",
+        "zero_value": true
+      },
+      "prev_hash": "47c7591f59b6dc7a69501c3bcd1a9361d9009ce29254a0f705056a1543e5c4c1",
+      "timestamp": 1785309022.9380405
+    },
+    {
+      "hash": "29e8d2cb20b83fec5e85beb8dedc1215416fcf98333e151f8f851462ecc8f9c3",
+      "index": 34,
+      "payload": {
+        "anchored_at": 1785309032.105071,
+        "bounty_id": "bounty-0001",
+        "drill": true,
+        "event": "gate3_challenge_filed",
+        "grounds": "planned bounded-failure demonstration",
+        "limitation_note": "Gate-3 bounded optimistic process v0: the machine pre-check is a MECHANICAL checklist with ledger citations (no LLM anywhere); the challenge window is entry-count-based (simulated, deterministic); the council is a same-operator SINGLE SEAT executing a fixed scripted rule \u2014 no discretion exists yet. The PROCESS is real; substantive usefulness judgment is honestly absent: process-passed is NOT useful. Zero-value, not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "process_schema": "gate3-process/0.1",
+        "provisional_ledger_index": 32,
+        "stage": "R-gate3",
+        "status": "gate3-challenge-filed",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0002",
+        "topology": "same-operator-single-seat-council",
+        "window_entries": 2,
+        "zero_value": true
+      },
+      "prev_hash": "de1d33ebb6ce06fc36a7e2256f87f5397f99882417faa6836bdfd99414fd94b3",
+      "timestamp": 1785309032.1052432
+    },
+    {
+      "hash": "3deaf9dd6df9c07b1cfcb769acc793c5e66f5327c571bd02eaf83c9f6055efda",
+      "index": 35,
+      "payload": {
+        "adjudication": {
+          "council_seat": "same-operator-single-seat",
+          "drill": true,
+          "rule": "v0 fixed rule: every filed challenge is upheld (no discretion exists; the seat executed a script, not judgment)",
+          "verdict": "upheld"
+        },
+        "amount_returned": 1.0,
+        "anchored_at": 1785309032.1909778,
+        "bounded_failure": {
+          "max_exposure": 1.0,
+          "per_bounty_cap": 1.0,
+          "statement": "maximum possible exposure was 1.0 (per-bounty cap 1.0); the monetary base (faucet flow) was untouchable from this flow by construction; treasury balance restored to 2.2 (fees 3.0 minus outstanding 0.8) \u2014 a failed bounty costs the treasury budget, never the base"
+        },
+        "bounty_id": "bounty-0001",
+        "challenge_ledger_index": 34,
+        "drill": true,
+        "event": "gate3_adjudication_clawback",
+        "limitation_note": "Gate-3 bounded optimistic process v0: the machine pre-check is a MECHANICAL checklist with ledger citations (no LLM anywhere); the challenge window is entry-count-based (simulated, deterministic); the council is a same-operator SINGLE SEAT executing a fixed scripted rule \u2014 no discretion exists yet. The PROCESS is real; substantive usefulness judgment is honestly absent: process-passed is NOT useful. Zero-value, not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "process_schema": "gate3-process/0.1",
+        "provisional_ledger_index": 32,
+        "stage": "R-gate3",
+        "status": "gate3-clawback-confirmed",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0002",
+        "topology": "same-operator-single-seat-council",
+        "zero_value": true
+      },
+      "prev_hash": "29e8d2cb20b83fec5e85beb8dedc1215416fcf98333e151f8f851462ecc8f9c3",
+      "timestamp": 1785309032.1911564
+    },
+    {
+      "hash": "65390bbce6536b5f81ff52439b3228fd218c910f5e927ed99ee4f79b30aab29e",
+      "index": 36,
+      "payload": {
+        "amount_paid": 0.8,
+        "anchored_at": 1785309032.2773254,
+        "bounty_id": "bounty-0002",
+        "event": "gate3_finalization",
+        "limitation_note": "Gate-3 bounded optimistic process v0: the machine pre-check is a MECHANICAL checklist with ledger citations (no LLM anywhere); the challenge window is entry-count-based (simulated, deterministic); the council is a same-operator SINGLE SEAT executing a fixed scripted rule \u2014 no discretion exists yet. The PROCESS is real; substantive usefulness judgment is honestly absent: process-passed is NOT useful. Zero-value, not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "process_schema": "gate3-process/0.1",
+        "process_statement": "process-passed under mechanical pre-check and an unchallenged window; substantive usefulness not assessed \u2014 the judgment seat is honestly vacant",
+        "provisional_ledger_index": 33,
+        "stage": "R-gate3",
+        "status": "gate3-finalization-confirmed",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0008",
+        "topology": "same-operator-single-seat-council",
+        "treasury_totals": {
+          "balance": 2.2,
+          "total_fees_collected": 3.0,
+          "total_paid": 0.8
+        },
+        "window_note": "window closed clean: entries 34..35 exist and contain no challenge against bounty-0002",
+        "zero_value": true
+      },
+      "prev_hash": "3deaf9dd6df9c07b1cfcb769acc793c5e66f5327c571bd02eaf83c9f6055efda",
+      "timestamp": 1785309032.2775083
     }
   ],
   "snapshot_header": {
-    "entry_count": 31,
+    "entry_count": 37,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785308040.1210096,
+    "snapshot_timestamp": 1785309140.295284,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "e36839f80a5a2b9d4109c1193b4bb84a489dac7f09997e2861e7c3f25b1da4c8",
-    "tip_index": 30,
+    "tip_hash": "65390bbce6536b5f81ff52439b3228fd218c910f5e927ed99ee4f79b30aab29e",
+    "tip_index": 36,
     "zero_value": true
   }
 }

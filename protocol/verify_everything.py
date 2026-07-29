@@ -61,7 +61,9 @@ import protocol.audit as audit
 import protocol.agent_concentration as agent_concentration
 import protocol.challenge_response as challenge_response
 import protocol.cut_certificate as cut_certificate
+import protocol.gate3_process as gate3_process
 import protocol.trust_vector as trust_vector
+import demo.metastar_treasury as metastar_treasury
 import protocol.verifier_cli as verifier_cli
 import protocol.work_molecule as work_molecule
 import demo.economy_demo as economy_demo
@@ -487,6 +489,81 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "round(s) re-verified from public material only (signature "
                      "authenticates under the anchored root; reuse drill stays "
                      "rejected)" if not problems else "; ".join(problems[:3])))
+
+    # --- layer 11: Two-Flow treasury + Gate-3 process (both modes; cheap) -----------
+    # Conservation and every lifecycle precondition are re-derived from ANCHORED
+    # records + the anchored economy: fees recompute, prechecks recompute with
+    # their citations, window arithmetic replays, the bounded-failure drill
+    # stays upheld, and balance + outstanding == fees exactly.
+    treas = [(e["index"], e["payload"]) for e in entries
+             if isinstance(e.get("payload"), dict)
+             and e["payload"].get("event") == "treasury_config_anchored"
+             and e["payload"].get("status") == "treasury-config-confirmed"]
+    g3_records = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event") in gate3_process.LIFECYCLE_EVENTS
+                  and str(e["payload"].get("status", "")).startswith("gate3-")]
+    if not treas and not g3_records:
+        rows.append(("treasury+gate3", FULL, True,
+                     "no treasury/Gate-3 records on the chain yet"))
+    else:
+        problems = []
+        fees = 0.0
+        for idx, p in treas:
+            try:
+                root, _pd, total = metastar_treasury.derive_fees(source)
+            except ValueError as exc:
+                problems.append(f"idx {idx}: fee re-derivation failed: {exc}")
+                continue
+            if p.get("funding_root") != root or p.get(
+                    "total_fees_collected") != total:
+                problems.append(f"idx {idx}: anchored fees do not re-derive "
+                                f"from the anchored economy ({total})")
+            fees = total
+        granted = clawed = 0.0
+        n_final = n_claw = 0
+        for idx, p in g3_records:
+            phase = p["event"]
+            if phase == gate3_process.EVENT_PROVISIONAL:
+                granted = round(granted + p["amount"], 6)
+                pre = gate3_process.submit_work_item(
+                    {"task_id": p["task_id"], "work_id": p["work_id"],
+                     "taxonomy_tag": p["taxonomy_tag"]}, ledger_path=source)
+                if not pre["passed"]:
+                    problems.append(f"idx {idx}: anchored pre-check no longer "
+                                    "recomputes as passed")
+            elif phase == gate3_process.EVENT_CHALLENGE:
+                if not gate3_process.challenge_in_window(
+                        p["provisional_ledger_index"], idx):
+                    problems.append(f"idx {idx}: anchored challenge was "
+                                    "out-of-window")
+            elif phase == gate3_process.EVENT_CLAWBACK:
+                n_claw += 1
+                clawed = round(clawed + p["amount_returned"], 6)
+                if (gate3_process.adjudicate(p)["verdict"] != "upheld"
+                        or "never the base" not in
+                        p.get("bounded_failure", {}).get("statement", "")):
+                    problems.append(f"idx {idx}: bounded-failure clawback does "
+                                    "not replay")
+            elif phase == gate3_process.EVENT_FINALIZATION:
+                n_final += 1
+                closed, _note = gate3_process.window_closed(
+                    p["provisional_ledger_index"], entries, p["bounty_id"])
+                if not closed:
+                    problems.append(f"idx {idx}: finalization window does not "
+                                    "replay as closed")
+                stated = p.get("treasury_totals", {}).get("balance")
+                if stated != round(fees - (granted - clawed), 6):
+                    problems.append(f"idx {idx}: stated balance {stated} breaks "
+                                    "conservation against anchored flows")
+        rows.append(("treasury+gate3", FULL, not problems,
+                     f"conservation holds: fees {fees} − outstanding "
+                     f"{round(granted - clawed, 6)} == balance "
+                     f"{round(fees - (granted - clawed), 6)}; {n_claw} "
+                     "bounded-failure drill(s) stay upheld, "
+                     f"{n_final} finalization(s) replay with closed windows; "
+                     "prechecks recompute with citations"
+                     if not problems else "; ".join(problems[:3])))
 
     all_ok = all(ok for _l, _m, ok, _d in rows)
     return (all_ok, rows, source_note)

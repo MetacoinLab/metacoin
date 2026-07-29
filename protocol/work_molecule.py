@@ -636,12 +636,17 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
         p = e["payload"]
         ts = p.get("evaluated_at", p.get("anchored_at"))
         if isinstance(ts, (int, float)):
-            execution_records.append({
+            record = {
                 "source": f"ledger:{e['index']}",
                 "event": p.get("event"),
                 "timestamp": ts,
-                "actor_id": p.get("verifier_id"),
-            })
+            }
+            # absent actor identity is OMITTED, never null-padded — the
+            # three-state rule places not-captured markers only in object
+            # fields, and process records (e.g. Gate-3) carry no verifier_id
+            if p.get("verifier_id") is not None:
+                record["actor_id"] = p["verifier_id"]
+            execution_records.append(record)
     execution_records.sort(key=lambda r: (r["timestamp"], r["source"]))
 
     # --- hardware_evidence (coarse fingerprints copied; TEE honestly not-captured) ----
@@ -674,9 +679,13 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
             "ledger_index": e["index"],
             "entry_hash": e["hash"],
             "event": p.get("event"),
-            "topology": p.get("topology"),
-            "verifier_id": p.get("verifier_id"),
         }
+        # absent metadata is OMITTED, never null-padded (three-state rule:
+        # not-captured markers live only in object fields; process records
+        # such as Gate-3 lifecycle events carry no verifier_id)
+        for key in ("topology", "verifier_id"):
+            if p.get(key) is not None:
+                ve[key] = p[key]
         ve.update(_copy_present(p, _TASK_EVENT_COPY_KEYS))
         verification_events.append(ve)
     for e in attestation_events:
