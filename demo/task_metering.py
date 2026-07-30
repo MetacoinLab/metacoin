@@ -76,7 +76,6 @@ SCHEMA_VERSION = "metering-report/0.1"
 # telemetry (RAPL/PMBus/TEE power counters) exists on this host — open provenance debt.
 ASSUMED_CPU_POWER_W = 15.0
 POWER_METHOD = "assumed-nameplate; no hardware telemetry on this host"
-ENERGY_METHOD = "cpu-time-x-assumed-power"
 
 # Per-field honesty labels carried on every row: times are measured, energy is not.
 LABELS = {"wall": "measured", "cpu": "measured", "energy": "estimated"}

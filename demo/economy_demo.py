@@ -96,7 +96,6 @@ SCHEMA_VERSION = "economy-log/0.1"
 STATE_SCHEMA_VERSION = "economy-state/0.1"
 
 SIMULATED_DAYS = 30          # deterministic day INDICES 0..29 — never wall-clock time
-SEED = 42                    # reserved per spec; NO randomness is used anywhere here
 INITIAL_FAUCET_GRANT = 0     # BY DESIGN — the faucet has no verification-free credit
                              # path, so the economy starts at zero (see docstring)
 DAILY_EARN = 2               # mirrors agent_loop's standard round (dispense=2)

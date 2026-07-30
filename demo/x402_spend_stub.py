@@ -52,7 +52,6 @@ def buy_compute(faucet, address: str, cost: int) -> dict:
 
 
 if __name__ == "__main__":
-    import copy
     import os
     import sys
 
