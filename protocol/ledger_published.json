@@ -1553,19 +1553,117 @@
       },
       "prev_hash": "dc5a502a2aeab6e644c669039b764d2d46be63881bf2c5738eb5fa7d7d611bff",
       "timestamp": 1785310356.841154
+    },
+    {
+      "hash": "2b82047da12dd9cc47be64bf7a5c1dc4f9b30e760f4fd78b4bac35463092b747",
+      "index": 41,
+      "payload": {
+        "actor_id": "spark-agent-same-operator",
+        "anchored_at": 1785394083.104507,
+        "coordinator_reconfirmed": {
+          "certificate_verified": true,
+          "first_failure_reason": null,
+          "reason_count": 0
+        },
+        "event": "actor_key_rotated",
+        "key_index": 2,
+        "limitation_note": "Actor key rotation under same-operator custody of BOTH chains: the certificate proves KEY-POSSESSION CONTINUITY across roots (the new root is accepted only under a signature by an unused key of the current active root), not identity. The chain of roots is linear \u2014 one active root per actor; rotation retires the previous root for FUTURE signing only, and every historical record keeps verifying against the root active as of its own ledger index. Not consensus, not payment, not a token; research-stage.",
+        "new_key_count": 32,
+        "new_leaf_hashes_hash": "73157e781bee90570bbc3bb7aa9fdf06b1a35d6a612a24b0bac569c9ef2ae457",
+        "new_root": "20ee301c1b33a861e520ba5fd8e4f4c026f5f39c6bd09c1e89cf8ffbecd1c8d8",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "prev_root": "d3982dfa54ebdd7e2a1d3cfcddd08f401371a8594521573d8f971da066a73d59",
+        "prev_root_ledger_index": 28,
+        "scheme": "lamport-sha256-merkle/0.1",
+        "signed": true,
+        "signer_actor_id": "spark-agent-same-operator",
+        "stage": "R-identity",
+        "status": "actor-key-rotated",
+        "task_class": "illustrative-demo",
+        "topology": "same-operator-key-custody",
+        "zero_value": true
+      },
+      "prev_hash": "806917198339033dd29020f23bfac22f8f96482f99371de46d8b2db2fbadf038",
+      "timestamp": 1785394083.1046853
+    },
+    {
+      "hash": "098f4c60a6c43f9c36df18f7aae812285082010857684aaea786b9ed54bbb315",
+      "index": 42,
+      "payload": {
+        "actor_id": "spark-agent-same-operator",
+        "anchored_at": 1785394088.7660763,
+        "claimed_key_index": 0,
+        "claimed_new_root": "20ee301c1b33a861e520ba5fd8e4f4c026f5f39c6bd09c1e89cf8ffbecd1c8d8",
+        "claimed_prev_root": "d3982dfa54ebdd7e2a1d3cfcddd08f401371a8594521573d8f971da066a73d59",
+        "drill": true,
+        "event": "actor_key_rotation_rejected",
+        "first_failure_reason": "one-time key index reuse (violation of OTS discipline): the rotation certificate is signed with ('spark-agent-same-operator', index 0), already consumed in the anchored record at ledger index 29 \u2014 a rotation must be signed by an UNUSED key of the current root",
+        "limitation_note": "Actor key rotation under same-operator custody of BOTH chains: the certificate proves KEY-POSSESSION CONTINUITY across roots (the new root is accepted only under a signature by an unused key of the current active root), not identity. The chain of roots is linear \u2014 one active root per actor; rotation retires the previous root for FUTURE signing only, and every historical record keeps verifying against the root active as of its own ledger index. Not consensus, not payment, not a token; research-stage. PLANNED FORGED-ROTATION DRILL: this rejection is a deliberate demonstration that an invalid rotation certificate \u2014 e.g. one signed with an already-consumed one-time key index \u2014 is mechanically refused, so published signature material cannot be replayed to hand an identity to an attacker's root; not detected fraud.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "reason_count": 3,
+        "stage": "R-identity",
+        "status": "actor-key-rotation-rejected",
+        "task_class": "illustrative-demo",
+        "topology": "same-operator-key-custody",
+        "zero_value": true
+      },
+      "prev_hash": "2b82047da12dd9cc47be64bf7a5c1dc4f9b30e760f4fd78b4bac35463092b747",
+      "timestamp": 1785394088.766278
+    },
+    {
+      "hash": "1acce257461e9f6127d66d8dec11f021c22701e626599170210bf65948118998",
+      "index": 43,
+      "payload": {
+        "anchored_at": 1785394093.1631808,
+        "challenge_id": "dd600d5855db1d27f9eeeb93db99212a4389bb2e99b15495de32bc955a4a9e52",
+        "challenge_schema": "challenge-response/0.1",
+        "coordinator_reconfirmed": {
+          "first_failure_reason": null,
+          "reason_count": 0,
+          "verdict": true
+        },
+        "event": "challenge_response_result",
+        "issued_for": "spark-agent-same-operator",
+        "key_index": 0,
+        "key_root_ledger_index": 41,
+        "ledger_tip_at_issue": {
+          "hash": "098f4c60a6c43f9c36df18f7aae812285082010857684aaea786b9ed54bbb315",
+          "index": 42
+        },
+        "limitation_note": "Nonce-bound possession proof \u2014 demonstrates the responder held the complete task result under a fresh challenge, defeating hash-copying from public records; it does NOT prove where/when execution occurred nor exclude result-sharing between cooperating parties (and the public task source means anyone can execute). This first exercise is same-operator (coordinator challenging its own agent identity) and says so. Not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "nonce": "fe56275ae08420f36b19462169ec4035ba042d919e4480e909a652b98798a874",
+        "operator_relationship": "same-operator",
+        "output_hash": "4ae672f4a666f8ef01154ac44fdaa7e25295c7f8464b976377cf2a8d9a5a712e",
+        "response_hash": "511f1bc9fce86af302c8fa62788806cbc851eb472fd729c1f69d39f16c8a6f34",
+        "signature_valid": true,
+        "signed": true,
+        "signer_actor_id": "spark-agent-same-operator",
+        "stage": "R-challenge",
+        "status": "challenge-verified",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0009",
+        "topology": "challenge-response-same-operator",
+        "verifier_id": "spark-agent-same-operator",
+        "zero_value": true
+      },
+      "prev_hash": "098f4c60a6c43f9c36df18f7aae812285082010857684aaea786b9ed54bbb315",
+      "timestamp": 1785394093.1633747
     }
   ],
   "snapshot_header": {
-    "entry_count": 41,
+    "entry_count": 44,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785310402.5357776,
+    "snapshot_timestamp": 1785394111.175672,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "806917198339033dd29020f23bfac22f8f96482f99371de46d8b2db2fbadf038",
-    "tip_index": 40,
+    "tip_hash": "1acce257461e9f6127d66d8dec11f021c22701e626599170210bf65948118998",
+    "tip_index": 43,
     "zero_value": true
   }
 }

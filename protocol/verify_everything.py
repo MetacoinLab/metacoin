@@ -4,7 +4,9 @@
 Any stranger clones the public repo and runs ONE command that mechanically
 re-verifies every layer — chain, tasks, molecules (both generations),
 concentration, economy, metering claims, cut certificate, trust vectors,
-challenge-response records — with ZERO local-only inputs and ZERO LLM judgment:
+challenge-response records, actor-identity root chains (registrations +
+rotations, with historical signatures checked as-of their contemporaneous
+roots) — with ZERO local-only inputs and ZERO LLM judgment:
 
     python3 protocol/verify_everything.py --full
 
@@ -57,6 +59,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 # REUSE every existing verified component — this module only orchestrates.
+import protocol.actor_identity as actor_identity
 import protocol.audit as audit
 import protocol.agent_concentration as agent_concentration
 import protocol.challenge_response as challenge_response
@@ -436,15 +439,30 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "refuted — possession proof holds"
                      if not problems else "; ".join(problems[:3])))
 
-    # --- layer 10: actor identity (registrations + signed rounds) -------------------
-    # Verification needs ONLY public material: the anchored root, and the signed
-    # challenge/response evidence copies (a signature carries its own leaf pubkey
-    # + Merkle path). The private keychain is never needed — asserted by the
-    # fresh-clone test, which has no keychain file at all.
+    # --- layer 10: actor identity (root chains: registrations + rotations +
+    #     signed rounds) -----------------------------------------------------------
+    # Verification needs ONLY public material: the anchored roots, the rotation
+    # certificate evidence copies, and the signed challenge/response evidence
+    # copies (a signature carries its own leaf pubkey + Merkle path). The
+    # private keychains are never needed — asserted by the fresh-clone test,
+    # which has no keychain file at all. Root CHAINS are walked per actor:
+    # every anchored rotation must extend the linear chain and its certificate
+    # must still fully verify as-of anchor time; every signed record verifies
+    # against the root active AS-OF its own index (rotation retires roots for
+    # FUTURE signing only — no historical signature may break); the
+    # forged-rotation drill must STAY rejected for its consumed-index reason.
     reg_records = [(e["index"], e["payload"]) for e in entries
                    if isinstance(e.get("payload"), dict)
                    and e["payload"].get("event") == "actor_key_registered"
                    and e["payload"].get("status") == "actor-key-registered"]
+    rot_records = [(e["index"], e["payload"]) for e in entries
+                   if isinstance(e.get("payload"), dict)
+                   and e["payload"].get("event") == "actor_key_rotated"
+                   and e["payload"].get("status") == "actor-key-rotated"]
+    rot_drills = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event") == "actor_key_rotation_rejected"
+                  and e["payload"].get("status") == "actor-key-rotation-rejected"]
     signed_records = [(i, p) for i, p in ch_records if p.get("signed")]
     if not reg_records and not signed_records:
         rows.append(("identity", FULL, True,
@@ -457,6 +475,39 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
             if not (isinstance(root, str) and len(root) == 64):
                 problems.append(f"idx {idx}: malformed registered root")
             roots[idx] = root
+        for idx, p in rot_records:
+            roots[idx] = p.get("new_root")
+            prev = actor_identity.active_root_asof(p.get("actor_id"), entries,
+                                                  as_of_index=idx - 1)
+            if (prev is None or prev["merkle_root"] != p.get("prev_root")
+                    or prev["ledger_index"] != p.get("prev_root_ledger_index")):
+                problems.append(f"idx {idx}: rotation does not extend the "
+                                "actor's linear root chain")
+                continue
+            cert = _load_evidence_json(
+                f"rotation_cert_{str(p.get('new_root'))[:12]}.json")
+            if cert is None:
+                problems.append(f"idx {idx}: rotation certificate evidence "
+                                "file missing")
+                continue
+            cert_ok, _cr = actor_identity.verify_rotation_certificate(
+                cert, entries, as_of_index=idx - 1)
+            if (not cert_ok or cert.get("prev_root") != p.get("prev_root")
+                    or cert.get("new_root") != p.get("new_root")
+                    or cert.get("key_index") != p.get("key_index")):
+                problems.append(f"idx {idx}: anchored rotation certificate "
+                                "does not re-verify as-of anchor time")
+        for idx, p in rot_drills:
+            cert = _load_evidence_json("rotation_forged_drill.json")
+            if cert is None:
+                problems.append(f"idx {idx}: forged-rotation drill evidence "
+                                "file missing")
+                continue
+            still_bad, dr = actor_identity.verify_rotation_certificate(
+                cert, entries, as_of_index=idx - 1)
+            if still_bad or not any("reuse" in r for r in dr):
+                problems.append(f"idx {idx}: forged rotation no longer "
+                                "rejects for its consumed-index violation")
         n_ok = 0
         for idx, p in signed_records:
             cid12 = p["challenge_id"][:12]
@@ -483,14 +534,16 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
             reg_idx = p.get("key_root_ledger_index")
             if roots.get(reg_idx) != sig.get("merkle_root"):
                 problems.append(f"idx {idx}: signature root does not match the "
-                                f"cited registration at idx {reg_idx}")
+                                f"cited registration/rotation at idx {reg_idx}")
                 continue
             n_ok += 1
         rows.append(("identity", FULL, not problems,
-                     f"{len(reg_records)} key root(s) anchored; {n_ok} signed "
-                     "round(s) re-verified from public material only (signature "
-                     "authenticates under the anchored root; reuse drill stays "
-                     "rejected)" if not problems else "; ".join(problems[:3])))
+                     f"{len(reg_records)} key root(s) + {len(rot_records)} "
+                     f"rotation(s) walk linear chains; {n_ok} signed round(s) "
+                     "re-verified as-of their contemporaneous roots from "
+                     "public material only (reuse + forged-rotation drills "
+                     "stay rejected)" if not problems
+                     else "; ".join(problems[:3])))
 
     # --- layer 11: Two-Flow treasury + Gate-3 process (both modes; cheap) -----------
     # Conservation and every lifecycle precondition are re-derived from ANCHORED
