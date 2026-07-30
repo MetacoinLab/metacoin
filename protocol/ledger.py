@@ -37,8 +37,10 @@ HONEST LIMITATION: a standalone hash chain detects external mutation, deletion, 
 reordering, and hash modification (everything verify_chain() checks). It does NOT by itself
 stop an attacker who rewrites the ENTIRE suffix of the chain (re-indexing and re-hashing
 every later entry) — that produces an internally consistent chain. Preventing that requires
-binding the tip to an external anchor (a signature or a published checkpoint hash), which is
-future work and out of scope for this component.
+binding the tip to an external anchor (a signature or a published checkpoint hash) — which
+protocol/audit.py now provides (the committed tip anchor protocol/ledger_anchor.json plus
+published snapshots, cross-checked by agent_verifier.py); it remains out of scope for THIS
+component, which stays a pure hash-linked append log.
 """
 
 import hashlib

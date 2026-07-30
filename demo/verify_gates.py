@@ -175,10 +175,12 @@ def verify_gate2_reproducibility(submission: dict, task=None) -> dict:
 def verify(submission: dict, task=None) -> dict:
     """Run Gate 1 then Gate 2 for `task`; overall pass requires BOTH gates to pass.
 
-    Gate 3 (Usefulness) is out of scope for this software demo — it is the bounded
-    optimistic-oracle + human-council layer (MIP-0002 paragraph 2) and is deferred. Here
-    we automate only Gates 1-2, which is sufficient to prove the earn->spend loop. The
-    task defaults to task-0001 so existing single-task callers are unaffected.
+    Gate 3 (Usefulness) is out of scope for this software demo — its bounded
+    MECHANICAL lifecycle (bounty caps, challenge windows, scripted adjudication)
+    now lives in protocol/gate3_process.py, while the usefulness JUDGMENT seat
+    itself stays honestly vacant (MIP-0002 paragraph 2). Here we automate only
+    Gates 1-2, which is sufficient to prove the earn->spend loop. The task
+    defaults to task-0001 so existing single-task callers are unaffected.
     """
     gate1 = verify_gate1_integrity(submission, task)
     gate2 = verify_gate2_reproducibility(submission, task)

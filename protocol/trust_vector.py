@@ -23,8 +23,14 @@ Component honesty, stated once here and again inside every vector:
   * E (independence) reports the per-molecule actor count AND cites the anchored
     maximal-concentration baseline (pairwise ACI over all same-operator paths). A
     per-molecule actor count is NOT independence; every recorded path is same-operator.
-  * U (usefulness) is the HONEST EMPTY: Gate 3 is not implemented, so U is always
-    "not-assessed" — no usefulness judgment exists anywhere in the protocol.
+  * U (usefulness) is the HONEST EMPTY: Gate 3's usefulness JUDGMENT seat is
+    vacant (protocol/gate3_process.py provides only the mechanical bounty
+    lifecycle with a scripted adjudication — no usefulness judgment), so U is
+    always 'not-assessed' — no usefulness judgment exists anywhere in the
+    protocol. NOTE: the USEFULNESS_REASON constant below keeps its original
+    wording BY DESIGN — it is embedded in every vector and feeds the anchored
+    catalog hashes (ledger:23/27), which must re-derive forever; anchored
+    phrasing is data, not documentation.
   * C (verification cost) copies the molecule's absorbed metering evidence (energy
     labeled ESTIMATED, never measured) and states the honest, unimpressive truth:
     for these demo tasks verification IS full re-execution, so C_v ≈ C_g (ρ ≈ 1) —
@@ -546,8 +552,8 @@ def main(argv=None) -> int:
         ),
         epilog=(
             "HONESTY: all evidence is same-operator (E cites the anchored maximal-"
-            "concentration baseline); U is always 'not-assessed' (Gate 3 is not "
-            "implemented); energy in C is ESTIMATED. A matching hash proves "
+            "concentration baseline); U is always 'not-assessed' (Gate 3's "
+            "judgment seat is vacant); energy in C is ESTIMATED. A matching hash proves "
             "deterministic re-derivability, not trustworthiness. Not consensus, "
             "not payment, not a token."
         ),

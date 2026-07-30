@@ -89,8 +89,9 @@ Everything above is SAME-OPERATOR, zero-value, research-stage evidence. A full
 pass establishes that every anchored claim RE-DERIVES deterministically from the
 shipped evidence on YOUR machine. It does NOT establish: independent multi-party
 verification (the anchored ACI baseline quantifies maximal same-operator
-concentration), usefulness of the work (Gate 3 is not implemented; every trust
-vector says 'not-assessed'), hardware-rooted execution proof (no TEE — open
+concentration), usefulness of the work (Gate 3's judgment seat is honestly
+vacant — only the mechanical lifecycle with scripted adjudication exists; every
+trust vector says 'not-assessed'), hardware-rooted execution proof (no TEE — open
 debt), measured energy (estimates from an assumed power figure), or any monetary
 value (no token exists). ACCEPTED-BY-ANCHOR lines are bounded-cost acceptance
 conditional on the committed anchors — not re-proof. Not consensus, not payment,

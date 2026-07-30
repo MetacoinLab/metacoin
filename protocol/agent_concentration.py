@@ -27,8 +27,10 @@ WHAT THIS MEASUREMENT IS (and is not):
     measured and published deliberately as the protocol's honest starting point.
   * DESCRIPTIVE evidence for readers and future calibration. NOT a minting trigger,
     NOT a reward signal, and a LOW score is NOT proof of independence.
-  * Pairwise only (ACI_2): higher-order concentration (three-way shared dependencies
-    invisible at the pair level) is out of scope for v0.
+  * The PAIRWISE report is ACI_2 only; higher-order concentration (dependencies
+    shared by 3+ paths but invisible at the pair level) is measured separately by
+    the k-order machinery in this same module (see the HIGHER-ORDER section below;
+    anchored as its own aci-korder baseline record).
   * The model dimension is DEGENERATE on current data: every path is mechanical-no-LLM
     with models=[] (an asserted-empty match). A shared "no-model" toolchain is still a
     shared dependency class, so it scores 1.0 — but the dimension only becomes

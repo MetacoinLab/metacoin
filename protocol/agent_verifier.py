@@ -35,8 +35,10 @@ PRECISE, HONEST CLAIM (the important limitation, same as the rest of the protoco
   same canonical value. It does NOT, by itself, cryptographically prove WHO executed the task
   (a hash is a short string and can be copied). Independence is only strengthened when the
   verifier is operated by a SEPARATE person/organisation; running under the SAME operator as
-  the publisher adds no cross-party independence. Genuine execution/cross-party proof would
-  need verifier-held signing keys and/or hardware attestation — future work, same interface.
+  the publisher adds no cross-party independence. Verifier-held signing keys now exist
+  (protocol/actor_identity.py: anchored Lamport one-time roots with rotation), but under
+  same-operator custody they prove KEY-POSSESSION CONTINUITY, not cross-party identity;
+  hardware attestation remains future work — same interface either way.
 
 Standard library only (json, hashlib, os, subprocess, sys, argparse; plus time for the
 timestamp). Chain hashing/verification is REUSED from protocol/audit.py + protocol/ledger.py,
