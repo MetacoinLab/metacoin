@@ -131,3 +131,9 @@ passport_catalog*.json
 # get the published snapshot instead. Negations must come LAST to win.
 !protocol/evidence/
 !protocol/evidence/**
+
+# Python packaging artifacts (pyproject.toml/setuptools builds): distributions
+# are release artifacts recorded by sha256 in release notes, never committed.
+dist/
+build/
+*.egg-info/

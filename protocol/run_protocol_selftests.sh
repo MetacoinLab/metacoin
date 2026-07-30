@@ -34,6 +34,7 @@ TESTS=(
     "actor_identity.py --selftest"
     "gate3_process.py --selftest"
     "metawork_passport.py --selftest"
+    "../metacoin_cli/selftest.py"
 )
 
 # Parallel arrays: names and their captured exit codes.

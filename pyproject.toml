@@ -1,0 +1,58 @@
+# MetaCoin protocol packaging — ADDITIVE only. The repository layout (flat
+# protocol/ + demo/ package dirs, PEP 420 namespace-style, no __init__.py) is
+# unchanged: setuptools is pointed at the existing directories, never the other
+# way round. Zero runtime dependencies BY DESIGN — the protocol is stdlib-only,
+# and an install must work where only the standard library exists.
+#
+# VERSION SOURCE OF TRUTH: metacoin_cli/__init__.py::__version__ (single
+# source; this file declares version as dynamic and reads it from there).
+#
+# Research-stage, zero-value, no token. Not consensus, not payment.
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metacoin-protocol"
+dynamic = ["version"]
+description = "The credibly neutral money-and-work protocol for the Space Machine Economy — research-stage, zero-value, no token; installable verifier with the complete anchored evidence corpus."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE.md" }
+authors = [{ name = "MetaCoin-Lab" }]
+# ZERO runtime dependencies — stdlib only (a hard protocol constraint).
+dependencies = []
+keywords = ["verification", "ledger", "reproducibility", "research"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/MetacoinLab/metacoin"
+
+[project.scripts]
+metacoin = "metacoin_cli.main:main"
+
+[tool.setuptools]
+# Explicit package list over the EXISTING flat layout — no files move. The
+# protocol/ and demo/ dirs are PEP 420 namespace-style (no __init__.py);
+# listing them explicitly packages them as-is.
+packages = ["metacoin_cli", "protocol", "demo", "demo.tasks"]
+
+[tool.setuptools.dynamic]
+version = { attr = "metacoin_cli.__version__" }
+
+[tool.setuptools.package-data]
+# The complete verification corpus ships IN the package: a pip-installed
+# metacoin with no repo checkout still fully verifies (published snapshot +
+# committed tip anchor + the privacy-checked evidence bundle).
+protocol = [
+    "ledger_published.json",
+    "ledger_anchor.json",
+    "verifier_submission.schema.json",
+    "evidence/*.json",
+]
