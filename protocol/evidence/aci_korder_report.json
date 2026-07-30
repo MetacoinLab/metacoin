@@ -1,0 +1,79 @@
+{
+  "as_of_ledger_index": 17,
+  "blindspot_statement": "This is ONE candidate S_k construction (ancestry-witness: per-dimension all-shared / group / else scoring with worst-case unknowns), not THE definition of higher-order concentration \u2014 the calibration question stays open. Higher-order scores depend entirely on declared metadata quality: a low ACI_k under missing declarations is meaningless, because the standing rule scores every unknown dimension worst-case 1.0 and flags it \u2014 missing metadata never counts as independence. Pairwise ACI_2 provably misses group dependency (k paths can share one hidden common ancestor while every pair looks partially independent); the k-order profile makes that structure measurable, and the deliverable is the full profile plus the per-dimension breakdown, never a single collapsed number.",
+  "dimensions": [
+    "operator",
+    "hardware",
+    "environment",
+    "source_repo",
+    "model"
+  ],
+  "enum_limit": 200000,
+  "k_max": 4,
+  "k_values_computed": [
+    2,
+    3,
+    4
+  ],
+  "k_values_refused": [],
+  "no_token": true,
+  "path_count": 28,
+  "per_dimension": {
+    "environment": {
+      "all_identical_fraction_at_kmax": 0.024175824175824177,
+      "group_fraction": 0.010744810744810745,
+      "unknown_flag_count": 19760
+    },
+    "hardware": {
+      "all_identical_fraction_at_kmax": 0.024175824175824177,
+      "group_fraction": 0.010744810744810745,
+      "unknown_flag_count": 19760
+    },
+    "model": {
+      "all_identical_fraction_at_kmax": 1.0,
+      "group_fraction": 0.0,
+      "unknown_flag_count": 0
+    },
+    "operator": {
+      "all_identical_fraction_at_kmax": 0.8571428571428571,
+      "group_fraction": 0.0,
+      "unknown_flag_count": 2925
+    },
+    "source_repo": {
+      "all_identical_fraction_at_kmax": 1.0,
+      "group_fraction": 0.0,
+      "unknown_flag_count": 0
+    }
+  },
+  "profile": [
+    {
+      "aci_k": 0.9936507936507936,
+      "exact": true,
+      "k": 2,
+      "subset_count": 378
+    },
+    {
+      "aci_k": 0.9959706959706952,
+      "exact": true,
+      "k": 3,
+      "subset_count": 3276
+    },
+    {
+      "aci_k": 0.9978510378510392,
+      "exact": true,
+      "k": 4,
+      "subset_count": 20475
+    }
+  ],
+  "report_hash": "0bdc61d4818dac3baf9de0a973fd52a34d45c2008880d15c43f6e4786fe36756",
+  "schema": "aci-korder-report/0.1",
+  "weights": {
+    "environment": 0.2,
+    "hardware": 0.2,
+    "model": 0.2,
+    "operator": 0.2,
+    "source_repo": 0.2
+  },
+  "weights_version": "aci-korder-weights/0.1-uniform",
+  "zero_value": true
+}

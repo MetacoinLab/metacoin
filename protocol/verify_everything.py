@@ -282,7 +282,15 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      f"shipped catalog hash-matches anchored idx-{gen2_i} "
                      "(no rebuild)"))
 
-    # --- layer 4: concentration (ACI) ----------------------------------------------
+    # --- layer 4: concentration (ACI: pairwise + higher-order k-order profile) ------
+    # The pairwise baseline re-derives generation-locked as before. When a
+    # k-order baseline is anchored, its EXACT-enumeration profile re-derives at
+    # its recorded as-of chain point AND the S_2 consistency is re-proved LIVE:
+    # ACI_2 via the S_k machinery must equal the anchored pairwise ACI to the
+    # digit. (The pairwise blind-spot fixture is exercised in --selftest, not
+    # here — --full re-derives anchored claims; fixtures are test material.)
+    idxko_i, idxko = _find_anchor_payload(entries, "aci_korder_baseline_anchored",
+                                          "aci-korder-confirmed")
     if idx18 is None:
         rows.append(("concentration", FULL, False, "no anchored ACI baseline"))
     elif full:
@@ -291,18 +299,44 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                                             as_of_index=idx18_i - 1))
         ok = (report["report_hash"] == idx18["report_hash"]
               and report["path_count"] == idx18["path_count"])
+        ko_note = "no k-order baseline anchored yet"
+        if idxko is not None:
+            ko_ks = list(idxko.get("k_values_computed", [])) + \
+                list(idxko.get("k_values_refused", []))
+            ko = agent_concentration.compute_korder_report(
+                agent_concentration.build_paths(
+                    ledger_path=source,
+                    as_of_index=idxko.get("as_of_ledger_index")),
+                k_max=max(ko_ks),
+                as_of_ledger_index=idxko.get("as_of_ledger_index"))
+            aci2 = next((r["aci_k"] for r in ko["profile"] if r["k"] == 2),
+                        None)
+            ok = (ok and ko["report_hash"] == idxko.get("report_hash")
+                  and [dict(r) for r in ko["profile"]] == idxko.get("profile")
+                  and aci2 == idx18.get("pairwise_aci"))
+            ko_note = (f"k-order profile {sorted(r['k'] for r in ko['profile'])} "
+                       f"re-enumerated == anchored idx-{idxko_i}; ACI_2 == "
+                       "pairwise to the digit")
         rows.append(("concentration", FULL, ok,
                      f"ACI re-measured (generation-locked): hash == anchored "
                      f"idx-{idx18_i}, {report['path_count']} paths, "
-                     f"pairwise {report['pairwise_aci']:.5f} (same-operator)"))
+                     f"pairwise {report['pairwise_aci']:.5f} (same-operator); "
+                     f"{ko_note}"))
     else:
         f = _load_evidence_json("aci_report.json")
         ok = (isinstance(f, dict)
               and agent_concentration.compute_report_hash(f) == f.get("report_hash")
               == idx18["report_hash"])
+        ko_note = "no k-order baseline anchored yet"
+        if idxko is not None:
+            fk = _load_evidence_json("aci_korder_report.json")
+            ok = (ok and isinstance(fk, dict)
+                  and agent_concentration.compute_report_hash(fk)
+                  == fk.get("report_hash") == idxko.get("report_hash"))
+            ko_note = f"k-order report hash-matches anchored idx-{idxko_i}"
         rows.append(("concentration", ANCHORED, ok,
                      f"shipped report hash-matches anchored idx-{idx18_i} "
-                     "(no re-measurement)"))
+                     f"(no re-measurement); {ko_note}"))
 
     # --- layer 5: simulated economy -------------------------------------------------
     if idx19 is None:
@@ -819,6 +853,24 @@ def _selftest() -> int:
         anchored_labels = [m for _l, m, _o, _d in q_rows if m == ANCHORED]
         checks.append(("--quick run passes with ACCEPTED-BY-ANCHOR labeling",
                        q_ok and len(anchored_labels) >= 5))
+
+        # [1c] the pairwise BLIND-SPOT fixture is exercised HERE (selftest,
+        # not --full — fixtures are test material, --full re-derives anchored
+        # claims): two triples with identical pairwise marginals (every
+        # within-triple pair S=0.3) that k=3 separates by exactly 0.2 — the
+        # hidden common ancestor visible only above the pair level.
+        import itertools as _it
+        bs = agent_concentration.blindspot_fixture_paths()
+        pairs_equal = all(
+            abs(agent_concentration.subset_score(pr) - 0.3) < 1e-9
+            for triple in (bs[:3], bs[3:])
+            for pr in _it.combinations(triple, 2))
+        s3_hidden = agent_concentration.subset_score(bs[:3])
+        s3_control = agent_concentration.subset_score(bs[3:])
+        checks.append(("blind-spot fixture: identical pairwise marginals; "
+                       "k=3 separates hidden ancestor by 0.2 exactly",
+                       pairs_equal and abs(s3_hidden - 0.3) < 1e-9
+                       and abs(s3_control - 0.1) < 1e-9))
 
         # [2] tampered snapshot -> chain layer fails -> overall failure
         tampered = os.path.join(tmp_dir, "tampered_published.json")

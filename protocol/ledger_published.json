@@ -1651,19 +1651,81 @@
       },
       "prev_hash": "098f4c60a6c43f9c36df18f7aae812285082010857684aaea786b9ed54bbb315",
       "timestamp": 1785394093.1633747
+    },
+    {
+      "hash": "fa425525529221e96eab2f9a8ae973d5855ca3b5a9d376222253fbc12c386085",
+      "index": 44,
+      "payload": {
+        "anchored_at": 1785395289.7674375,
+        "as_of_ledger_index": 17,
+        "blindspot_statement": "This is ONE candidate S_k construction (ancestry-witness: per-dimension all-shared / group / else scoring with worst-case unknowns), not THE definition of higher-order concentration \u2014 the calibration question stays open. Higher-order scores depend entirely on declared metadata quality: a low ACI_k under missing declarations is meaningless, because the standing rule scores every unknown dimension worst-case 1.0 and flags it \u2014 missing metadata never counts as independence. Pairwise ACI_2 provably misses group dependency (k paths can share one hidden common ancestor while every pair looks partially independent); the k-order profile makes that structure measurable, and the deliverable is the full profile plus the per-dimension breakdown, never a single collapsed number.",
+        "candidate_construction": "one candidate S_k construction (ancestry-witness), not THE definition of higher-order concentration \u2014 the calibration question stays open",
+        "coordinator_reconfirmed": {
+          "pairwise_baseline_aci": 0.9936507936507936,
+          "pairwise_baseline_ledger_index": 18,
+          "recompute_error": null,
+          "recomputed_aci_2": 0.9936507936507936,
+          "recomputed_report_hash": "0bdc61d4818dac3baf9de0a973fd52a34d45c2008880d15c43f6e4786fe36756",
+          "report_hash_matches": true,
+          "s2_matches_anchored_baseline": true
+        },
+        "event": "aci_korder_baseline_anchored",
+        "k_values_computed": [
+          2,
+          3,
+          4
+        ],
+        "k_values_refused": [],
+        "limitation_note": "Higher-order self-measurement of the same same-operator baseline the pairwise ACI measured: the profile quantifies how concentrated the protocol's own verification paths are at subset sizes k >= 2, under ONE candidate S_k construction \u2014 not a calibrated definition. Computed by EXACT enumeration only (no sampling in v0: a sampled estimate without variance analysis would be fabricated precision); ks beyond the enumeration limit are refused, and the refusals are part of the report. Scores depend entirely on declared metadata quality \u2014 unknowns score worst-case and are flagged, never as independence. The deliverable is the profile plus per-dimension breakdown, never one collapsed number. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "path_count": 28,
+        "profile": [
+          {
+            "aci_k": 0.9936507936507936,
+            "exact": true,
+            "k": 2,
+            "subset_count": 378
+          },
+          {
+            "aci_k": 0.9959706959706952,
+            "exact": true,
+            "k": 3,
+            "subset_count": 3276
+          },
+          {
+            "aci_k": 0.9978510378510392,
+            "exact": true,
+            "k": 4,
+            "subset_count": 20475
+          }
+        ],
+        "report_hash": "0bdc61d4818dac3baf9de0a973fd52a34d45c2008880d15c43f6e4786fe36756",
+        "report_schema": "aci-korder-report/0.1",
+        "s2_consistency": "ACI_2 via the S_k machinery equals the anchored pairwise baseline at ledger:18 to the digit",
+        "stage": "R-concentration",
+        "status": "aci-korder-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-korder-measurement",
+        "unknown_flag_count": 42445,
+        "weights_version": "aci-korder-weights/0.1-uniform",
+        "zero_value": true
+      },
+      "prev_hash": "1acce257461e9f6127d66d8dec11f021c22701e626599170210bf65948118998",
+      "timestamp": 1785395289.7676156
     }
   ],
   "snapshot_header": {
-    "entry_count": 44,
+    "entry_count": 45,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785394111.175672,
+    "snapshot_timestamp": 1785395289.859402,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "1acce257461e9f6127d66d8dec11f021c22701e626599170210bf65948118998",
-    "tip_index": 43,
+    "tip_hash": "fa425525529221e96eab2f9a8ae973d5855ca3b5a9d376222253fbc12c386085",
+    "tip_index": 44,
     "zero_value": true
   }
 }
