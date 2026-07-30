@@ -418,6 +418,27 @@ def _selftest(published_path=DEFAULT_PUBLISHED_PATH, anchor_path=DEFAULT_ANCHOR_
         if os.path.exists(tmp_out):
             os.remove(tmp_out)
 
+    # TAMPER-DETECTION: a snapshot with one mutated payload must yield
+    # 'failed-with-reasons' (the chain re-walk catches the hash break) — the
+    # verifier is only trustworthy if it visibly refuses corrupted input.
+    tamper_ok = False
+    tamper_dir = tempfile.mkdtemp(prefix=f"agent_verifier_tamper_{os.getpid()}_")
+    try:
+        with open(published_path, "r", encoding="utf-8") as f:
+            snap = json.load(f)
+        snap["entries"][1]["payload"]["status"] = "TAMPERED"
+        tampered_path = os.path.join(tamper_dir, "tampered_published.json")
+        with open(tampered_path, "w", encoding="utf-8") as f:
+            json.dump(snap, f)
+        t_result = run_verification("selftest-agent", tampered_path, anchor_path)
+        tamper_ok = (t_result["verdict"] == "failed-with-reasons"
+                     and any("chain" in r or "hash" in r
+                             for r in t_result.get("reasons", [])))
+    finally:
+        for name in os.listdir(tamper_dir):
+            os.remove(os.path.join(tamper_dir, name))
+        os.rmdir(tamper_dir)
+
     proto_after = set(os.listdir(_PROTO_DIR))
     stray_in_proto = sorted(proto_after - proto_before)
     stray_default_out = os.path.exists(DEFAULT_OUT_PATH) and not default_out_existed_before
@@ -426,12 +447,14 @@ def _selftest(published_path=DEFAULT_PUBLISHED_PATH, anchor_path=DEFAULT_ANCHOR_
     print("--- self-test invariants ---")
     print(f"verdict is 'verified'              : {'PASS' if result['verdict'] == 'verified' else 'FAIL'}")
     print(f"result JSON round-trips            : {'PASS' if round_trip_ok else 'FAIL'}")
+    print(f"tampered snapshot -> failed-with-reasons: {'PASS' if tamper_ok else 'FAIL'}")
     print(f"no stray files in protocol/        : {'PASS' if not stray_in_proto else f'FAIL ({stray_in_proto})'}")
     print(f"no stray default {DEFAULT_OUT_PATH}: {'PASS' if not stray_default_out else 'FAIL'}")
 
     ok = (
         result["verdict"] == "verified"
         and round_trip_ok
+        and tamper_ok
         and not stray_in_proto
         and not stray_default_out
     )
