@@ -890,12 +890,17 @@ def _selftest() -> int:
         # untracked artifacts — exactly what a stranger's clone contains.
         clone_dir = os.path.join(tmp_dir, "fresh_clone")
         try:
-            tracked = subprocess.run(
+            _ls = subprocess.run(
                 ["git", "ls-files", "-z"], cwd=_REPO_ROOT, capture_output=True,
-                timeout=30).stdout.decode("utf-8").split("\0")
+                timeout=30)
+            # a failed `git ls-files` (e.g. this copy is not a git checkout)
+            # returns empty stdout — which would split to a truthy [''] and
+            # crash the simulation on an empty clone; check the exit code
+            tracked = (_ls.stdout.decode("utf-8").split("\0")
+                       if _ls.returncode == 0 else None)
         except (FileNotFoundError, subprocess.SubprocessError, OSError):
             tracked = None
-        if tracked:
+        if tracked and any(tracked):
             for rel in tracked:
                 if not rel:
                     continue
@@ -923,7 +928,9 @@ def _selftest() -> int:
                 for line in result.stdout.splitlines()[-15:]:
                     print(f"      {line}")
         else:
-            print("    (git unavailable — fresh-clone simulation SKIPPED)")
+            print("    (git unavailable or not a git checkout — fresh-clone "
+                  "simulation SKIPPED, named; the [1] full run above already "
+                  "covered this copy's own files)")
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
