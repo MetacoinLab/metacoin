@@ -146,12 +146,22 @@ public tip anchor: 3f323cff…
 Don't trust — reproduce. One command mechanically re-verifies **every layer** — chain, all thirteen tasks, both molecule-catalog generations, the concentration baseline, the simulated economy, the metering claims, the cut certificate, and the trust vectors — with no LLM/AI judgment anywhere:
 
 ```bash
-git clone https://github.com/MetacoinLab/metacoin.git
-cd metacoin
+# install the product (from source — not yet published to PyPI):
+pip install git+https://github.com/MetacoinLab/metacoin        # straight from GitHub
+# ...or from a clone / an unpacked release tarball:
+#   pip install .
 
-python3 protocol/verify_everything.py --full     # re-derive everything, ~seconds
-python3 protocol/verify_everything.py --quick    # bounded-cost anchored acceptance
+metacoin verify            # re-derive everything (--full is the default), ~seconds
+metacoin verify --quick    # bounded-cost anchored acceptance
+metacoin status            # one-screen honest chain state
+metacoin --help            # every protocol capability as a subcommand
 ```
+
+The complete verification corpus ships **inside the package** — a pip-installed
+`metacoin` fully verifies from an empty directory with no checkout at all (a
+cold-install acceptance test in CI enforces it). The clone-and-run path works
+exactly as before (`python3 protocol/verify_everything.py --full`); packaging
+is additive.
 
 Every layer's evidence ships in the repo (the published snapshot, the committed tip anchor, and the privacy-checked bundle in `protocol/evidence/`), so a fresh clone verifies completely — the CI self-test proves it by re-running the whole stack from a tracked-files-only copy. Each report line is labeled `VERIFIED-FULL`, `CLAIM-CHECK` (metering: timing is honestly non-reproducible), or `ACCEPTED-BY-ANCHOR` (`--quick`: conditional acceptance, never presented as proof), and the report ends with the honest boundary — what a pass does **not** establish. The layer-by-layer tools remain available (`audit.py --verify`, `agent_verifier.py --verifier-id "$(whoami)-independent"`, and the canonical worked example `ff03231f…ba300c` for task-0002).
 
