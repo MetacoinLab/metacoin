@@ -20,11 +20,11 @@ jobs:
     steps:
       # Check out the repository so the demo and protocol scripts are available.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Provide a recent stable Python 3 (no packages installed).
       - name: Set up Python 3
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
