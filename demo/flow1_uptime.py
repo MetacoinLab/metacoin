@@ -249,7 +249,12 @@ def verify_epoch(epoch, expected_root: str,
         return (False, ["epoch_hash does not recompute from content"])
     if round(epoch["slot_count"] * epoch["per_slot_emission"], 6) > \
             epoch["epoch_cap"]:
-        reasons.append("config could exceed the epoch cap — invalid epoch")
+        reasons.append(
+            f"epoch-cap-by-construction rule violated: slot_count "
+            f"{epoch['slot_count']} x per_slot_emission "
+            f"{epoch['per_slot_emission']} = "
+            f"{round(epoch['slot_count'] * epoch['per_slot_emission'], 6)} "
+            f"could exceed epoch_cap {epoch['epoch_cap']}")
     by_slot = {hb.get("slot_index"): hb for hb in epoch.get("heartbeats", [])}
     total = 0.0
     verified_slots = 0

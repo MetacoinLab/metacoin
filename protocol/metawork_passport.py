@@ -379,7 +379,8 @@ def validate_passport(passport, ledger_path: str = None):
             try:
                 idx = int(cite.split(":", 1)[1])
             except ValueError:
-                reasons.append(f"malformed citation {cite!r}")
+                reasons.append(f"malformed citation {cite!r} — citations must "
+                               "have the form 'ledger:<int>'")
                 continue
             entry = by_index.get(idx)
             if entry is None:

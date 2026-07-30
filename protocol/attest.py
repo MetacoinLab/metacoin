@@ -100,7 +100,10 @@ class SoftwareAttestor:
             with open(self.key_path, "rb") as f:
                 key = f.read()
             if len(key) < 16:
-                raise ValueError(f"software key at {self.key_path} is too short/corrupt")
+                raise ValueError(
+                    f"software key at {self.key_path} is {len(key)} bytes — "
+                    "the key-length rule requires >= 16 (created as 32); "
+                    "refusing to MAC with a truncated/corrupt key")
             return key
         # Create with O_EXCL and mode 0600 so the secret is never group/world-readable.
         key = secrets.token_bytes(32)

@@ -117,7 +117,7 @@ if __name__ == "__main__":
     print(f"  balance after  : {after_b}")
     case_b_ok = (
         receipt_b["purchased"] is False
-        and receipt_b["reason"] == "insufficient balance"
+        and receipt_b["reason"].startswith("insufficient balance")
         and "compute_units" not in receipt_b
         and after_b == before_b == 2
     )

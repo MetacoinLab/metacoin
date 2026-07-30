@@ -175,14 +175,20 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
     live_note = "no live ledger (fresh clone) — published snapshot is the source"
     if have_live:
         from protocol.ledger import Ledger
-        live_ok, live_reason = Ledger(live_ledger_path).verify_chain()
+        chain_live_ok, live_reason = Ledger(live_ledger_path).verify_chain()
         live_entries = work_molecule._read_ledger(live_ledger_path)
         live_tip = live_entries[-1]["hash"] if live_entries else None
-        live_ok = bool(live_ok and snap_ok
-                       and live_tip == snap_details.get("tip_hash"))
-        live_note = ("live ledger verifies and its tip matches the snapshot"
-                     if live_ok else
-                     f"live ledger problem: {live_reason}; or tip != snapshot tip")
+        tip_matches = bool(snap_ok and live_tip == snap_details.get("tip_hash"))
+        live_ok = bool(chain_live_ok and tip_matches)
+        if live_ok:
+            live_note = "live ledger verifies and its tip matches the snapshot"
+        elif not chain_live_ok:
+            live_note = f"live ledger chain does not verify: {live_reason}"
+        else:
+            live_note = (f"live tip {str(live_tip)[:16]}.. != published "
+                         f"snapshot tip "
+                         f"{str(snap_details.get('tip_hash'))[:16]}.. — "
+                         "re-export the snapshot after anchoring")
     chain_ok = bool(snap_ok and anchor_ok and live_ok)
     rows.append(("chain+anchor", FULL, chain_ok,
                  f"{snap_reason}; anchor: {anchor_detail}; {live_note}"))
@@ -369,17 +375,33 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         else:
             if not (task_metering.compute_report_hash(f) == f.get("report_hash")
                     == idx20["report_hash"]):
-                problems.append("report_hash != anchored claim")
+                problems.append(
+                    f"report_hash rule violated: recomputed "
+                    f"{task_metering.compute_report_hash(f)[:16]}.. vs shipped "
+                    f"{str(f.get('report_hash'))[:16]}.. vs anchored idx-"
+                    f"{idx20_i} {idx20['report_hash'][:16]}..")
             for row in f.get("per_task", []):
+                tid = row.get("task_id")
                 if row.get("labels") != task_metering.LABELS:
-                    problems.append(f"labels wrong for {row.get('task_id')}")
+                    problems.append(
+                        f"{tid}: labels must be exactly {task_metering.LABELS} "
+                        f"(honest measured/estimated labels), got "
+                        f"{row.get('labels')}")
                 if row.get("energy_j_estimate") != round(
                         row.get("cpu_time_s", 0) * f.get("assumed_cpu_power_w", 0), 6):
-                    problems.append(f"energy arithmetic wrong for {row.get('task_id')}")
-                expected = (canonical.get(row.get("task_id"))
-                            if full else _find_task_hash(entries, row.get("task_id")))
+                    problems.append(
+                        f"{tid}: energy_j_estimate {row.get('energy_j_estimate')} "
+                        f"!= round(cpu_time_s {row.get('cpu_time_s')} x "
+                        f"assumed_cpu_power_w {f.get('assumed_cpu_power_w')}, 6) "
+                        "— the exact-arithmetic rule")
+                expected = (canonical.get(tid)
+                            if full else _find_task_hash(entries, tid))
                 if row.get("output_hash") != expected:
-                    problems.append(f"output_hash wrong for {row.get('task_id')}")
+                    problems.append(
+                        f"{tid}: recorded output_hash "
+                        f"{str(row.get('output_hash'))[:16]}.. does not match "
+                        f"the {'re-run' if full else 'ledger'} hash "
+                        f"{str(expected)[:16]}..")
         rows.append(("metering", CLAIM, not problems,
                      f"anchored idx-{idx20_i} claim intact: hashes match "
                      f"{'re-runs' if full else 'ledger'}, labels honest "
@@ -508,7 +530,8 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         for idx, p in reg_records:
             root = p.get("merkle_root")
             if not (isinstance(root, str) and len(root) == 64):
-                problems.append(f"idx {idx}: malformed registered root")
+                problems.append(f"idx {idx}: registered merkle_root must be a "
+                                f"64-char hex sha256, got {root!r}")
             roots[idx] = root
         for idx, p in rot_records:
             roots[idx] = p.get("new_root")

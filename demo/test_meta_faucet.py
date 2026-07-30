@@ -114,7 +114,9 @@ class _Faucet:
             # Insufficient-balance path. Balance is untouched.
             return {
                 "spent": False,
-                "reason": "insufficient balance",
+                "reason": f"insufficient balance: spend of {amount} exceeds "
+                          f"balance {current} — the faucet cannot overdraw "
+                          "(no credit path exists outside verified dispense)",
                 "balance": current,
             }
 
@@ -280,7 +282,7 @@ if __name__ == "__main__":
     print(f"  balance before : {before_e}")
     print(f"  spend(5)       : {res_e}")
     print(f"  balance after  : {after_e}")
-    case_e_ok = (res_e["spent"] is False) and (res_e["reason"] == "insufficient balance") and (after_e == before_e)
+    case_e_ok = (res_e["spent"] is False) and res_e["reason"].startswith("insufficient balance") and (after_e == before_e)
     print(f"  self-test      : {'OK (refused; balance unchanged)' if case_e_ok else 'WRONG'}")
     ok.append(case_e_ok)
     print()

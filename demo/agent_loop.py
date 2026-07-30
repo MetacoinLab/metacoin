@@ -133,7 +133,10 @@ def run_round(round_num: int, address: str, task, tamper: bool, dispense_amount:
     # Build a human-readable note column.
     notes = []
     if not verify_passed:
-        notes.append("submission REJECTED — earned nothing")
+        failed_gate = ("gate1" if not verify_result["gate1"]["passed"]
+                       else "gate2")
+        notes.append(f"submission REJECTED — earned nothing "
+                     f"({failed_gate}: {verify_result[failed_gate]['reason']})")
     if spend_note:
         notes.append(spend_note)
     note_str = ("  | note: " + "; ".join(notes)) if notes else ""
