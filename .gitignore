@@ -52,6 +52,11 @@ wm_*.json
 # local only, never committed (the module re-derives them from the ledger deterministically).
 aci_report*.json
 
+# higher-order ACI_k reports (agent_concentration.py --korder) likewise re-derive
+# deterministically from the ledger at their as-of chain point; the anchored-baseline
+# evidence copy lives in protocol/evidence/ via the negation block below.
+aci_korder_report*.json
+
 # 30-day simulated-economy artifacts (economy_demo.py): persistent state + final log —
 # derived, deterministic, reconstructible local artifacts, never committed (the canonical
 # record is the ANCHORED summary; simulated day indices, zero value, no token).

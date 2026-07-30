@@ -36,6 +36,45 @@ WHAT THIS MEASUREMENT IS (and is not):
   * Uniform weights are v0 placeholders, versioned "aci-weights/0.1-uniform";
     category-specific weights are future calibration work.
 
+================== HIGHER-ORDER ACI_k (THE MATHEMATICAL HONESTY CONTRACT) ==================
+Pairwise ACI (ACI_2) PROVABLY misses group dependency: k paths can share one
+hidden common ancestor while every pair looks partially independent — the
+pairwise marginals of a hidden-ancestor triple and of a genuinely diverse
+triple can be IDENTICAL while their triple-level structure differs (the
+self-test's pairwise_blindspot_exposed fixture demonstrates this mechanically,
+with hand-computed arithmetic). This module therefore implements ONE concrete,
+evidence-based S_k construction — the ANCESTRY-WITNESS construction — and
+labels it exactly that: one candidate construction, not THE definition. The
+calibration question stays open, and the anchored record says so.
+
+The construction (schema "aci-korder-report/0.1"): for a subset B of k
+verification paths and each dependency dimension d,
+
+    shared_d(B) = 1.0  if ALL k paths declare the SAME value in d
+                  0.5  if all k share membership in one declared GROUP
+                       without identical values (e.g. the same operator's
+                       fleet with differing fingerprints)
+                  0.0  otherwise
+    UNKNOWN in any path -> that dimension scores worst-case 1.0 for B and is
+                  flagged (the standing rule: missing metadata never counts
+                  as independence)
+
+    S_k(B)   = sum_d w_d * shared_d(B)      (uniform weights,
+                                             "aci-korder-weights/0.1-uniform")
+    ACI_k(A) = mean of S_k(B) over ALL k-subsets B of the path set A
+
+S_2 CONSISTENCY: the per-dimension k-order scorers restrict at k=2 to exactly
+the pairwise sigma semantics above, so ACI_2 computed via the S_k machinery
+equals the anchored pairwise ACI on the same paths TO THE DIGIT (asserted in
+the self-test against the anchored ledger:18 baseline).
+
+EXACT ENUMERATION ONLY: ACI_k is computed by enumerating every k-subset when
+C(n,k) <= ENUM_LIMIT (200,000). Above the limit the computation REFUSES — v0
+does no sampling, because a sampled estimate without variance analysis would
+be fabricated precision; the refusal (with that reason) is part of the report.
+The DELIVERABLE is the profile {ACI_2, ..., ACI_k_max} plus the per-dimension
+breakdown — never a single collapsed number (the no-combined-scalar idiom).
+
 The multi-scale concentration profile Gamma(r) is computed for partitions
 r in {operator, machine_fingerprint, repo}: Gamma = the maximum share of paths in one
 block (evidential weight q_i = 1 per path in v0). Paths whose partition key is unknown
@@ -58,6 +97,7 @@ Not legal, financial, investment, or security-certification advice.
 Usage:
     python3 protocol/agent_concentration.py --report
     python3 protocol/agent_concentration.py --report --out aci_report.json
+    python3 protocol/agent_concentration.py --korder --kmax 4 --as-of 17 --out aci_korder_report.json
     python3 protocol/agent_concentration.py --selftest   # fixtures + temp files only
 """
 
@@ -67,7 +107,9 @@ sys.dont_write_bytecode = True
 
 import argparse
 import hashlib
+import itertools
 import json
+import math
 import os
 
 # Make `from protocol...` resolve when run directly (repo root on path).
@@ -80,6 +122,26 @@ import protocol.work_molecule as work_molecule
 
 SCHEMA_VERSION = "aci-report/0.1"
 WEIGHTS_VERSION = "aci-weights/0.1-uniform"
+KORDER_SCHEMA_VERSION = "aci-korder-report/0.1"
+KORDER_WEIGHTS_VERSION = "aci-korder-weights/0.1-uniform"
+# Exact enumeration bound: above this many k-subsets the computation REFUSES
+# (v0 does no sampling — a sampled estimate without variance analysis would be
+# fabricated precision; the refusal reason states this).
+ENUM_LIMIT = 200_000
+
+BLINDSPOT_STATEMENT = (
+    "This is ONE candidate S_k construction (ancestry-witness: per-dimension "
+    "all-shared / group / else scoring with worst-case unknowns), not THE "
+    "definition of higher-order concentration — the calibration question stays "
+    "open. Higher-order scores depend entirely on declared metadata quality: a "
+    "low ACI_k under missing declarations is meaningless, because the standing "
+    "rule scores every unknown dimension worst-case 1.0 and flags it — missing "
+    "metadata never counts as independence. Pairwise ACI_2 provably misses "
+    "group dependency (k paths can share one hidden common ancestor while "
+    "every pair looks partially independent); the k-order profile makes that "
+    "structure measurable, and the deliverable is the full profile plus the "
+    "per-dimension breakdown, never a single collapsed number."
+)
 
 # K=5 evidence-based dimensions, uniform weights for v0 (category-specific weights are
 # future calibration — the report says so explicitly).
@@ -227,6 +289,181 @@ _SCORERS = {
 def score_pair(a: dict, b: dict) -> dict:
     """Return {dimension: sigma} for one unordered path pair."""
     return {dim: _SCORERS[dim](a, b) for dim in DIMENSIONS}
+
+
+# ----------------------------------------------------------------------------
+# Higher-order (k-subset) dimension scoring — the ancestry-witness S_k.
+# Each scorer returns (sigma, tag); tag in {"identical", "group",
+# "independent", "unknown", "mixed-worst-case"} feeds the per-dimension
+# breakdown. RESTRICTION CONTRACT: at k=2 every scorer reproduces the pairwise
+# sigma above EXACTLY (asserted in the self-test), so ACI_2 via this machinery
+# equals the pairwise ACI to the digit. The unknown rule is unchanged: an
+# unknown anywhere in the subset scores worst-case 1.0 and is flagged.
+# ----------------------------------------------------------------------------
+def _k_operator(subset):
+    """max of the declared-relationship scores over the subset (the most
+    dependent declaration wins — the pairwise rule, k-generalized)."""
+    vals = [p.get("operator_relationship") for p in subset]
+    if any(v is None for v in vals):
+        return (1.0, "unknown")
+    sigma = max(_OPERATOR_SCORES.get(v, 1.0) for v in vals)
+    if sigma == 1.0:
+        return (1.0, "identical" if len(set(vals)) == 1 else "mixed-worst-case")
+    return (sigma, "group" if sigma == 0.5 else "independent")
+
+
+def _k_hardware(subset):
+    """0.0 only if ALL declare independent ownership; unknown fingerprint ->
+    1.0; ALL fingerprints identical -> 1.0; else 0.5 (one declared fleet
+    GROUP without identical values)."""
+    if all(p.get("hardware_ownership") == "declared-independent"
+           for p in subset):
+        return (0.0, "independent")
+    fps = [p.get("machine_fingerprint") for p in subset]
+    if any(f is None for f in fps):
+        return (1.0, "unknown")
+    if len(set(fps)) == 1:
+        return (1.0, "identical")
+    return (0.5, "group")
+
+
+def _k_environment(subset):
+    """unknown platform -> 1.0; ALL platforms identical -> 1.0; differing
+    platforms with two KNOWN different toolchains -> 0.0; else 0.5 (one
+    toolchain group, unknowns conservatively treated as shared)."""
+    plats = [p.get("platform") for p in subset]
+    if any(v is None for v in plats):
+        return (1.0, "unknown")
+    if len(set(plats)) == 1:
+        return (1.0, "identical")
+    known = {p.get("toolchain") for p in subset if p.get("toolchain") is not None}
+    if len(known) > 1:
+        return (0.0, "independent")
+    return (0.5, "group")
+
+
+def _k_same_value(field):
+    """Scorer factory for the identical-or-nothing dimensions (source_repo,
+    model): unknown -> 1.0; all identical -> 1.0; else 0.0."""
+    def scorer(subset):
+        vals = [p.get(field) for p in subset]
+        if any(v is None for v in vals):
+            return (1.0, "unknown")
+        if len(set(vals)) == 1:
+            return (1.0, "identical")
+        return (0.0, "independent")
+    return scorer
+
+
+_KORDER_SCORERS = {
+    "operator": _k_operator,
+    "hardware": _k_hardware,
+    "environment": _k_environment,
+    "source_repo": _k_same_value("repo_lineage"),
+    "model": _k_same_value("model_class"),
+}
+
+
+def score_subset(subset) -> dict:
+    """{dimension: {"sigma": float, "tag": str}} for one k-subset of paths."""
+    out = {}
+    for dim in DIMENSIONS:
+        sigma, tag = _KORDER_SCORERS[dim](subset)
+        out[dim] = {"sigma": sigma, "tag": tag}
+    return out
+
+
+def subset_score(subset) -> float:
+    """S_k(B) = sum_d w_d * shared_d(B) for one subset."""
+    sub = score_subset(subset)
+    return sum(WEIGHTS[d] * sub[d]["sigma"] for d in DIMENSIONS)
+
+
+def compute_korder_report(paths: list, k_max: int = 4,
+                          as_of_ledger_index: int = None) -> dict:
+    """The higher-order concentration report over a path list. Pure function
+    of its inputs; deterministic, no timestamps; two runs byte-identical.
+
+    For each k in 2..k_max: EXACT enumeration of all C(n,k) subsets when that
+    count is within ENUM_LIMIT, else a REFUSAL carrying the no-sampling
+    reason (v0 reports no estimate it cannot bound). The per-dimension
+    breakdown is taken at the largest k actually computed. The float
+    accumulation at k=2 replicates the pairwise report's summation order
+    exactly, so ACI_2 here equals pairwise_aci to the digit.
+    """
+    n = len(paths)
+    if n < 2:
+        raise ValueError(f"need at least 2 verification paths (got {n})")
+    if k_max < 2:
+        raise ValueError(f"k_max must be at least 2 (got {k_max})")
+
+    profile = []
+    refused = []
+    computed = []
+    top = None  # (k, subset_count, tag_counts) at the largest computed k
+    for k in range(2, k_max + 1):
+        if k > n:
+            refused.append({"k": k, "subset_count": 0,
+                            "reason": f"k={k} exceeds path_count {n} — no "
+                                      "k-subsets exist"})
+            continue
+        count = math.comb(n, k)
+        if count > ENUM_LIMIT:
+            refused.append({
+                "k": k, "subset_count": count,
+                "reason": (f"refused: C({n},{k}) = {count} exceeds ENUM_LIMIT "
+                           f"{ENUM_LIMIT} — v0 computes by EXACT enumeration "
+                           "only; a sampled estimate without variance "
+                           "analysis would be fabricated precision, so no "
+                           "number is reported"),
+            })
+            continue
+        s_total = 0.0
+        tag_counts = {d: {"identical": 0, "group": 0, "unknown": 0}
+                      for d in DIMENSIONS}
+        for subset in itertools.combinations(paths, k):
+            sub = score_subset(subset)
+            s_total += sum(WEIGHTS[d] * sub[d]["sigma"] for d in DIMENSIONS)
+            for d in DIMENSIONS:
+                tag = sub[d]["tag"]
+                if tag in tag_counts[d]:
+                    tag_counts[d][tag] += 1
+        profile.append({"k": k, "aci_k": s_total / count,
+                        "subset_count": count, "exact": True})
+        computed.append(k)
+        top = (k, count, tag_counts)
+
+    per_dimension = {}
+    if top is not None:
+        _k_top, count_top, tc = top
+        per_dimension = {
+            d: {
+                "all_identical_fraction_at_kmax": tc[d]["identical"] / count_top,
+                "group_fraction": tc[d]["group"] / count_top,
+                "unknown_flag_count": tc[d]["unknown"],
+            }
+            for d in DIMENSIONS
+        }
+
+    report = {
+        "schema": KORDER_SCHEMA_VERSION,
+        "weights_version": KORDER_WEIGHTS_VERSION,
+        "weights": dict(WEIGHTS),
+        "dimensions": list(DIMENSIONS),
+        "enum_limit": ENUM_LIMIT,
+        "path_count": n,
+        "k_max": k_max,
+        "as_of_ledger_index": as_of_ledger_index,
+        "k_values_computed": computed,
+        "k_values_refused": refused,
+        "profile": profile,
+        "per_dimension": per_dimension,
+        "blindspot_statement": BLINDSPOT_STATEMENT,
+        "zero_value": True,
+        "no_token": True,
+    }
+    report["report_hash"] = compute_report_hash(report)
+    return report
 
 
 # ----------------------------------------------------------------------------
@@ -429,11 +666,20 @@ def main(argv=None) -> int:
     )
     parser.add_argument("--report", action="store_true",
                         help="compute the ACI report over the real molecule catalog")
+    parser.add_argument("--korder", action="store_true",
+                        help="compute the higher-order ACI_k profile "
+                             "(aci-korder-report/0.1; exact enumeration only)")
+    parser.add_argument("--kmax", type=int, default=4,
+                        help="with --korder: largest subset size k (default 4)")
+    parser.add_argument("--as-of", type=int, default=None, dest="as_of",
+                        help="with --korder: generation-lock chain point (paths "
+                             "drawn from ledger entries with index <= N)")
     parser.add_argument("--ledger", default=work_molecule.DEFAULT_LEDGER_PATH,
                         help=f"ledger JSONL to read (default: {work_molecule.DEFAULT_LEDGER_PATH})")
     parser.add_argument("--out",
                         help="also write the report JSON to this file "
-                             "(default with --report: aci_report.json; gitignored)")
+                             "(defaults: aci_report.json / aci_korder_report"
+                             ".json; gitignored)")
     parser.add_argument("--selftest", action="store_true",
                         help="run the fixture self-test (temp files only; writes "
                              "nothing into the repo and never touches the ledger)")
@@ -442,8 +688,28 @@ def main(argv=None) -> int:
     if args.selftest:
         return _selftest()
 
-    if not args.report:
-        parser.error("one of --report or --selftest is required")
+    if not (args.report or args.korder):
+        parser.error("one of --report, --korder or --selftest is required")
+
+    if args.korder:
+        try:
+            paths = build_paths(ledger_path=args.ledger, as_of_index=args.as_of)
+            report = compute_korder_report(paths, k_max=args.kmax,
+                                           as_of_ledger_index=args.as_of)
+        except (KeyError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        text = json.dumps(report, indent=2, sort_keys=True)
+        print(text)
+        out = args.out or "aci_korder_report.json"
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+        prof = ", ".join(f"ACI_{row['k']}={row['aci_k']:.6f}"
+                         for row in report["profile"])
+        print(f"wrote k-order report ({report['path_count']} paths, {prof}; "
+              f"refused: {[r['k'] for r in report['k_values_refused']]}) "
+              f"to {out}", file=sys.stderr)
+        return 0
 
     try:
         paths = build_paths(ledger_path=args.ledger)
@@ -473,6 +739,45 @@ def _fixture_path(actor, fingerprint, platform, task="task-fixture", idx=1,
         "hardware_ownership": ownership, "platform": platform,
         "toolchain": toolchain, "repo_lineage": repo, "model_class": model,
     }
+
+
+def blindspot_fixture_paths() -> list:
+    """The pairwise_blindspot_exposed fixture: 6 paths whose two triples have
+    IDENTICAL pairwise structure but different triple-level structure.
+
+    Triple {1,2,3} — HIDDEN COMMON ANCESTOR: pairwise-different operators
+    (all independent-operator, score 0), fingerprints (fleet 0.5), platforms +
+    toolchains (0), models (0) — but ONE shared source-repo lineage R* (1.0).
+    Triple {4,5,6} — GENUINELY DIVERSE control: each pair shares exactly one
+    dimension, a DIFFERENT one per pair (4,5: repo RA; 4,6: model MX;
+    5,6: platform PL), so NO dimension is shared by all three.
+
+    HAND-COMPUTED (uniform w_d = 0.2; exact grid arithmetic, no tuning):
+      every within-triple pair, BOTH triples:
+          S = 0.2*(op 0 + hw 0.5 + env 0 + repo-or-equivalent 1.0 + 0)
+            = 0.3                       <- pairwise CANNOT tell the triples apart
+      every cross-triple pair: S = 0.2*(hw 0.5) = 0.1
+      S_3({1,2,3}) = 0.2*(hw 0.5 + repo 1.0) = 0.3   <- repo shared_3 = 1.0
+      S_3({4,5,6}) = 0.2*(hw 0.5)            = 0.1   <- no dimension survives k=3
+      separation at k=3: 0.2 exactly — invisible at k=2 (identical marginals)
+      ACI_2 = (3*0.3 + 3*0.3 + 9*0.1) / 15 = 2.7/15 = 0.18
+      ACI_3 = (1*0.3 + 19*0.1) / 20       = 2.2/20 = 0.11
+    """
+    def bs(actor, fp, platform, toolchain, repo, model):
+        return _fixture_path(actor, fp, platform,
+                             operator="independent-operator",
+                             toolchain=toolchain, repo=repo, model=model)
+    return [
+        # the hidden-ancestor triple: everything pairwise-different EXCEPT repo
+        bs("bs1", "F1", "P1", "T1", "R*", "M1"),
+        bs("bs2", "F2", "P2", "T2", "R*", "M2"),
+        bs("bs3", "F3", "P3", "T3", "R*", "M3"),
+        # the genuinely diverse control triple: one shared dimension per pair,
+        # a different dimension each time — nothing shared by all three
+        bs("bs4", "F4", "P4", "T4", "RA", "MX"),
+        bs("bs5", "F5", "PL", "T5", "RA", "MY"),
+        bs("bs6", "F6", "PL", "T6", "RB", "MX"),
+    ]
 
 
 def _selftest() -> int:
@@ -562,6 +867,93 @@ def _selftest() -> int:
     checks.append(("Gamma(operator) = Gamma(repo) = 1.0 on the fixture",
                    prof["operator"] == 1.0 and prof["repo"] == 1.0))
 
+    # ---------------- higher-order ACI_k fixtures (aci-korder/0.1) ----------------
+    # (k1) S_2 RESTRICTION CONTRACT: on every pair drawn from a mixed pool the
+    # k-order scorers reproduce the pairwise sigmas EXACTLY (same floats)
+    pool = identical + [P, Q, R, U] + blindspot_fixture_paths()
+    restriction_ok = True
+    for i in range(len(pool)):
+        for j in range(i + 1, len(pool)):
+            pairwise = score_pair(pool[i], pool[j])
+            korder2 = {d: v["sigma"]
+                       for d, v in score_subset((pool[i], pool[j])).items()}
+            if pairwise != korder2:
+                restriction_ok = False
+    checks.append(("S_k restricts to the pairwise sigmas exactly at k=2",
+                   restriction_ok))
+
+    # (k2) pairwise_blindspot_exposed — THE HEADLINE FIXTURE (hand-computed in
+    # blindspot_fixture_paths' docstring): two triples with IDENTICAL pairwise
+    # marginals (every within-triple pair S = 0.3) that k=3 separates — the
+    # hidden-ancestor triple keeps S_3 = 0.3 (repo shared_3 = 1.0) while the
+    # genuinely diverse control drops to S_3 = 0.1. ACI_2 = 0.18, ACI_3 = 0.11.
+    bs = blindspot_fixture_paths()
+    hidden, control = bs[:3], bs[3:]
+    within_pairs_ok = all(
+        abs(subset_score(pair) - 0.3) < 1e-9
+        for triple in (hidden, control)
+        for pair in itertools.combinations(triple, 2))
+    s3_hidden = subset_score(hidden)
+    s3_control = subset_score(control)
+    repo_shared3 = score_subset(hidden)["source_repo"]
+    korder_bs = compute_korder_report(bs, k_max=3)
+    aci2_bs = korder_bs["profile"][0]["aci_k"]
+    aci3_bs = korder_bs["profile"][1]["aci_k"]
+    checks.append(("pairwise_blindspot_exposed: identical pairwise marginals "
+                   "(every within-triple pair S=0.3)", within_pairs_ok))
+    checks.append(("pairwise_blindspot_exposed: k=3 separates the hidden "
+                   "ancestor (0.3) from the diverse control (0.1)",
+                   abs(s3_hidden - 0.3) < 1e-9
+                   and abs(s3_control - 0.1) < 1e-9
+                   and repo_shared3["sigma"] == 1.0
+                   and repo_shared3["tag"] == "identical"
+                   and abs((s3_hidden - s3_control) - 0.2) < 1e-9))
+    checks.append(("pairwise_blindspot_exposed: ACI_2 = 0.18 and ACI_3 = 0.11 "
+                   "(hand-computed)",
+                   abs(aci2_bs - 0.18) < 1e-9 and abs(aci3_bs - 0.11) < 1e-9))
+
+    # (k3) S_2 consistency at the report level: ACI_2 via the S_k machinery
+    # EQUALS the pairwise report's ACI (exact float equality, both fixtures)
+    checks.append(("ACI_2 via S_k machinery == pairwise ACI to the digit "
+                   "(fixture reports)",
+                   compute_korder_report([P, Q, R], k_max=2)["profile"][0]
+                   ["aci_k"] == compute_report([P, Q, R])["pairwise_aci"]
+                   and aci2_bs == compute_report(bs)["pairwise_aci"]))
+
+    # (k4) UNKNOWN worst-case at k=3: one unknown fingerprint in a triple
+    # forces hardware to 1.0 (never independence) and is counted in the
+    # per-dimension unknown flags at k_max
+    u3 = [_fixture_path("u1", "sha256:" + "c" * 64, "PU"),
+          _fixture_path("u2", "sha256:" + "d" * 64, "PU"),
+          _fixture_path("u3", None, "PU")]
+    hw_u3 = score_subset(u3)["hardware"]
+    korder_u3 = compute_korder_report(u3, k_max=3)
+    checks.append(("unknown fingerprint at k=3 scores worst-case 1.0 and is "
+                   "flagged at k_max",
+                   hw_u3["sigma"] == 1.0 and hw_u3["tag"] == "unknown"
+                   and korder_u3["per_dimension"]["hardware"]
+                   ["unknown_flag_count"] == 1))
+
+    # (k5) ENUMERATION-LIMIT refusal: C(1000,2) = 499,500 > 200,000 -> k=2
+    # refuses with the no-sampling reason; nothing is estimated
+    many = [_fixture_path(f"m{i}", "sha256:" + "e" * 64, "PM")
+            for i in range(1000)]
+    korder_many = compute_korder_report(many, k_max=2)
+    checks.append(("enumeration limit refuses (no sampling — fabricated "
+                   "precision named in the reason)",
+                   korder_many["k_values_computed"] == []
+                   and korder_many["profile"] == []
+                   and korder_many["k_values_refused"][0]["k"] == 2
+                   and "fabricated precision"
+                   in korder_many["k_values_refused"][0]["reason"]))
+
+    # (k6) determinism + hash integrity of the k-order report
+    checks.append(("k-order report deterministic and hash-consistent",
+                   canonical_json(compute_korder_report(bs, k_max=3))
+                   == canonical_json(korder_bs)
+                   and compute_report_hash(korder_bs)
+                   == korder_bs["report_hash"]))
+
     # (f) real-ledger report (READ-ONLY) when the runtime ledger exists locally:
     # deterministic across two full rebuilds, and the same-operator baseline holds.
     if os.path.exists(work_molecule.DEFAULT_LEDGER_PATH):
@@ -587,6 +979,39 @@ def _selftest() -> int:
     else:
         print("    (no runtime ledger present — real-ledger report SKIPPED; "
               "fixture checks above cover the same code paths)")
+
+    # (g) REAL S_2 CONSISTENCY against the ANCHORED pairwise baseline: on the
+    # same as-of paths the anchored baseline measured, ACI_2 via the S_k
+    # machinery must equal the anchored pairwise ACI TO THE DIGIT. Source is
+    # the live ledger when present, else the published snapshot (fresh clone).
+    _proto = os.path.dirname(os.path.abspath(__file__))
+    src = next((p for p in (work_molecule.DEFAULT_LEDGER_PATH,
+                            os.path.join(_proto, "ledger_published.json"))
+                if os.path.exists(p)), None)
+    if src is not None:
+        baseline = None
+        for e in work_molecule._read_ledger(src):
+            pl = e.get("payload", {})
+            if (pl.get("event") == "aci_baseline_anchored"
+                    and pl.get("status") == "aci-baseline-confirmed"):
+                baseline = e
+        if baseline is not None:
+            b_idx = baseline["index"]
+            asof_paths = build_paths(ledger_path=src, as_of_index=b_idx - 1)
+            korder_real = compute_korder_report(asof_paths, k_max=3,
+                                                as_of_ledger_index=b_idx - 1)
+            checks.append((f"real ACI_2 via S_k == anchored ledger:{b_idx} "
+                           "pairwise baseline to the digit",
+                           korder_real["profile"][0]["aci_k"]
+                           == baseline["payload"]["pairwise_aci"]
+                           and korder_real["path_count"]
+                           == baseline["payload"]["path_count"]))
+        else:
+            print("    (no anchored pairwise baseline on the source — real "
+                  "S_2-consistency check SKIPPED)")
+    else:
+        print("    (no ledger source at all — real S_2-consistency check "
+              "SKIPPED)")
 
     stray_root = sorted(set(os.listdir(_REPO_ROOT)) - root_before)
     proto_dir = os.path.dirname(os.path.abspath(__file__))

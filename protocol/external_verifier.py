@@ -819,9 +819,40 @@ ACI_LIMITATION_NOTE = (
     "This is the protocol's DELIBERATE SELF-MEASUREMENT of its own maximal-concentration "
     "baseline: every verification path measured is operated by the SAME operator. ACI is "
     "DESCRIPTIVE evidence, never a minting trigger or reward signal, and a low value is "
-    "not proof of independence. Pairwise ACI_2 only — higher-order concentration is not "
-    "measured. Unknown metadata is scored worst-case (never as independence) and flagged. "
+    "not proof of independence. Pairwise ACI_2 only in THIS record — higher-order "
+    "concentration is measured separately by the aci-korder baseline record. Unknown "
+    "metadata is scored worst-case (never as independence) and flagged. "
     "Not consensus, not mainnet, not payment, not a token; zero-value research-stage."
+)
+
+
+# --- higher-order ACI_k baseline anchoring ------------------------------------------------
+# The k-order report (agent_concentration.compute_korder_report) is the
+# protocol's higher-order self-measurement: the ancestry-witness S_k profile
+# {ACI_2..ACI_kmax} by EXACT enumeration only. The coordinator RECOMPUTES the
+# full profile itself at the report's as-of chain point, compares report_hash,
+# AND re-proves the S_2 consistency (ACI_2 via the S_k machinery must equal
+# the anchored pairwise baseline to the digit) before anchoring.
+_KORDER_EVENT = "aci_korder_baseline_anchored"
+_KORDER_STATUS = "aci-korder-confirmed"
+
+KORDER_CANDIDATE_STATEMENT = (
+    "one candidate S_k construction (ancestry-witness), not THE definition of "
+    "higher-order concentration — the calibration question stays open"
+)
+KORDER_LIMITATION_NOTE = (
+    "Higher-order self-measurement of the same same-operator baseline the "
+    "pairwise ACI measured: the profile quantifies how concentrated the "
+    "protocol's own verification paths are at subset sizes k >= 2, under ONE "
+    "candidate S_k construction — not a calibrated definition. Computed by "
+    "EXACT enumeration only (no sampling in v0: a sampled estimate without "
+    "variance analysis would be fabricated precision); ks beyond the "
+    "enumeration limit are refused, and the refusals are part of the report. "
+    "Scores depend entirely on declared metadata quality — unknowns score "
+    "worst-case and are flagged, never as independence. The deliverable is "
+    "the profile plus per-dimension breakdown, never one collapsed number. "
+    "Not consensus, not mainnet, not payment, not a token; zero-value "
+    "research-stage."
 )
 
 
@@ -932,6 +963,156 @@ def anchor_aci_report(report: dict, ledger: Ledger) -> dict:
         },
         "operator_relationship": "same-operator",
         "limitation_note": ACI_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+def validate_korder_report(report: dict):
+    """Structurally validate a k-order ACI report file. Returns (ok, reason)."""
+    if not isinstance(report, dict):
+        return (False, "k-order report is not a JSON object")
+    if report.get("schema") != agent_concentration.KORDER_SCHEMA_VERSION:
+        return (False, f"field 'schema' must be "
+                       f"{agent_concentration.KORDER_SCHEMA_VERSION!r} "
+                       f"(got {report.get('schema')!r})")
+    if report.get("weights_version") != agent_concentration.KORDER_WEIGHTS_VERSION:
+        return (False, f"field 'weights_version' must be "
+                       f"{agent_concentration.KORDER_WEIGHTS_VERSION!r}")
+    for field in ("path_count", "k_max", "as_of_ledger_index"):
+        v = report.get(field)
+        if not isinstance(v, int) or isinstance(v, bool) or v < 0:
+            return (False, f"field '{field}' must be a non-negative integer "
+                           "(an anchorable baseline is measured at an "
+                           "explicit as-of chain point)")
+    ks = report.get("k_values_computed")
+    if (not isinstance(ks, list) or not ks
+            or any(not isinstance(k, int) or k < 2 for k in ks)):
+        return (False, "k_values_computed must be a non-empty list of ints "
+                       ">= 2 (a report with every k refused anchors nothing)")
+    profile = report.get("profile")
+    if (not isinstance(profile, list) or len(profile) != len(ks)
+            or any(not isinstance(row, dict) or row.get("exact") is not True
+                   or not isinstance(row.get("aci_k"), (int, float))
+                   or isinstance(row.get("aci_k"), bool)
+                   or not isinstance(row.get("subset_count"), int)
+                   for row in profile)):
+        return (False, "profile must list one {k, aci_k, subset_count, "
+                       "exact:true} row per computed k — exact enumeration "
+                       "is the only path to an anchorable number in v0")
+    if not isinstance(report.get("per_dimension"), dict):
+        return (False, "per_dimension must be a JSON object")
+    if "candidate" not in str(report.get("blindspot_statement", "")):
+        return (False, "blindspot_statement (the candidate-construction "
+                       "honesty paragraph) is missing")
+    rh = report.get("report_hash")
+    if not isinstance(rh, str) or len(rh) != 64 or any(c not in _HEX for c in rh):
+        return (False, "report_hash must be a 64-char lowercase hex sha256")
+    if agent_concentration.compute_report_hash(report) != rh:
+        return (False, "report_hash does not recompute from the report's own "
+                       "content (internally inconsistent file)")
+    return (True, "ok: conforms to the aci-korder-report schema")
+
+
+def anchor_aci_korder_report(report: dict, ledger: Ledger) -> dict:
+    """Validate + RECOMPUTE + anchor a higher-order ACI baseline. Returns
+    {evaluation, ledger_entry}.
+
+    Malformed -> 'rejected', NOT anchored. Otherwise the coordinator
+    RECOMPUTES the full k-order profile itself at the report's as-of chain
+    point (rebuild molecules -> re-derive paths -> re-enumerate every
+    k-subset -> compare report_hash) AND re-proves the S_2 consistency
+    against the anchored pairwise baseline (exact float equality). Both hold
+    -> 'aci-korder-confirmed'; anything else -> 'aci-korder-mismatch' (a real
+    audit event). The record carries the profile numbers and the honesty
+    statements — never one collapsed number, and no task keys (scanner-
+    invisible, same rationale as the pairwise baseline record).
+    """
+    ok, reason = validate_korder_report(report)
+    if not ok:
+        evaluation = {
+            "event": _KORDER_EVENT,
+            "stage": "R-concentration",
+            "topology": "same-machine-korder-measurement",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": KORDER_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    recompute_error = None
+    recomputed = None
+    try:
+        recomputed = agent_concentration.compute_korder_report(
+            agent_concentration.build_paths(
+                ledger_path=ledger.path,
+                as_of_index=report["as_of_ledger_index"]),
+            k_max=report["k_max"],
+            as_of_ledger_index=report["as_of_ledger_index"])
+    except (KeyError, ValueError) as exc:
+        recompute_error = f"{type(exc).__name__}: {exc}"
+    hash_matches = bool(recomputed is not None
+                        and recomputed["report_hash"] == report["report_hash"])
+
+    # S_2 consistency against the ANCHORED pairwise baseline: exact equality
+    baseline_idx = None
+    baseline_aci = None
+    for e in ledger.read_all():
+        p = e.get("payload", {})
+        if (p.get("event") == _ACI_EVENT
+                and p.get("status") == "aci-baseline-confirmed"):
+            baseline_idx, baseline_aci = e["index"], p.get("pairwise_aci")
+    aci2 = next((row["aci_k"] for row in (recomputed or {}).get("profile", [])
+                 if row["k"] == 2), None)
+    s2_matches = bool(baseline_aci is not None and aci2 is not None
+                      and aci2 == baseline_aci)
+    status = (_KORDER_STATUS if (hash_matches and s2_matches)
+              else "aci-korder-mismatch")
+
+    unknown_total = sum(d.get("unknown_flag_count", 0)
+                        for d in report["per_dimension"].values())
+    evaluation = {
+        "event": _KORDER_EVENT,
+        "stage": "R-concentration",
+        "topology": "same-machine-korder-measurement",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "report_schema": report["schema"],
+        "weights_version": report["weights_version"],
+        "report_hash": report["report_hash"],
+        "path_count": report["path_count"],
+        "as_of_ledger_index": report["as_of_ledger_index"],
+        "k_values_computed": list(report["k_values_computed"]),
+        "k_values_refused": [r["k"] for r in report.get("k_values_refused", [])],
+        # the PROFILE is the deliverable — never one collapsed number
+        "profile": [dict(row) for row in report["profile"]],
+        "unknown_flag_count": unknown_total,
+        "candidate_construction": KORDER_CANDIDATE_STATEMENT,
+        "blindspot_statement": report["blindspot_statement"],
+        "s2_consistency": (
+            f"ACI_2 via the S_k machinery equals the anchored pairwise "
+            f"baseline at ledger:{baseline_idx} to the digit"
+            if s2_matches else
+            "S_2 consistency NOT established against an anchored pairwise "
+            "baseline — see coordinator_reconfirmed"),
+        "coordinator_reconfirmed": {
+            "recomputed_report_hash": (recomputed or {}).get("report_hash"),
+            "report_hash_matches": hash_matches,
+            "recomputed_aci_2": aci2,
+            "pairwise_baseline_ledger_index": baseline_idx,
+            "pairwise_baseline_aci": baseline_aci,
+            "s2_matches_anchored_baseline": s2_matches,
+            "recompute_error": recompute_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": KORDER_LIMITATION_NOTE,
         "zero_value": True,
         "no_token": True,
         "anchored_at": time.time(),
@@ -2728,6 +2909,88 @@ def _selftest() -> int:
             out_taci["evaluation"]["status"],
         ))
 
+        # --- HIGHER-ORDER ACI_k mode coverage (aci-korder anchoring) ---------------------
+        # Continues on aci_ledger_a, which already carries the CONFIRMED pairwise
+        # baseline the S_2-consistency proof compares against. The k-order report
+        # is measured at the same as-of chain point the pairwise anchor measured
+        # (its index - 1), so ACI_2 must equal the anchored pairwise_aci exactly.
+        pairwise_anchor_idx = out_aci["ledger_entry"]["index"]
+        korder_fixture = agent_concentration.compute_korder_report(
+            agent_concentration.build_paths(ledger_path=aci_ledger_a,
+                                            as_of_index=pairwise_anchor_idx - 1),
+            k_max=3, as_of_ledger_index=pairwise_anchor_idx - 1)
+
+        # (14a) valid k-order report -> recompute + S_2 proof -> anchored
+        out_ko = anchor_aci_korder_report(korder_fixture, Ledger(aci_ledger_a))
+        ev_ko = out_ko["evaluation"]
+        ko_chain_ok, _ko_reason = Ledger(aci_ledger_a).verify_chain()
+        checks.append((
+            "ACI-KORDER CONFIRMED (exact profile recomputed; ACI_2 == anchored "
+            "pairwise baseline to the digit)",
+            ev_ko["status"] == "aci-korder-confirmed"
+            and out_ko["ledger_entry"] is not None
+            and ev_ko["coordinator_reconfirmed"]["report_hash_matches"] is True
+            and ev_ko["coordinator_reconfirmed"]["s2_matches_anchored_baseline"] is True
+            and ev_ko["coordinator_reconfirmed"]["pairwise_baseline_ledger_index"]
+            == pairwise_anchor_idx
+            and ev_ko["coordinator_reconfirmed"]["recomputed_aci_2"]
+            == ev_aci["pairwise_aci"]
+            and "to the digit" in ev_ko["s2_consistency"]
+            and "candidate" in ev_ko["candidate_construction"]
+            and all(row["exact"] is True for row in ev_ko["profile"])
+            and ko_chain_ok is True,
+            f"{ev_ko['status']} (profile "
+            f"{[round(r['aci_k'], 6) for r in ev_ko['profile']]})",
+        ))
+        checks.append((
+            "ACI-KORDER RECORD profile-not-scalar + scanner-invisible",
+            "task_id" not in ev_ko and "task_ids" not in ev_ko
+            and "paths" not in ev_ko
+            and isinstance(ev_ko["profile"], list) and len(ev_ko["profile"]) == 2
+            and "aci" not in {k.lower() for k in ev_ko
+                              if isinstance(ev_ko.get(k), (int, float))
+                              and not isinstance(ev_ko.get(k), bool)},
+            f"task-keys={sorted(k for k in ev_ko if 'task_id' in k)}",
+        ))
+
+        # (14b) internally consistent but WRONG profile number -> recompute
+        # disagrees -> 'aci-korder-mismatch', anchored (a real audit event)
+        tampered_ko = json.loads(json.dumps(korder_fixture))
+        tampered_ko["profile"][1]["aci_k"] = 0.0
+        tampered_ko["report_hash"] = agent_concentration.compute_report_hash(
+            tampered_ko)
+        ko_ledger_b = os.path.join(tmp, "korder_ledger_b.jsonl")
+        _copyfile(aci_ledger_path, ko_ledger_b)
+        anchor_aci_report(aci_report, Ledger(ko_ledger_b))  # baseline for S_2
+        out_tko = anchor_aci_korder_report(tampered_ko, Ledger(ko_ledger_b))
+        checks.append((
+            "ACI-KORDER MISMATCH (tampered profile -> recompute disagrees -> "
+            "anchored audit event)",
+            out_tko["evaluation"]["status"] == "aci-korder-mismatch"
+            and out_tko["ledger_entry"] is not None
+            and out_tko["evaluation"]["coordinator_reconfirmed"]
+            ["report_hash_matches"] is False,
+            out_tko["evaluation"]["status"],
+        ))
+
+        # (14c) malformed -> rejected -> NOT anchored (bad hash; missing as-of;
+        # empty computed-k list)
+        bad_ko = dict(korder_fixture)
+        bad_ko["report_hash"] = "0" * 64
+        out_badko = anchor_aci_korder_report(bad_ko, Ledger(ko_ledger_b))
+        no_asof = {k: v for k, v in korder_fixture.items()
+                   if k != "as_of_ledger_index"}
+        out_noasof = anchor_aci_korder_report(no_asof, Ledger(ko_ledger_b))
+        checks.append((
+            "ACI-KORDER REJECTED (bad hash / missing as-of -> NOT anchored)",
+            out_badko["evaluation"]["status"] == "rejected"
+            and out_badko["ledger_entry"] is None
+            and out_noasof["evaluation"]["status"] == "rejected"
+            and out_noasof["ledger_entry"] is None,
+            f"{out_badko['evaluation']['status']} / "
+            f"{out_noasof['evaluation']['status']}",
+        ))
+
         # --- ECONOMY-SUMMARY mode coverage (re-run-and-compare anchoring) ----------------
         # The economy simulation is ledger-independent (it runs tasks + the faucet), so
         # one in-memory run serves as the "submitted" log. All TEMP ledger paths.
@@ -4452,6 +4715,8 @@ def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
                 "prev_root", "new_root", "new_key_count", "key_index",
                 "prev_root_ledger_index", "claimed_prev_root",
                 "claimed_key_index",
+                "as_of_ledger_index", "k_values_computed", "profile",
+                "unknown_flag_count", "s2_consistency",
                 "first_failure_reason", "missed_slot_statement",
                 "two_flow_separation"):
         if key in ev:
@@ -4508,6 +4773,14 @@ def main(argv=None) -> int:
         help="ingest an ACI report (agent_concentration.py --report); RECOMPUTE the full "
              "report from the ledger, compare report_hash, and anchor the outcome "
              "(aggregate numbers only)",
+    )
+    mode.add_argument(
+        "--anchor-aci-korder-report", metavar="KORDER_REPORT_JSON",
+        help="ingest a higher-order ACI report (agent_concentration.py "
+             "--korder); RECOMPUTE the full exact-enumeration profile at the "
+             "report's as-of chain point, re-prove S_2 consistency against "
+             "the anchored pairwise baseline, and anchor the outcome "
+             "(profile + breakdown — never one collapsed number)",
     )
     mode.add_argument(
         "--anchor-economy-summary", metavar="ECONOMY_LOG_JSON",
@@ -4629,6 +4902,9 @@ def main(argv=None) -> int:
         return _cmd_anchor_molecule_catalog(args.anchor_molecule_catalog, args.ledger)
     if args.anchor_aci_report is not None:
         return _cmd_anchor_aci_report(args.anchor_aci_report, args.ledger)
+    if args.anchor_aci_korder_report is not None:
+        return _cmd_anchor_json(args.anchor_aci_korder_report, args.ledger,
+                                anchor_aci_korder_report, _KORDER_STATUS)
     if args.anchor_economy_summary is not None:
         return _cmd_anchor_economy_summary(args.anchor_economy_summary, args.ledger)
     if args.anchor_metering_report is not None:
