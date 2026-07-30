@@ -81,10 +81,8 @@ _RESPONSE_KEYS = ("schema", "challenge_id", "task_id", "verifier_id",
 # Lamport-Merkle signature over sha256(canonical response-without-signature).
 _OPTIONAL_RESPONSE_KEYS = ("signature",)
 
-# The ledger record types the signature layer reads (registration + prior use).
-_REGISTRATION_EVENT = "actor_key_registered"
-_REGISTRATION_STATUS = "actor-key-registered"
-_CHALLENGE_RECORD_EVENT = "challenge_response_result"
+# Root resolution and the prior-use scan live in actor_identity (root_chain /
+# active_root_asof / uses_for_root) — the signature layer reads them from there.
 
 
 # ----------------------------------------------------------------------------
@@ -213,15 +211,13 @@ def respond(challenge: dict, ledger_path: str = DEFAULT_LEDGER_PATH,
     }
     if keychain is not None:
         if key_index is None:
-            unused = [i for i in range(keychain["key_count"])
-                      if i not in keychain["used_indices"]]
-            if not unused:
-                raise ValueError("keychain exhausted: every one-time key index "
-                                 "is used")
-            key_index = unused[0]
+            # first index unused BOTH locally and on-chain (raises the named
+            # EXHAUSTION reason — directing to rotation — when none remain)
+            key_index = actor_identity.first_unused_index(keychain, entries)
         message = canonical_json(response).encode("utf-8")
         response["signature"] = actor_identity.sign(
-            keychain, key_index, message, force_reuse=force_reuse)
+            keychain, key_index, message, force_reuse=force_reuse,
+            ledger_source=entries)
     return response
 
 
@@ -262,17 +258,24 @@ def signature_check(response, ledger_source, as_of_index: int = None) -> dict:
     `ledger_source` is a path or a pre-read entries list. Returns a dict:
     {signed, signer_actor_id, key_index, signature_valid, key_root_ledger_index,
     reuse_detected, reasons}. Checks, in order: (1) ONE-TIME DISCIPLINE — the
-    (actor_id, key_index) pair must not appear in ANY anchored signed challenge
-    record (reuse = hard reject, listed FIRST); (2) an anchored key root exists
-    for the signer; (3) the signature verifies over
+    (actor_id, key_index) pair must not appear in ANY anchored record ATTRIBUTED
+    to the same root (reuse = hard reject, listed FIRST; post-rotation index
+    numbering restarts honestly, so a fresh root's index 0 never collides with
+    a retired root's consumed index 0); (2) the signer has an ACTIVE root at
+    this chain point — resolved AS-OF via actor_identity.active_root_asof over
+    the registration + rotation chain; (3) the signature verifies over
     sha256(canonical response-without-signature) under that root; (4) the
     signature's actor binds to the response's verifier_id.
 
     `as_of_index` is the generation-lock idiom for HISTORICAL re-verification:
     when re-verifying a round anchored at ledger index N, pass N-1 so the scan
-    sees exactly the history the coordinator saw at anchor time (a LATER
-    legitimate/rejected use — e.g. a subsequent drill — must not retroactively
-    fail an earlier honest round). Live anchoring omits it: full history.
+    AND the root resolution see exactly the history the coordinator saw at
+    anchor time — a record anchored under a since-retired root keeps verifying
+    against ITS root forever, while a LATER legitimate/rejected use must not
+    retroactively fail an earlier honest round. Live anchoring omits it: full
+    history, current active root (so a NEW signature under a retired root is
+    rejected). key_root_ledger_index cites the registration OR rotation record
+    that made the resolved root active.
     """
     info = {"signed": False, "signer_actor_id": None, "key_index": None,
             "signature_valid": None, "key_root_ledger_index": None,
@@ -293,48 +296,47 @@ def signature_check(response, ledger_source, as_of_index: int = None) -> dict:
         entries = [e for e in entries
                    if isinstance(e.get("index"), int) and e["index"] <= as_of_index]
 
+    # (2, resolved first so the reuse scan can attribute to the right root)
+    # the signer must have an ACTIVE anchored root at this chain point —
+    # AS-OF resolution over the registration + rotation chain (entries are
+    # already bounded by as_of_index above)
+    active = actor_identity.active_root_asof(sig.get("actor_id"), entries)
+    if active is None:
+        info["signature_valid"] = False
+        info["reasons"].append(f"no anchored key root registered for actor "
+                               f"{sig.get('actor_id')!r} — a signature is only "
+                               "meaningful under an anchored root")
+        return info
+    info["key_root_ledger_index"] = active["ledger_index"]
+
     # (1) one-time discipline against the WHOLE anchored history — first, so a
     # violation is always the headline reason. The scan is LEDGER-WIDE and
-    # CROSS-TYPE (actor_identity.anchored_key_uses: signed challenge rounds AND
-    # batch records such as anchored uptime epochs). It SKIPS records of this
-    # same round (same challenge_id): re-verifying an already-anchored signed
-    # round must not self-collide, and same-round reuse reveals no new secrets
-    # (identical message digest). Any OTHER use of the index is always caught.
-    for use in actor_identity.anchored_key_uses(entries):
-        if (use["actor_id"] == sig.get("actor_id")
-                and use["key_index"] == sig.get("key_index")
+    # CROSS-TYPE (actor_identity.anchored_key_uses: signed challenge rounds,
+    # batch records such as anchored uptime epochs, AND rotation-certificate
+    # signatures), ATTRIBUTED to the resolved root (uses_for_root) so rotation
+    # honestly restarts index numbering. It SKIPS records of this same round
+    # (same challenge_id): re-verifying an already-anchored signed round must
+    # not self-collide, and same-round reuse reveals no new secrets (identical
+    # message digest). Any OTHER use of the index is always caught.
+    for use in actor_identity.uses_for_root(sig.get("actor_id"), entries,
+                                            active["merkle_root"]):
+        if (use["key_index"] == sig.get("key_index")
                 and use["payload"].get("challenge_id")
                 != response.get("challenge_id")):
             info["reuse_detected"] = True
-            info["reasons"].append(
+            info["reasons"].insert(0,
                 f"one-time key index reuse (violation of OTS discipline): "
                 f"({sig.get('actor_id')!r}, index {sig.get('key_index')}) was "
                 f"already used in the anchored record at ledger index "
                 f"{use['ledger_index']}")
             break
 
-    # (2) the signer must have an anchored key root
-    registration = None
-    for e in entries:
-        p = e.get("payload") if isinstance(e, dict) else None
-        if (isinstance(p, dict) and p.get("event") == _REGISTRATION_EVENT
-                and p.get("status") == _REGISTRATION_STATUS
-                and p.get("actor_id") == sig.get("actor_id")):
-            registration = e
-    if registration is None:
-        info["signature_valid"] = False
-        info["reasons"].append(f"no anchored key root registered for actor "
-                               f"{sig.get('actor_id')!r} — a signature is only "
-                               "meaningful under an anchored root")
-        return info
-    info["key_root_ledger_index"] = registration["index"]
-
-    # (3) full signature verification under the anchored root, over the
+    # (3) full signature verification under the as-of active root, over the
     # canonical response WITHOUT its signature field
     message = canonical_json(
         {k: v for k, v in response.items() if k != "signature"}).encode("utf-8")
     ok, sig_reasons = actor_identity.verify_signature(
-        sig, registration["payload"]["merkle_root"], message)
+        sig, active["merkle_root"], message)
     info["signature_valid"] = ok
     info["reasons"].extend(f"signature: {r}" for r in sig_reasons)
 

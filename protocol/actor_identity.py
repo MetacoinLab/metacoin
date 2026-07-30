@@ -34,6 +34,26 @@ file. The private keychain file is NEVER committed (gitignored); only the public
 declaration (actor_id, scheme, key_count, merkle_root, leaf_hashes hash — no
 private material) is ever registered on the ledger.
 
+================== ROTATION LIFECYCLE (CONSTITUTIONAL) ==================
+One-time keys DEPLETE, so without rotation an actor's identity is disposable.
+The rotation lifecycle ("root-rotation/0.1") closes that gap under three rules:
+
+  * A rotation is a CRYPTOGRAPHIC HANDOFF: the new root is accepted only when
+    the rotation certificate is signed by an UNUSED key of the actor's current
+    active root — continuity is proven, never asserted. No unsigned or
+    third-party rotation path exists.
+  * History is FOREVER verifiable against the root that was active when it was
+    anchored: signature verification of a historical record uses the root
+    active as-of that record's index (active_root_asof — the generation-lock
+    idiom applied to identity; a record anchored at ledger index N is checked
+    against the root active as-of N-1, the history its coordinator saw).
+    Rotation retires a root for FUTURE signing only; it rewrites nothing.
+  * EXHAUSTION is enforced: when all key indices of the active root are
+    consumed (per the ledger-wide cross-type scan), signing refuses with a
+    named reason directing to rotation. One active root per actor at all
+    times; the chain of roots is LINEAR — no forks, and a second rotation
+    from an already-retired root is mechanically rejected.
+
 HONEST COST: hash-based one-time signatures are BIG — per key, the private and
 public halves are 256x2x32 bytes (~16 KiB) each, and a signature carries ~24 KiB
 (256 revealed secrets + the full leaf pubkey + the Merkle path). That is the
@@ -70,6 +90,13 @@ _PROTO_DIR = os.path.dirname(os.path.abspath(__file__))
 SCHEME = "lamport-sha256-merkle/0.1"
 KEYCHAIN_SCHEMA = "actor-keychain/0.1"
 DECLARATION_SCHEMA = "actor-key-declaration/0.1"
+ROTATION_SCHEMA = "root-rotation/0.1"
+
+# The ledger record types the root-chain walk reads (registration + rotation).
+_REGISTRATION_EVENT = "actor_key_registered"
+_REGISTRATION_STATUS = "actor-key-registered"
+_ROTATION_EVENT = "actor_key_rotated"
+_ROTATION_STATUS = "actor-key-rotated"
 
 _BITS = 256  # sha256 digest bits; one secret pair per bit
 _HEX = set("0123456789abcdef")
@@ -196,18 +223,54 @@ def public_declaration(keychain: dict) -> dict:
 # Sign / verify
 # ----------------------------------------------------------------------------
 def sign(keychain: dict, key_index: int, message_bytes: bytes,
-         force_reuse: bool = False) -> dict:
+         force_reuse: bool = False, ledger_source=None) -> dict:
     """Sign sha256(message_bytes) with one-time key `key_index`.
 
     Refuses locally if the keychain marks the index used (the one-time
     discipline), then marks it used — callers persisting the keychain file must
-    write it back. `force_reuse=True` bypasses ONLY the local refusal and exists
-    solely for the planned key-reuse DRILL — ledger-side verification still
-    hard-rejects anchored reuse.
+    write it back. With a `ledger_source` (entries list or path) the LEDGER-WIDE
+    discipline is enforced at signing time too: an index consumed by ANY
+    anchored record type refuses here, a root RETIRED by an anchored rotation
+    refuses entirely (history stays verifiable via as-of resolution; new
+    signatures do not), and full EXHAUSTION refuses with the named reason
+    directing to rotation. `force_reuse=True` bypasses ONLY these refusals and
+    exists solely for planned DRILL construction — ledger-side verification
+    still hard-rejects anchored reuse.
     """
     if not (0 <= key_index < keychain["key_count"]):
         raise ValueError(f"key_index {key_index} out of range "
                          f"(key_count {keychain['key_count']})")
+    if not force_reuse:
+        local = {i for i in keychain["used_indices"] if isinstance(i, int)}
+        if len(local & set(range(keychain["key_count"]))) >= keychain["key_count"]:
+            first_unused_index(keychain)  # raises the named EXHAUSTION reason
+        if ledger_source is not None:
+            entries = _read_entries(ledger_source)
+            chain = root_chain(keychain["actor_id"], entries)
+            mine = [el for el in chain
+                    if el["merkle_root"] == keychain["merkle_root"]]
+            if mine and chain[-1]["merkle_root"] != keychain["merkle_root"]:
+                succ = chain[chain.index(mine[-1]) + 1]
+                raise ValueError(
+                    f"root retired: {keychain['merkle_root'][:16]}.. was "
+                    f"handed off by the rotation anchored at ledger index "
+                    f"{succ['ledger_index']} — a retired root signs NOTHING "
+                    "new (its history remains verifiable via as-of "
+                    "resolution); sign under the active root "
+                    f"{chain[-1]['merkle_root'][:16]}..")
+            onchain = {u["key_index"]: u["ledger_index"]
+                       for u in uses_for_root(keychain["actor_id"], entries,
+                                              keychain["merkle_root"])}
+            if len(local | set(onchain)) >= keychain["key_count"]:
+                probe = dict(keychain)
+                probe["used_indices"] = sorted(local | set(onchain))
+                first_unused_index(probe)  # raises the named EXHAUSTION reason
+            if key_index in onchain:
+                raise ValueError(
+                    f"one-time key index {key_index} is already CONSUMED "
+                    f"on-chain (anchored record at ledger index "
+                    f"{onchain[key_index]}) — the OTS discipline is "
+                    "ledger-wide, not just local; use a fresh index")
     if key_index in keychain["used_indices"] and not force_reuse:
         raise ValueError(f"one-time key index {key_index} is already used — "
                          "refusing to sign again (OTS discipline; use a fresh "
@@ -257,6 +320,135 @@ def anchored_key_uses(entries: list) -> list:
                     uses.append({"actor_id": p["actor_id"], "key_index": ki,
                                  "ledger_index": e.get("index"), "payload": p})
     return uses
+
+
+def _read_entries(ledger_source) -> list:
+    """Ledger entries from EITHER a pre-read entries list, a live JSONL path,
+    or a published-snapshot path. Mirrors work_molecule._read_ledger's dual
+    file format ON PURPOSE (identical entry dicts either way) — reimplemented
+    in ~10 lines so the identity BASE layer keeps importing nothing above it."""
+    if isinstance(ledger_source, list):
+        return ledger_source
+    if not os.path.exists(ledger_source):
+        raise ValueError(f"ledger file does not exist: {ledger_source}")
+    with open(ledger_source, "r", encoding="utf-8") as f:
+        text = f.read()
+    if text.lstrip().startswith("{"):
+        try:
+            doc = json.loads(text)
+        except json.JSONDecodeError:
+            doc = None
+        if isinstance(doc, dict) and isinstance(doc.get("entries"), list):
+            return doc["entries"]  # published-snapshot form
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+# ----------------------------------------------------------------------------
+# Root chains: registration -> rotation -> rotation ... (linear, one active)
+# ----------------------------------------------------------------------------
+def root_chain(actor_id: str, ledger_source) -> list:
+    """The actor's LINEAR chain of anchored roots, in ledger order.
+
+    Walks the first confirmed registration and every confirmed rotation whose
+    prev_root equals the chain tip at that point — linearity is enforced by
+    the walk itself, so a hypothetical forked or out-of-order rotation record
+    simply never extends the chain. Returns
+    [{merkle_root, key_count, ledger_index, kind}, ...] ([] if unregistered).
+    """
+    chain = []
+    for e in _read_entries(ledger_source):
+        p = e.get("payload") if isinstance(e, dict) else None
+        if not isinstance(p, dict):
+            continue
+        if (not chain and p.get("event") == _REGISTRATION_EVENT
+                and p.get("status") == _REGISTRATION_STATUS
+                and p.get("actor_id") == actor_id):
+            chain.append({"merkle_root": p.get("merkle_root"),
+                          "key_count": p.get("key_count"),
+                          "ledger_index": e.get("index"),
+                          "kind": "registration"})
+        elif (chain and p.get("event") == _ROTATION_EVENT
+                and p.get("status") == _ROTATION_STATUS
+                and p.get("actor_id") == actor_id
+                and p.get("prev_root") == chain[-1]["merkle_root"]):
+            chain.append({"merkle_root": p.get("new_root"),
+                          "key_count": p.get("new_key_count"),
+                          "ledger_index": e.get("index"),
+                          "kind": "rotation"})
+    return chain
+
+
+def active_root_asof(actor_id: str, ledger_source, as_of_index: int = None):
+    """The actor's ACTIVE root at a chain point: the last registration/rotation
+    record with ledger index <= as_of_index (full history when None).
+
+    This is how ALL signature verification resolves its root: a record
+    anchored at ledger index N verifies against active_root_asof(..., N-1) —
+    the root that was active when the record was made — so history stays
+    verifiable FOREVER across rotations, while a new signature (as_of None)
+    is held to the current active root. Returns the chain element dict
+    ({merkle_root, key_count, ledger_index, kind}) or None if unregistered.
+    """
+    entries = _read_entries(ledger_source)
+    if as_of_index is not None:
+        entries = [e for e in entries
+                   if isinstance(e.get("index"), int)
+                   and e["index"] <= as_of_index]
+    chain = root_chain(actor_id, entries)
+    return chain[-1] if chain else None
+
+
+def uses_for_root(actor_id: str, ledger_source, merkle_root: str) -> list:
+    """The actor's anchored one-time-key uses ATTRIBUTED to `merkle_root`.
+
+    A use anchored at ledger index L consumed a key of the root active as-of
+    L-1 (the root its coordinator verified it under), so post-rotation index
+    numbering restarts honestly: (actor, index 0) under root B is a FRESH key
+    even though (actor, index 0) under retired root A is consumed. Fallbacks
+    are CONSERVATIVE (count the use) when attribution is impossible: an actor
+    with no anchored chain (fixture ledgers), a use with no usable index, or
+    the queried root absent from the chain.
+    """
+    entries = _read_entries(ledger_source)
+    uses = [u for u in anchored_key_uses(entries) if u["actor_id"] == actor_id]
+    chain = root_chain(actor_id, entries)
+    if not any(el["merkle_root"] == merkle_root for el in chain):
+        return uses
+    out = []
+    for u in uses:
+        li = u.get("ledger_index")
+        active = None
+        if isinstance(li, int):
+            candidates = [el for el in chain
+                          if isinstance(el.get("ledger_index"), int)
+                          and el["ledger_index"] < li]
+            active = candidates[-1] if candidates else None
+        if active is None or active["merkle_root"] == merkle_root:
+            out.append(u)
+    return out
+
+
+def first_unused_index(keychain: dict, ledger_source=None) -> int:
+    """First key index unused BOTH locally (used_indices) and on-chain (the
+    ledger-wide cross-type scan, attributed to this keychain's root).
+
+    Raises ValueError with the EXHAUSTION reason — naming rotation as the only
+    continuation — when every index is consumed. Passing no ledger checks
+    local marks only (fixture/offline use).
+    """
+    consumed = {i for i in keychain["used_indices"] if isinstance(i, int)}
+    if ledger_source is not None:
+        consumed |= {u["key_index"] for u in uses_for_root(
+            keychain["actor_id"], ledger_source, keychain["merkle_root"])}
+    unused = [i for i in range(keychain["key_count"]) if i not in consumed]
+    if not unused:
+        raise ValueError(
+            f"root exhausted: all {keychain['key_count']} one-time key indices "
+            f"of root {keychain['merkle_root'][:16]}.. are consumed (local "
+            "marks + the ledger-wide cross-type scan) — this root can sign "
+            "nothing further; rotate to a fresh root "
+            "(make_rotation_certificate) to continue this actor's history")
+    return unused[0]
 
 
 def verify_signature(signature, expected_root: str, message_bytes: bytes):
@@ -309,6 +501,186 @@ def verify_signature(signature, expected_root: str, message_bytes: bytes):
 
 
 # ----------------------------------------------------------------------------
+# Rotation certificates: the cryptographic handoff between roots
+# ----------------------------------------------------------------------------
+def make_rotation_certificate(old_keychain: dict, new_keychain: dict,
+                              ledger_source=None, key_index: int = None) -> dict:
+    """Build the signed handoff certificate from `old_keychain`'s root to
+    `new_keychain`'s root: {schema, actor_id, scheme, prev_root, new_root,
+    new_key_count, new_leaf_hashes_hash, key_index, signature} — signed with
+    an UNUSED old-root index over sha256(canonical cert-without-signature).
+
+    Refuses if the actor_ids differ (a rotation hands ONE actor's identity to
+    its own next root, never to another actor's) or if the old chain has no
+    unused index. THE END-OF-LIFE FAILURE MODE, stated plainly: when every
+    old-root key is already consumed, no rotation certificate can be signed —
+    continuity has become cryptographically unprovable, and this actor's
+    identity has reached end-of-life. That is WHY rotation must happen BEFORE
+    exhaustion: pre-stage the next root while at least one unused key remains
+    for the handoff signature. Marks the signing index used — callers
+    persisting the old keychain file must write it back.
+    """
+    if old_keychain.get("actor_id") != new_keychain.get("actor_id"):
+        raise ValueError(
+            f"actor_id mismatch: {old_keychain.get('actor_id')!r} vs "
+            f"{new_keychain.get('actor_id')!r} — a rotation hands ONE actor's "
+            "identity to its own next root; no third-party path exists")
+    if new_keychain["merkle_root"] == old_keychain["merkle_root"]:
+        raise ValueError("new keychain must carry a DIFFERENT root — rotating "
+                         "a root onto itself retires nothing")
+    if key_index is None:
+        try:
+            key_index = first_unused_index(old_keychain, ledger_source)
+        except ValueError:
+            raise ValueError(
+                "end of life: every one-time key index of the current root is "
+                "already consumed, so no rotation certificate can be signed — "
+                "key-possession continuity is now cryptographically "
+                "unprovable. Rotation must happen BEFORE exhaustion: "
+                "pre-stage the next root while an unused key remains for the "
+                "handoff signature")
+    cert = {
+        "schema": ROTATION_SCHEMA,
+        "actor_id": old_keychain["actor_id"],
+        "scheme": old_keychain["scheme"],
+        "prev_root": old_keychain["merkle_root"],
+        "new_root": new_keychain["merkle_root"],
+        "new_key_count": new_keychain["key_count"],
+        "new_leaf_hashes_hash": _sha256_hex(
+            canonical_json(new_keychain["leaf_hashes"]).encode("utf-8")),
+        "key_index": key_index,
+    }
+    message = canonical_json(cert).encode("utf-8")
+    cert["signature"] = sign(old_keychain, key_index, message,
+                             ledger_source=ledger_source)
+    return cert
+
+
+def verify_rotation_certificate(cert, ledger_source, as_of_index: int = None):
+    """Verify a rotation certificate against the anchored chain state. Returns
+    (ok, reasons); pure and deterministic, needs no key material.
+
+    Checks, in order: structure; the actor has an anchored root chain; (1)
+    ONE-TIME DISCIPLINE — the signing index must be UNUSED under the claimed
+    prev_root per the ledger-wide cross-type scan (violations listed FIRST,
+    the house convention); (2) LINEAR CHAIN — prev_root must be the CURRENT
+    active root (a rotation from an already-retired root is rejected: no
+    forks); (3) the new root must not already exist anywhere on the chain;
+    (4) the signature verifies over sha256(canonical cert-without-signature)
+    under prev_root and binds to the certificate's actor and index.
+    `as_of_index` is the as-of idiom for re-verifying a rotation anchored at
+    index N against the history its coordinator saw (pass N-1).
+    """
+    if not isinstance(cert, dict):
+        return (False, ["certificate is not a JSON object"])
+    reasons = []
+    for key in ("schema", "actor_id", "scheme", "prev_root", "new_root",
+                "new_key_count", "new_leaf_hashes_hash", "key_index",
+                "signature"):
+        if key not in cert:
+            reasons.append(f"missing field {key} (an UNSIGNED rotation does "
+                           "not exist — continuity is proven, never asserted)"
+                           if key == "signature" else f"missing field {key}")
+    if reasons:
+        return (False, reasons)
+    if cert["schema"] != ROTATION_SCHEMA:
+        reasons.append(f"schema must be {ROTATION_SCHEMA!r}")
+    if cert["scheme"] != SCHEME:
+        reasons.append(f"scheme must be {SCHEME!r}")
+    for field in ("prev_root", "new_root", "new_leaf_hashes_hash"):
+        v = cert[field]
+        if not (isinstance(v, str) and len(v) == 64
+                and all(c in _HEX for c in v)):
+            reasons.append(f"{field} must be a 64-char lowercase hex sha256")
+    kc = cert["new_key_count"]
+    if not isinstance(kc, int) or isinstance(kc, bool) or kc < 1 or kc & (kc - 1):
+        reasons.append("new_key_count must be a positive power of two")
+    if not isinstance(cert["key_index"], int) or isinstance(cert["key_index"], bool):
+        reasons.append("key_index must be an integer")
+    if reasons:
+        return (False, reasons)
+
+    entries = _read_entries(ledger_source)
+    if as_of_index is not None:
+        entries = [e for e in entries
+                   if isinstance(e.get("index"), int)
+                   and e["index"] <= as_of_index]
+    chain = root_chain(cert["actor_id"], entries)
+    if not chain:
+        return (False, [f"no anchored root chain for actor "
+                        f"{cert['actor_id']!r} — register a root before "
+                        "rotating one"])
+
+    # (1) one-time discipline FIRST (house convention: reuse is the headline)
+    if any(el["merkle_root"] == cert["prev_root"] for el in chain):
+        for use in uses_for_root(cert["actor_id"], entries, cert["prev_root"]):
+            if use["key_index"] == cert["key_index"]:
+                reasons.append(
+                    f"one-time key index reuse (violation of OTS discipline): "
+                    f"the rotation certificate is signed with "
+                    f"({cert['actor_id']!r}, index {cert['key_index']}), "
+                    f"already consumed in the anchored record at ledger index "
+                    f"{use['ledger_index']} — a rotation must be signed by an "
+                    "UNUSED key of the current root")
+                break
+
+    # (2) linear chain: rotation is only valid from the CURRENT active root
+    active = chain[-1]
+    if cert["prev_root"] != active["merkle_root"]:
+        mine = [el for el in chain if el["merkle_root"] == cert["prev_root"]]
+        if mine:
+            succ = chain[chain.index(mine[-1]) + 1]
+            reasons.append(
+                f"linear-chain violation: prev_root "
+                f"{cert['prev_root'][:16]}.. was RETIRED by the rotation "
+                f"anchored at ledger index {succ['ledger_index']} — the chain "
+                "of roots is linear (no forks); rotation is only valid from "
+                f"the current active root {active['merkle_root'][:16]}..")
+        else:
+            reasons.append(f"prev_root {cert['prev_root'][:16]}.. does not "
+                           "name any root in this actor's anchored chain")
+
+    # (3) the new root must be genuinely new
+    if cert["new_root"] == cert["prev_root"]:
+        reasons.append("new_root equals prev_root — rotating a root onto "
+                       "itself retires nothing")
+    for e in entries:
+        p = e.get("payload") if isinstance(e, dict) else None
+        if not isinstance(p, dict):
+            continue
+        if ((p.get("event") == _REGISTRATION_EVENT
+             and p.get("status") == _REGISTRATION_STATUS
+             and p.get("merkle_root") == cert["new_root"])
+                or (p.get("event") == _ROTATION_EVENT
+                    and p.get("status") == _ROTATION_STATUS
+                    and p.get("new_root") == cert["new_root"])):
+            reasons.append(f"new_root is already anchored on the ledger "
+                           f"(index {e.get('index')}) — a rotation must hand "
+                           "off to a FRESH root")
+            break
+
+    # (4) the handoff signature, over the canonical cert WITHOUT its signature,
+    # under the claimed prev_root — plus actor/index binding
+    sig = cert["signature"]
+    if not isinstance(sig, dict):
+        reasons.append("signature is not a JSON object")
+        return (False, reasons)
+    message = canonical_json(
+        {k: v for k, v in cert.items() if k != "signature"}).encode("utf-8")
+    ok, sig_reasons = verify_signature(sig, cert["prev_root"], message)
+    reasons.extend(f"signature: {r}" for r in sig_reasons)
+    if sig.get("actor_id") != cert["actor_id"]:
+        reasons.append(f"signature actor_id {sig.get('actor_id')!r} does not "
+                       f"match the certificate actor_id "
+                       f"{cert['actor_id']!r} — signed by a different actor's "
+                       "key")
+    if sig.get("key_index") != cert["key_index"]:
+        reasons.append("signature key_index does not match the certificate "
+                       "key_index")
+    return (not reasons, reasons)
+
+
+# ----------------------------------------------------------------------------
 # CLI
 # ----------------------------------------------------------------------------
 def main(argv=None) -> int:
@@ -338,9 +710,21 @@ def main(argv=None) -> int:
                            "(marks the index used and persists the keychain)")
     mode.add_argument("--verify", metavar="SIG_JSON",
                       help="verify a signature against --root and --message-file")
+    mode.add_argument("--rotate", metavar="OLD_KEYCHAIN_JSON",
+                      help="build a signed root-rotation certificate handing "
+                           "off to --new-keychain (signed with an UNUSED "
+                           "old-root index; the old file's used-index mark is "
+                           "persisted back)")
     mode.add_argument("--selftest", action="store_true",
                       help="run the mechanical self-test (temp files only)")
     parser.add_argument("--actor", help="actor id for --generate")
+    parser.add_argument("--new-keychain", metavar="NEW_KEYCHAIN_JSON",
+                        help="with --rotate: the PRIVATE keychain whose root "
+                             "the certificate hands off to")
+    parser.add_argument("--ledger",
+                        help="with --rotate/--sign: ledger source for the "
+                             "ledger-wide consumed-index scan (recommended: "
+                             "the real ledger or published snapshot)")
     parser.add_argument("--keys", type=int, default=32,
                         help="key count for --generate (power of two; default 32)")
     parser.add_argument("--index", type=int, help="key index for --sign")
@@ -354,7 +738,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
 
     if args.selftest or not (args.generate or args.declare or args.sign
-                             or args.verify):
+                             or args.verify or args.rotate):
         return _selftest()
 
     if args.generate:
@@ -394,7 +778,8 @@ def main(argv=None) -> int:
             message = f.read()
         try:
             signature = sign(keychain, args.index, message,
-                             force_reuse=args.drill_force_index)
+                             force_reuse=args.drill_force_index,
+                             ledger_source=args.ledger)
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
@@ -407,6 +792,33 @@ def main(argv=None) -> int:
             with open(args.out, "w", encoding="utf-8") as f:
                 f.write(text + "\n")
             print(f"wrote signature to {args.out}", file=sys.stderr)
+        return 0
+
+    if args.rotate:
+        if not args.new_keychain:
+            parser.error("--rotate requires --new-keychain")
+        with open(args.rotate, "r", encoding="utf-8") as f:
+            old_keychain = json.load(f)
+        with open(args.new_keychain, "r", encoding="utf-8") as f:
+            new_keychain = json.load(f)
+        try:
+            cert = make_rotation_certificate(old_keychain, new_keychain,
+                                             ledger_source=args.ledger)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        # persist the used-index mark (the OLD keychain file is stateful)
+        with open(args.rotate, "w", encoding="utf-8") as f:
+            json.dump(old_keychain, f, indent=2, sort_keys=True)
+        text = json.dumps(cert, indent=2, sort_keys=True)
+        print(text)
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as f:
+                f.write(text + "\n")
+            print(f"wrote rotation certificate to {args.out}", file=sys.stderr)
+        print(f"handoff {cert['prev_root'][:16]}.. -> {cert['new_root'][:16]}.. "
+              f"signed with old-root index {cert['key_index']} — anchor via "
+              "external_verifier.py --rotate-actor-key", file=sys.stderr)
         return 0
 
     if not (args.root and args.message_file):
@@ -516,6 +928,139 @@ def _selftest() -> int:
     checks.append(("public declaration carries no private material",
                    "private" not in canonical_json(decl)
                    and decl["merkle_root"] == kc["merkle_root"]))
+
+    # ---------------- ROTATION LIFECYCLE fixtures ----------------
+    # In-memory ledger fixtures (entries lists — the identity layer's ledger
+    # readers are source-agnostic), exercising every constitutional rule.
+    def _reg_entry(idx, chain_kc):
+        return {"index": idx, "payload": {
+            "event": _REGISTRATION_EVENT, "status": _REGISTRATION_STATUS,
+            "actor_id": chain_kc["actor_id"],
+            "merkle_root": chain_kc["merkle_root"],
+            "key_count": chain_kc["key_count"]}}
+
+    def _rot_entry(idx, cert):
+        return {"index": idx, "payload": {
+            "event": _ROTATION_EVENT, "status": _ROTATION_STATUS,
+            "actor_id": cert["actor_id"], "prev_root": cert["prev_root"],
+            "new_root": cert["new_root"],
+            "new_key_count": cert["new_key_count"],
+            "signed": True, "signer_actor_id": cert["actor_id"],
+            "key_index": cert["key_index"]}}
+
+    def _use_entry(idx, actor, ki, cid="a" * 64):
+        return {"index": idx, "payload": {
+            "event": "challenge_response_result",
+            "status": "challenge-verified", "signed": True,
+            "signer_actor_id": actor, "key_index": ki, "challenge_id": cid}}
+
+    kcA = build_keychain_from_privates("rot-actor", _fixture_privates(4, "rotA"))
+    kcB = build_keychain_from_privates("rot-actor", _fixture_privates(4, "rotB"))
+
+    # [i] HONEST ROTATION round-trip: cert signed with the first index unused
+    # both locally and on-chain; verifies; once anchored, as-of resolution
+    # returns A before the rotation and B after it
+    led = [_reg_entry(1, kcA), _use_entry(2, "rot-actor", 0)]
+    kA = copy.deepcopy(kcA)
+    cert = make_rotation_certificate(kA, kcB, ledger_source=led)
+    ok, reasons = verify_rotation_certificate(cert, led)
+    checks.append(("honest rotation certificate verifies (unused-index handoff)",
+                   ok and cert["key_index"] == 1  # index 0 is consumed on-chain
+                   and cert["prev_root"] == kcA["merkle_root"]
+                   and cert["new_root"] == kcB["merkle_root"]))
+    if not ok:
+        for r in reasons:
+            print(f"    unexpected: {r}")
+    led_rotated = led + [_rot_entry(3, cert)]
+    asof_pre = active_root_asof("rot-actor", led_rotated, as_of_index=2)
+    asof_now = active_root_asof("rot-actor", led_rotated)
+    checks.append(("as-of resolution: root A before the rotation, root B after",
+                   asof_pre is not None and asof_now is not None
+                   and asof_pre["merkle_root"] == kcA["merkle_root"]
+                   and asof_now["merkle_root"] == kcB["merkle_root"]
+                   and asof_now["ledger_index"] == 3))
+
+    # [j] FORGED ROTATIONS: consumed-index signature -> rejected with the reuse
+    # reason FIRST; a different actor's key -> rejected at the root; unsigned ->
+    # rejected (continuity is proven, never asserted)
+    content = {k: v for k, v in cert.items() if k != "signature"}
+    stolen = dict(content)
+    stolen["key_index"] = 0  # consumed at fixture ledger index 2
+    stolen["signature"] = sign(copy.deepcopy(kcA), 0,
+                               canonical_json(stolen).encode("utf-8"),
+                               force_reuse=True)
+    ok, reasons = verify_rotation_certificate(stolen, led)
+    checks.append(("forged rotation (consumed index) rejected, reuse reason first",
+                   not ok and "one-time key index reuse" in reasons[0]))
+    kcX = build_keychain_from_privates("rot-actor", _fixture_privates(4, "rotX"))
+    intruder = dict(content)
+    intruder["signature"] = sign(copy.deepcopy(kcX), 0,
+                                 canonical_json(intruder).encode("utf-8"))
+    ok, reasons = verify_rotation_certificate(intruder, led)
+    checks.append(("forged rotation (another chain's key) rejected at the root",
+                   not ok and any("Merkle path" in r for r in reasons)))
+    ok, reasons = verify_rotation_certificate(content, led)
+    checks.append(("unsigned rotation rejected (no unsigned path exists)",
+                   not ok and any("UNSIGNED rotation does not exist" in r
+                                  for r in reasons)))
+
+    # [k] LINEAR CHAIN: a second rotation from already-retired root A is
+    # rejected — the chain of roots has no forks
+    kcC = build_keychain_from_privates("rot-actor", _fixture_privates(4, "rotC"))
+    fork = {k: v for k, v in cert.items() if k != "signature"}
+    fork["new_root"] = kcC["merkle_root"]
+    fork["new_leaf_hashes_hash"] = _sha256_hex(
+        canonical_json(kcC["leaf_hashes"]).encode("utf-8"))
+    fork["key_index"] = 2  # unused under A, so the LINEAR reason leads
+    fork["signature"] = sign(copy.deepcopy(kcA), 2,
+                             canonical_json(fork).encode("utf-8"))
+    ok, reasons = verify_rotation_certificate(fork, led_rotated)
+    checks.append(("rotation from a retired root rejected (linear-chain rule)",
+                   not ok and any("linear-chain violation" in r
+                                  for r in reasons)))
+    # ...and signing anything new under the retired root refuses locally too
+    try:
+        sign(copy.deepcopy(kcA), 3, message, ledger_source=led_rotated)
+        checks.append(("new signature under a retired root refuses", False))
+    except ValueError as exc:
+        checks.append(("new signature under a retired root refuses",
+                       "root retired" in str(exc)))
+
+    # [l] EXHAUSTION fixture: a 2-key chain, both indices consumed on-chain —
+    # sign refuses with the rotation-directing reason, and a rotation cert
+    # from it refuses with the end-of-life reason (rotate BEFORE exhaustion)
+    kcE = build_keychain_from_privates("exh-actor", _fixture_privates(2, "exh"))
+    led_exh = [_reg_entry(1, kcE), _use_entry(2, "exh-actor", 0),
+               _use_entry(3, "exh-actor", 1, cid="b" * 64)]
+    try:
+        sign(copy.deepcopy(kcE), 0, message, ledger_source=led_exh)
+        checks.append(("exhausted root: sign refuses, directing to rotation",
+                       False))
+    except ValueError as exc:
+        checks.append(("exhausted root: sign refuses, directing to rotation",
+                       "root exhausted" in str(exc)
+                       and "make_rotation_certificate" in str(exc)))
+    kcE2 = build_keychain_from_privates("exh-actor", _fixture_privates(2, "exh2"))
+    try:
+        make_rotation_certificate(copy.deepcopy(kcE), kcE2,
+                                  ledger_source=led_exh)
+        checks.append(("exhausted root: rotation refuses with the end-of-life "
+                       "reason", False))
+    except ValueError as exc:
+        checks.append(("exhausted root: rotation refuses with the end-of-life "
+                       "reason", "end of life" in str(exc)
+                       and "BEFORE exhaustion" in str(exc)))
+
+    # [m] HISTORICAL CONTINUITY: a signature made under root A (the anchored
+    # use at fixture index 2) still verifies against the as-of root AFTER the
+    # rotation to B — while the same signature FAILS against the now-active
+    # root (a new signature cannot hide under a retired root)
+    hist_sig = sign(copy.deepcopy(kcA), 0, message)  # root-A signature
+    root_asof = active_root_asof("rot-actor", led_rotated, as_of_index=1)
+    ok_hist, _ = verify_signature(hist_sig, root_asof["merkle_root"], message)
+    ok_now, _ = verify_signature(hist_sig, asof_now["merkle_root"], message)
+    checks.append(("historical record verifies via as-of root; the retired "
+                   "root authenticates nothing NEW", ok_hist and not ok_now))
 
     # honest cost, stated
     priv_bytes = _BITS * 2 * 32

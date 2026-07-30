@@ -95,11 +95,10 @@ def emit_heartbeat(keychain: dict, slot_index: int,
     """
     entries = work_molecule._read_ledger(ledger_path)
     tip = entries[-1]
-    unused = [i for i in range(keychain["key_count"])
-              if i not in keychain["used_indices"]]
-    if not unused:
-        raise ValueError("keychain exhausted: no unused one-time key index")
-    key_index = unused[0]
+    # first index unused BOTH locally and on-chain (ledger-wide cross-type
+    # scan, root-attributed) — raises the named EXHAUSTION reason directing
+    # to rotation when the root has no keys left
+    key_index = actor_identity.first_unused_index(keychain, entries)
     heartbeat = {
         "schema": SCHEMA_VERSION,
         "actor_id": keychain["actor_id"],
@@ -108,7 +107,8 @@ def emit_heartbeat(keychain: dict, slot_index: int,
         "ledger_tip_at_emit": {"index": tip["index"], "hash": tip["hash"]},
     }
     message = canonical_json(heartbeat).encode("utf-8")
-    heartbeat["signature"] = actor_identity.sign(keychain, key_index, message)
+    heartbeat["signature"] = actor_identity.sign(keychain, key_index, message,
+                                                 ledger_source=entries)
     return heartbeat
 
 
@@ -163,10 +163,12 @@ def verify_heartbeat(heartbeat, expected_root: str,
     if not ok:
         reasons.extend(f"signature: {r}" for r in sig_reasons)
 
-    # LEDGER-WIDE cross-type one-time discipline
-    for use in actor_identity.anchored_key_uses(entries):
-        if (use["actor_id"] == heartbeat["actor_id"]
-                and use["key_index"] == heartbeat["key_index"]):
+    # LEDGER-WIDE cross-type one-time discipline, ATTRIBUTED to the root the
+    # heartbeat is checked under (uses_for_root): rotation honestly restarts
+    # index numbering, while pre-rotation uses of THIS root always count
+    for use in actor_identity.uses_for_root(heartbeat["actor_id"], entries,
+                                            expected_root):
+        if use["key_index"] == heartbeat["key_index"]:
             reasons.insert(0, (
                 f"one-time key index reuse (violation of OTS discipline): "
                 f"({heartbeat['actor_id']!r}, index {heartbeat['key_index']}) "
@@ -442,12 +444,27 @@ def _selftest() -> int:
                            in str(exc)))
 
         # [5] CROSS-TYPE one-time discipline: an index consumed by an anchored
-        # SIGNED CHALLENGE record is rejected for a heartbeat too
+        # SIGNED CHALLENGE record is (a) SKIPPED by honest emission — the
+        # ledger-wide scan feeds index selection — and (b) rejected at
+        # verification when a heartbeat is force-constructed over it anyway
         led.append({"event": "challenge_response_result", "signed": True,
                     "signer_actor_id": ACTOR_ID, "key_index": 0,
                     "status": "challenge-verified", "challenge_id": "x" * 64,
                     "zero_value": True, "no_token": True})
-        hb0 = emit_heartbeat(copy.deepcopy(kc), 0, ledger_path=fixture_ledger)
+        hb_honest = emit_heartbeat(copy.deepcopy(kc), 0,
+                                   ledger_path=fixture_ledger)
+        checks.append(("honest emission SKIPS the on-chain-consumed index "
+                       "(ledger-wide scan feeds selection)",
+                       hb_honest["key_index"] == 1))
+        entries_now = work_molecule._read_ledger(fixture_ledger)
+        tip_now = entries_now[-1]
+        hb0 = {"schema": SCHEMA_VERSION, "actor_id": ACTOR_ID,
+               "slot_index": 0, "key_index": 0,
+               "ledger_tip_at_emit": {"index": tip_now["index"],
+                                      "hash": tip_now["hash"]}}
+        hb0["signature"] = actor_identity.sign(
+            copy.deepcopy(kc), 0, canonical_json(hb0).encode("utf-8"),
+            force_reuse=True)
         ok, reasons = verify_heartbeat(hb0, kc["merkle_root"],
                                        ledger_path=fixture_ledger)
         checks.append(("CROSS-TYPE reuse rejected (challenge round then "

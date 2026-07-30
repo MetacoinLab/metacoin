@@ -91,6 +91,12 @@ response*.json
 keychain*.json
 actor_key*.json
 
+# actor key-rotation certificates (actor_identity.py --rotate) are local working
+# artifacts — public-only by construction (the coordinator rejects private
+# material), but the canonical record is the ANCHORED rotation entry; anchored-
+# rotation evidence copies live in protocol/evidence/ via the negation block below.
+rotation_*.json
+
 # MetaStar Treasury state + Gate-3 request files are local, deterministic,
 # replayable artifacts — the canonical records are the ANCHORED treasury config
 # and lifecycle entries (zero-value Test-META accounting, simulated economy).

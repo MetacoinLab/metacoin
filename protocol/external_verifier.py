@@ -337,8 +337,9 @@ def _anchored_treasury_flows(entries):
 # --- actor-key registration (a TENTH record type) ----------------------------------------
 # An actor registers the PUBLIC Merkle root of their one-time-signature keychain
 # (protocol/actor_identity.py). v0 policy: ONE active root per actor — duplicate
-# actor or duplicate root registrations are rejected; key ROTATION is future
-# work behind this same record type, and we say so rather than pretend.
+# actor or duplicate root registrations are rejected; key ROTATION hands the
+# identity to a successor root via a SIGNED certificate (see the rotation
+# block below) — the chain of roots is linear, one active root per actor.
 # The validator rejects any declaration containing private material anywhere.
 _REGISTRATION_EVENT = "actor_key_registered"
 _REGISTRATION_STATUS = "actor-key-registered"
@@ -350,8 +351,44 @@ REGISTRATION_LIMITATION_NOTE = (
     "identity-meaningful when an external actor generates and registers their "
     "OWN root. One-time discipline is a hard protocol rule: each key index "
     "signs exactly once, and anchored reuse is mechanically rejected. One "
-    "active root per actor in v0; rotation is future work. Not consensus, not "
-    "payment, not a token; research-stage."
+    "active root per actor; when the root nears exhaustion the actor rotates "
+    "to a successor root via a signed rotation certificate. Not consensus, "
+    "not payment, not a token; research-stage."
+)
+
+
+# --- actor key ROTATION anchoring -----------------------------------------------------
+# One-time keys DEPLETE; rotation closes the identity layer's hard lifespan
+# gap. CONSTITUTIONAL: the new root is accepted ONLY under a certificate
+# signed by an UNUSED key of the current active root (continuity proven,
+# never asserted); history keeps verifying against the root active AS-OF each
+# record's index (rotation retires a root for FUTURE signing only); the chain
+# of roots is LINEAR — a rotation from an already-retired root is rejected.
+# The CONFIRMED record carries signed/signer_actor_id/key_index, so the
+# rotation's signing index feeds the same ledger-wide cross-type reuse scan
+# as every other signature; REJECTED drill records carry claimed_* fields
+# only and never feed the scan.
+_ROTATION_EVENT = "actor_key_rotated"
+_ROTATION_STATUS = "actor-key-rotated"
+_ROTATION_REJECTED_EVENT = "actor_key_rotation_rejected"
+_ROTATION_REJECTED_STATUS = "actor-key-rotation-rejected"
+
+ROTATION_LIMITATION_NOTE = (
+    "Actor key rotation under same-operator custody of BOTH chains: the "
+    "certificate proves KEY-POSSESSION CONTINUITY across roots (the new root "
+    "is accepted only under a signature by an unused key of the current "
+    "active root), not identity. The chain of roots is linear — one active "
+    "root per actor; rotation retires the previous root for FUTURE signing "
+    "only, and every historical record keeps verifying against the root "
+    "active as of its own ledger index. Not consensus, not payment, not a "
+    "token; research-stage."
+)
+ROTATION_DRILL_NOTE = (
+    " PLANNED FORGED-ROTATION DRILL: this rejection is a deliberate "
+    "demonstration that an invalid rotation certificate — e.g. one signed "
+    "with an already-consumed one-time key index — is mechanically refused, "
+    "so published signature material cannot be replayed to hand an identity "
+    "to an attacker's root; not detected fraud."
 )
 
 
@@ -2050,8 +2087,11 @@ def register_actor_key(declaration: dict, ledger: Ledger) -> dict:
     """Validate + uniqueness-check + anchor an actor key registration.
 
     Malformed or private-material-carrying declarations -> 'rejected', NOT
-    anchored. A duplicate actor_id or duplicate merkle_root is also rejected
-    (one active root per actor in v0). Returns {evaluation, ledger_entry}.
+    anchored. A duplicate actor_id or a root already anchored anywhere on a
+    chain (registration OR rotation) is also rejected: one active root per
+    actor, and an already-registered actor continues via a rotation
+    certificate (--rotate-actor-key), never a second registration. Returns
+    {evaluation, ledger_entry}.
     """
     ok, reason = validate_key_declaration(declaration)
     if ok:
@@ -2063,14 +2103,23 @@ def register_actor_key(declaration: dict, ledger: Ledger) -> dict:
                     ok, reason = (False,
                                   f"actor {declaration['actor_id']!r} already has "
                                   f"an active root (ledger index {e['index']}) — "
-                                  "one active root per actor in v0; rotation is "
-                                  "future work")
+                                  "one active root per actor; hand off to a new "
+                                  "root via a signed rotation certificate "
+                                  "(--rotate-actor-key), never a second "
+                                  "registration")
                     break
                 if p.get("merkle_root") == declaration["merkle_root"]:
                     ok, reason = (False,
                                   f"this merkle_root is already registered "
                                   f"(ledger index {e['index']})")
                     break
+            if (p.get("event") == _ROTATION_EVENT
+                    and p.get("status") == _ROTATION_STATUS
+                    and p.get("new_root") == declaration["merkle_root"]):
+                ok, reason = (False,
+                              f"this merkle_root is already anchored as a "
+                              f"rotation's new root (ledger index {e['index']})")
+                break
     if not ok:
         evaluation = {
             "event": _REGISTRATION_EVENT,
@@ -2099,6 +2148,121 @@ def register_actor_key(declaration: dict, ledger: Ledger) -> dict:
         "leaf_hashes_hash": declaration["leaf_hashes_hash"],
         "operator_relationship": "same-operator",
         "limitation_note": REGISTRATION_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+# ----------------------------------------------------------------------------
+# Actor-key rotation: FULL certificate verification + anchor (or drill).
+# ----------------------------------------------------------------------------
+def rotate_actor_key(cert: dict, ledger: Ledger, drill: bool = False) -> dict:
+    """FULLY verify a root-rotation certificate and anchor the outcome.
+    Returns {evaluation, ledger_entry}.
+
+    The coordinator re-verifies EVERYTHING itself
+    (actor_identity.verify_rotation_certificate): the handoff signature under
+    the CURRENT active root, the unused-index rule per the ledger-wide
+    cross-type scan, the linear-chain rule, the fresh-new-root rule — and
+    rejects any file carrying private material. A valid certificate anchors
+    'actor-key-rotated' (the record's signed/signer_actor_id/key_index feed
+    the reuse scan: a rotation consumes its signing index like any signature).
+    An INVALID certificate is rejected un-anchored — or, with drill=True,
+    anchored as a labeled 'actor-key-rotation-rejected' demonstration whose
+    claimed_* fields deliberately do NOT feed the scan. A certificate that
+    actually verifies is refused as drill input (this path anchors
+    demonstrated rejections only, never real handoffs).
+    """
+    reason = None
+    if not isinstance(cert, dict):
+        reason = "certificate is not a JSON object"
+    elif _contains_private_material(cert):
+        reason = ("certificate contains PRIVATE key material — a rotation "
+                  "certificate is public-only (the signature reveals only "
+                  "one-time public material); never submit a keychain file")
+    verdict, reasons = (None, [])
+    if reason is None:
+        verdict, reasons = actor_identity.verify_rotation_certificate(
+            cert, ledger.read_all())
+        if verdict and drill:
+            reason = ("certificate VERIFIES under the active root — not a "
+                      "forgery; refusing to anchor a valid rotation as a "
+                      "rejection drill (drop --drill to rotate for real)")
+        elif not verdict and not drill:
+            reason = "; ".join(reasons)
+        elif not verdict and not isinstance(cert.get("actor_id"), str):
+            reason = ("certificate names no actor_id — nothing to anchor a "
+                      "rejection drill against")
+    if reason is not None:
+        evaluation = {
+            "event": (_ROTATION_REJECTED_EVENT if verdict is False
+                      else _ROTATION_EVENT),
+            "stage": "R-identity",
+            "topology": "same-operator-key-custody",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": ROTATION_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    if not verdict:
+        # planned drill: anchor the demonstrated rejection, scan-invisible
+        evaluation = {
+            "event": _ROTATION_REJECTED_EVENT,
+            "stage": "R-identity",
+            "topology": "same-operator-key-custody",
+            "status": _ROTATION_REJECTED_STATUS,
+            "task_class": _TASK_CLASS,
+            "actor_id": cert["actor_id"],
+            "claimed_prev_root": cert.get("prev_root"),
+            "claimed_new_root": cert.get("new_root"),
+            "claimed_key_index": cert.get("key_index"),
+            "first_failure_reason": reasons[0] if reasons else None,
+            "reason_count": len(reasons),
+            "drill": True,
+            "operator_relationship": "same-operator",
+            "limitation_note": ROTATION_LIMITATION_NOTE + ROTATION_DRILL_NOTE,
+            "zero_value": True,
+            "no_token": True,
+            "anchored_at": time.time(),
+        }
+        entry = ledger.append(evaluation)
+        return {"evaluation": evaluation, "ledger_entry": entry}
+
+    # confirmed handoff: cite the record that made prev_root active
+    chain = actor_identity.root_chain(cert["actor_id"], ledger.read_all())
+    evaluation = {
+        "event": _ROTATION_EVENT,
+        "stage": "R-identity",
+        "topology": "same-operator-key-custody",
+        "status": _ROTATION_STATUS,
+        "task_class": _TASK_CLASS,
+        "actor_id": cert["actor_id"],
+        "scheme": cert["scheme"],
+        "prev_root": cert["prev_root"],
+        "new_root": cert["new_root"],
+        "new_key_count": cert["new_key_count"],
+        "new_leaf_hashes_hash": cert["new_leaf_hashes_hash"],
+        # signature FACTS in the scan-feeding form: the rotation consumes its
+        # signing index like any signature (cross-type one-time discipline)
+        "signed": True,
+        "signer_actor_id": cert["actor_id"],
+        "key_index": cert["key_index"],
+        "prev_root_ledger_index": chain[-1]["ledger_index"],
+        "coordinator_reconfirmed": {
+            "certificate_verified": True,
+            "reason_count": 0,
+            "first_failure_reason": None,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": ROTATION_LIMITATION_NOTE,
         "zero_value": True,
         "no_token": True,
         "anchored_at": time.time(),
@@ -3031,6 +3195,170 @@ def _selftest() -> int:
             out_fv["evaluation"]["status"] == "challenge-failed"
             and out_fv["evaluation"]["signature_valid"] is False,
             out_fv["evaluation"]["status"],
+        ))
+
+        # --- KEY-ROTATION mode coverage (the identity lifecycle) --------------------------
+        # Continues on ch_ledger: 'selftest-agent' has root A anchored at
+        # reg_idx with indices 0 and 1 consumed on-chain (checks 37/39/40).
+        # (40a) honest handoff A->B: cert auto-picks the first UNUSED index
+        # (2 — the ledger-wide scan feeds selection), fully verifies, anchors
+        # with the scan-feeding signature facts; scanner-invisible
+        kc_b = actor_identity.generate_keychain("selftest-agent", key_count=4)
+        rot_cert = actor_identity.make_rotation_certificate(
+            kc, kc_b, ledger_source=Ledger(ch_ledger).read_all())
+        out_rot = rotate_actor_key(rot_cert, Ledger(ch_ledger))
+        ev_rot = out_rot["evaluation"]
+        rot_idx = (out_rot["ledger_entry"] or {}).get("index")
+        rot_chain_ok, _rot_reason = Ledger(ch_ledger).verify_chain()
+        checks.append((
+            "KEY ROTATION CONFIRMED (signed handoff by unused index 2; "
+            "signature facts feed the scan; scanner-invisible)",
+            ev_rot["status"] == "actor-key-rotated"
+            and out_rot["ledger_entry"] is not None
+            and ev_rot["key_index"] == 2
+            and ev_rot["prev_root"] == kc["merkle_root"]
+            and ev_rot["new_root"] == kc_b["merkle_root"]
+            and ev_rot["prev_root_ledger_index"] == reg_idx
+            and ev_rot["signed"] is True
+            and "task_id" not in ev_rot and "task_ids" not in ev_rot
+            and any(u["actor_id"] == "selftest-agent" and u["key_index"] == 2
+                    and u["ledger_index"] == rot_idx
+                    for u in actor_identity.anchored_key_uses(
+                        Ledger(ch_ledger).read_all()))
+            and rot_chain_ok is True,
+            f"{ev_rot['status']} @ idx {rot_idx}",
+        ))
+
+        # (40b) POST-ROTATION CONTINUITY: a fresh signed round under root B
+        # (index numbering honestly restarts at 0) verifies and cites the
+        # ROTATION record; the historical root-A round still re-verifies
+        # via as-of resolution; and a NEW signature under retired A refuses
+        ch_pr = challenge_response.issue_challenge(TASK, "selftest-agent",
+                                                   ledger_path=ch_ledger)
+        resp_pr = challenge_response.respond(ch_pr, ledger_path=ch_ledger,
+                                             keychain=kc_b)
+        out_pr = anchor_challenge_result(ch_pr, resp_pr, Ledger(ch_ledger))
+        ev_pr = out_pr["evaluation"]
+        hist_ok, _hist_reasons = challenge_response.verify_response(
+            ch_s, resp_s, ledger_path=ch_ledger,
+            as_of_index=out_sv["ledger_entry"]["index"] - 1)
+        try:
+            challenge_response.respond(ch_pr, ledger_path=ch_ledger,
+                                       keychain=kc, key_index=3)
+            retired_refused = False
+        except ValueError as exc:
+            retired_refused = "root retired" in str(exc)
+        checks.append((
+            "POST-ROTATION CONTINUITY: new root signs (index 0, citing the "
+            "rotation record); history verifies as-of; retired root refuses",
+            ev_pr["status"] == "challenge-verified"
+            and ev_pr["signed"] is True
+            and ev_pr["key_index"] == 0
+            and ev_pr["signature_valid"] is True
+            and ev_pr["key_root_ledger_index"] == rot_idx
+            and hist_ok is True
+            and retired_refused,
+            f"{ev_pr['status']} (root@idx {ev_pr['key_root_ledger_index']})",
+        ))
+
+        # (40c) FORGED-ROTATION DRILL: a certificate signed with the
+        # ALREADY-CONSUMED index 0 of root A -> drill anchors the rejection
+        # with the consumed-index violation FIRST; without --drill the same
+        # forgery is rejected un-anchored
+        forged_rot = {k: v for k, v in rot_cert.items() if k != "signature"}
+        forged_rot["key_index"] = 0
+        forged_rot["signature"] = actor_identity.sign(
+            json.loads(json.dumps(kc)), 0,
+            challenge_response.canonical_json(forged_rot).encode("utf-8"),
+            force_reuse=True)
+        out_fr = rotate_actor_key(forged_rot, Ledger(ch_ledger), drill=True)
+        ev_fr = out_fr["evaluation"]
+        out_fr_plain = rotate_actor_key(forged_rot, Ledger(ch_ledger))
+        checks.append((
+            "FORGED ROTATION drill anchored (consumed-index violation first; "
+            "claimed_* fields stay scan-invisible); un-drilled forgery NOT "
+            "anchored",
+            ev_fr["status"] == "actor-key-rotation-rejected"
+            and out_fr["ledger_entry"] is not None
+            and ev_fr.get("drill") is True
+            and "one-time key index reuse" in str(ev_fr["first_failure_reason"])
+            and ev_fr["claimed_key_index"] == 0
+            and "signed" not in ev_fr and "key_indices" not in ev_fr
+            and out_fr_plain["evaluation"]["status"] == "rejected"
+            and out_fr_plain["ledger_entry"] is None,
+            f"{ev_fr['status']} ({str(ev_fr['first_failure_reason'])[:60]}..)",
+        ))
+
+        # (40d) LINEAR CHAIN: a rotation from the RETIRED root A (fresh index
+        # 3, so the linear-chain reason leads) is rejected; drill-anchorable
+        kc_c = actor_identity.generate_keychain("selftest-agent", key_count=2)
+        fork_rot = {
+            "schema": actor_identity.ROTATION_SCHEMA,
+            "actor_id": "selftest-agent",
+            "scheme": actor_identity.SCHEME,
+            "prev_root": kc["merkle_root"],
+            "new_root": kc_c["merkle_root"],
+            "new_key_count": kc_c["key_count"],
+            "new_leaf_hashes_hash": hashlib.sha256(
+                challenge_response.canonical_json(
+                    kc_c["leaf_hashes"]).encode("utf-8")).hexdigest(),
+            "key_index": 3,
+        }
+        fork_rot["signature"] = actor_identity.sign(
+            json.loads(json.dumps(kc)), 3,
+            challenge_response.canonical_json(fork_rot).encode("utf-8"),
+            force_reuse=True)
+        out_fork = rotate_actor_key(fork_rot, Ledger(ch_ledger), drill=True)
+        checks.append((
+            "RETIRED-ROOT ROTATION rejected (linear-chain rule; drill anchors "
+            "the demonstration)",
+            out_fork["evaluation"]["status"] == "actor-key-rotation-rejected"
+            and "linear-chain violation" in str(
+                out_fork["evaluation"]["first_failure_reason"]),
+            str(out_fork["evaluation"]["first_failure_reason"])[:70],
+        ))
+
+        # (40e) hygiene refusals: malformed cert NOT anchored; a VALID cert is
+        # refused as drill input; private material refused outright
+        out_mal = rotate_actor_key({"schema": "nope"}, Ledger(ch_ledger))
+        valid_cert2 = actor_identity.make_rotation_certificate(
+            json.loads(json.dumps(kc_b)),
+            actor_identity.generate_keychain("selftest-agent", key_count=2),
+            ledger_source=Ledger(ch_ledger).read_all())
+        out_vdrill = rotate_actor_key(valid_cert2, Ledger(ch_ledger),
+                                      drill=True)
+        leaky = json.loads(json.dumps(rot_cert))
+        leaky["private_backup"] = "oops"
+        out_leak = rotate_actor_key(leaky, Ledger(ch_ledger), drill=True)
+        checks.append((
+            "ROTATION HYGIENE: malformed NOT anchored; valid cert refused as "
+            "drill input; private material refused",
+            out_mal["evaluation"]["status"] == "rejected"
+            and out_mal["ledger_entry"] is None
+            and out_vdrill["evaluation"]["status"] == "rejected"
+            and out_vdrill["ledger_entry"] is None
+            and "not a forgery" in out_vdrill["evaluation"]["reason"]
+            and out_leak["evaluation"]["status"] == "rejected"
+            and out_leak["ledger_entry"] is None
+            and "PRIVATE" in out_leak["evaluation"]["reason"],
+            f"{out_mal['evaluation']['status']} / "
+            f"{out_vdrill['evaluation']['status']} / "
+            f"{out_leak['evaluation']['status']}",
+        ))
+
+        # (40f) SCAN COVERAGE both ways: registration of a root already
+        # anchored as a rotation's new_root is rejected; and the second
+        # rotation B->C consumed B's index 0-or-next honestly (B index 0 was
+        # consumed by the continuity round, so the handoff picked index 1)
+        out_re_reg = register_actor_key(
+            actor_identity.public_declaration(kc_b), Ledger(ch_ledger))
+        checks.append((
+            "ROTATION SCAN COVERAGE: rotated-in root cannot be re-registered; "
+            "second handoff skipped the round-consumed index",
+            out_re_reg["evaluation"]["status"] == "rejected"
+            and valid_cert2["key_index"] == 1,
+            f"re-reg={out_re_reg['evaluation']['status']}, "
+            f"second handoff index={valid_cert2['key_index']}",
         ))
 
         # --- TWO-FLOW (treasury + Gate-3) mode coverage -----------------------------------
@@ -4121,6 +4449,9 @@ def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
                 "process_statement", "treasury_totals", "actor_id",
                 "slot_index", "epoch_hash", "verified_slots", "missed_slots",
                 "total_emitted", "epoch_cap", "key_indices",
+                "prev_root", "new_root", "new_key_count", "key_index",
+                "prev_root_ledger_index", "claimed_prev_root",
+                "claimed_key_index",
                 "first_failure_reason", "missed_slot_statement",
                 "two_flow_separation"):
         if key in ev:
@@ -4220,6 +4551,15 @@ def main(argv=None) -> int:
              "material; one active root per actor in v0",
     )
     mode.add_argument(
+        "--rotate-actor-key", metavar="ROTATION_CERT_JSON",
+        help="anchor an actor key rotation (actor_identity.py --rotate); the "
+             "coordinator FULLY verifies the certificate — handoff signature "
+             "under the current active root, unused signing index per the "
+             "ledger-wide scan, linear root chain, no private material — "
+             "before anchoring (use --drill to anchor a demonstrated "
+             "rejection)",
+    )
+    mode.add_argument(
         "--anchor-treasury-config", metavar="TREASURY_STATE_JSON",
         help="anchor the MetaStar Treasury constitution (metastar_treasury.py); "
              "the coordinator RE-DERIVES the fees from the anchored economy and "
@@ -4253,9 +4593,10 @@ def main(argv=None) -> int:
     )
     parser.add_argument(
         "--drill", action="store_true",
-        help="with --anchor-challenge-result: label the anchored record as a "
-             "PLANNED demonstration (e.g. the copy-attack or key-reuse drill), "
-             "never detected fraud",
+        help="with --anchor-challenge-result / --anchor-gate3-event / "
+             "--rotate-actor-key: label the anchored record as a PLANNED "
+             "demonstration (e.g. the copy-attack, key-reuse, or "
+             "forged-rotation drill), never detected fraud",
     )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
@@ -4303,6 +4644,11 @@ def main(argv=None) -> int:
                                             args.drill)
     if args.register_actor_key is not None:
         return _cmd_register_actor_key(args.register_actor_key, args.ledger)
+    if args.rotate_actor_key is not None:
+        return _cmd_anchor_json(
+            args.rotate_actor_key, args.ledger,
+            lambda doc, led: rotate_actor_key(doc, led, drill=args.drill),
+            _ROTATION_REJECTED_STATUS if args.drill else _ROTATION_STATUS)
     if args.anchor_treasury_config is not None:
         return _cmd_anchor_json(args.anchor_treasury_config, args.ledger,
                                 anchor_treasury_config, _TREASURY_STATUS)
