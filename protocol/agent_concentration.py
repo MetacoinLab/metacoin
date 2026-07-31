@@ -553,7 +553,14 @@ _PARTITION_KEYS = {
 def concentration_profile(paths: list) -> dict:
     """Gamma(r) for r in {operator, machine_fingerprint, repo}: the maximum share of
     paths in one partition block (q_i = 1 per path in v0). Paths with an unknown key
-    are counted toward the LARGEST known block — worst case, per the unknown rule."""
+    are counted toward the LARGEST known block — worst case, per the unknown rule.
+
+    The operator partition applies the unknown rule to UNRECOGNIZED declarations
+    too: a value outside the recognized set (e.g. a '-claimed' self-declaration
+    from participant intake) is declared metadata, not a verified distinct
+    operator — it joins the unknown pool instead of forming its own partition
+    block, so an unverifiable claim can never LOWER measured concentration.
+    (The pairwise and k-order scorers already apply the same rule: score 1.0.)"""
     profile = {}
     n = len(paths)
     for name, key in sorted(_PARTITION_KEYS.items()):
@@ -561,7 +568,8 @@ def concentration_profile(paths: list) -> dict:
         unknown = 0
         for p in paths:
             v = p.get(key)
-            if v is None:
+            if v is None or (name == "operator"
+                             and v not in _OPERATOR_SCORES):
                 unknown += 1
             else:
                 blocks[v] = blocks.get(v, 0) + 1
@@ -868,6 +876,19 @@ def _selftest() -> int:
                    abs(prof["machine_fingerprint"] - 0.75) < tol))
     checks.append(("Gamma(operator) = Gamma(repo) = 1.0 on the fixture",
                    prof["operator"] == 1.0 and prof["repo"] == 1.0))
+
+    # (e2) '-claimed' HONESTY (participant intake): an UNRECOGNIZED operator
+    # declaration (a self-claimed relationship) joins the unknown pool instead
+    # of forming its own partition block — an unverifiable claim can never
+    # LOWER Gamma(operator). Same rule pairwise: the '-claimed' path scores
+    # worst-case 1.0 against every other path.
+    c_path = dict(_fixture_path("g5", "A", "L"))
+    c_path["operator_relationship"] = "unaffiliated-claimed"
+    prof_c = concentration_profile(g_paths + [c_path])
+    checks.append(("'-claimed' declaration cannot lower Gamma(operator) "
+                   "(unknown rule applied to unrecognized values)",
+                   prof_c["operator"] == 1.0
+                   and score_pair(c_path, g_paths[0])["operator"] == 1.0))
 
     # ---------------- higher-order ACI_k fixtures (aci-korder/0.1) ----------------
     # (k1) S_2 RESTRICTION CONTRACT: on every pair drawn from a mixed pool the

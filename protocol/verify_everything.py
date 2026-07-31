@@ -6,7 +6,9 @@ re-verifies every layer — chain, tasks, molecules (both generations),
 concentration, economy, metering claims, cut certificate, trust vectors,
 challenge-response records, actor-identity root chains (registrations +
 rotations, with historical signatures checked as-of their contemporaneous
-roots) — with ZERO local-only inputs and ZERO LLM judgment:
+roots), and participant-intake records (bundle hashes + as-of signatures
+re-verified; rejected tampered bundles must stay refuted) — with ZERO
+local-only inputs and ZERO LLM judgment:
 
     python3 protocol/verify_everything.py --full
 
@@ -789,6 +791,125 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "rechecked; no-leaderboard rule scanned live; UWW stays "
                      "transparency-only" if not problems
                      else "; ".join(problems[:3])))
+
+    # --- layer 14: participant intake records (both modes; cheap) -------------------
+    # Registration re-verification rides the identity layer (layer 10 checks every
+    # registered root, the intake-registered one included); HERE each
+    # participant-verified record re-derives from its shipped bundle evidence
+    # copy: the bundle's sha256 matches the anchored claim, the signature
+    # re-verifies over the exact result bytes against the root active AS-OF the
+    # record's index (the standing N-1 idiom), the recorded tips still name
+    # verified prefix points of this chain, every task-reproduction fact
+    # re-derives (recorded hashes match the ledger; recomputed hashes match this
+    # run's own re-runs in --full), and the honesty labels hold ('-claimed'
+    # relationship; same-operator intakes labeled as rehearsals). Rejected
+    # intakes must STAY refuted: the shipped tampered bundle's named failure
+    # must still fail today, and the rejection record must remain scanner- and
+    # scan-invisible.
+    pi_records = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event") == "participant_result_anchored"
+                  and e["payload"].get("status") == "participant-verified"]
+    pi_rejects = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event") == "participant_intake_rejected"
+                  and e["payload"].get("status")
+                  == "participant-intake-rejected"]
+    if not pi_records and not pi_rejects:
+        rows.append(("participant intake", FULL, True,
+                     "no participant-intake records on the chain yet"))
+    else:
+        problems = []
+        for idx, p in pi_records:
+            f = _load_evidence_json(
+                f"participant_bundle_{str(p.get('bundle_sha256'))[:12]}.json")
+            if not isinstance(f, dict):
+                problems.append(f"idx {idx}: bundle evidence file missing")
+                continue
+            sha = hashlib.sha256(_canonical(f).encode("utf-8")).hexdigest()
+            if sha != p.get("bundle_sha256"):
+                problems.append(f"idx {idx}: bundle evidence sha256 "
+                                f"{sha[:16]}.. does not match the anchored "
+                                f"claim {str(p.get('bundle_sha256'))[:16]}..")
+                continue
+            rel = p.get("operator_relationship")
+            if not (isinstance(rel, str) and rel.endswith("-claimed")
+                    and rel == f.get("relationship_claimed")):
+                problems.append(f"idx {idx}: relationship label must be "
+                                "'-claimed' and match the bundle "
+                                f"(got {rel!r})")
+            if (rel == "same-operator-claimed"
+                    and (p.get("topology") != "intake-rehearsal-same-operator"
+                         or "does not add independence"
+                         not in p.get("limitation_note", ""))):
+                problems.append(f"idx {idx}: same-operator intake not labeled "
+                                "as a rehearsal")
+            result = f["signed_result"]["result"]
+            sig = f["signed_result"]["signature"]
+            root = actor_identity.active_root_asof(p.get("actor_id"), entries,
+                                                  as_of_index=idx - 1)
+            sig_ok = False
+            if root is not None:
+                sig_ok, _sr = actor_identity.verify_signature(
+                    sig, root["merkle_root"], _canonical(result).encode("utf-8"))
+            if not (sig_ok and sig.get("key_index") == p.get("key_index")
+                    and root["ledger_index"] == p.get("key_root_ledger_index")):
+                problems.append(f"idx {idx}: signature does not re-verify "
+                                "against the as-of root / cited registration")
+            ti, th = p.get("snapshot_tip_index"), p.get("snapshot_tip_hash")
+            if not (isinstance(ti, int) and 0 <= ti < len(entries)
+                    and entries[ti].get("hash") == th):
+                problems.append(f"idx {idx}: recorded snapshot tip is not a "
+                                "verified prefix point of this chain")
+            for rep in result.get("task_reproductions", []):
+                tid = verifier_cli.normalize_task_id(rep["task_id"])
+                ledger_hash = _find_task_hash(entries, tid)
+                expected = canonical.get(tid) if full else ledger_hash
+                if (rep.get("recorded_hash") != ledger_hash
+                        or rep.get("recomputed_hash") != expected):
+                    problems.append(f"idx {idx}: task {tid} reproduction facts "
+                                    "do not re-derive")
+                    break
+        for idx, p in pi_rejects:
+            f = _load_evidence_json(
+                f"participant_bundle_{str(p.get('bundle_sha256'))[:12]}.json")
+            if not isinstance(f, dict):
+                problems.append(f"idx {idx}: rejected-bundle evidence file "
+                                "missing")
+                continue
+            sha = hashlib.sha256(_canonical(f).encode("utf-8")).hexdigest()
+            if sha != p.get("bundle_sha256"):
+                problems.append(f"idx {idx}: rejected-bundle sha256 mismatch")
+                continue
+            if "task_id" in p or "task_ids" in p or p.get("signed") is True:
+                problems.append(f"idx {idx}: rejection record must stay "
+                                "scanner- and scan-invisible (claimed_* only)")
+            if p.get("failed_rung") == "result-substance-rederived":
+                # the drill's substance failure must still refute today
+                reps = (f.get("signed_result", {}).get("result", {})
+                        .get("task_reproductions", []))
+                still_refuted = any(
+                    rep.get("recomputed_hash")
+                    != (canonical.get(verifier_cli.normalize_task_id(
+                        rep["task_id"])) if full
+                        else _find_task_hash(
+                            entries,
+                            verifier_cli.normalize_task_id(rep["task_id"])))
+                    for rep in reps)
+                if not still_refuted:
+                    problems.append(f"idx {idx}: rejected bundle now "
+                                    "re-derives — its rejection would be "
+                                    "wrong today")
+            # other rungs (schema/private/root/signature/label) are content
+            # properties fully re-checked at intake time; v0's only anchored
+            # rejection is the rung-4 tampered-bundle drill re-proved above
+        rows.append(("participant intake", FULL, not problems,
+                     f"{len(pi_records)} participant-verified record(s): "
+                     "bundle sha256 + as-of signature + prefix-bound tips + "
+                     "task facts re-derived from shipped evidence; "
+                     f"{len(pi_rejects)} rejection(s) (tampered-bundle drill) "
+                     "stay refuted; '-claimed' + rehearsal labeling verified"
+                     if not problems else "; ".join(problems[:3])))
 
     all_ok = all(ok for _l, _m, ok, _d in rows)
     return (all_ok, rows, source_note)
