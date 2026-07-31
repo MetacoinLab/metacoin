@@ -38,6 +38,7 @@ TESTS=(
     "task_metering.py --selftest"
     "metastar_treasury.py --selftest"
     "flow1_uptime.py --selftest"
+    "participant_kit.py --selftest"
 )
 
 # Parallel arrays: names and their captured exit codes.

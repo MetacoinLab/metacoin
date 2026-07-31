@@ -121,6 +121,17 @@ heartbeat*.json
 # protocol/evidence/ via the negation block below.
 passport_catalog*.json
 
+# participant-kit working files (metacoin participate / demo/participant_kit.py):
+# the PRIVATE keychain (keychain_participant.json) is already covered by the
+# keychain*.json rule above and must NEVER be committed; the profile, public
+# declaration, signed result, submission bundle, and intake verdicts are local
+# working artifacts — the canonical record is whatever the coordinator ANCHORS
+# after the human --confirm gate. Anchored-bundle evidence copies live in
+# protocol/evidence/ via the negation block below.
+participant*.json
+bundle*.json
+intake_verdict*.json
+
 # ============================================================================
 # PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to
 # every local-artifact ignore rule above. These are privacy-checked COPIES of

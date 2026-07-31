@@ -57,6 +57,7 @@ import protocol.gate3_process as gate3_process  # reused to RECOMPUTE prechecks/
 import demo.metastar_treasury as metastar_treasury  # reused to RE-DERIVE anchored fees
 import demo.flow1_uptime as flow1_uptime  # reused to RE-VERIFY heartbeats + epochs
 import protocol.metawork_passport as metawork_passport  # reused to REBUILD passports
+import demo.participant_kit as participant_kit  # reused in the self-test to build REAL bundles
 
 # The required fields and the fixed (const) fields of a valid submission. Mirrors
 # protocol/verifier_submission.schema.json (which is the human-readable contract).
@@ -389,6 +390,63 @@ ROTATION_DRILL_NOTE = (
     "with an already-consumed one-time key index — is mechanically refused, "
     "so published signature material cannot be replayed to hand an identity "
     "to an attacker's root; not detected fraud."
+)
+
+
+# --- participant intake (an ELEVENTH record type family) ---------------------------------
+# A PARTICIPANT BUNDLE (demo/participant_kit.py, schema participant-bundle/0.1) is
+# the first record type BUILT to arrive from outside: a public identity
+# declaration + a full verifier result signed under the participant's own root +
+# a SELF-DECLARED relationship. Intake is a VALIDATION LADDER of six named rungs,
+# each with evidence; the verdict is machine-readable and NEVER auto-anchors.
+# A human --confirm stands between validation and every ledger write BY DESIGN:
+# an auto-anchoring intake would let a hostile bundle spam the ledger — the
+# coordinator remains a deliberate actor, not an auto-acceptor. With --confirm a
+# FAILING bundle anchors a labeled rejection record (rejections are audit facts
+# too); without --confirm, nothing is ever written, pass or fail.
+#
+# INDEPENDENCE HONESTY: the ladder verifies signatures, hashes, and
+# re-derivations; it CANNOT verify organizational independence. The declared
+# relationship is therefore carried with a mandatory '-claimed' suffix and is
+# recorded, not endorsed. ACI's operator dimension treats '-claimed' values as
+# unrecognized declarations and scores them worst-case 1.0 (asserted in the
+# self-test) — a claim lowers no concentration measure by itself.
+_PARTICIPANT_BUNDLE_SCHEMA = "participant-bundle/0.1"
+_INTAKE_VERDICT_SCHEMA = "intake-verdict/0.1"
+_PARTICIPANT_EVENT = "participant_result_anchored"
+_PARTICIPANT_STATUS = "participant-verified"
+_INTAKE_REJECTED_EVENT = "participant_intake_rejected"
+_INTAKE_REJECTED_STATUS = "participant-intake-rejected"
+_INTAKE_TOPOLOGY = "participant-intake"
+_INTAKE_REHEARSAL_TOPOLOGY = "intake-rehearsal-same-operator"
+_RELATIONSHIP_BASES = ("unaffiliated", "affiliated", "same-operator")
+_CLAIMED_SUFFIX = "-claimed"
+_BUNDLE_REQUIRED_FIELDS = (
+    "schema", "handle", "actor_id", "relationship_claimed",
+    "identity_declaration", "signed_result", "environment_summary",
+    "chain_point", "zero_value", "no_token",
+)
+
+PARTICIPANT_LIMITATION_NOTE = (
+    "Participant intake v0: the six-rung validation ladder mechanically verified "
+    "this bundle's signatures, hashes, and re-derivations; it CANNOT verify "
+    "organizational independence — operator_relationship is the participant's "
+    "SELF-DECLARATION, carried with a mandatory '-claimed' suffix; the claim is "
+    "recorded, not endorsed (a '-claimed' value lowers no concentration measure "
+    "by itself). This record exists only because a human confirmed a shown verdict: "
+    "intake never auto-anchors, because an auto-anchoring intake would let a "
+    "hostile bundle spam the ledger. Not consensus, not payment, not a token; "
+    "research-stage."
+)
+INTAKE_REHEARSAL_NOTE = (
+    " INTAKE REHEARSAL, SAME OPERATOR: rehearsal of the intake path — the "
+    "participant identity is operated by the coordinator's own operator and "
+    "declares so. This exercises the machinery; it does not add independence."
+)
+INTAKE_DRILL_NOTE = (
+    " PLANNED TAMPERED-BUNDLE DRILL: this rejection is a deliberate "
+    "demonstration that a bundle whose recorded facts do not re-derive is "
+    "mechanically refused at the named rung — not detected fraud."
 )
 
 
@@ -2264,54 +2322,66 @@ def validate_key_declaration(declaration):
     return (True, "ok: conforms to the actor-key-declaration schema")
 
 
-def register_actor_key(declaration: dict, ledger: Ledger) -> dict:
+def _registration_conflict(declaration: dict, entries: list):
+    """The registration uniqueness rule, shared by direct registration and the
+    participant-intake ladder (rung 2 reads it, --confirm enforces it): one
+    active root per actor, every root anchored exactly once (registration OR
+    rotation). Returns a reason string on conflict, else None."""
+    for e in entries:
+        p = e.get("payload", {})
+        if (p.get("event") == _REGISTRATION_EVENT
+                and p.get("status") == _REGISTRATION_STATUS):
+            if p.get("actor_id") == declaration["actor_id"]:
+                return (f"actor {declaration['actor_id']!r} already has "
+                        f"an active root (ledger index {e['index']}) — "
+                        "one active root per actor; hand off to a new "
+                        "root via a signed rotation certificate "
+                        "(--rotate-actor-key), never a second "
+                        "registration")
+            if p.get("merkle_root") == declaration["merkle_root"]:
+                return (f"this merkle_root is already registered "
+                        f"(ledger index {e['index']})")
+        if (p.get("event") == _ROTATION_EVENT
+                and p.get("status") == _ROTATION_STATUS
+                and p.get("new_root") == declaration["merkle_root"]):
+            return (f"this merkle_root is already anchored as a "
+                    f"rotation's new root (ledger index {e['index']})")
+    return None
+
+
+def register_actor_key(declaration: dict, ledger: Ledger,
+                       topology: str = "same-operator-key-custody",
+                       operator_relationship: str = "same-operator",
+                       limitation_note: str = REGISTRATION_LIMITATION_NOTE,
+                       extra_fields: dict = None) -> dict:
     """Validate + uniqueness-check + anchor an actor key registration.
 
     Malformed or private-material-carrying declarations -> 'rejected', NOT
     anchored. A duplicate actor_id or a root already anchored anywhere on a
     chain (registration OR rotation) is also rejected: one active root per
     actor, and an already-registered actor continues via a rotation
-    certificate (--rotate-actor-key), never a second registration. Returns
+    certificate (--rotate-actor-key), never a second registration. The
+    topology/relationship/limitation parameters exist for the participant-
+    intake path, which registers a declared external identity under the
+    intake's own honest labels (defaults are the same-operator custody
+    labels every direct registration has carried). Returns
     {evaluation, ledger_entry}.
     """
     ok, reason = validate_key_declaration(declaration)
     if ok:
-        for e in ledger.read_all():
-            p = e.get("payload", {})
-            if (p.get("event") == _REGISTRATION_EVENT
-                    and p.get("status") == _REGISTRATION_STATUS):
-                if p.get("actor_id") == declaration["actor_id"]:
-                    ok, reason = (False,
-                                  f"actor {declaration['actor_id']!r} already has "
-                                  f"an active root (ledger index {e['index']}) — "
-                                  "one active root per actor; hand off to a new "
-                                  "root via a signed rotation certificate "
-                                  "(--rotate-actor-key), never a second "
-                                  "registration")
-                    break
-                if p.get("merkle_root") == declaration["merkle_root"]:
-                    ok, reason = (False,
-                                  f"this merkle_root is already registered "
-                                  f"(ledger index {e['index']})")
-                    break
-            if (p.get("event") == _ROTATION_EVENT
-                    and p.get("status") == _ROTATION_STATUS
-                    and p.get("new_root") == declaration["merkle_root"]):
-                ok, reason = (False,
-                              f"this merkle_root is already anchored as a "
-                              f"rotation's new root (ledger index {e['index']})")
-                break
+        reason = _registration_conflict(declaration, ledger.read_all())
+        ok = reason is None
     if not ok:
         evaluation = {
             "event": _REGISTRATION_EVENT,
             "stage": "R-identity",
-            "topology": "same-operator-key-custody",
+            "topology": topology,
             "status": "rejected",
             "reason": reason,
             "anchored": False,
             "zero_value": True,
             "no_token": True,
-            "limitation_note": REGISTRATION_LIMITATION_NOTE,
+            "limitation_note": limitation_note,
             "evaluated_at": time.time(),
         }
         return {"evaluation": evaluation, "ledger_entry": None}
@@ -2319,7 +2389,7 @@ def register_actor_key(declaration: dict, ledger: Ledger) -> dict:
     evaluation = {
         "event": _REGISTRATION_EVENT,
         "stage": "R-identity",
-        "topology": "same-operator-key-custody",
+        "topology": topology,
         "status": _REGISTRATION_STATUS,
         "task_class": _TASK_CLASS,
         "actor_id": declaration["actor_id"],
@@ -2327,12 +2397,14 @@ def register_actor_key(declaration: dict, ledger: Ledger) -> dict:
         "key_count": declaration["key_count"],
         "merkle_root": declaration["merkle_root"],
         "leaf_hashes_hash": declaration["leaf_hashes_hash"],
-        "operator_relationship": "same-operator",
-        "limitation_note": REGISTRATION_LIMITATION_NOTE,
+        "operator_relationship": operator_relationship,
+        "limitation_note": limitation_note,
         "zero_value": True,
         "no_token": True,
         "anchored_at": time.time(),
     }
+    if extra_fields:
+        evaluation.update(extra_fields)
     entry = ledger.append(evaluation)
     return {"evaluation": evaluation, "ledger_entry": entry}
 
@@ -2450,6 +2522,544 @@ def rotate_actor_key(cert: dict, ledger: Ledger, drill: bool = False) -> dict:
     }
     entry = ledger.append(evaluation)
     return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+# ----------------------------------------------------------------------------
+# Participant intake: the six-rung validation ladder (pure — writes NOTHING)
+# and the human-confirmation-gated anchoring path.
+# ----------------------------------------------------------------------------
+def _chain_prefix_point(entries: list, index, expected_hash):
+    """True iff `index` names a real entry of the live chain whose hash equals
+    `expected_hash` — the prefix-binding check. An intake normally happens
+    while the live ledger has advanced past the published snapshot (every
+    confirmed intake advances it until the next publish), so a bundle's chain
+    point is validated as a verified PREFIX POINT of the current chain, never
+    by demanding tip equality with a snapshot that legitimately lags."""
+    return (isinstance(index, int) and isinstance(expected_hash, str)
+            and 0 <= index < len(entries)
+            and entries[index].get("hash") == expected_hash)
+
+
+def _rederive_bundle_claims(result: dict, ledger: Ledger, snapshot_path: str,
+                            anchor_path: str) -> dict:
+    """RE-DERIVE a participant result's claims on this host (never trust the
+    bundle). Same substance as _rederive_agent_claims, with intake's prefix
+    semantics: the published snapshot and the participant's recorded tips must
+    each be verified prefix points of the live chain (see _chain_prefix_point)
+    rather than equal to the live tip. Per task: re-run locally, compare to the
+    participant's recomputed_hash AND to the ledger-recorded hash."""
+    snap_ok, snap_reason, snap_details = audit.verify_snapshot_file(snapshot_path)
+    snapshot_tip = snap_details.get("tip_hash") if snap_ok else None
+    snapshot_tip_index = snap_details.get("tip_index") if snap_ok else None
+    led_ok, led_reason = ledger.verify_chain()
+    entries = ledger.read_all()
+    prefix_ok = _chain_prefix_point(entries, snapshot_tip_index, snapshot_tip)
+    chain_verified = bool(snap_ok and led_ok and prefix_ok)
+
+    anchor_tip = None
+    try:
+        with open(anchor_path, "r", encoding="utf-8") as f:
+            anchor = json.load(f)
+        if isinstance(anchor, dict):
+            anchor_tip = anchor.get("tip_hash")
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        anchor_tip = None
+    tip_matches = bool(snapshot_tip is not None and anchor_tip == snapshot_tip)
+
+    # The participant's recorded tips must name real prefix points of THIS chain.
+    participant_tips_bound = bool(
+        _chain_prefix_point(entries, result.get("snapshot_tip_index"),
+                            result.get("snapshot_tip_hash"))
+        and _chain_prefix_point(entries, result.get("anchor_tip_index"),
+                                result.get("anchor_tip_hash")))
+
+    per_task = []
+    all_reproduced = bool(result.get("task_reproductions"))
+    for rep in result.get("task_reproductions", []):
+        tid = rep.get("task_id")
+        local_hash = None
+        try:
+            module = verifier_cli.load_task(tid)
+            local_hash = module.output_hash(module.compute())
+        except (KeyError, ImportError, AttributeError, ValueError, TypeError):
+            local_hash = None
+        ledger_recorded = _find_ledger_task_hash(entries, tid)
+        matches_participant = bool(local_hash is not None
+                                   and local_hash == rep.get("recomputed_hash"))
+        matches_ledger = bool(local_hash is not None
+                              and local_hash == ledger_recorded)
+        recorded_matches_ledger = bool(ledger_recorded is not None
+                                       and rep.get("recorded_hash")
+                                       == ledger_recorded)
+        reproduced = (matches_participant and matches_ledger
+                      and recorded_matches_ledger)
+        all_reproduced = all_reproduced and reproduced
+        per_task.append({
+            "task_id": tid,
+            "local_output_hash": local_hash,
+            "participant_recomputed_hash": rep.get("recomputed_hash"),
+            "ledger_recorded_hash": ledger_recorded,
+            "matches_participant_recomputed": matches_participant,
+            "matches_ledger_recorded": matches_ledger,
+            "recorded_hash_matches_ledger": recorded_matches_ledger,
+            "reproduced": reproduced,
+        })
+
+    return {
+        "chain_verified": chain_verified,
+        "tip_matches_anchor": tip_matches,
+        "participant_tips_bound": participant_tips_bound,
+        "task_reproduced": all_reproduced,
+        "per_task": per_task,
+        "snapshot_tip_hash": snapshot_tip,
+        "snapshot_tip_index": snapshot_tip_index,
+        "anchor_tip_hash": anchor_tip,
+        "snapshot_verify_reason": snap_reason,
+        "ledger_verify_reason": led_reason,
+    }
+
+
+def evaluate_intake_bundle(bundle, ledger: Ledger,
+                           snapshot_path: str = _DEFAULT_PUBLISHED_SNAPSHOT_PATH,
+                           anchor_path: str = None) -> dict:
+    """Run the SIX-RUNG validation ladder over a participant bundle. PURE:
+    reads the ledger, WRITES NOTHING, anchors nothing — the verdict it returns
+    is the machine-readable input to the human --confirm gate (intake never
+    auto-anchors; an auto-anchoring intake would let a hostile bundle spam the
+    ledger). Each rung is a named check with evidence; a failed rung fails the
+    ladder and the remaining rungs are marked skipped, never silently passed.
+    """
+    if anchor_path is None:
+        anchor_path = audit.DEFAULT_ANCHOR_PATH
+    entries = ledger.read_all()
+    rungs = []
+    state = {"new_actor": None, "expected_root": None, "root_index": None}
+
+    def rung(number, name, passed, evidence):
+        rungs.append({"rung": number, "name": name, "passed": bool(passed),
+                      "evidence": list(evidence)})
+        return bool(passed)
+
+    def skip_from(number, failed_name):
+        names = {1: "schema-and-no-private-material",
+                 2: "identity-registrable-or-matching",
+                 3: "signature-verifies-under-declared-root",
+                 4: "result-substance-rederived",
+                 5: "one-time-key-discipline",
+                 6: "relationship-label-well-formed"}
+        for n in range(number, 7):
+            rungs.append({"rung": n, "name": names[n], "passed": False,
+                          "skipped": True,
+                          "evidence": [f"not evaluated: rung {number - 1} "
+                                       f"({failed_name!r}) failed first"]})
+
+    bundle_sha = None
+    if isinstance(bundle, dict):
+        bundle_sha = hashlib.sha256(
+            actor_identity.canonical_json(bundle).encode("utf-8")).hexdigest()
+
+    # --- rung 1: schema + no private material -----------------------------------
+    ev, ok1 = [], True
+    if not isinstance(bundle, dict):
+        ev.append("bundle is not a JSON object")
+        ok1 = False
+    else:
+        if bundle.get("schema") != _PARTICIPANT_BUNDLE_SCHEMA:
+            ev.append(f"schema must be {_PARTICIPANT_BUNDLE_SCHEMA!r} "
+                      f"(got {bundle.get('schema')!r})")
+            ok1 = False
+        missing = [f for f in _BUNDLE_REQUIRED_FIELDS if f not in bundle]
+        if missing:
+            ev.append(f"missing required field(s): {missing}")
+            ok1 = False
+        sr = bundle.get("signed_result")
+        if not (isinstance(sr, dict) and isinstance(sr.get("result"), dict)
+                and isinstance(sr.get("signature"), dict)
+                and isinstance(sr.get("key_index"), int)):
+            ev.append("signed_result must carry {result: object, signature: "
+                      "object, key_index: int}")
+            ok1 = False
+        if bundle.get("zero_value") is not True or bundle.get("no_token") is not True:
+            ev.append("zero_value and no_token must both be true")
+            ok1 = False
+        if _contains_private_material(bundle):
+            ev.append("bundle contains PRIVATE key material (a dict key "
+                      "containing 'private') — a submission is public-only by "
+                      "mechanical rule; never submit a keychain file")
+            ok1 = False
+    if ok1:
+        ev = [f"schema {_PARTICIPANT_BUNDLE_SCHEMA}; all "
+              f"{len(_BUNDLE_REQUIRED_FIELDS)} required fields present",
+              "no dict key anywhere in the bundle contains 'private'"]
+    if not rung(1, "schema-and-no-private-material", ok1, ev):
+        skip_from(2, "schema-and-no-private-material")
+        return _finish_verdict(bundle, bundle_sha, rungs, state)
+
+    # --- rung 2: identity — new actor registrable, or root matches the active ---
+    decl = bundle["identity_declaration"]
+    actor = bundle["actor_id"]
+    ev, ok2 = [], True
+    d_ok, d_reason = validate_key_declaration(decl)
+    if not d_ok:
+        ev.append(f"identity declaration invalid: {d_reason}")
+        ok2 = False
+    elif decl.get("actor_id") != actor:
+        ev.append(f"declaration actor_id {decl.get('actor_id')!r} does not "
+                  f"match bundle actor_id {actor!r}")
+        ok2 = False
+    else:
+        chain = actor_identity.root_chain(actor, entries)
+        if not chain:
+            conflict = _registration_conflict(decl, entries)
+            if conflict:
+                ev.append(f"new actor but the declaration is not registrable: "
+                          f"{conflict}")
+                ok2 = False
+            else:
+                state["new_actor"] = True
+                state["expected_root"] = decl["merkle_root"]
+                ev.append(f"new actor {actor!r}: no anchored root chain; "
+                          f"declaration is registrable (root "
+                          f"{decl['merkle_root'][:16]}.. unclaimed, actor_id "
+                          "unclaimed — registration happens only under "
+                          "--confirm)")
+        else:
+            active = chain[-1]
+            if decl["merkle_root"] != active["merkle_root"]:
+                ev.append(f"known actor {actor!r}: declared root "
+                          f"{decl['merkle_root'][:16]}.. does not match the "
+                          f"ACTIVE registered root "
+                          f"{str(active['merkle_root'])[:16]}.. (anchored at "
+                          f"ledger index {active['ledger_index']})")
+                ok2 = False
+            else:
+                state["new_actor"] = False
+                state["expected_root"] = active["merkle_root"]
+                state["root_index"] = active["ledger_index"]
+                ev.append(f"known actor {actor!r}: declared root matches the "
+                          f"active root anchored at ledger index "
+                          f"{active['ledger_index']}")
+    if not rung(2, "identity-registrable-or-matching", ok2, ev):
+        skip_from(3, "identity-registrable-or-matching")
+        return _finish_verdict(bundle, bundle_sha, rungs, state)
+
+    # --- rung 3: the signature over the verifier result -------------------------
+    sr = bundle["signed_result"]
+    sig, result = sr["signature"], sr["result"]
+    message = actor_identity.canonical_json(result).encode("utf-8")
+    s_ok, s_reasons = actor_identity.verify_signature(
+        sig, state["expected_root"], message)
+    ev, ok3 = [], True
+    if not s_ok:
+        ev.extend(f"signature: {r}" for r in s_reasons)
+        ok3 = False
+    if sig.get("actor_id") != actor:
+        ev.append(f"signature actor_id {sig.get('actor_id')!r} does not match "
+                  f"bundle actor_id {actor!r}")
+        ok3 = False
+    if sig.get("key_index") != sr["key_index"]:
+        ev.append(f"signature key_index {sig.get('key_index')!r} does not "
+                  f"match signed_result.key_index {sr['key_index']!r}")
+        ok3 = False
+    if ok3:
+        ev = [f"Lamport-Merkle signature verifies under the declared root "
+              f"{state['expected_root'][:16]}..; digest "
+              f"{sig['message_digest'][:16]}.. binds the exact result bytes; "
+              f"one-time key index {sr['key_index']} binds to actor {actor!r}"]
+    if not rung(3, "signature-verifies-under-declared-root", ok3, ev):
+        skip_from(4, "signature-verifies-under-declared-root")
+        return _finish_verdict(bundle, bundle_sha, rungs, state)
+
+    # --- rung 4: result substance — the coordinator re-derives everything -------
+    ev, ok4 = [], True
+    r_ok, r_reason = validate_agent_result(result)
+    if not r_ok:
+        ev.append(f"verifier result malformed: {r_reason}")
+        ok4 = False
+    elif result.get("verdict") != "verified":
+        ev.append(f"bundle's own verdict is {result.get('verdict')!r} — only "
+                  "a 'verified' run is anchorable as participant-verified")
+        ok4 = False
+    elif (bundle["chain_point"].get("snapshot_tip_hash")
+            != result.get("snapshot_tip_hash")):
+        ev.append("bundle chain_point does not match the signed result's "
+                  f"snapshot tip (chain_point "
+                  f"{str(bundle['chain_point'].get('snapshot_tip_hash'))[:16]}"
+                  f".. vs result "
+                  f"{str(result.get('snapshot_tip_hash'))[:16]}..)")
+        ok4 = False
+    else:
+        red = _rederive_bundle_claims(result, ledger, snapshot_path, anchor_path)
+        state["rederived"] = red
+        if not red["chain_verified"]:
+            ev.append("chain cross-check failed: snapshot "
+                      f"({red['snapshot_verify_reason']}); live ledger "
+                      f"({red['ledger_verify_reason']}); snapshot tip must be "
+                      "a verified prefix point of the live chain")
+            ok4 = False
+        if not red["tip_matches_anchor"]:
+            ev.append(f"published snapshot tip "
+                      f"{str(red['snapshot_tip_hash'])[:16]}.. does not match "
+                      f"the committed anchor tip "
+                      f"{str(red['anchor_tip_hash'])[:16]}..")
+            ok4 = False
+        if not red["participant_tips_bound"]:
+            ev.append("the result's recorded snapshot/anchor tips do not name "
+                      "verified prefix points of this chain (expected entry "
+                      f"{result.get('snapshot_tip_index')} hash "
+                      f"{str(result.get('snapshot_tip_hash'))[:16]}..)")
+            ok4 = False
+        bad = [pt for pt in red["per_task"] if not pt["reproduced"]]
+        if bad:
+            b = bad[0]
+            ev.append(f"{len(bad)} of {len(red['per_task'])} task "
+                      f"reproduction(s) do NOT re-derive — first: "
+                      f"{b['task_id']} local re-run "
+                      f"{str(b['local_output_hash'])[:16]}.. vs participant "
+                      f"recomputed {str(b['participant_recomputed_hash'])[:16]}"
+                      f".. vs ledger {str(b['ledger_recorded_hash'])[:16]}..")
+            ok4 = False
+        if ok4:
+            ev = ["chain verdict cross-checked: published snapshot re-verifies "
+                  "from genesis, is a verified prefix point of the live chain, "
+                  "and matches the committed anchor "
+                  f"({str(red['anchor_tip_hash'])[:16]}..)",
+                  f"{len(red['per_task'])}/{len(red['per_task'])} task "
+                  "reproduction(s) re-derived locally; every recorded_hash "
+                  "matches the ledger and every recomputed hash matches this "
+                  "host's own re-run"]
+    if not rung(4, "result-substance-rederived", ok4, ev):
+        skip_from(5, "result-substance-rederived")
+        return _finish_verdict(bundle, bundle_sha, rungs, state)
+
+    # --- rung 5: one-time key discipline (ledger-wide cross-type scan) -----------
+    key_index = sr["key_index"]
+    uses = actor_identity.uses_for_root(actor, entries, state["expected_root"])
+    hit = next((u for u in uses if u["key_index"] == key_index), None)
+    total_uses = len(actor_identity.anchored_key_uses(entries))
+    if hit is not None:
+        ok5 = rung(5, "one-time-key-discipline", False,
+                   [f"one-time key index {key_index} is already CONSUMED "
+                    f"on-chain (anchored record at ledger index "
+                    f"{hit['ledger_index']}) — the discipline is ledger-wide "
+                    "and cross-type; a replayed or re-signed bundle must use "
+                    "a fresh index"])
+    else:
+        ok5 = rung(5, "one-time-key-discipline", True,
+                   [f"key index {key_index} of root "
+                    f"{state['expected_root'][:16]}.. is unused across all "
+                    f"{total_uses} anchored key use(s) (cross-type scan "
+                    "including this bundle's index)"])
+    if not ok5:
+        skip_from(6, "one-time-key-discipline")
+        return _finish_verdict(bundle, bundle_sha, rungs, state)
+
+    # --- rung 6: relationship label well-formed ('-claimed' enforced) ------------
+    rel = bundle["relationship_claimed"]
+    ev, ok6 = [], True
+    if not (isinstance(rel, str) and rel.endswith(_CLAIMED_SUFFIX)
+            and rel[: -len(_CLAIMED_SUFFIX)] in _RELATIONSHIP_BASES):
+        ev.append(f"relationship label {rel!r} is malformed — it must be one "
+                  f"of {_RELATIONSHIP_BASES} suffixed {_CLAIMED_SUFFIX!r}: "
+                  "the ladder verifies signatures/hashes/re-derivations, "
+                  "never organizational independence, so every relationship "
+                  "is recorded as a claim")
+        ok6 = False
+    else:
+        ev = [f"relationship {rel!r} well-formed: base "
+              f"{rel[: -len(_CLAIMED_SUFFIX)]!r} + mandatory '-claimed' (the "
+              "protocol can verify signatures, hashes, and re-derivations; it "
+              "cannot verify organizational independence — the claim is "
+              "recorded, not endorsed)"]
+    rung(6, "relationship-label-well-formed", ok6, ev)
+    return _finish_verdict(bundle, bundle_sha, rungs, state)
+
+
+def _finish_verdict(bundle, bundle_sha, rungs, state) -> dict:
+    """Assemble the machine-readable intake verdict from the evaluated rungs."""
+    overall_pass = (len(rungs) == 6
+                    and all(r["passed"] and not r.get("skipped") for r in rungs))
+    first_failed = next((r["name"] for r in rungs
+                         if not r["passed"] and not r.get("skipped")), None)
+    b = bundle if isinstance(bundle, dict) else {}
+    return {
+        "schema": _INTAKE_VERDICT_SCHEMA,
+        "event": "participant_intake_verdict",
+        "bundle_sha256": bundle_sha,
+        "handle": b.get("handle"),
+        "actor_id": b.get("actor_id"),
+        "relationship_claimed": b.get("relationship_claimed"),
+        "new_actor": state.get("new_actor"),
+        "rungs": rungs,
+        "overall": "pass" if overall_pass else "fail",
+        "first_failed_rung": first_failed,
+        "confirm_note": ("this verdict anchors NOTHING by itself — a human "
+                         "--confirm is the only path to a ledger write "
+                         "(an auto-anchoring intake would let a hostile "
+                         "bundle spam the ledger)"),
+        "zero_value": True,
+        "no_token": True,
+        "limitation_note": PARTICIPANT_LIMITATION_NOTE,
+        "evaluated_at": time.time(),
+    }
+
+
+def _intake_labels(relationship_claimed):
+    """(topology, limitation_note) for an intake outcome. A truthfully declared
+    same-operator participant IS a rehearsal of the intake path and every such
+    record says so; any other claimed relationship gets the plain intake
+    topology (the note still marks the relationship as claimed-only)."""
+    base = (relationship_claimed[: -len(_CLAIMED_SUFFIX)]
+            if isinstance(relationship_claimed, str)
+            and relationship_claimed.endswith(_CLAIMED_SUFFIX) else None)
+    if base == "same-operator":
+        return (_INTAKE_REHEARSAL_TOPOLOGY,
+                PARTICIPANT_LIMITATION_NOTE + INTAKE_REHEARSAL_NOTE)
+    return (_INTAKE_TOPOLOGY, PARTICIPANT_LIMITATION_NOTE)
+
+
+def anchor_intake(bundle: dict, verdict: dict, ledger: Ledger,
+                  drill: bool = False) -> dict:
+    """The HUMAN-CONFIRMED anchoring path — never called without --confirm.
+
+    Passing verdict: anchor the pair — actor registration first (if the actor
+    is new), then the 'participant_result_anchored' record whose signature
+    facts (signed/signer_actor_id/key_index) feed the ledger-wide cross-type
+    one-time-key scan, and whose PLURAL task_ids list joins every listed
+    task's molecule history ON PURPOSE (this IS a genuine verification event
+    for those tasks; the scanner's batch-membership rule picks it up —
+    asserted in the self-test; frozen anchored generations stay valid via
+    generation-locked rebuilds).
+
+    Failing verdict: anchor a 'participant-intake-rejected' audit record
+    naming the failed rung (rejections are facts too); it carries claimed_*
+    fields only — no task keys, no signed:true — so it is invisible to both
+    the molecule scanner and the key-use scan. `drill=True` labels a planned
+    demonstration. Returns {registration_entry, ledger_entry, evaluation}.
+    """
+    sha = hashlib.sha256(
+        actor_identity.canonical_json(bundle).encode("utf-8")).hexdigest()
+    if sha != verdict.get("bundle_sha256"):
+        raise ValueError(
+            f"verdict does not correspond to this bundle (verdict is over "
+            f"sha256 {str(verdict.get('bundle_sha256'))[:16]}.., this bundle "
+            f"is {sha[:16]}..) — re-run the intake evaluation")
+
+    rel = bundle.get("relationship_claimed")
+    topology, note = _intake_labels(rel)
+
+    if verdict.get("overall") != "pass":
+        failed_name = verdict.get("first_failed_rung")
+        failed = next((r for r in verdict.get("rungs", [])
+                       if r["name"] == failed_name), None)
+        evaluation = {
+            "event": _INTAKE_REJECTED_EVENT,
+            "stage": "R-participant",
+            "topology": topology,
+            "status": _INTAKE_REJECTED_STATUS,
+            # claimed_* only: nothing here feeds the molecule scanner or the
+            # key-use scan — a rejected bundle consumed nothing and verified
+            # nothing
+            "claimed_handle": bundle.get("handle"),
+            "claimed_actor_id": bundle.get("actor_id"),
+            "claimed_relationship": rel,
+            "claimed_key_index": (bundle.get("signed_result", {})
+                                  .get("key_index")
+                                  if isinstance(bundle.get("signed_result"),
+                                                dict) else None),
+            "bundle_sha256": sha,
+            "failed_rung": failed_name,
+            "failed_rung_number": failed["rung"] if failed else None,
+            "first_failure_evidence": (failed["evidence"][0]
+                                       if failed and failed.get("evidence")
+                                       else None),
+            "rungs_passed": sum(1 for r in verdict.get("rungs", [])
+                                if r["passed"]),
+            "rung_count": len(verdict.get("rungs", [])),
+            "human_confirmed": True,
+            "limitation_note": note + (INTAKE_DRILL_NOTE if drill else ""),
+            "zero_value": True,
+            "no_token": True,
+            "anchored_at": time.time(),
+        }
+        if drill:
+            evaluation["drill"] = True
+        entry = ledger.append(evaluation)
+        return {"registration_entry": None, "ledger_entry": entry,
+                "evaluation": evaluation}
+
+    # --- passing verdict: registration (if new), then the participant record ----
+    decl = bundle["identity_declaration"]
+    actor = bundle["actor_id"]
+    registration_entry = None
+    chain = actor_identity.root_chain(actor, ledger.read_all())
+    if not chain:
+        reg = register_actor_key(
+            decl, ledger, topology=topology, operator_relationship=rel,
+            limitation_note=note,
+            extra_fields={"handle": bundle.get("handle"),
+                          "registered_via": "participant-intake",
+                          "human_confirmed": True})
+        if reg["ledger_entry"] is None:
+            raise ValueError("registration refused after a passing ladder — "
+                             f"{reg['evaluation'].get('reason')} (the chain "
+                             "changed between evaluation and confirmation; "
+                             "re-run the intake)")
+        registration_entry = reg["ledger_entry"]
+        root_index = registration_entry["index"]
+    else:
+        root_index = chain[-1]["ledger_index"]
+
+    result = bundle["signed_result"]["result"]
+    reps = result["task_reproductions"]
+    task_ids = sorted({verifier_cli.normalize_task_id(r["task_id"])
+                       for r in reps})
+    evaluation = {
+        "event": _PARTICIPANT_EVENT,
+        "stage": "R-participant",
+        "topology": topology,
+        "status": _PARTICIPANT_STATUS,
+        "task_class": _TASK_CLASS,
+        "handle": bundle["handle"],
+        "verifier_id": bundle["handle"],
+        "actor_id": actor,
+        # PLURAL task_ids ON PURPOSE: a confirmed participant verification IS a
+        # genuine verification event for every listed task and joins each
+        # task's molecule history via the scanner's batch-membership rule
+        # (frozen generations stay valid via generation-locked rebuilds).
+        "task_ids": task_ids,
+        "task_reproduction_count": len(reps),
+        "task_reproductions_matched": sum(1 for r in reps
+                                          if r.get("match") is True),
+        "agent_verdict": result["verdict"],
+        "coordinator_reconfirmed": {
+            "chain_verified": True,
+            "tip_matches_anchor": True,
+            "participant_tips_bound": True,
+            "task_reproduced": True,
+            "rungs_passed": 6,
+            "first_failure_reason": None,
+        },
+        "snapshot_tip_hash": bundle["chain_point"]["snapshot_tip_hash"],
+        "snapshot_tip_index": bundle["chain_point"]["snapshot_tip_index"],
+        "bundle_sha256": sha,
+        # signature FACTS in the scan-feeding form: the participant's signing
+        # index is consumed ledger-wide, like every other anchored signature
+        "signed": True,
+        "signer_actor_id": actor,
+        "key_index": bundle["signed_result"]["key_index"],
+        "signature_valid": True,
+        "key_root_ledger_index": root_index,
+        "operator_relationship": rel,
+        "human_confirmed": True,
+        "limitation_note": note,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"registration_entry": registration_entry, "ledger_entry": entry,
+            "evaluation": evaluation}
 
 
 # ----------------------------------------------------------------------------
@@ -4000,6 +4610,272 @@ def _selftest() -> int:
                   "stability check SKIPPED; the scanner-invisibility checks above "
                   "cover the mechanism)")
 
+        # ================= PARTICIPANT-INTAKE coverage ======================
+        # The six-rung validation ladder + the human --confirm gate, exercised
+        # with REAL bundles built by demo/participant_kit.py against the same
+        # temp corpus (agent_base/agent_snap/agent_anchor). All temp paths.
+        import copy as _copy
+
+        intake_work = os.path.join(tmp, "participant_work")
+        os.makedirs(intake_work)
+        participant_kit.init_participant(
+            "intake-fixture-participant", "unaffiliated", key_count=4,
+            workdir=intake_work, published_path=agent_snap)
+        participant_kit.run_participant(intake_work, agent_snap, agent_anchor)
+        good_bundle, good_sha = participant_kit.build_bundle(intake_work)
+
+        def _fresh_intake_ledger(name):
+            p = os.path.join(tmp, name)
+            _copyfile(agent_base, p)
+            return Ledger(p)
+
+        # (I1) FULL LADDER PASS — and the evaluation itself writes NOTHING
+        led_i = _fresh_intake_ledger("intake_pass.jsonl")
+        n_before = len(led_i.read_all())
+        verdict_pass = evaluate_intake_bundle(good_bundle, led_i, agent_snap,
+                                              agent_anchor)
+        checks.append((
+            "INTAKE LADDER PASS (six named rungs, each with evidence)",
+            verdict_pass["overall"] == "pass"
+            and len(verdict_pass["rungs"]) == 6
+            and all(r["passed"] for r in verdict_pass["rungs"])
+            and all(r["evidence"] for r in verdict_pass["rungs"])
+            and verdict_pass["new_actor"] is True
+            and verdict_pass["bundle_sha256"] == good_sha,
+            f"overall={verdict_pass['overall']}",
+        ))
+        checks.append((
+            "INTAKE NEVER AUTO-ANCHORS (evaluation writes ZERO ledger entries; "
+            "the verdict names why)",
+            len(led_i.read_all()) == n_before
+            and "spam the ledger" in verdict_pass["confirm_note"],
+            f"entries {n_before} -> {len(led_i.read_all())}",
+        ))
+
+        # (I2) --confirm on the passing verdict: registration THEN
+        # participant-verified, both under the intake's honest labels
+        out_i = anchor_intake(good_bundle, verdict_pass, led_i)
+        reg_e, part_e = out_i["registration_entry"], out_i["ledger_entry"]
+        intake_confirmed_payload = out_i["evaluation"]
+        pv = intake_confirmed_payload
+        chain_ok_i, _ = led_i.verify_chain()
+        checks.append((
+            "INTAKE CONFIRMED (registration + participant-verified anchored; "
+            "chain verifies; '-claimed' relationship carried verbatim)",
+            reg_e is not None and part_e is not None and chain_ok_i
+            and reg_e["payload"]["status"] == "actor-key-registered"
+            and reg_e["payload"]["handle"] == "intake-fixture-participant"
+            and reg_e["payload"]["topology"] == _INTAKE_TOPOLOGY
+            and reg_e["payload"]["operator_relationship"]
+            == "unaffiliated-claimed"
+            and pv["status"] == _PARTICIPANT_STATUS
+            and pv["topology"] == _INTAKE_TOPOLOGY
+            and pv["operator_relationship"] == "unaffiliated-claimed"
+            and pv["key_root_ledger_index"] == reg_e["index"]
+            and pv["task_ids"] == [TASK]
+            and pv["human_confirmed"] is True
+            and "recorded, not endorsed" in pv["limitation_note"],
+            f"registration idx {reg_e['index'] if reg_e else None}, record "
+            f"idx {part_e['index'] if part_e else None}",
+        ))
+
+        # (I2b) the record's signature facts feed the ledger-wide cross-type
+        # key-use scan (the participant's index is consumed for every type)
+        uses_i = actor_identity.anchored_key_uses(led_i.read_all())
+        checks.append((
+            "INTAKE RECORD FEEDS THE KEY-USE SCAN (signed facts consume the "
+            "one-time index ledger-wide)",
+            any(u["actor_id"] == "intake-fixture-participant"
+                and u["key_index"] == good_bundle["signed_result"]["key_index"]
+                for u in uses_i),
+            f"{len(uses_i)} anchored key use(s)",
+        ))
+
+        # (I2c) MOLECULE ROUTING (the deliberate decision, asserted): the
+        # confirmed record joins each listed task's molecule history via its
+        # plural task_ids — it IS a genuine verification event for those tasks
+        mol_i = work_molecule.build_molecule(TASK, ledger_path=led_i.path)
+        checks.append((
+            "INTAKE RECORD JOINS THE TASK MOLECULE HISTORY (asserted routing)",
+            any(ve["ledger_index"] == part_e["index"]
+                for ve in mol_i["verification_events"]),
+            f"molecule cites ledger indices "
+            f"{sorted(ve['ledger_index'] for ve in mol_i['verification_events'])}",
+        ))
+
+        # (I2d) ACI HONESTY: a '-claimed' relationship is an unrecognized
+        # declaration to the operator dimension and scores worst-case 1.0 —
+        # a claim lowers no concentration measure by itself (UNKNOWN rule
+        # unchanged)
+        checks.append((
+            "'-claimed' RELATIONSHIP LOWERS NO CONCENTRATION (ACI worst-case "
+            "rule unchanged)",
+            agent_concentration._score_operator(
+                {"operator_relationship": "unaffiliated-claimed"},
+                {"operator_relationship": "same-operator"}) == 1.0
+            and agent_concentration._score_operator(
+                {"operator_relationship": "same-operator-claimed"},
+                {"operator_relationship": "same-operator"}) == 1.0,
+            "both score 1.0",
+        ))
+
+        # (I3) SAME-OPERATOR REHEARSAL LABELS: a truthfully declared
+        # same-operator participant anchors with the rehearsal topology and
+        # the 'does not add independence' note on BOTH records
+        reh_work = os.path.join(tmp, "rehearsal_work")
+        os.makedirs(reh_work)
+        participant_kit.init_participant(
+            "intake-rehearsal-fixture", "same-operator", key_count=2,
+            workdir=reh_work, published_path=agent_snap)
+        participant_kit.run_participant(reh_work, agent_snap, agent_anchor)
+        reh_bundle, _reh_sha = participant_kit.build_bundle(reh_work)
+        led_r = _fresh_intake_ledger("intake_rehearsal.jsonl")
+        v_r = evaluate_intake_bundle(reh_bundle, led_r, agent_snap,
+                                     agent_anchor)
+        out_r = anchor_intake(reh_bundle, v_r, led_r)
+        checks.append((
+            "SAME-OPERATOR INTAKE = REHEARSAL (topology + 'does not add "
+            "independence' note on registration AND record)",
+            v_r["overall"] == "pass"
+            and out_r["evaluation"]["topology"] == _INTAKE_REHEARSAL_TOPOLOGY
+            and out_r["registration_entry"]["payload"]["topology"]
+            == _INTAKE_REHEARSAL_TOPOLOGY
+            and "does not add independence"
+            in out_r["evaluation"]["limitation_note"]
+            and "does not add independence"
+            in out_r["registration_entry"]["payload"]["limitation_note"]
+            and out_r["evaluation"]["operator_relationship"]
+            == "same-operator-claimed",
+            out_r["evaluation"]["topology"],
+        ))
+
+        # (I4) EVERY RUNG'S FAILURE FIXTURE — each named check refuses its own
+        # way, and later rungs are marked skipped, never silently passed
+        led_f = _fresh_intake_ledger("intake_fixtures.jsonl")
+
+        def _rung_fails(bundle_variant, rung_number, needle):
+            v = evaluate_intake_bundle(bundle_variant, led_f, agent_snap,
+                                       agent_anchor)
+            r = v["rungs"][rung_number - 1]
+            later_skipped = all(x.get("skipped") for x in v["rungs"][rung_number:])
+            return (v["overall"] == "fail"
+                    and v["first_failed_rung"] == r["name"]
+                    and r["passed"] is False and not r.get("skipped")
+                    and any(needle in e for e in r["evidence"])
+                    and later_skipped)
+
+        b = _copy.deepcopy(good_bundle)
+        del b["schema"]
+        checks.append(("RUNG 1 FAILS: missing schema field",
+                       _rung_fails(b, 1, "schema"), "bad schema"))
+        b = _copy.deepcopy(good_bundle)
+        b["identity_declaration"]["private_probe"] = "x"
+        checks.append(("RUNG 1 FAILS: private material named and refused",
+                       _rung_fails(b, 1, "PRIVATE"), "private material"))
+
+        led_m = _fresh_intake_ledger("intake_rootmismatch.jsonl")
+        other_kc = actor_identity.generate_keychain(
+            "intake-fixture-participant", key_count=2)
+        register_actor_key(actor_identity.public_declaration(other_kc), led_m)
+        v_m = evaluate_intake_bundle(good_bundle, led_m, agent_snap,
+                                     agent_anchor)
+        checks.append((
+            "RUNG 2 FAILS: known actor, declared root != ACTIVE registered root",
+            v_m["overall"] == "fail"
+            and v_m["first_failed_rung"] == "identity-registrable-or-matching"
+            and any("ACTIVE registered root" in e
+                    for e in v_m["rungs"][1]["evidence"]),
+            str(v_m["first_failed_rung"]),
+        ))
+
+        b = _copy.deepcopy(good_bundle)
+        b["signed_result"]["signature"]["revealed_secrets"][0] = "0" * 64
+        checks.append(("RUNG 3 FAILS: forged signature (per-bit check)",
+                       _rung_fails(b, 3, "per-bit"), "forged signature"))
+
+        # tampered task hash, RE-SIGNED with a fresh index so the signature is
+        # valid and the failure is isolated to the facts not re-deriving
+        kc_i = json.load(open(os.path.join(intake_work,
+                                           participant_kit.KEYCHAIN_FILE),
+                              encoding="utf-8"))
+        tampered_result = _copy.deepcopy(
+            good_bundle["signed_result"]["result"])
+        tampered_result["task_reproductions"][0]["recomputed_hash"] = "2" * 64
+        t_sig = actor_identity.sign(
+            kc_i, 1,
+            participant_kit.canonical_json(tampered_result).encode("utf-8"))
+        tampered_bundle = _copy.deepcopy(good_bundle)
+        tampered_bundle["signed_result"] = {"result": tampered_result,
+                                            "signature": t_sig,
+                                            "key_index": 1}
+        checks.append((
+            "RUNG 4 FAILS: tampered task hash (valid signature; recorded facts "
+            "do not re-derive)",
+            _rung_fails(tampered_bundle, 4, "do NOT re-derive"),
+            "tampered recomputed_hash",
+        ))
+
+        # a REPLAY of the accepted bundle against the post-anchor ledger fails
+        # the one-time discipline (its index is already consumed by idx-3)
+        v_replay = evaluate_intake_bundle(good_bundle, led_i, agent_snap,
+                                          agent_anchor)
+        checks.append((
+            "RUNG 5 FAILS: replayed/reused key index (ledger-wide cross-type "
+            "scan)",
+            v_replay["overall"] == "fail"
+            and v_replay["first_failed_rung"] == "one-time-key-discipline"
+            and any("CONSUMED" in e
+                    for e in v_replay["rungs"][4]["evidence"]),
+            str(v_replay["first_failed_rung"]),
+        ))
+
+        b = _copy.deepcopy(good_bundle)
+        b["relationship_claimed"] = "unaffiliated"
+        checks.append(("RUNG 6 FAILS: relationship label missing '-claimed'",
+                       _rung_fails(b, 6, "-claimed"), "suffix enforced"))
+
+        # (I5) REJECTED-ANCHORING path: --confirm on the failing verdict
+        # anchors a labeled audit record naming the failed rung (drill'd here)
+        led_rej = _fresh_intake_ledger("intake_reject.jsonl")
+        v_t = evaluate_intake_bundle(tampered_bundle, led_rej, agent_snap,
+                                     agent_anchor)
+        out_t = anchor_intake(tampered_bundle, v_t, led_rej, drill=True)
+        rej = out_t["evaluation"]
+        rej_entry = out_t["ledger_entry"]
+        chain_ok_rej, _ = led_rej.verify_chain()
+        checks.append((
+            "REJECTION ANCHORS ONLY VIA --confirm (labeled record, failed "
+            "rung named, drill labeled)",
+            out_t["registration_entry"] is None and rej_entry is not None
+            and chain_ok_rej
+            and rej["status"] == _INTAKE_REJECTED_STATUS
+            and rej["failed_rung"] == "result-substance-rederived"
+            and rej["drill"] is True
+            and "PLANNED TAMPERED-BUNDLE DRILL" in rej["limitation_note"],
+            f"idx {rej_entry['index'] if rej_entry else None}, failed rung "
+            f"{rej['failed_rung']}",
+        ))
+        checks.append((
+            "REJECTION RECORD IS SCANNER- AND SCAN-INVISIBLE (claimed_* only)",
+            "task_id" not in rej and "task_ids" not in rej
+            and "signed" not in rej and "key_indices" not in rej
+            and not work_molecule._payload_references_task(rej, TASK)
+            and not any(u["actor_id"] == "intake-fixture-participant"
+                        for u in actor_identity.anchored_key_uses(
+                            led_rej.read_all())),
+            "no task keys, no signed facts",
+        ))
+
+        # (I6) the anchoring path refuses a verdict that is not over THIS bundle
+        try:
+            anchor_intake(good_bundle, v_t, led_rej)
+            checks.append(("ANCHOR REFUSES A VERDICT FOR A DIFFERENT BUNDLE",
+                           False, "no error raised"))
+        except ValueError as exc:
+            checks.append(("ANCHOR REFUSES A VERDICT FOR A DIFFERENT BUNDLE",
+                           "does not correspond" in str(exc),
+                           str(exc)[:70]))
+
         # --- report ---------------------------------------------------------
         print("=== protocol/external_verifier.py self-test — R3 EXTERNAL-VERIFIER-PILOT ===")
         print("HONEST: a matching output_hash proves REPRODUCIBILITY, NOT execution (a hash")
@@ -4023,6 +4899,11 @@ def _selftest() -> int:
         print("--- sample ANCHORED agent-result payload (note spark_reconfirmed + honest labels) ---")
         print("    HONEST: the Spark RE-DERIVES the agent's claims here; it does not trust the file.")
         print(json.dumps(agent_confirmed_payload, indent=2, sort_keys=True))
+        print()
+        print("--- sample ANCHORED participant-verified payload (intake ladder + human gate) ---")
+        print("    HONEST: relationship is '-claimed' (recorded, not endorsed); anchored only")
+        print("    after the verdict was shown and confirmed — intake never auto-anchors.")
+        print(json.dumps(intake_confirmed_payload, indent=2, sort_keys=True))
         print()
 
         print("--- results ---")
@@ -4683,6 +5564,81 @@ def _cmd_register_actor_key(decl_path: str, ledger_path: str) -> int:
     return 0
 
 
+def _cmd_intake(bundle_path: str, ledger_path: str, snapshot_path: str,
+                anchor_path: str, confirm: bool, drill: bool,
+                verdict_out: str) -> int:
+    """Run the intake validation ladder; anchor ONLY under --confirm.
+
+    Without --confirm: the verdict is shown and written to `verdict_out` —
+    ZERO ledger writes, pass or fail (intake never auto-anchors: an
+    auto-anchoring intake would let a hostile bundle spam the ledger). With
+    --confirm: a passing verdict anchors registration (if new) + the
+    participant-verified record; a failing verdict anchors the labeled
+    rejection record. Exit 0 iff the verdict passed (and anchoring, when
+    confirmed, succeeded)."""
+    print(BANNER)
+    try:
+        with open(bundle_path, "r", encoding="utf-8") as f:
+            bundle = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        print("status: rejected")
+        print(f"reason: bundle file unreadable: {exc}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+
+    ledger = Ledger(ledger_path)
+    entries_before = len(ledger.read_all())
+    verdict = evaluate_intake_bundle(bundle, ledger, snapshot_path, anchor_path)
+
+    print(f"intake validation ladder for bundle {bundle_path} "
+          f"(sha256 {str(verdict['bundle_sha256'])[:16]}..):")
+    print(f"  handle: {verdict.get('handle')}   relationship: "
+          f"{verdict.get('relationship_claimed')}   new actor: "
+          f"{verdict.get('new_actor')}")
+    for r in verdict["rungs"]:
+        mark = ("SKIP" if r.get("skipped") else
+                ("PASS" if r["passed"] else "FAIL"))
+        print(f"  [{mark}] rung {r['rung']} {r['name']}")
+        for line in r["evidence"]:
+            print(f"         - {line}")
+    print(f"overall: {verdict['overall'].upper()}"
+          + (f" (first failed rung: {verdict['first_failed_rung']})"
+             if verdict["first_failed_rung"] else ""))
+
+    with open(verdict_out, "w", encoding="utf-8") as f:
+        f.write(json.dumps(verdict, indent=2, sort_keys=True) + "\n")
+    print(f"verdict written: {verdict_out}")
+
+    if not confirm:
+        assert len(ledger.read_all()) == entries_before
+        print("confirm gate: NOT anchored — zero ledger writes (validation "
+              "never auto-anchors; a human passes --confirm to anchor the "
+              "outcome, because an auto-anchoring intake would let a hostile "
+              "bundle spam the ledger)")
+        return 0 if verdict["overall"] == "pass" else 1
+
+    out = anchor_intake(bundle, verdict, ledger, drill=drill)
+    ev = out["evaluation"]
+    print(f"status: {ev['status']}" + ("  (PLANNED DRILL)" if ev.get("drill")
+                                       else ""))
+    if out["registration_entry"] is not None:
+        re_ = out["registration_entry"]
+        print(f"actor registration anchored at ledger index {re_['index']} "
+              f"(actor {ev.get('actor_id') or ev.get('claimed_actor_id')!r}, "
+              f"root {str(re_['payload'].get('merkle_root'))[:16]}..)")
+    for key in ("handle", "actor_id", "operator_relationship", "task_ids",
+                "key_index", "key_root_ledger_index", "bundle_sha256",
+                "claimed_handle", "claimed_relationship", "failed_rung",
+                "first_failure_evidence"):
+        if key in ev:
+            print(f"  {key}: {ev[key]}")
+    print(f"anchored at ledger index: {out['ledger_entry']['index']} "
+          f"(path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+    return 0 if (verdict["overall"] == "pass" and ok) else 1
+
+
 def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
     """Generic JSON-file anchoring command: load defensively, run `anchor_fn`,
     print the outcome payload. Exit 0 iff the record anchored (and matched
@@ -4858,6 +5814,14 @@ def main(argv=None) -> int:
              "the objective emission arithmetic before anchoring",
     )
     mode.add_argument(
+        "--intake", metavar="BUNDLE_JSON",
+        help="run the six-rung validation ladder over a participant bundle "
+             "(demo/participant_kit.py) and write the machine-readable verdict; "
+             "ZERO ledger writes without --confirm — validation never "
+             "auto-anchors (an auto-anchoring intake would let a hostile "
+             "bundle spam the ledger)",
+    )
+    mode.add_argument(
         "--anchor-passport-catalog", metavar="PASSPORT_CATALOG_JSON",
         help="anchor a MetaWork passport catalog (metawork_passport.py --all); "
              "the coordinator rediscovers every actor and rebuilds every "
@@ -4867,9 +5831,10 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--drill", action="store_true",
         help="with --anchor-challenge-result / --anchor-gate3-event / "
-             "--rotate-actor-key: label the anchored record as a PLANNED "
-             "demonstration (e.g. the copy-attack, key-reuse, or "
-             "forged-rotation drill), never detected fraud",
+             "--rotate-actor-key / --intake --confirm: label the anchored "
+             "record as a PLANNED demonstration (e.g. the copy-attack, "
+             "key-reuse, forged-rotation, or tampered-bundle drill), never "
+             "detected fraud",
     )
     parser.add_argument(
         "--ledger", default=DEFAULT_LEDGER_PATH,
@@ -4886,6 +5851,19 @@ def main(argv=None) -> int:
     parser.add_argument(
         "--operator-relationship", default="same-operator",
         help="honest label for the verifier's relationship to this operator (default: same-operator)",
+    )
+    parser.add_argument(
+        "--confirm", action="store_true",
+        help="with --intake: the HUMAN confirmation gate — anchor the shown "
+             "verdict's outcome (registration if new + participant-verified "
+             "for a pass; the labeled participant-intake-rejected audit "
+             "record for a fail). Without it, --intake writes nothing to the "
+             "ledger, ever",
+    )
+    parser.add_argument(
+        "--verdict-out", default="intake_verdict.json",
+        help="with --intake: where to write the machine-readable verdict "
+             "(default: intake_verdict.json)",
     )
     args = parser.parse_args(argv)
 
@@ -4920,6 +5898,10 @@ def main(argv=None) -> int:
                                             args.drill)
     if args.register_actor_key is not None:
         return _cmd_register_actor_key(args.register_actor_key, args.ledger)
+    if args.intake is not None:
+        return _cmd_intake(args.intake, args.ledger, args.snapshot,
+                           args.anchor_file, args.confirm, args.drill,
+                           args.verdict_out)
     if args.rotate_actor_key is not None:
         return _cmd_anchor_json(
             args.rotate_actor_key, args.ledger,

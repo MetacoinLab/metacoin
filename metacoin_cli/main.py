@@ -250,6 +250,23 @@ def _cmd_flow1(args):
     return 0 if ok else 1
 
 
+def _cmd_participate(args):
+    import demo.participant_kit as participant_kit
+    p = _paths(args)
+    argv = [args.action, "--published", p["snapshot"], "--anchor", p["anchor"]]
+    if args.handle:
+        argv += ["--handle", args.handle]
+    if args.relationship:
+        argv += ["--relationship", args.relationship]
+    if args.keys is not None:
+        argv += ["--keys", str(args.keys)]
+    if args.out:
+        argv += ["--out", args.out]
+    if not args.quiet:
+        print(f"metacoin {__version__} — {p['source_note']}")
+    return participant_kit.main(argv)
+
+
 def _cmd_version(args):
     if args.json:
         print(json.dumps({"version": __version__, "banner": BANNER},
@@ -393,6 +410,27 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--root", help="expected Merkle root (default: from the "
                                    "anchored registration)")
 
+    sp = add("participate", _cmd_participate,
+             "participate end-to-end: init identity, verify + sign, bundle",
+             "PROVES: the bundle's signed result re-derives the anchored stack "
+             "under your own key root. DOES NOT prove: independence — the "
+             "relationship you declare is recorded '-claimed', never endorsed. "
+             "Your keychain stays PRIVATE on this machine (working files land "
+             "in the CWD; the coordinator anchors only after a human --confirm).")
+    sp.add_argument("action", choices=["init", "run", "bundle"])
+    sp.add_argument("--handle", help="participant handle for 'init' "
+                                     "(becomes the actor id)")
+    sp.add_argument("--relationship",
+                    choices=["unaffiliated", "affiliated", "same-operator"],
+                    help="SELF-DECLARED relationship to the coordinator's "
+                         "operator (recorded as '<value>-claimed'; default "
+                         "unaffiliated)")
+    sp.add_argument("--keys", type=int,
+                    help="one-time key count for 'init' (power of two; "
+                         "default 32)")
+    sp.add_argument("--out", help="bundle output path for 'bundle' "
+                                  "(default bundle.json)")
+
     add("version", _cmd_version, "version + the honest banner",
         "Single-source version (metacoin_cli.__version__).")
 
@@ -411,6 +449,8 @@ def main(argv=None) -> int:
         parser.error("molecule build requires a task id")
     if args.command == "passport" and args.action == "build" and not args.actor_id:
         parser.error("passport build requires an actor id")
+    if args.command == "participate" and args.action == "init" and not args.handle:
+        parser.error("participate init requires --handle")
     try:
         return args.fn(args)
     except ValueError as exc:

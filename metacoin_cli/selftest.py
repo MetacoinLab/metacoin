@@ -35,7 +35,7 @@ import metacoin_cli.main as cli
 
 _SUBCOMMANDS = ("verify", "status", "task", "molecule", "aci", "challenge",
                 "identity", "passport", "economy", "treasury", "flow1",
-                "version")
+                "participate", "version")
 
 
 def _run_cli(argv):
@@ -157,6 +157,26 @@ def _selftest() -> int:
         e1, out = _run_cli(["economy", "replay"])
         checks.append(("economy replay re-derives the anchored log hash",
                        e1 == 0))
+        # participate init/run/bundle round-trip in the temp CWD (small
+        # keychain for speed; the full 32-key path is participant_kit's own
+        # selftest + the real rehearsal records). run re-runs every recorded
+        # task, so this exercises the complete participant path end-to-end.
+        pi, out = _run_cli(["participate", "init", "--handle", "cli-selftest",
+                            "--relationship", "unaffiliated", "--keys", "2"]
+                           + R)
+        pr, _ = _run_cli(["participate", "run"] + R)
+        pb, out = _run_cli(["participate", "bundle",
+                            "--out", os.path.join(work, "b.json")] + R)
+        bundle = json.load(open(os.path.join(work, "b.json")))
+        import demo.participant_kit as participant_kit
+        checks.append(("participate init/run/bundle round-trip ('-claimed' "
+                       "label, no private material, submission instructions)",
+                       (pi, pr, pb) == (0, 0, 0)
+                       and bundle["relationship_claimed"]
+                       == "unaffiliated-claimed"
+                       and not participant_kit._contains_private_material(
+                           bundle)
+                       and "GitHub Issue" in out and "sha256" in out))
 
         # (d) version single source: pyproject declares dynamic version read
         # from metacoin_cli.__version__ and hardcodes none
