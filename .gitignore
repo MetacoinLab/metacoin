@@ -132,6 +132,15 @@ participant*.json
 bundle*.json
 intake_verdict*.json
 
+# coordinator continuity artifacts (protocol/continuity.py): the recovery
+# manifest lists paths+hashes+classes (never contents) but is a local
+# operational file; the kit directory CONTAINS PRIVATE KEY MATERIAL and must
+# NEVER be tracked — export-kit itself refuses any non-ignored in-repo path.
+# The mirror directory is public material but would shadow the corpus.
+recovery_manifest.json
+continuity_kit/
+mirror_export/
+
 # ============================================================================
 # PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to
 # every local-artifact ignore rule above. These are privacy-checked COPIES of
