@@ -1,0 +1,39 @@
+# Weekly scheduled routine-sweep sentry (public-corpus mode).
+#
+# Research-stage. Runs protocol/routine_sweep.py --json weekly against the
+# public corpus: every layer re-derived, both self-test suites, evidence-bundle
+# reconciliation, git hygiene, and the typed drift section. The
+# coordinator-machine sections (continuity kit, mirrors, identity health) take
+# their NAMED skips here — CI holds no private state; the public corpus
+# carries verifiability, never operatorship — and the sweep still reaches a
+# verdict from public data alone.
+#
+# A SWEEP CLEAN verdict exits 0; any finding exits non-zero and FAILS this run
+# loudly. The push-triggered CI (ci.yml) is untouched — this is a separate,
+# scheduled sentry.
+
+name: Weekly routine sweep
+
+on:
+  schedule:
+    # Mondays 06:00 UTC — the standing weekly sentry.
+    - cron: "0 6 * * 1"
+  # Manual trigger for on-demand sweeps of the public corpus.
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # The sweep prints the full JSON report and exits non-zero on findings,
+      # which fails this step — findings are meant to be loud.
+      - name: Run routine sweep (public-corpus mode)
+        run: python3 protocol/routine_sweep.py --json

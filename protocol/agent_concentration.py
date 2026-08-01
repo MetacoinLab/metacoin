@@ -93,7 +93,11 @@ analysis instead of the refusal (schema "aci-korder-report/0.2", additive):
     reports {estimate, sample_size, population_size, standard_error,
     ci95 = estimate +/- 1.96*SE, fpc_applied: true} and has NO field for a
     bare point number (the exact-mode field aci_k does not exist on sampled
-    rows, BY CONSTRUCTION — asserted in code and in the self-test).
+    rows, BY CONSTRUCTION — asserted in code and in the self-test);
+  * DOMAIN HONESTY: ci95 is clipped to the metric's domain [0,1] with
+    ci_clipped: true and a note whenever the normal-approximation interval
+    spilled past a boundary; the standard error stays unclipped (spread is
+    a fact about the sample, not about the domain).
 
 The DELIVERABLE is the profile {ACI_2, ..., ACI_k_max} plus the per-dimension
 breakdown — never a single collapsed number (the no-combined-scalar idiom);
@@ -508,6 +512,14 @@ def sampled_aci_k(paths: list, k: int, sample_size: int = DEFAULT_SAMPLE_SIZE,
     s2 = (sum((x - mean) ** 2 for x in scores) / (m - 1)) if m > 1 else 0.0
     fpc = 1.0 - m / M
     se = math.sqrt(fpc * s2 / m)
+    # DOMAIN HONESTY: ACI lives in [0,1] by construction, but the
+    # normal-approximation interval can spill past it near the boundaries.
+    # The interval is CLIPPED to the domain and says so; the standard error
+    # stays UNCLIPPED (the spread estimate is a fact about the sample, not
+    # about the domain).
+    raw_lo, raw_hi = mean - 1.96 * se, mean + 1.96 * se
+    lo, hi = max(0.0, raw_lo), min(1.0, raw_hi)
+    clipped = (lo != raw_lo) or (hi != raw_hi)
     row = {
         "k": k,
         "mode": "sampled",
@@ -517,10 +529,15 @@ def sampled_aci_k(paths: list, k: int, sample_size: int = DEFAULT_SAMPLE_SIZE,
         "population_size": M,
         "subset_count": M,
         "standard_error": se,
-        "ci95": [mean - 1.96 * se, mean + 1.96 * se],
+        "ci95": [lo, hi],
+        "ci_clipped": clipped,
         "fpc_applied": True,
         "seed": seed,
     }
+    if clipped:
+        row["ci_note"] = ("normal-approximation interval clipped to the ACI "
+                          "domain [0,1]; the reported standard_error is "
+                          "unclipped")
     if seed_salt is not None:
         row["seed_salt"] = seed_salt
     # BY CONSTRUCTION: no bare sampled point number, ever.
@@ -1287,6 +1304,32 @@ def _selftest() -> int:
                    and exact_only["schema"] == KORDER_SCHEMA_VERSION
                    and "sampling" not in exact_only
                    and "k_values_sampled" not in exact_only))
+
+    # (v7) DOMAIN CLIPPING: 40 identical paths + 1 with a differing
+    # fingerprint (S=0.9 pairs, rare in a sample) put the estimate just
+    # under 1.0 with a small SE — the deterministic m=50 draw yields
+    # est 0.996, SE 0.002713, raw upper bound 1.001317 > 1. The interval
+    # must clip to 1.0 with ci_clipped true and the note, while the SE
+    # stays unclipped; boundary-touching-but-not-spilling rows (and all
+    # existing fixtures) stay unclipped.
+    near_one = ([_fixture_path(f"c{i}", "sha256:" + "a" * 64, "CP")
+                 for i in range(40)]
+                + [_fixture_path("odd", "sha256:" + "b" * 64, "CP")])
+    clip_row = sampled_aci_k(near_one, 2, 50)
+    checks.append(("CI clipped to the ACI domain [0,1]: upper bound 1.0, "
+                   "ci_clipped true, note present, SE unclipped",
+                   clip_row["ci95"][1] == 1.0
+                   and clip_row["ci_clipped"] is True
+                   and "clipped to the ACI domain [0,1]"
+                   in clip_row["ci_note"]
+                   and clip_row["standard_error"] > 0.0
+                   and clip_row["estimate"]
+                   + 1.96 * clip_row["standard_error"] > 1.0))
+    checks.append(("unclipped sampled rows say so (ci_clipped false, no "
+                   "note; existing fixtures unaffected)",
+                   tiny["ci_clipped"] is False and "ci_note" not in tiny
+                   and full_pop["ci_clipped"] is False
+                   and row_many["ci_clipped"] is False))
 
     # (v6) sampling determinism + seed commitment: same inputs re-draw the
     # byte-identical report; changing the salt changes the seed (and, on a

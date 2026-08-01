@@ -15,7 +15,10 @@ in order:
   4. mirrors     — continuity --check-mirror against every configured mirror
                    directory (named skip if none; DIVERGED is a finding)
   5. identity    — actor_identity --identity-health summary with the risk
-                   lines (alarming states are findings)
+                   lines (alarming states are findings; a machine with no
+                   local keychains — CI, fresh clones — takes a NAMED skip:
+                   the public corpus carries verifiability, never
+                   operatorship)
   6. evidence    — evidence-bundle reconciliation: every protocol/evidence/
                    file re-checked against its anchoring record (orphans,
                    tampered self-hashes, and derivably-missing files NAMED)
@@ -245,6 +248,17 @@ _IDENTITY_ALARMS = ("EXHAUSTED", "FAILS verification", "STALE",
 
 
 def section_identity(base_dir: str = _REPO_ROOT) -> dict:
+    # PUBLIC-CORPUS MODE (CI, fresh clones): with no local keychain files
+    # this machine holds no operatorship, so identity health is not this
+    # machine's check — a NAMED skip, exactly like the kit and mirrors. The
+    # coordinator machine (which holds keychains) always runs the full check.
+    if not any(n.startswith("keychain") and n.endswith(".json")
+               for n in os.listdir(base_dir)):
+        return _section("identity", [],
+                        ["no local keychains on this machine — identity "
+                         "health is a coordinator-machine check; SKIPPED "
+                         "(named; the public corpus carries verifiability, "
+                         "never operatorship)"], skipped=True)
     findings, details = [], []
     try:
         doc = actor_identity.identity_health(base_dir=base_dir)
@@ -796,6 +810,24 @@ def _selftest() -> int:
                        "with intervals",
                        any("sampled" in d and "95% CI" in d
                            for d in s_drift["details"])))
+
+        # [8b] PUBLIC-CORPUS MODE: on a machine with no kit, no mirrors, and
+        # no local keychains (CI, fresh clones), the coordinator-machine
+        # sections all take NAMED skips and the sweep still reaches a
+        # verdict from public data alone
+        fx_pub = os.path.join(tmp, "public")
+        os.makedirs(fx_pub)
+        s_id_pub = section_identity(fx_pub)
+        pub_report = assemble_report([
+            section_kit(fx_pub, kit_dir=os.path.join(fx_pub, "nokit")),
+            section_mirrors(fx_pub), s_id_pub])
+        checks.append(("public-corpus mode: kit/mirror/identity all NAMED "
+                       "skips; the sweep still reaches a verdict",
+                       s_id_pub["status"] == "skip"
+                       and any("SKIPPED" in d for d in s_id_pub["details"])
+                       and all(s["status"] == "skip"
+                               for s in pub_report["sections"])
+                       and pub_report["verdict"] == "SWEEP CLEAN"))
 
         # [9] suite-summary parser on canned runner output
         checks.append(("suite summary parser reads the runners' counts",
