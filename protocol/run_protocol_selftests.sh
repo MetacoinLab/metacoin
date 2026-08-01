@@ -35,6 +35,7 @@ TESTS=(
     "gate3_process.py --selftest"
     "metawork_passport.py --selftest"
     "continuity.py --selftest"
+    "routine_sweep.py --selftest"
     "../metacoin_cli/selftest.py"
 )
 

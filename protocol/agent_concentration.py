@@ -70,12 +70,35 @@ the pairwise sigma semantics above, so ACI_2 computed via the S_k machinery
 equals the anchored pairwise ACI on the same paths TO THE DIGIT (asserted in
 the self-test against the anchored ledger:18 baseline).
 
-EXACT ENUMERATION ONLY: ACI_k is computed by enumerating every k-subset when
-C(n,k) <= ENUM_LIMIT (200,000). Above the limit the computation REFUSES — v0
-does no sampling, because a sampled estimate without variance analysis would
-be fabricated precision; the refusal (with that reason) is part of the report.
+EXACT MODE + SAMPLED MODE (the honesty contract, upgraded): ACI_k is computed
+by enumerating every k-subset whenever C(n,k) <= ENUM_LIMIT (200,000) — exact
+mode remains the DEFAULT and its report (schema "aci-korder-report/0.1") is
+byte-identical to v0 forever (anchored baselines keep re-deriving to the
+digit). Above the limit, v0 REFUSED because "a sampled estimate without
+variance analysis would be fabricated precision". v0.2 DELIVERS the variance
+analysis instead of the refusal (schema "aci-korder-report/0.2", additive):
+
+  * simple random sampling of k-subsets WITHOUT replacement;
+  * DETERMINISTIC PRNG: seed = sha256(canonical path-set | k | sample_size)
+    — reproducible by anyone from the report alone, no hidden randomness.
+    Determinism here is LEGITIMATE (unlike security nonces, where
+    unpredictability is the security property): the seed COMMITS to the
+    population and the declared sample size, so the sample cannot be
+    re-drawn until a flattering one appears — changing any input changes
+    the seed, and every re-run draws the identical sample;
+  * estimator: the sample mean of S_k(B); finite-population-corrected
+    standard error SE = sqrt((1 - m/M) * s^2 / m) with m = sample size,
+    M = C(n,k), s^2 = the unbiased sample variance;
+  * every sampled figure ALWAYS travels with its interval: a sampled row
+    reports {estimate, sample_size, population_size, standard_error,
+    ci95 = estimate +/- 1.96*SE, fpc_applied: true} and has NO field for a
+    bare point number (the exact-mode field aci_k does not exist on sampled
+    rows, BY CONSTRUCTION — asserted in code and in the self-test).
+
 The DELIVERABLE is the profile {ACI_2, ..., ACI_k_max} plus the per-dimension
-breakdown — never a single collapsed number (the no-combined-scalar idiom).
+breakdown — never a single collapsed number (the no-combined-scalar idiom);
+sampled rows are typed "sampled" so exact and estimated figures can never be
+confused.
 
 The multi-scale concentration profile Gamma(r) is computed for partitions
 r in {operator, machine_fingerprint, repo}: Gamma = the maximum share of paths in one
@@ -100,6 +123,7 @@ Usage:
     python3 protocol/agent_concentration.py --report
     python3 protocol/agent_concentration.py --report --out aci_report.json
     python3 protocol/agent_concentration.py --korder --kmax 4 --as-of 17 --out aci_korder_report.json
+    python3 protocol/agent_concentration.py --korder --kmax 6   # k above ENUM_LIMIT: sampled + 95% CI
     python3 protocol/agent_concentration.py --selftest   # fixtures + temp files only
 """
 
@@ -125,11 +149,18 @@ import protocol.work_molecule as work_molecule
 SCHEMA_VERSION = "aci-report/0.1"
 WEIGHTS_VERSION = "aci-weights/0.1-uniform"
 KORDER_SCHEMA_VERSION = "aci-korder-report/0.1"
+# Additive sampled-mode schema: emitted ONLY when at least one k was sampled;
+# an exact-only report stays byte-identical to 0.1 (anchored baselines keep
+# re-deriving to the digit — regression-asserted in the self-test).
+KORDER_SAMPLED_SCHEMA_VERSION = "aci-korder-report/0.2"
 KORDER_WEIGHTS_VERSION = "aci-korder-weights/0.1-uniform"
-# Exact enumeration bound: above this many k-subsets the computation REFUSES
-# (v0 does no sampling — a sampled estimate without variance analysis would be
-# fabricated precision; the refusal reason states this).
+# Exact enumeration bound: above this many k-subsets exact mode is infeasible.
+# v0 refused here ("a sampled estimate without variance analysis would be
+# fabricated precision"); v0.2 delivers the variance analysis — sampled mode
+# with the finite-population-corrected standard error — instead of a refusal.
 ENUM_LIMIT = 200_000
+# Declared default sample size for sampled mode (part of the seed commitment).
+DEFAULT_SAMPLE_SIZE = 20_000
 
 BLINDSPOT_STATEMENT = (
     "This is ONE candidate S_k construction (ancestry-witness: per-dimension "
@@ -381,15 +412,137 @@ def subset_score(subset) -> float:
     return sum(WEIGHTS[d] * sub[d]["sigma"] for d in DIMENSIONS)
 
 
+# ----------------------------------------------------------------------------
+# Sampled ACI_k: SRS without replacement + finite-population variance honesty
+# ----------------------------------------------------------------------------
+class _DetPRNG:
+    """Deterministic sha256-counter PRNG for subset sampling.
+
+    LEGITIMATE determinism (contrast the security-nonce rule elsewhere in this
+    project, where unpredictability IS the security property): the seed
+    COMMITS to the population (canonical path-set), k, and the declared sample
+    size, so anyone can re-draw the identical sample from the report alone and
+    the sampler cannot be re-rolled until a flattering sample appears."""
+
+    def __init__(self, seed_hex: str):
+        self._seed = seed_hex
+        self._counter = 0
+        self._buf = b""
+
+    def _take(self, nbytes: int) -> bytes:
+        while len(self._buf) < nbytes:
+            self._buf += hashlib.sha256(
+                f"{self._seed}:{self._counter}".encode("utf-8")).digest()
+            self._counter += 1
+        out, self._buf = self._buf[:nbytes], self._buf[nbytes:]
+        return out
+
+    def randbelow(self, bound: int) -> int:
+        """Uniform integer in [0, bound) via rejection sampling (unbiased)."""
+        if bound <= 0:
+            raise ValueError("bound must be positive")
+        span = 1 << 64
+        limit = (span // bound) * bound
+        while True:
+            v = int.from_bytes(self._take(8), "big")
+            if v < limit:
+                return v % bound
+
+
+def sampling_seed(paths: list, k: int, sample_size: int,
+                  seed_salt=None) -> str:
+    """seed = sha256(canonical path-set | k | declared sample_size). The salt
+    exists ONLY for the validation fixtures (repeated draws on populations
+    where exact is computable); when used it is carried in the report row."""
+    material = canonical_json(paths) + f"|k={k}|m={sample_size}"
+    if seed_salt is not None:
+        material += f"|salt={seed_salt}"
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+def _sample_subset_indices(n: int, k: int, m: int, rng: _DetPRNG) -> list:
+    """m DISTINCT k-subsets of range(n), uniform, WITHOUT replacement.
+
+    m == M returns the whole population (a full-population 'sample'); a dense
+    request (m > M/2 on an enumerable population) uses a partial Fisher-Yates
+    over the enumerated population (rejection would thrash near exhaustion);
+    the sparse case (the real regime, m << M) rejection-samples on subset
+    identity."""
+    M = math.comb(n, k)
+    if m >= M:
+        return list(itertools.combinations(range(n), k))
+    if M <= ENUM_LIMIT and m > M // 2:
+        pop = list(itertools.combinations(range(n), k))
+        for i in range(m):
+            j = i + rng.randbelow(len(pop) - i)
+            pop[i], pop[j] = pop[j], pop[i]
+        return pop[:m]
+    seen = set()
+    chosen = []
+    while len(chosen) < m:
+        idxs = set()
+        while len(idxs) < k:
+            idxs.add(rng.randbelow(n))
+        t = tuple(sorted(idxs))
+        if t not in seen:
+            seen.add(t)
+            chosen.append(t)
+    return chosen
+
+
+def sampled_aci_k(paths: list, k: int, sample_size: int = DEFAULT_SAMPLE_SIZE,
+                  seed_salt=None) -> dict:
+    """One sampled profile row: SRS of k-subsets without replacement, sample
+    mean of S_k as the estimator, and the finite-population-corrected standard
+    error SE = sqrt((1 - m/M) * s^2 / m). The row ALWAYS carries its interval
+    and NEVER carries the exact-mode point field aci_k — a bare sampled point
+    number is impossible by construction (asserted here and in the self-test).
+    """
+    n = len(paths)
+    M = math.comb(n, k)
+    m = min(sample_size, M)
+    seed = sampling_seed(paths, k, sample_size, seed_salt)
+    subsets = _sample_subset_indices(n, k, m, _DetPRNG(seed))
+    scores = [subset_score(tuple(paths[i] for i in t)) for t in subsets]
+    mean = sum(scores) / m
+    s2 = (sum((x - mean) ** 2 for x in scores) / (m - 1)) if m > 1 else 0.0
+    fpc = 1.0 - m / M
+    se = math.sqrt(fpc * s2 / m)
+    row = {
+        "k": k,
+        "mode": "sampled",
+        "exact": False,
+        "estimate": mean,
+        "sample_size": m,
+        "population_size": M,
+        "subset_count": M,
+        "standard_error": se,
+        "ci95": [mean - 1.96 * se, mean + 1.96 * se],
+        "fpc_applied": True,
+        "seed": seed,
+    }
+    if seed_salt is not None:
+        row["seed_salt"] = seed_salt
+    # BY CONSTRUCTION: no bare sampled point number, ever.
+    assert "aci_k" not in row and "ci95" in row and "standard_error" in row
+    return row
+
+
 def compute_korder_report(paths: list, k_max: int = 4,
-                          as_of_ledger_index: int = None) -> dict:
+                          as_of_ledger_index: int = None,
+                          sample_size: int = DEFAULT_SAMPLE_SIZE,
+                          force_sample: bool = False,
+                          seed_salt=None) -> dict:
     """The higher-order concentration report over a path list. Pure function
     of its inputs; deterministic, no timestamps; two runs byte-identical.
 
     For each k in 2..k_max: EXACT enumeration of all C(n,k) subsets when that
-    count is within ENUM_LIMIT, else a REFUSAL carrying the no-sampling
-    reason (v0 reports no estimate it cannot bound). The per-dimension
-    breakdown is taken at the largest k actually computed. The float
+    count is within ENUM_LIMIT (the default, unchanged from v0 — an exact-only
+    report is byte-identical to schema 0.1), else a SAMPLED row carrying its
+    finite-population-corrected interval (schema 0.2, additive; see
+    sampled_aci_k). `force_sample` samples even below the limit (validation
+    fixtures only). The per-dimension breakdown is taken at the largest k
+    actually enumerated exactly (sampled subsets never feed it). The float
     accumulation at k=2 replicates the pairwise report's summation order
     exactly, so ACI_2 here equals pairwise_aci to the digit.
     """
@@ -402,7 +555,8 @@ def compute_korder_report(paths: list, k_max: int = 4,
     profile = []
     refused = []
     computed = []
-    top = None  # (k, subset_count, tag_counts) at the largest computed k
+    sampled = []
+    top = None  # (k, subset_count, tag_counts) at the largest EXACT k
     for k in range(2, k_max + 1):
         if k > n:
             refused.append({"k": k, "subset_count": 0,
@@ -410,15 +564,11 @@ def compute_korder_report(paths: list, k_max: int = 4,
                                       "k-subsets exist"})
             continue
         count = math.comb(n, k)
-        if count > ENUM_LIMIT:
-            refused.append({
-                "k": k, "subset_count": count,
-                "reason": (f"refused: C({n},{k}) = {count} exceeds ENUM_LIMIT "
-                           f"{ENUM_LIMIT} — v0 computes by EXACT enumeration "
-                           "only; a sampled estimate without variance "
-                           "analysis would be fabricated precision, so no "
-                           "number is reported"),
-            })
+        if count > ENUM_LIMIT or force_sample:
+            row = sampled_aci_k(paths, k, sample_size=sample_size,
+                                seed_salt=seed_salt)
+            profile.append(row)
+            sampled.append(k)
             continue
         s_total = 0.0
         tag_counts = {d: {"identical": 0, "group": 0, "unknown": 0}
@@ -448,7 +598,8 @@ def compute_korder_report(paths: list, k_max: int = 4,
         }
 
     report = {
-        "schema": KORDER_SCHEMA_VERSION,
+        "schema": (KORDER_SAMPLED_SCHEMA_VERSION if sampled
+                   else KORDER_SCHEMA_VERSION),
         "weights_version": KORDER_WEIGHTS_VERSION,
         "weights": dict(WEIGHTS),
         "dimensions": list(DIMENSIONS),
@@ -464,6 +615,27 @@ def compute_korder_report(paths: list, k_max: int = 4,
         "zero_value": True,
         "no_token": True,
     }
+    if sampled:
+        # ADDITIVE sampled-mode keys — absent from exact-only reports, which
+        # therefore stay byte-identical to schema 0.1 forever.
+        report["k_values_sampled"] = sampled
+        report["sampling"] = {
+            "method": "simple random sampling of k-subsets WITHOUT "
+                      "replacement",
+            "estimator": "sample mean of S_k(B)",
+            "standard_error": "SE = sqrt((1 - m/M) * s^2 / m) — "
+                              "finite-population corrected (m = sample size, "
+                              "M = C(n,k), s^2 = unbiased sample variance)",
+            "declared_sample_size": sample_size,
+            "seed_rule": "sha256(canonical path-set | k | sample_size"
+                         "[ | salt]) — reproducible by anyone; the seed "
+                         "commits to the population, so determinism here is "
+                         "legitimate (unlike security nonces)",
+            "honesty_note": "every sampled figure travels with its 95% "
+                            "interval; the schema has NO field for a bare "
+                            "sampled point number — sampled rows carry "
+                            "estimate/standard_error/ci95, never aci_k",
+        }
     report["report_hash"] = compute_report_hash(report)
     return report
 
@@ -655,6 +827,17 @@ def compute_report(paths: list) -> dict:
     return report
 
 
+def profile_row_text(row: dict) -> str:
+    """One-line human rendering of a profile row, exact vs sampled ALWAYS
+    typed — a sampled figure is never printed without its interval."""
+    if row.get("exact"):
+        return f"ACI_{row['k']}={row['aci_k']:.6f} (exact)"
+    lo, hi = row["ci95"]
+    return (f"ACI_{row['k']}~={row['estimate']:.6f} "
+            f"(sampled m={row['sample_size']}/M={row['population_size']}, "
+            f"SE={row['standard_error']:.6f}, 95% CI [{lo:.6f}, {hi:.6f}])")
+
+
 # ----------------------------------------------------------------------------
 # CLI
 # ----------------------------------------------------------------------------
@@ -677,10 +860,20 @@ def main(argv=None) -> int:
     parser.add_argument("--report", action="store_true",
                         help="compute the ACI report over the real molecule catalog")
     parser.add_argument("--korder", action="store_true",
-                        help="compute the higher-order ACI_k profile "
-                             "(aci-korder-report/0.1; exact enumeration only)")
+                        help="compute the higher-order ACI_k profile (exact "
+                             "below ENUM_LIMIT; sampled WITH the "
+                             "finite-population interval above it)")
     parser.add_argument("--kmax", type=int, default=4,
                         help="with --korder: largest subset size k (default 4)")
+    parser.add_argument("--sample-size", type=int, default=DEFAULT_SAMPLE_SIZE,
+                        help="with --korder: declared sample size for sampled "
+                             f"mode (default {DEFAULT_SAMPLE_SIZE}; part of "
+                             "the deterministic seed commitment)")
+    parser.add_argument("--force-sample", action="store_true",
+                        help="with --korder: sample even when exact "
+                             "enumeration is feasible (validation/testing "
+                             "only — exact mode is the default below "
+                             "ENUM_LIMIT)")
     parser.add_argument("--as-of", type=int, default=None, dest="as_of",
                         help="with --korder: generation-lock chain point (paths "
                              "drawn from ledger entries with index <= N)")
@@ -705,7 +898,9 @@ def main(argv=None) -> int:
         try:
             paths = build_paths(ledger_path=args.ledger, as_of_index=args.as_of)
             report = compute_korder_report(paths, k_max=args.kmax,
-                                           as_of_ledger_index=args.as_of)
+                                           as_of_ledger_index=args.as_of,
+                                           sample_size=args.sample_size,
+                                           force_sample=args.force_sample)
         except (KeyError, ValueError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
@@ -714,8 +909,7 @@ def main(argv=None) -> int:
         out = args.out or "aci_korder_report.json"
         with open(out, "w", encoding="utf-8") as f:
             f.write(text + "\n")
-        prof = ", ".join(f"ACI_{row['k']}={row['aci_k']:.6f}"
-                         for row in report["profile"])
+        prof = ", ".join(profile_row_text(row) for row in report["profile"])
         print(f"wrote k-order report ({report['path_count']} paths, {prof}; "
               f"refused: {[r['k'] for r in report['k_values_refused']]}) "
               f"to {out}", file=sys.stderr)
@@ -957,18 +1151,32 @@ def _selftest() -> int:
                    and korder_u3["per_dimension"]["hardware"]
                    ["unknown_flag_count"] == 1))
 
-    # (k5) ENUMERATION-LIMIT refusal: C(1000,2) = 499,500 > 200,000 -> k=2
-    # refuses with the no-sampling reason; nothing is estimated
+    # (k5) ABOVE THE ENUMERATION LIMIT: C(1000,2) = 499,500 > 200,000 — v0
+    # refused here; v0.2 delivers the variance analysis instead: a SAMPLED
+    # row that ALWAYS carries its interval, never a bare point (the schema
+    # has no aci_k field on sampled rows, by construction), and the report
+    # flips to the additive 0.2 schema
     many = [_fixture_path(f"m{i}", "sha256:" + "e" * 64, "PM")
             for i in range(1000)]
     korder_many = compute_korder_report(many, k_max=2)
-    checks.append(("enumeration limit refuses (no sampling — fabricated "
-                   "precision named in the reason)",
-                   korder_many["k_values_computed"] == []
-                   and korder_many["profile"] == []
-                   and korder_many["k_values_refused"][0]["k"] == 2
-                   and "fabricated precision"
-                   in korder_many["k_values_refused"][0]["reason"]))
+    row_many = korder_many["profile"][0]
+    checks.append(("above ENUM_LIMIT: sampled row with interval replaces the "
+                   "v0 refusal (schema 0.2, typed 'sampled')",
+                   korder_many["schema"] == KORDER_SAMPLED_SCHEMA_VERSION
+                   and korder_many["k_values_sampled"] == [2]
+                   and korder_many["k_values_refused"] == []
+                   and row_many["mode"] == "sampled"
+                   and row_many["fpc_applied"] is True
+                   and "aci_k" not in row_many
+                   and "estimate" in row_many
+                   and "standard_error" in row_many
+                   and "ci95" in row_many
+                   and "95% CI" in profile_row_text(row_many)))
+    # ...and on 1000 IDENTICAL paths every subset scores exactly 1.0, so the
+    # estimate is 1.0 with zero variance — an honest degenerate case
+    checks.append(("sampled estimate on identical paths: 1.0 with SE 0",
+                   row_many["estimate"] == 1.0
+                   and row_many["standard_error"] == 0.0))
 
     # (k6) determinism + hash integrity of the k-order report
     checks.append(("k-order report deterministic and hash-consistent",
@@ -976,6 +1184,120 @@ def _selftest() -> int:
                    == canonical_json(korder_bs)
                    and compute_report_hash(korder_bs)
                    == korder_bs["report_hash"]))
+
+    # ---------------- SAMPLED-MODE VALIDATION (the scientific proof) --------
+    # (v1) THE TINY HAND CASE — n=6 (blindspot fixture), k=3, M=C(6,3)=20,
+    # m=10, --force-sample semantics. The population's S_3 values are known
+    # exactly (blindspot docstring): subset {0,1,2} scores 0.3; every other
+    # of the 19 subsets scores 0.1. The deterministic seed is
+    # sha256(canonical(paths)|k=3|m=10); the dense sampler (m > M/2) draws,
+    # in order: (0,1,5) (0,2,5) (1,3,4) (2,4,5) (1,2,3) (3,4,5) (0,2,3)
+    # (2,3,4) (0,3,4) (1,2,5) — NOTE the lone 0.3-subset {0,1,2} is NOT
+    # drawn (under SRSWOR that happens with probability C(19,10)/C(20,10)
+    # = 1/2; this draw is the unlucky half). HAND ARITHMETIC:
+    #   sample scores = ten times 0.1
+    #   mean = 10 * 0.1 / 10                = 0.1
+    #   s^2  = sum (x - 0.1)^2 / (10 - 1)   = 0
+    #   SE   = sqrt((1 - 10/20) * 0 / 10)   = 0
+    #   ci95 = [0.1, 0.1]  (degenerate: zero OBSERVED variance)
+    # The exact ACI_3 = 0.11 falls OUTSIDE this degenerate interval — an
+    # honest demonstration of why a single small-m draw proves nothing and
+    # the coverage guarantee is DISTRIBUTIONAL: it is asserted across 50
+    # seeded repetitions in (v3), never from one sample.
+    tiny = sampled_aci_k(bs, 3, 10)
+    checks.append(("tiny hand case (n=6,k=3,M=20,m=10): mean 0.1, s2=0, "
+                   "SE=0 — exactly as hand-computed",
+                   abs(tiny["estimate"] - 0.1) < 1e-12
+                   and tiny["standard_error"] == 0.0
+                   and tiny["sample_size"] == 10
+                   and tiny["population_size"] == 20
+                   and tiny["fpc_applied"] is True
+                   and tiny["ci95"] == [tiny["estimate"], tiny["estimate"]]))
+
+    # (v2) fpc -> 0 as m -> M: a FULL-POPULATION 'sample' (m = M = 20) has
+    # finite-population correction (1 - m/M) = 0, so SE = 0 exactly, and the
+    # estimate equals the exact enumeration (same subsets, float-ulp equal)
+    full_pop = sampled_aci_k(bs, 3, 20)
+    checks.append(("full-population sample: fpc gives SE = 0 and the "
+                   "estimate equals exact ACI_3",
+                   full_pop["standard_error"] == 0.0
+                   and full_pop["sample_size"] == 20
+                   and abs(full_pop["estimate"] - aci3_bs) < 1e-12))
+
+    # (v3)+(v4) COVERAGE and 1/sqrt(m) CONVERGENCE on a heterogeneous
+    # population where exact is computable: n=50 mixed paths, k=3,
+    # M = C(50,3) = 19,600 subsets enumerated exactly; then 50 seeded
+    # repetitions (seed_salt 0..49) at each m in {50, 200, 800}.
+    #   (v3) the exact value must fall inside the 95% CI in the expected
+    #        proportion: binomially, 50 reps at p=0.95 give >= 44 successes
+    #        with probability > 0.996 — the stated tolerance is >= 44/50
+    #        (observed on these deterministic seeds: 49/50 at m=200).
+    #   (v4) SE must shrink ~ 1/sqrt(m): the mean SE ratio across the 50
+    #        seeds for m=50 vs 200 and 200 vs 800 is sqrt(4 * fpc-ratio)
+    #        ~= 2.01 and 2.03; asserted within [1.8, 2.2] (tolerance for
+    #        sample-variance noise in s; deterministic seeds make the
+    #        observed values 2.010 and 1.995, stable forever).
+    def _het(i):
+        ops = ("same-operator", "same-organization", "independent-operator")
+        return _fixture_path(f"h{i}", f"F{i % 7}", f"P{i % 5}",
+                             operator=ops[i % 3], toolchain=f"T{i % 3}",
+                             repo=f"R{i % 4}", model=f"M{i % 2}")
+    het_pop = [_het(i) for i in range(50)]
+    het_M = math.comb(50, 3)
+    het_total = 0.0
+    for subset in itertools.combinations(het_pop, 3):
+        het_total += subset_score(subset)
+    het_exact = het_total / het_M
+    mean_se = {}
+    coverage_200 = 0
+    for m in (50, 200, 800):
+        ses = []
+        for salt in range(50):
+            r = sampled_aci_k(het_pop, 3, m, seed_salt=salt)
+            ses.append(r["standard_error"])
+            if m == 200 and r["ci95"][0] <= het_exact <= r["ci95"][1]:
+                coverage_200 += 1
+        mean_se[m] = sum(ses) / len(ses)
+    ratio_a = mean_se[50] / mean_se[200]
+    ratio_b = mean_se[200] / mean_se[800]
+    print(f"    sampled-mode validation: coverage {coverage_200}/50 at "
+          f"m=200 (>=44 required); SE-shrink ratios {ratio_a:.3f} "
+          f"(50->200) and {ratio_b:.3f} (200->800), expected ~2")
+    checks.append(("CI coverage across 50 seeded repetitions (m=200): exact "
+                   "inside the 95% CI >= 44/50 (binomial tolerance)",
+                   coverage_200 >= 44))
+    checks.append(("SE shrinks ~1/sqrt(m) across m in {50,200,800} "
+                   "(both ratios within [1.8, 2.2])",
+                   1.8 <= ratio_a <= 2.2 and 1.8 <= ratio_b <= 2.2))
+
+    # (v5) BY-CONSTRUCTION honesty: in a mixed exact+sampled report, exact
+    # rows carry aci_k and never estimate; sampled rows carry the full
+    # interval and never aci_k; the sampled ks are typed in k_values_sampled
+    mixed = compute_korder_report(het_pop, k_max=3, sample_size=100,
+                                  force_sample=True)
+    exact_only = compute_korder_report(bs, k_max=3)
+    checks.append(("by construction: sampled rows have no bare point field; "
+                   "exact rows have no estimate; exact-only reports keep "
+                   "schema 0.1 with no sampling keys",
+                   all("aci_k" not in r and "ci95" in r
+                       for r in mixed["profile"])
+                   and mixed["schema"] == KORDER_SAMPLED_SCHEMA_VERSION
+                   and all("estimate" not in r and "aci_k" in r
+                           for r in exact_only["profile"])
+                   and exact_only["schema"] == KORDER_SCHEMA_VERSION
+                   and "sampling" not in exact_only
+                   and "k_values_sampled" not in exact_only))
+
+    # (v6) sampling determinism + seed commitment: same inputs re-draw the
+    # byte-identical report; changing the salt changes the seed (and, on a
+    # heterogeneous population, the drawn sample)
+    checks.append(("sampled report deterministic; seed commits to "
+                   "population+k+m (salt changes the draw)",
+                   canonical_json(compute_korder_report(
+                       het_pop, k_max=3, sample_size=100, force_sample=True))
+                   == canonical_json(mixed)
+                   and sampled_aci_k(het_pop, 3, 100, seed_salt=1)["seed"]
+                   != sampled_aci_k(het_pop, 3, 100, seed_salt=2)["seed"]))
 
     # (f) real-ledger report (READ-ONLY) when the runtime ledger exists locally:
     # deterministic across two full rebuilds, and the same-operator baseline holds.
@@ -1032,6 +1354,32 @@ def _selftest() -> int:
         else:
             print("    (no anchored pairwise baseline on the source — real "
                   "S_2-consistency check SKIPPED)")
+        # (g2) EXACT-MODE REGRESSION LOCK: the anchored k-order baseline must
+        # keep re-deriving BYTE-IDENTICALLY under the sampled-mode upgrade —
+        # an exact-only report still emits schema 0.1 with the anchored hash
+        ko_anchor = None
+        for e in work_molecule._read_ledger(src):
+            pl = e.get("payload", {})
+            if (pl.get("event") == "aci_korder_baseline_anchored"
+                    and pl.get("status") == "aci-korder-confirmed"):
+                ko_anchor = pl
+        if ko_anchor is not None:
+            ko_ks = (list(ko_anchor.get("k_values_computed", []))
+                     + list(ko_anchor.get("k_values_refused", [])))
+            ko_re = compute_korder_report(
+                build_paths(ledger_path=src,
+                            as_of_index=ko_anchor.get("as_of_ledger_index")),
+                k_max=max(ko_ks),
+                as_of_ledger_index=ko_anchor.get("as_of_ledger_index"))
+            checks.append(("anchored k-order baseline re-derives "
+                           "byte-identically (schema 0.1, hash to the digit) "
+                           "under the sampled-mode upgrade",
+                           ko_re["schema"] == KORDER_SCHEMA_VERSION
+                           and ko_re["report_hash"]
+                           == ko_anchor.get("report_hash")))
+        else:
+            print("    (no anchored k-order baseline on the source — "
+                  "exact-mode regression check SKIPPED)")
     else:
         print("    (no ledger source at all — real S_2-consistency check "
               "SKIPPED)")
