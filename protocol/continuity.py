@@ -47,6 +47,16 @@ PRIVATE MATERIAL NEVER ENTERS the repo, the report, or any committed path:
 the manifest lists paths + sha256s + criticality classes, never contents; kit
 export refuses any git-tracked destination; every kit operation warns loudly.
 
+IDENTITY-SURVIVABILITY RESERVES (actor_identity.py --stage-reserve) live in
+the kit as reserve_<actor>/ directories: a successor PRIVATE keychain plus a
+pre-signed rotation certificate, anchored NEVER until a real emergency or
+planned rotation. --verify-kit re-validates every reserve against the
+CURRENT chain state: a reserve that would anchor today passes; a stale one
+(root since rotated) is FLAGGED retired, never silently passed; a tampered
+or unanchorable one — or a kit keychain copy that fails to mark the
+reserve's spent signing index — is a NAMED failure. Reserves raise
+AVAILABILITY, not confidentiality: a stolen kit yields both chains.
+
 MIRROR-READINESS (the second device's standing job, once it arrives):
 periodically pull the repo, run --export-mirror into its own storage, and run
 --check-mirror against what it holds. IDENTICAL is quiet health; BEHIND is a
@@ -146,8 +156,10 @@ KIT_WARNING = (
     "THIS KIT CONTAINS PRIVATE KEY MATERIAL — offline storage only. Anyone "
     "holding it can sign as every actor above; without at least one copy OFF "
     "this machine, losing the machine is identity death for every actor. "
-    "Never commit it, never publish it, never transmit it over anything you "
-    "do not trust."
+    "Reserve directories add SUCCESSOR keychains: a stolen kit yields BOTH "
+    "the active and successor chains — reserves raise availability, not "
+    "confidentiality. Never commit it, never publish it, never transmit it "
+    "over anything you do not trust."
 )
 
 BOUNDARY_REASON = ("no private material: verifiability survives, "
@@ -305,9 +317,16 @@ def export_kit(kit_dir: str, base_dir: str = _REPO_ROOT) -> dict:
     return manifest
 
 
-def verify_kit(kit_dir: str) -> tuple:
-    """Hash-check every kit file against its manifest. Returns (ok, results):
-    results = [{path, status: ok|missing|mismatch, detail}]."""
+def verify_kit(kit_dir: str, base_dir: str = _REPO_ROOT) -> tuple:
+    """Hash-check every kit file against its manifest, then re-validate every
+    PRE-STAGED ROTATION RESERVE (reserve_<actor>/ directories) against the
+    CURRENT chain state. Returns (ok, results):
+    results = [{path, status, detail}], where status is ok|missing|mismatch
+    for manifest files and reserve-ok|reserve-retired|reserve-invalid|
+    reserve-kit-stale for reserves. A stale reserve (root since rotated) is
+    FLAGGED retired, never silently passed — but is not a kit failure; a
+    tampered/unanchorable reserve, or a kit keychain copy that fails to mark
+    a staged reserve's spent signing index, IS a failure."""
     manifest = _load_json(os.path.join(kit_dir, MANIFEST_NAME))
     results = []
     ok = True
@@ -329,6 +348,57 @@ def verify_kit(kit_dir: str) -> tuple:
         else:
             results.append({"path": f["path"], "status": "ok",
                             "detail": f"sha256 matches ({f['criticality']})"})
+
+    reserves = actor_identity.scan_reserves(kit_dir)
+    if reserves:
+        entries = actor_identity._read_entries(
+            actor_identity._default_ledger_source(base_dir))
+        for res in reserves:
+            st = actor_identity.reserve_status(res, entries)
+            path = res["dir"] + "/"
+            if st["state"] == "staged":
+                # kit keychain freshness: the ACTIVE keychain copy in the kit
+                # must already mark the reserve's spent signing index —
+                # restoring a stale copy would risk one-time index reuse
+                cert = res["certificate"]
+                stale_copy = None
+                for name in sorted(os.listdir(kit_dir)):
+                    if not (name.startswith("keychain")
+                            and name.endswith(".json")):
+                        continue
+                    try:
+                        kc = _load_json(os.path.join(kit_dir, name))
+                    except (json.JSONDecodeError, OSError):
+                        continue
+                    if (isinstance(kc, dict)
+                            and kc.get("merkle_root") == cert["prev_root"]):
+                        if cert["key_index"] not in kc.get("used_indices",
+                                                           []):
+                            stale_copy = name
+                        break
+                if stale_copy:
+                    results.append({
+                        "path": path, "status": "reserve-kit-stale",
+                        "detail": f"kit keychain copy {stale_copy} does NOT "
+                                  f"mark the reserve's spent signing index "
+                                  f"{cert['key_index']} — restoring that "
+                                  "copy would risk one-time index reuse; "
+                                  "re-export the kit"})
+                    ok = False
+                else:
+                    results.append({"path": path, "status": "reserve-ok",
+                                    "detail": st["detail"]})
+            elif st["state"] in ("retired-stale", "retired-unanchored",
+                                 "anchored"):
+                results.append({
+                    "path": path, "status": "reserve-retired",
+                    "detail": st["detail"] + " (FLAGGED retired — not a kit "
+                              "failure, but this reserve provides NO "
+                              "survivability; re-stage)"})
+            else:
+                results.append({"path": path, "status": "reserve-invalid",
+                                "detail": st["detail"]})
+                ok = False
     return (ok, results)
 
 
@@ -976,6 +1046,73 @@ def _selftest() -> int:
             print("    (no private coordinator state on this machine — REAL "
                   "restore-rehearsal leg SKIPPED, named; the fixture + "
                   "boundary legs above cover the mechanism)")
+
+        # [7b] PRE-STAGED ROTATION RESERVES join kit verification: staged
+        # passes (re-validated against the CURRENT chain), a stale kit
+        # keychain copy is a NAMED failure, a stale reserve (root since
+        # rotated) is FLAGGED retired without failing the kit, and a
+        # tampered reserve file is a NAMED failure.
+        rkit = os.path.join(tmp, "reserve_kit")
+        fx_ledger = os.path.join(fx, "protocol", "ledger_data.jsonl")
+        actor_identity.stage_reserve("continuity-fixture-actor",
+                                     kit_dir=rkit, base_dir=fx,
+                                     ledger_source=fx_ledger)
+        export_kit(rkit, base_dir=fx)  # kit copies AFTER staging: marks fresh
+        ok_r, rows_r = verify_kit(rkit, base_dir=fx)
+        rrow = {r["path"]: r for r in rows_r}.get(
+            "reserve_continuity-fixture-actor/")
+        checks.append(("verify-kit includes the staged reserve, re-validated "
+                       "against the CURRENT chain",
+                       ok_r and rrow is not None
+                       and rrow["status"] == "reserve-ok"
+                       and "would anchor today" in rrow["detail"]))
+
+        kc_copy_path = os.path.join(rkit, "keychain.json")
+        with open(kc_copy_path, "r", encoding="utf-8") as f:
+            kc_copy_orig = f.read()
+        kc_copy = json.loads(kc_copy_orig)
+        kc_copy["used_indices"] = []
+        _write_json(kc_copy_path, kc_copy)
+        ok_ks, rows_ks = verify_kit(rkit, base_dir=fx)
+        row_ks = {r["path"]: r for r in rows_ks}.get(
+            "reserve_continuity-fixture-actor/")
+        checks.append(("verify-kit FAILS a kit keychain copy that misses the "
+                       "reserve's spent signing index",
+                       not ok_ks
+                       and row_ks["status"] == "reserve-kit-stale"))
+        with open(kc_copy_path, "w", encoding="utf-8") as f:
+            f.write(kc_copy_orig)
+
+        kc_other = actor_identity.build_keychain_from_privates(
+            "continuity-fixture-actor",
+            [[[hashlib.sha256(f"co:{k}:{i}:{h}".encode()).hexdigest()
+               for h in (0, 1)] for i in range(256)] for k in range(4)])
+        ledger_mod.Ledger(fx_ledger).append({
+            "event": "actor_key_rotated", "status": "actor-key-rotated",
+            "actor_id": "continuity-fixture-actor",
+            "prev_root": fx_kc["merkle_root"],
+            "new_root": kc_other["merkle_root"], "new_key_count": 4,
+            "signed": True, "signer_actor_id": "continuity-fixture-actor",
+            "key_index": 3, "zero_value": True, "no_token": True})
+        ok_st, rows_st = verify_kit(rkit, base_dir=fx)
+        row_st = {r["path"]: r for r in rows_st}.get(
+            "reserve_continuity-fixture-actor/")
+        checks.append(("verify-kit FLAGS a stale reserve as retired (root "
+                       "since rotated) without failing the kit",
+                       ok_st and row_st["status"] == "reserve-retired"
+                       and "STALE" in row_st["detail"]))
+
+        with open(os.path.join(rkit, "reserve_continuity-fixture-actor",
+                               actor_identity.RESERVE_KEYCHAIN_NAME), "a",
+                  encoding="utf-8") as f:
+            f.write("\n")
+        ok_tp, rows_tp = verify_kit(rkit, base_dir=fx)
+        row_tp = {r["path"]: r for r in rows_tp}.get(
+            "reserve_continuity-fixture-actor/")
+        checks.append(("verify-kit names a tampered reserve file "
+                       "(sha256 mismatch -> reserve-invalid)",
+                       not ok_tp and row_tp["status"] == "reserve-invalid"
+                       and "sha256" in row_tp["detail"]))
 
         # [8] mirror fixtures: IDENTICAL / BEHIND / DIVERGED / manifest tamper
         mfx = os.path.join(tmp, "mirror_base")

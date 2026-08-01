@@ -54,6 +54,27 @@ The rotation lifecycle ("root-rotation/0.1") closes that gap under three rules:
     times; the chain of roots is LINEAR — no forks, and a second rotation
     from an already-retired root is mechanically rejected.
 
+========== PRE-STAGED ROTATION RESERVES (IDENTITY SURVIVABILITY) ==========
+A rotation certificate is valid whenever it is signed by an UNUSED key of the
+actor's active root — nothing requires it to be anchored immediately.
+Pre-staging exploits exactly that: generate a successor keychain + sign its
+rotation certificate NOW, store both in the continuity kit, anchor NEVER —
+until needed. If the active chain is later lost, exhausted, or suspected
+compromised, the coordinator anchors the pre-staged certificate and the actor
+continues under the successor root with ZERO dependence on the (possibly
+lost) old chain beyond the already-made signature. Pre-staging is
+PREPARATION, not a protocol event: staging performs ZERO ledger writes;
+anchoring a reserve certificate is a deliberate coordinator act
+(external_verifier.py --rotate-actor-key) that only happens IF a real
+emergency or planned rotation arrives.
+
+HONEST LIMITS, stated: pre-staging consumes one one-time index per actor NOW
+(the index is spent the moment the signature exists — never reusable); a
+stolen kit yields BOTH the active and successor chains — reserves raise
+AVAILABILITY, not confidentiality (the kit's offline-custody warning covers
+this); and a reserve is SINGLE-USE — it must be re-staged after any anchored
+rotation, because its prev_root is then retired.
+
 HONEST COST: hash-based one-time signatures are BIG — per key, the private and
 public halves are 256x2x32 bytes (~16 KiB) each, and a signature carries ~24 KiB
 (256 revealed secrets + the full leaf pubkey + the Merkle path). That is the
@@ -68,6 +89,8 @@ Usage:
     python3 protocol/actor_identity.py --declare keychain.json --out actor_key_declaration.json
     python3 protocol/actor_identity.py --sign keychain.json --index 0 --message-file msg.bin --out sig.json
     python3 protocol/actor_identity.py --verify sig.json --root <hex> --message-file msg.bin
+    python3 protocol/actor_identity.py --stage-reserve --actor <id> [--keys 32] [--kit-dir continuity_kit]
+    python3 protocol/actor_identity.py --identity-health [--json]
     python3 protocol/actor_identity.py --selftest   # temp-only; writes nothing
 """
 
@@ -80,6 +103,8 @@ import hashlib
 import json
 import os
 import secrets
+import subprocess
+import time
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
@@ -681,6 +706,580 @@ def verify_rotation_certificate(cert, ledger_source, as_of_index: int = None):
 
 
 # ----------------------------------------------------------------------------
+# Pre-staged rotation reserves (identity survivability) + identity health
+# ----------------------------------------------------------------------------
+RESERVE_SCHEMA = "identity-reserve/0.1"
+HEALTH_SCHEMA = "identity-health/0.1"
+_RESERVE_PREFIX = "reserve_"
+RESERVE_KEYCHAIN_NAME = "successor_keychain.json"
+RESERVE_CERT_NAME = "rotation_certificate.json"
+RESERVE_META_NAME = "reserve.json"
+DEFAULT_KIT_DIR = os.path.join(_REPO_ROOT, "continuity_kit")
+
+RESERVE_WARNING = (
+    "the reserve holds the SUCCESSOR PRIVATE KEYCHAIN — continuity-kit "
+    "custody rules apply, and a stolen kit now yields BOTH the active and "
+    "successor chains (reserves raise AVAILABILITY, not confidentiality). "
+    "Anchor the certificate ONLY on a real emergency or planned rotation; a "
+    "reserve is SINGLE-USE and must be re-staged after any anchored rotation."
+)
+
+
+def _sha256_file(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _dump_json(path: str, obj: dict):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(obj, f, indent=2, sort_keys=True)
+
+
+def _default_ledger_source(base_dir: str = _REPO_ROOT) -> str:
+    """The corpus this machine holds: the live ledger when present, else the
+    published snapshot (a fresh clone's view)."""
+    live = os.path.join(base_dir, "protocol", "ledger_data.jsonl")
+    return live if os.path.exists(live) else os.path.join(
+        base_dir, "protocol", "ledger_published.json")
+
+
+def _tracked_destination_refusal(dest: str, base_dir: str = _REPO_ROOT):
+    """Reason `dest` is unsafe for private material, or None. Mirrors
+    continuity._export_destination_refusal ON PURPOSE (~15 lines) so the
+    identity BASE layer keeps importing nothing above it: outside the repo is
+    fine; inside the repo the path must be git-ignored."""
+    dest_abs = os.path.abspath(dest)
+    base_abs = os.path.abspath(base_dir)
+    if not (dest_abs == base_abs or dest_abs.startswith(base_abs + os.sep)):
+        return None  # outside the repo entirely
+    rel = os.path.relpath(dest_abs, base_abs)
+    try:
+        probe = subprocess.run(["git", "check-ignore", "-q",
+                                rel.rstrip("/") + "/"],
+                               cwd=base_abs, capture_output=True, timeout=10)
+        if probe.returncode == 0:
+            return None  # inside the repo but git-ignored: safe
+        return (f"destination {dest!r} is INSIDE the repository and NOT "
+                "git-ignored — refusing to write a successor PRIVATE keychain "
+                "into a trackable path (use a directory outside the repo, or "
+                "a gitignored one like continuity_kit/)")
+    except (FileNotFoundError, subprocess.SubprocessError, OSError):
+        return (f"destination {dest!r} is inside the repository and git is "
+                "unavailable to prove it is ignored — refusing (use a "
+                "directory outside the repo)")
+
+
+def find_active_keychain(actor_id: str, ledger_source, base_dir: str = _REPO_ROOT):
+    """Locate the top-level keychain file holding the actor's ACTIVE root.
+    Mirrors continuity.capability_sign's discovery ON PURPOSE. Returns
+    (path, keychain, active_chain_element); (None, None, active) when no local
+    file holds the active root; (None, None, None) when unregistered."""
+    chain = root_chain(actor_id, _read_entries(ledger_source))
+    if not chain:
+        return (None, None, None)
+    active = chain[-1]
+    for name in sorted(os.listdir(base_dir)):
+        if not (name.startswith("keychain") and name.endswith(".json")):
+            continue
+        p = os.path.join(base_dir, name)
+        if not os.path.isfile(p):
+            continue
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                kc = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if isinstance(kc, dict) and kc.get("merkle_root") == active["merkle_root"]:
+            return (p, kc, active)
+    return (None, None, active)
+
+
+def _synthetic_rotation_entry(cert: dict, tip_index: int) -> dict:
+    """A TEMP rehearsal ledger entry for `cert` — mirrors the scan-feeding
+    payload shape external_verifier.rotate_actor_key anchors ON PURPOSE
+    (event/status/roots + signed/signer_actor_id/key_index), so the rehearsal
+    exercises the same as-of resolution and cross-type scan a real anchor
+    would. Never appended to any real chain."""
+    return {"index": tip_index + 1, "payload": {
+        "event": _ROTATION_EVENT, "status": _ROTATION_STATUS,
+        "actor_id": cert["actor_id"], "prev_root": cert["prev_root"],
+        "new_root": cert["new_root"], "new_key_count": cert["new_key_count"],
+        "signed": True, "signer_actor_id": cert["actor_id"],
+        "key_index": cert["key_index"],
+        "rehearsal_note": "TEMP in-memory anchor rehearsal — never the real "
+                          "chain", "zero_value": True, "no_token": True}}
+
+
+def anchor_rehearsal(cert: dict, ledger_source) -> dict:
+    """The round-trip proof that a certificate WOULD anchor today, on a temp
+    in-memory copy of the ledger entries (the real chain is never touched):
+    (1) the certificate passes the same validation the anchor path runs;
+    (2) after a rehearsal anchor the successor root is the actor's ACTIVE
+    root (as-of resolution flips); (3) the signing index is consumed per the
+    ledger-wide cross-type scan. Returns {ok, checks: [(name, bool)]}."""
+    entries = list(_read_entries(ledger_source))
+    ok0, reasons = verify_rotation_certificate(cert, entries)
+    tip = max((e.get("index") for e in entries
+               if isinstance(e, dict) and isinstance(e.get("index"), int)),
+              default=-1)
+    anchored = entries + [_synthetic_rotation_entry(cert, tip)]
+    active = active_root_asof(cert["actor_id"], anchored)
+    flipped = (active is not None
+               and active["merkle_root"] == cert["new_root"])
+    consumed = any(u["key_index"] == cert["key_index"]
+                   for u in uses_for_root(cert["actor_id"], anchored,
+                                          cert["prev_root"]))
+    checks = [("certificate verifies against the current chain "
+               "(the same validation the anchor path runs)", ok0),
+              ("after the rehearsal anchor the successor root is ACTIVE "
+               "(as-of resolution flips)", flipped),
+              ("the signing index is consumed per the ledger-wide "
+               "cross-type scan", consumed)]
+    return {"ok": all(passed for _, passed in checks), "checks": checks,
+            "reasons": reasons}
+
+
+def scan_reserves(kit_dir: str) -> list:
+    """Discover reserve directories (reserve_<actor>[...]) in a kit and check
+    their INTERNAL integrity: reserve.json readable, listed files present with
+    matching sha256, certificate/successor cross-consistent (successor root ==
+    cert new_root, leaf-hashes hash matches, same actor), no private material
+    in the certificate. Chain-state judgement is reserve_status's job.
+    Returns [{dir, path, meta, certificate, successor_root, problems}]."""
+    out = []
+    if not os.path.isdir(kit_dir):
+        return out
+    for name in sorted(os.listdir(kit_dir)):
+        p = os.path.join(kit_dir, name)
+        if not (name.startswith(_RESERVE_PREFIX) and os.path.isdir(p)):
+            continue
+        row = {"dir": name, "path": p, "meta": None, "certificate": None,
+               "successor_root": None, "problems": []}
+        out.append(row)
+        try:
+            with open(os.path.join(p, RESERVE_META_NAME), "r",
+                      encoding="utf-8") as f:
+                meta = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            row["problems"].append(f"unreadable {RESERVE_META_NAME}: {exc}")
+            continue
+        row["meta"] = meta
+        if meta.get("schema") != RESERVE_SCHEMA:
+            row["problems"].append(f"reserve schema must be {RESERVE_SCHEMA!r}")
+        for f_row in meta.get("files", []):
+            fp = os.path.join(p, str(f_row.get("name", "")))
+            if not os.path.isfile(fp):
+                row["problems"].append(f"missing reserve file "
+                                       f"{f_row.get('name')}")
+            elif _sha256_file(fp) != f_row.get("sha256"):
+                row["problems"].append(
+                    f"{f_row.get('name')} sha256 does not match "
+                    f"{RESERVE_META_NAME} — the reserve copy was altered or "
+                    "corrupted")
+        if row["problems"]:
+            continue
+        try:
+            with open(os.path.join(p, RESERVE_CERT_NAME), "r",
+                      encoding="utf-8") as f:
+                cert = json.load(f)
+            with open(os.path.join(p, RESERVE_KEYCHAIN_NAME), "r",
+                      encoding="utf-8") as f:
+                succ = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            row["problems"].append(f"unreadable reserve payload: {exc}")
+            continue
+        row["certificate"] = cert
+        row["successor_root"] = succ.get("merkle_root")
+        if '"private"' in canonical_json(cert):
+            row["problems"].append("certificate carries PRIVATE material — a "
+                                   "rotation certificate is public-only")
+        if succ.get("merkle_root") != cert.get("new_root"):
+            row["problems"].append("successor keychain root does not match "
+                                   "the certificate's new_root")
+        elif _sha256_hex(canonical_json(
+                succ.get("leaf_hashes", [])).encode("utf-8")) \
+                != cert.get("new_leaf_hashes_hash"):
+            row["problems"].append("successor leaf hashes do not match the "
+                                   "certificate's new_leaf_hashes_hash")
+        if not (succ.get("actor_id") == cert.get("actor_id")
+                == meta.get("actor_id")):
+            row["problems"].append("actor_id disagrees between reserve.json, "
+                                   "certificate, and successor keychain")
+    return out
+
+
+def reserve_status(res: dict, ledger_source) -> dict:
+    """Judge one scanned reserve against the CURRENT chain state. States:
+
+      staged             — internally intact AND the certificate would anchor
+                           today (re-verified, full anchor-path validation)
+      retired-unanchored — deliberately replaced before anchoring
+                           (--replace-reserve); its signing index stays spent
+      retired-stale      — prev_root has since been rotated away: this reserve
+                           can NEVER anchor (FLAGGED, never silently passed)
+      anchored           — the reserve's rotation actually happened: single-use
+                           consumed; promote the successor and re-stage
+      invalid            — tampered/inconsistent/would-not-anchor: a reserve
+                           that would not anchor is WORTHLESS (named failure)
+    """
+    if res["problems"]:
+        return {"state": "invalid", "detail": "; ".join(res["problems"])}
+    meta, cert = res["meta"], res["certificate"]
+    if meta.get("status") == "retired-unanchored":
+        return {"state": "retired-unanchored",
+                "detail": "deliberately replaced before anchoring "
+                          "(retired-unanchored, never a protocol event) — "
+                          "its signing index stays spent forever; superseded "
+                          "by a newer reserve"}
+    entries = _read_entries(ledger_source)
+    chain = root_chain(cert["actor_id"], entries)
+    for el in chain:
+        if el["merkle_root"] == cert["new_root"]:
+            return {"state": "anchored",
+                    "detail": f"this reserve WAS anchored (rotation at ledger "
+                              f"index {el['ledger_index']}) — single-use, now "
+                              "consumed; promote the successor keychain and "
+                              "stage a fresh reserve"}
+    if chain and cert["prev_root"] != chain[-1]["merkle_root"]:
+        detail = (f"STALE: prev_root {cert['prev_root'][:16]}.. is no longer "
+                  "the active root")
+        for i, el in enumerate(chain[:-1]):
+            if el["merkle_root"] == cert["prev_root"]:
+                detail += (f" (retired by the rotation anchored at ledger "
+                           f"index {chain[i + 1]['ledger_index']})")
+                break
+        return {"state": "retired-stale",
+                "detail": detail + " — this reserve can NEVER anchor; "
+                          "re-stage under the active root"}
+    ok, reasons = verify_rotation_certificate(cert, entries)
+    if ok:
+        return {"state": "staged",
+                "detail": f"certificate re-verified against the CURRENT chain "
+                          f"(would anchor today): {cert['prev_root'][:16]}.. "
+                          f"-> {cert['new_root'][:16]}.., signing index "
+                          f"{cert['key_index']}"}
+    return {"state": "invalid",
+            "detail": "certificate would NOT anchor today: "
+                      + "; ".join(reasons)}
+
+
+def stage_reserve(actor_id: str, kit_dir: str = DEFAULT_KIT_DIR,
+                  base_dir: str = _REPO_ROOT, ledger_source=None,
+                  key_count: int = 32, replace: bool = False) -> dict:
+    """Pre-stage a rotation reserve for `actor_id`: generate a successor
+    keychain, sign its rotation certificate with the lowest unused active
+    index (the honest picker: local marks + the ledger-wide cross-type scan),
+    verify it fully, and store both in kit_dir/reserve_<actor>/. ZERO ledger
+    writes — the reserve is anchored NEVER, until a real emergency or planned
+    rotation. The signing index is spent the moment the signature exists: the
+    ACTIVE local keychain's mark is persisted before anything else can fail.
+
+    Refuses: a trackable kit destination; a second reserve while an unanchored
+    one exists (one reserve per actor — a second would burn indices
+    pointlessly; `replace=True` re-stages deliberately, naming the old reserve
+    retired-unanchored); an exhausted active chain (the end-of-life reason,
+    via make_rotation_certificate)."""
+    refusal = _tracked_destination_refusal(kit_dir, base_dir)
+    if refusal:
+        raise ValueError(refusal)
+    if ledger_source is None:
+        ledger_source = _default_ledger_source(base_dir)
+    entries = _read_entries(ledger_source)
+    kc_path, keychain, active = find_active_keychain(actor_id, entries,
+                                                     base_dir)
+    if active is None:
+        raise ValueError(f"no anchored root chain for actor {actor_id!r} — "
+                         "register a root before staging a reserve")
+    if keychain is None:
+        raise ValueError(
+            f"no local keychain under {base_dir} holds {actor_id!r}'s ACTIVE "
+            f"root {active['merkle_root'][:16]}.. — a reserve must be signed "
+            "by the active chain (restore it from the continuity kit first)")
+
+    # one reserve per actor: refuse while a usable (or tampered) one exists;
+    # the rename itself happens only AFTER the new reserve fully verifies
+    need_retire = None
+    current_dir = os.path.join(kit_dir, _RESERVE_PREFIX + actor_id)
+    if os.path.isdir(current_dir):
+        rows = [r for r in scan_reserves(kit_dir)
+                if r["dir"] == _RESERVE_PREFIX + actor_id]
+        state = (reserve_status(rows[0], entries)["state"] if rows
+                 else "invalid")
+        if state in ("staged", "invalid") and not replace:
+            raise ValueError(
+                f"actor {actor_id!r} already has an unanchored reserve "
+                f"({current_dir}, state {state}) — one reserve per actor: a "
+                "second would burn one-time indices pointlessly. Re-stage "
+                "deliberately with --replace-reserve (the old reserve is "
+                "renamed and named retired-unanchored; its already-spent "
+                "signing index stays spent forever)")
+        need_retire = rows[0] if rows else {"meta": None}
+
+    successor = generate_keychain(actor_id, key_count)
+    # raises the end-of-life reason on exhaustion; picks the lowest index
+    # unused BOTH locally and on-chain (first_unused_index, the honest picker)
+    cert = make_rotation_certificate(keychain, successor,
+                                     ledger_source=entries)
+
+    # the signing index is SPENT the moment the signature exists — persist the
+    # ACTIVE keychain's used-index mark FIRST, before anything else can fail
+    _dump_json(kc_path, keychain)
+
+    # a reserve that would not anchor is WORTHLESS — assert the full
+    # anchor-path validation and the temp-anchor round trip NOW
+    ok, reasons = verify_rotation_certificate(cert, entries)
+    if not ok:
+        raise RuntimeError("staged certificate failed the anchor-path "
+                           "validation (the spent index stays spent "
+                           "regardless): " + "; ".join(reasons))
+    if '"private"' in canonical_json(cert):
+        raise RuntimeError("staged certificate carries PRIVATE material — "
+                           "refusing to store it as a reserve")
+    rehearsal = anchor_rehearsal(cert, entries)
+    if not rehearsal["ok"]:
+        failed = [name for name, passed in rehearsal["checks"] if not passed]
+        raise RuntimeError("temp-anchor rehearsal failed: " + "; ".join(failed))
+
+    retired_previous = None
+    if need_retire is not None:
+        old_meta = need_retire.get("meta")
+        tag = (str(old_meta.get("new_root", ""))[:12]
+               if isinstance(old_meta, dict) else "") or "unreadable"
+        target = os.path.join(kit_dir,
+                              f"{_RESERVE_PREFIX}{actor_id}_retired_{tag}")
+        n = 1
+        while os.path.exists(target):
+            n += 1
+            target = os.path.join(
+                kit_dir, f"{_RESERVE_PREFIX}{actor_id}_retired_{tag}_{n}")
+        os.replace(current_dir, target)
+        if isinstance(old_meta, dict):
+            old_meta["status"] = "retired-unanchored"
+            old_meta["retired_reason"] = (
+                "deliberately replaced by a newer reserve before anchoring "
+                "(--replace-reserve) — never a protocol event; the old "
+                "signing index stays spent forever")
+            old_meta["retired_at"] = time.time()
+            _dump_json(os.path.join(target, RESERVE_META_NAME), old_meta)
+        retired_previous = os.path.basename(target)
+
+    os.makedirs(current_dir, exist_ok=True)
+    kc_out = os.path.join(current_dir, RESERVE_KEYCHAIN_NAME)
+    cert_out = os.path.join(current_dir, RESERVE_CERT_NAME)
+    _dump_json(kc_out, successor)
+    _dump_json(cert_out, cert)
+    tip = max((e.get("index") for e in entries
+               if isinstance(e, dict) and isinstance(e.get("index"), int)),
+              default=None)
+    meta = {
+        "schema": RESERVE_SCHEMA,
+        "actor_id": actor_id,
+        "status": "staged",
+        "prev_root": cert["prev_root"],
+        "new_root": cert["new_root"],
+        "new_key_count": cert["new_key_count"],
+        "key_index": cert["key_index"],
+        "staged_at": time.time(),
+        "staged_against": {"tip_index": tip, "entry_count": len(entries)},
+        "files": [{"name": RESERVE_KEYCHAIN_NAME,
+                   "sha256": _sha256_file(kc_out)},
+                  {"name": RESERVE_CERT_NAME,
+                   "sha256": _sha256_file(cert_out)}],
+        "anchor_policy": "anchor NEVER until a real emergency or planned "
+                         "rotation — anchoring is a deliberate coordinator "
+                         "act (external_verifier.py --rotate-actor-key), "
+                         "never automatic",
+        "warning": RESERVE_WARNING,
+        "zero_value": True,
+        "no_token": True,
+    }
+    _dump_json(os.path.join(current_dir, RESERVE_META_NAME), meta)
+    return {"actor_id": actor_id, "prev_root": cert["prev_root"],
+            "new_root": cert["new_root"],
+            "new_key_count": cert["new_key_count"],
+            "key_index": cert["key_index"], "active_keychain": kc_path,
+            "reserve_dir": current_dir, "verified": True,
+            "rehearsal": rehearsal, "retired_previous": retired_previous}
+
+
+def identity_health(ledger_source=None, base_dir: str = _REPO_ROOT,
+                    kit_dir: str = None) -> dict:
+    """The one-screen truth per actor: active root + its ledger index, key
+    counts (local + on-chain union), per-index consumption sources (ledger:N
+    citations; local-only marks named, reserve signatures identified), reserve
+    status, root-chain history, and NAMED risk lines. Facts and named risks
+    only — no scores, no grades, no leaderboard. Read-only: ZERO writes."""
+    if ledger_source is None:
+        ledger_source = _default_ledger_source(base_dir)
+    entries = _read_entries(ledger_source)
+    if kit_dir is None:
+        kit_dir = os.path.join(base_dir, "continuity_kit")
+    reserves = scan_reserves(kit_dir)
+    actor_ids = []
+    for e in entries:
+        p = e.get("payload") if isinstance(e, dict) else None
+        if (isinstance(p, dict) and p.get("event") == _REGISTRATION_EVENT
+                and p.get("status") == _REGISTRATION_STATUS
+                and isinstance(p.get("actor_id"), str)
+                and p["actor_id"] not in actor_ids):
+            actor_ids.append(p["actor_id"])
+    tip = None
+    for e in reversed(entries):
+        if isinstance(e, dict) and isinstance(e.get("index"), int):
+            tip = e["index"]
+            break
+
+    actors = []
+    for actor_id in actor_ids:
+        chain = root_chain(actor_id, entries)
+        active = chain[-1]
+        total = active.get("key_count") if isinstance(
+            active.get("key_count"), int) else 0
+        kc_path, keychain, _ = find_active_keychain(actor_id, entries,
+                                                    base_dir)
+        onchain = {}
+        for u in uses_for_root(actor_id, entries, active["merkle_root"]):
+            if isinstance(u["key_index"], int):
+                onchain.setdefault(u["key_index"], []).append(
+                    u["ledger_index"])
+        local = ({i for i in keychain["used_indices"] if isinstance(i, int)}
+                 if keychain else set())
+        consumed = sorted(set(onchain) | local)
+
+        mine = [r for r in reserves
+                if (isinstance(r["meta"], dict)
+                    and r["meta"].get("actor_id") == actor_id)
+                or r["dir"] == _RESERVE_PREFIX + actor_id]
+        current = next((r for r in mine
+                        if r["dir"] == _RESERVE_PREFIX + actor_id), None)
+        if current is not None:
+            st = reserve_status(current, entries)
+            reserve = {"state": st["state"], "detail": st["detail"],
+                       "dir": current["dir"]}
+        else:
+            reserve = {"state": "none", "detail": "no reserve staged",
+                       "dir": None}
+        reserve["retired_count"] = sum(1 for r in mine if r is not current)
+
+        # which consumed indices are reserve-certificate signatures?
+        reserve_indices = {}
+        for r in mine:
+            c = r.get("certificate")
+            if (isinstance(c, dict)
+                    and c.get("prev_root") == active["merkle_root"]
+                    and isinstance(c.get("key_index"), int)):
+                kind = ("staged" if r is current
+                        and reserve["state"] == "staged" else "retired")
+                reserve_indices[c["key_index"]] = (r["dir"], kind)
+        consumed_rows = []
+        for i in consumed:
+            if i in onchain:
+                srcs = [f"ledger:{li}" for li in onchain[i]]
+            elif i in reserve_indices:
+                d, kind = reserve_indices[i]
+                srcs = [f"local-only: reserve rotation-certificate signature "
+                        f"({d}, {kind} — kit-stored, unanchored)"]
+            else:
+                srcs = ["local-only (unanchored signature)"]
+            consumed_rows.append({"key_index": i, "sources": srcs})
+        remaining = max(0, total - len(consumed))
+
+        risks = []
+        if keychain is None:
+            risks.append("no local keychain holds the ACTIVE root on this "
+                         "machine — this actor cannot sign here; restore the "
+                         "keychain from the continuity kit")
+        if remaining == 0 and total:
+            risks.append(f"active root is EXHAUSTED ({total}/{total} indices "
+                         "consumed) — no new signature (not even a rotation) "
+                         "can be made; only an already-staged reserve can "
+                         "continue this actor")
+        if reserve["state"] == "staged":
+            risks.append("reserve staged, certificate verified against the "
+                         "active root — identity loss is recoverable by "
+                         "anchoring the reserve (single-use; re-stage after "
+                         "any anchored rotation)")
+        elif reserve["state"] == "retired-stale":
+            risks.append("reserve is STALE (root since rotated) — flagged "
+                         "retired, it can never anchor; re-stage under the "
+                         "active root")
+        elif reserve["state"] == "anchored":
+            risks.append("reserve was ANCHORED (rotation complete) — promote "
+                         "the successor keychain and stage a fresh reserve")
+        elif reserve["state"] == "invalid":
+            risks.append("reserve FAILS verification — it would not anchor; "
+                         "investigate and re-stage: " + reserve["detail"])
+        else:
+            risks.append(f"{remaining}/{total} remaining, no reserve -> "
+                         "stage one (--stage-reserve): identity loss is "
+                         "otherwise fatal-by-default")
+        if 0 < remaining <= max(2, total // 8):
+            risks.append(f"only {remaining}/{total} unused one-time indices "
+                         "remain on the active root — plan the anchored "
+                         "rotation soon")
+
+        actors.append({
+            "actor_id": actor_id,
+            "root_chain": chain,
+            "active_root": active["merkle_root"],
+            "active_root_ledger_index": active["ledger_index"],
+            "keys_total": total,
+            "keys_consumed": len(consumed),
+            "keys_remaining": remaining,
+            "consumed": consumed_rows,
+            "local_keychain": (os.path.basename(kc_path) if kc_path
+                               else None),
+            "reserve": reserve,
+            "risks": risks,
+        })
+    return {
+        "schema": HEALTH_SCHEMA,
+        "generated_against": {"tip_index": tip, "entry_count": len(entries)},
+        "kit_dir": kit_dir,
+        "actors": actors,
+        "note": "facts and named risks only — no scores, no grades, no "
+                "leaderboard",
+        "zero_value": True,
+        "no_token": True,
+    }
+
+
+def _print_health(doc: dict):
+    print("=== identity health — facts and named risks (no scores, no "
+          "leaderboard) ===")
+    ga = doc["generated_against"]
+    print(f"ledger: tip index {ga['tip_index']} ({ga['entry_count']} "
+          f"entries); kit: {doc['kit_dir']}")
+    for a in doc["actors"]:
+        print(f"\nactor: {a['actor_id']}")
+        parts = [f"{str(el['merkle_root'])[:16]}..({el['kind']}@"
+                 f"{el['ledger_index']})" for el in a["root_chain"]]
+        print(f"  root chain ({len(parts)}): " + " -> ".join(parts)
+              + "  [tip is ACTIVE]")
+        print(f"  keys: {a['keys_total']} total, {a['keys_consumed']} "
+              f"consumed, {a['keys_remaining']} remaining (local + on-chain "
+              "union)")
+        for row in a["consumed"]:
+            print(f"    index {row['key_index']} <- "
+                  + ", ".join(row["sources"]))
+        print("  local keychain: " + (a["local_keychain"] or
+                                      "NONE holds the active root"))
+        r = a["reserve"]
+        line = f"  reserve: {r['state'].upper()}"
+        if r["dir"]:
+            line += f" ({r['dir']})"
+        line += f" — {r['detail']}"
+        if r["retired_count"]:
+            line += f" [{r['retired_count']} retired reserve dir(s) kept]"
+        print(line)
+        for risk in a["risks"]:
+            print(f"  risk: {risk}")
+
+
+# ----------------------------------------------------------------------------
 # CLI
 # ----------------------------------------------------------------------------
 def main(argv=None) -> int:
@@ -715,9 +1314,18 @@ def main(argv=None) -> int:
                            "off to --new-keychain (signed with an UNUSED "
                            "old-root index; the old file's used-index mark is "
                            "persisted back)")
+    mode.add_argument("--stage-reserve", action="store_true",
+                      help="pre-stage a rotation reserve for --actor: "
+                           "successor keychain + pre-signed certificate into "
+                           "the continuity kit; ZERO ledger writes (anchor "
+                           "NEVER until a real emergency or planned rotation)")
+    mode.add_argument("--identity-health", action="store_true",
+                      help="the one-screen truth per actor: roots, key "
+                           "counts, consumption sources, reserve status, and "
+                           "NAMED risks (facts only — no scores)")
     mode.add_argument("--selftest", action="store_true",
                       help="run the mechanical self-test (temp files only)")
-    parser.add_argument("--actor", help="actor id for --generate")
+    parser.add_argument("--actor", help="actor id for --generate/--stage-reserve")
     parser.add_argument("--new-keychain", metavar="NEW_KEYCHAIN_JSON",
                         help="with --rotate: the PRIVATE keychain whose root "
                              "the certificate hands off to")
@@ -734,12 +1342,66 @@ def main(argv=None) -> int:
                         help="DRILL ONLY: bypass the local one-time refusal so a "
                              "planned reuse demonstration can be constructed — "
                              "ledger verification still hard-rejects reuse")
+    parser.add_argument("--kit-dir", default=DEFAULT_KIT_DIR,
+                        help="with --stage-reserve/--identity-health: the "
+                             "continuity-kit directory holding reserves "
+                             "(default continuity_kit/; must be git-ignored "
+                             "or outside the repo)")
+    parser.add_argument("--replace-reserve", action="store_true",
+                        help="with --stage-reserve: deliberately re-stage "
+                             "over an existing unanchored reserve (the old "
+                             "one is renamed and named retired-unanchored; "
+                             "its spent signing index stays spent forever)")
+    parser.add_argument("--json", action="store_true",
+                        help="with --identity-health: emit the full JSON "
+                             "document instead of the one-screen text")
     parser.add_argument("--out", help="write the generated/derived JSON here")
     args = parser.parse_args(argv)
 
     if args.selftest or not (args.generate or args.declare or args.sign
-                             or args.verify or args.rotate):
+                             or args.verify or args.rotate
+                             or args.stage_reserve or args.identity_health):
         return _selftest()
+
+    if args.stage_reserve:
+        if not args.actor:
+            parser.error("--stage-reserve requires --actor")
+        try:
+            report = stage_reserve(args.actor, kit_dir=args.kit_dir,
+                                   ledger_source=args.ledger,
+                                   key_count=args.keys,
+                                   replace=args.replace_reserve)
+        except (ValueError, RuntimeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        print(f"reserve staged for {report['actor_id']}:")
+        print(f"  active root {report['prev_root'][:16]}.. -> successor root "
+              f"{report['new_root'][:16]}.. "
+              f"({report['new_key_count']} one-time keys)")
+        print(f"  signing index {report['key_index']} of the active root is "
+              f"SPENT NOW (marked in "
+              f"{os.path.basename(report['active_keychain'])} — never "
+              "reusable)")
+        print("  certificate fully verified (the same validation the anchor "
+              "path runs) and the temp-anchor rehearsal passed — it would "
+              "anchor today; it is anchored NEVER until a real emergency or "
+              "planned rotation")
+        if report["retired_previous"]:
+            print(f"  previous reserve retired-unanchored: "
+                  f"{report['retired_previous']}")
+        print(f"  written: {report['reserve_dir']}/ (successor keychain + "
+              "certificate + reserve.json)")
+        print(f"WARNING: {RESERVE_WARNING}", file=sys.stderr)
+        return 0
+
+    if args.identity_health:
+        doc = identity_health(ledger_source=args.ledger,
+                              kit_dir=args.kit_dir)
+        if args.json:
+            print(json.dumps(doc, indent=2, sort_keys=True))
+        else:
+            _print_health(doc)
+        return 0
 
     if args.generate:
         if not args.actor:
@@ -845,6 +1507,9 @@ def _selftest() -> int:
 
     root_before = set(os.listdir(_REPO_ROOT))
     proto_before = set(os.listdir(_PROTO_DIR))
+    real_ledger = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
+    ledger_sha_before = (_sha256_file(real_ledger)
+                         if os.path.exists(real_ledger) else None)
     checks = []
 
     # deterministic fixture privates (documented: sha256 counters, NOT random —
@@ -1061,6 +1726,215 @@ def _selftest() -> int:
     ok_now, _ = verify_signature(hist_sig, asof_now["merkle_root"], message)
     checks.append(("historical record verifies via as-of root; the retired "
                    "root authenticates nothing NEW", ok_hist and not ok_now))
+
+    # ---------------- RESERVE (identity survivability) fixtures ----------------
+    # Temp dirs only; the REAL ledger is asserted byte-identical at the end.
+    import shutil
+    import tempfile
+    tmp = tempfile.mkdtemp(prefix=f"actor_identity_selftest_{os.getpid()}_")
+    try:
+        fxdir = os.path.join(tmp, "base")
+        os.makedirs(fxdir)
+        kit = os.path.join(tmp, "kit")
+        kcR = build_keychain_from_privates("res-actor",
+                                           _fixture_privates(4, "resA"))
+        kcR_path = os.path.join(fxdir, "keychain_res.json")
+        with open(kcR_path, "w", encoding="utf-8") as f:
+            json.dump(kcR, f, indent=2, sort_keys=True)
+        led_res = [_reg_entry(1, kcR), _use_entry(2, "res-actor", 0)]
+
+        # [n1] stage: honest picker (index 0 consumed on-chain -> picks 1),
+        # full verification + rehearsal, kit contents, persisted local mark
+        rep = stage_reserve("res-actor", kit_dir=kit, base_dir=fxdir,
+                            ledger_source=led_res)
+        rdir = os.path.join(kit, _RESERVE_PREFIX + "res-actor")
+        with open(kcR_path, "r", encoding="utf-8") as f:
+            kc_file = json.load(f)
+        checks.append(("stage-reserve: honest picker + verified + rehearsed "
+                       "+ kit-stored",
+                       rep["key_index"] == 1 and rep["verified"]
+                       and rep["rehearsal"]["ok"]
+                       and all(os.path.isfile(os.path.join(rdir, n))
+                               for n in (RESERVE_KEYCHAIN_NAME,
+                                         RESERVE_CERT_NAME,
+                                         RESERVE_META_NAME))))
+        checks.append(("stage-reserve: signing index marked consumed in the "
+                       "ACTIVE local keychain (persisted)",
+                       1 in kc_file["used_indices"]))
+
+        # [n2] the round-trip proof: the staged reserve re-validates as
+        # STAGED (would anchor today) and every rehearsal check passed
+        rows = scan_reserves(kit)
+        st = reserve_status(rows[0], led_res)
+        checks.append(("staged reserve re-validates as STAGED (would anchor "
+                       "today; internal integrity intact)",
+                       len(rows) == 1 and not rows[0]["problems"]
+                       and st["state"] == "staged"
+                       and all(p for _, p in rep["rehearsal"]["checks"])))
+
+        # [n3] double-stage refusal (one reserve per actor) + deliberate
+        # --replace-reserve: old reserve retired BY NAME, next index burned
+        try:
+            stage_reserve("res-actor", kit_dir=kit, base_dir=fxdir,
+                          ledger_source=led_res)
+            checks.append(("double-stage refused (one reserve per actor)",
+                           False))
+        except ValueError as exc:
+            checks.append(("double-stage refused (one reserve per actor)",
+                           "one reserve per actor" in str(exc)
+                           and "--replace-reserve" in str(exc)))
+        rep2 = stage_reserve("res-actor", kit_dir=kit, base_dir=fxdir,
+                             ledger_source=led_res, replace=True)
+        retired = [d for d in os.listdir(kit)
+                   if d.startswith(_RESERVE_PREFIX + "res-actor_retired")]
+        with open(os.path.join(kit, retired[0], RESERVE_META_NAME), "r",
+                  encoding="utf-8") as f:
+            old_meta = json.load(f)
+        checks.append(("--replace-reserve retires the old reserve BY NAME "
+                       "(retired-unanchored) and burns the next index",
+                       rep2["key_index"] == 2 and len(retired) == 1
+                       and old_meta["status"] == "retired-unanchored"))
+
+        # [n4] signing-index-consumed enforcement: locally, and via the
+        # cross-type scan on a temp anchor (reuse named FIRST)
+        with open(kcR_path, "r", encoding="utf-8") as f:
+            kc_now = json.load(f)
+        try:
+            sign(kc_now, rep2["key_index"], b"any other message")
+            checks.append(("staged signing index refuses any other "
+                           "signature locally", False))
+        except ValueError as exc:
+            checks.append(("staged signing index refuses any other "
+                           "signature locally", "already used" in str(exc)))
+        with open(os.path.join(kit, _RESERVE_PREFIX + "res-actor",
+                               RESERVE_CERT_NAME), "r",
+                  encoding="utf-8") as f:
+            cert2 = json.load(f)
+        anchored = led_res + [_synthetic_rotation_entry(cert2, 2)]
+        scan_sees = any(u["key_index"] == cert2["key_index"]
+                        for u in uses_for_root("res-actor", anchored,
+                                               cert2["prev_root"]))
+        kcC = build_keychain_from_privates("res-actor",
+                                          _fixture_privates(4, "resC"))
+        rival = {k: v for k, v in cert2.items() if k != "signature"}
+        rival["new_root"] = kcC["merkle_root"]
+        rival["new_leaf_hashes_hash"] = _sha256_hex(
+            canonical_json(kcC["leaf_hashes"]).encode("utf-8"))
+        rival["signature"] = sign(copy.deepcopy(kcR), cert2["key_index"],
+                                  canonical_json(rival).encode("utf-8"),
+                                  force_reuse=True)
+        ok_r, reasons_r = verify_rotation_certificate(rival, anchored)
+        checks.append(("cross-type scan on a temp anchor: staged index "
+                       "consumed; a rival signature is rejected, reuse FIRST",
+                       scan_sees and not ok_r
+                       and "one-time key index reuse" in reasons_r[0]))
+
+        # [n5] end-of-life refusal: an exhausted active chain cannot stage
+        eol_dir = os.path.join(tmp, "eol")
+        os.makedirs(eol_dir)
+        kcEol = build_keychain_from_privates("eol-actor",
+                                             _fixture_privates(2, "eolA"))
+        with open(os.path.join(eol_dir, "keychain_eol.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump(kcEol, f, indent=2, sort_keys=True)
+        led_eol = [_reg_entry(1, kcEol), _use_entry(2, "eol-actor", 0),
+                   _use_entry(3, "eol-actor", 1, cid="c" * 64)]
+        try:
+            stage_reserve("eol-actor", kit_dir=os.path.join(tmp, "eolkit"),
+                          base_dir=eol_dir, ledger_source=led_eol)
+            checks.append(("exhausted chain: stage-reserve refuses with the "
+                           "end-of-life reason", False))
+        except ValueError as exc:
+            checks.append(("exhausted chain: stage-reserve refuses with the "
+                           "end-of-life reason",
+                           "end of life" in str(exc)
+                           and "BEFORE exhaustion" in str(exc)))
+
+        # [n6] identity-health on fixtures: counts, citations, reserve
+        # states (staged / none / retired-after-rotation), named risk lines
+        doc = identity_health(ledger_source=led_res, base_dir=fxdir,
+                              kit_dir=kit)
+        ha = doc["actors"][0]
+        srcs = {r["key_index"]: " ".join(r["sources"])
+                for r in ha["consumed"]}
+        checks.append(("identity-health: counts + citations correct (local "
+                       "+ on-chain union; reserve signatures identified)",
+                       ha["keys_total"] == 4 and ha["keys_consumed"] == 3
+                       and ha["keys_remaining"] == 1
+                       and "ledger:2" in srcs[0]
+                       and "reserve rotation-certificate" in srcs[1]
+                       and "reserve rotation-certificate" in srcs[2]))
+        checks.append(("identity-health: staged reserve named in the risk "
+                       "line",
+                       ha["reserve"]["state"] == "staged"
+                       and any("reserve staged" in r for r in ha["risks"])))
+        kcH = build_keychain_from_privates("hb-actor",
+                                           _fixture_privates(4, "hbA"))
+        with open(os.path.join(fxdir, "keychain_hb.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump(kcH, f, indent=2, sort_keys=True)
+        led_h = led_res + [_reg_entry(3, kcH),
+                           _use_entry(4, "hb-actor", 0, cid="d" * 64)]
+        doc2 = identity_health(ledger_source=led_h, base_dir=fxdir,
+                               kit_dir=kit)
+        hb = next(x for x in doc2["actors"] if x["actor_id"] == "hb-actor")
+        checks.append(("identity-health: no-reserve risk names the counts "
+                       "and directs to staging",
+                       hb["keys_remaining"] == 3
+                       and any("no reserve -> stage one" in r
+                               for r in hb["risks"])))
+        kcZ = build_keychain_from_privates("res-actor",
+                                           _fixture_privates(4, "resZ"))
+        led_rot2 = led_h + [{"index": 5, "payload": {
+            "event": _ROTATION_EVENT, "status": _ROTATION_STATUS,
+            "actor_id": "res-actor", "prev_root": kcR["merkle_root"],
+            "new_root": kcZ["merkle_root"], "new_key_count": 4,
+            "signed": True, "signer_actor_id": "res-actor",
+            "key_index": 3}}]
+        doc3 = identity_health(ledger_source=led_rot2, base_dir=fxdir,
+                               kit_dir=kit)
+        hc = next(x for x in doc3["actors"] if x["actor_id"] == "res-actor")
+        checks.append(("identity-health: reserve flagged retired after an "
+                       "anchored rotation (stale, can never anchor)",
+                       hc["reserve"]["state"] == "retired-stale"
+                       and any("re-stage" in r for r in hc["risks"])))
+
+        # [n7] tracked-path refusal: a trackable in-repo kit dir is refused
+        # FIRST, before any key material or ledger state is touched (base_dir
+        # is the real repo here, exactly as the CLI runs it)
+        probe = os.path.join(_REPO_ROOT, "protocol", "reserve_refusal_probe")
+        try:
+            stage_reserve("res-actor", kit_dir=probe,
+                          ledger_source=led_res)
+            checks.append(("stage-reserve REFUSES a tracked in-repo kit "
+                           "destination", False))
+        except ValueError as exc:
+            checks.append(("stage-reserve REFUSES a tracked in-repo kit "
+                           "destination",
+                           "refusing" in str(exc).lower()
+                           and not os.path.exists(probe)))
+
+        # [n8] identity-health runs read-only on the real corpus (live
+        # ledger when present, else the published snapshot a clone has)
+        smoke = identity_health()
+        checks.append(("identity-health runs on the real corpus (read-only "
+                       "smoke)",
+                       isinstance(smoke, dict)
+                       and len(smoke["actors"]) >= 1))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # ZERO-LEDGER-WRITES PROOF: pre-staging is preparation, not a protocol
+    # event — the real ledger is byte-identical (the continuity idiom).
+    if ledger_sha_before is not None:
+        checks.append(("REAL ledger byte-identical before/after (ZERO "
+                       "ledger writes — staging is preparation, not a "
+                       "protocol event)",
+                       _sha256_file(real_ledger) == ledger_sha_before))
+    else:
+        print("    (no real ledger on this machine — the byte-identical "
+              "assertion leg is SKIPPED, named; all reserve legs above ran "
+              "on temp fixtures)")
 
     # honest cost, stated
     priv_bytes = _BITS * 2 * 32
