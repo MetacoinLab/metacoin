@@ -141,6 +141,19 @@ recovery_manifest.json
 continuity_kit/
 mirror_export/
 
+# power-telemetry probe working files (protocol/power_telemetry.py): sensor
+# readings are host-local MEASUREMENTS (they fix a claim at measurement time,
+# not a recomputable value) — local working artifacts, never committed. Any
+# measured-power upgrade enters the record as a NEW anchored metering
+# generation at the next milestone batch, never as a committed working file.
+sensor_inventory.json
+power_characterization.json
+
+# PROV export working files (protocol/prov_export.py): derived, deterministic
+# projections of work molecules — rebuildable from the ledger + evidence bundle
+# on demand, so the canonical record stays the molecule catalog, not the export.
+prov_*.json
+
 # ============================================================================
 # PUBLISHED EVIDENCE BUNDLE (protocol/evidence/) — the deliberate EXCEPTION to
 # every local-artifact ignore rule above. These are privacy-checked COPIES of

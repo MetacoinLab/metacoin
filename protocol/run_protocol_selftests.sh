@@ -36,6 +36,8 @@ TESTS=(
     "metawork_passport.py --selftest"
     "continuity.py --selftest"
     "routine_sweep.py --selftest"
+    "power_telemetry.py --selftest"
+    "prov_export.py --selftest"
     "../metacoin_cli/selftest.py"
 )
 
