@@ -31,6 +31,9 @@ in order:
                    the sampled current-chain ACI_k profile (typed, with
                    intervals). The sweep's job is to notice UNEXPECTED
                    change; expected drift is listed under its own heading.
+  9. docs        — the verified documentation suite: doc_verify --check
+                   (every doc command executed, every number chain-checked,
+                   every idx reference resolved; named skip if docs/ absent)
 
 ZERO LEDGER WRITES: the sweep only reads. The self-test asserts the real
 ledger byte-identical before/after (the continuity idiom).
@@ -566,6 +569,39 @@ def section_drift(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
 
 
 # ----------------------------------------------------------------------------
+# 9: docs — the verified documentation suite (the doc contract, enforced)
+# ----------------------------------------------------------------------------
+def section_docs(base_dir: str = _REPO_ROOT) -> dict:
+    """Run doc_verify --check: every doc command executed in a fresh-clone
+    sandbox, every stated number recomputed from live state, every idx
+    reference resolved. Stale docs are FINDINGS (the deliberate --render +
+    commit step is how they heal); an absent docs/ is a NAMED skip."""
+    docs_dir = os.path.join(base_dir, "docs")
+    tool = os.path.join(base_dir, "protocol", "doc_verify.py")
+    if not os.path.isdir(docs_dir) or not os.path.exists(tool):
+        return _section("docs", [], ["no docs/ suite on this checkout — "
+                                     "SKIPPED (named)"], skipped=True)
+    findings, details = [], []
+    try:
+        r = _run([sys.executable, tool, "--check"], base_dir, 1800)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return _section("docs", [f"doc_verify could not run: {exc}"], [])
+    tail = [ln for ln in r.stdout.splitlines() if ln.strip()]
+    if r.returncode == 0:
+        details.append(next((ln for ln in tail if ln.startswith("DOC-VERIFY")),
+                            "DOC-VERIFY: CLEAN"))
+        details.append(next((ln for ln in tail if ln.startswith("docs checked")),
+                            ""))
+    else:
+        findings.extend(ln.strip() for ln in tail
+                        if ln.strip().startswith("- ")
+                        or ln.startswith("DOC-VERIFY"))
+        if not findings:
+            findings.append(f"doc_verify --check exited {r.returncode}")
+    return _section("docs", findings, details)
+
+
+# ----------------------------------------------------------------------------
 # Assembly + verdict
 # ----------------------------------------------------------------------------
 def assemble_report(sections: list) -> dict:
@@ -596,6 +632,7 @@ def run_sweep(base_dir: str = _REPO_ROOT) -> dict:
         section_evidence(base_dir),
         section_git(base_dir),
         section_drift(base_dir),
+        section_docs(base_dir),
     ])
 
 
@@ -836,6 +873,18 @@ def _selftest() -> int:
                        and parse_suite_summary("  15/17 passed, 2 failed")
                        == (15, 17, 2)
                        and parse_suite_summary("nothing here") is None))
+
+        # [10] docs section: a checkout with no docs/ suite -> NAMED skip
+        # (doc_verify's own self-test covers the finding paths; the sweep
+        # only needs to prove it never invents a verdict where no docs exist)
+        fx_nodocs = os.path.join(tmp, "nodocs")
+        os.makedirs(fx_nodocs)
+        s_nodocs = section_docs(fx_nodocs)
+        checks.append(("docs section on a docs-less checkout is a NAMED skip",
+                       s_nodocs["status"] == "skip"
+                       and not s_nodocs["findings"]
+                       and any("SKIPPED (named)" in d
+                               for d in s_nodocs["details"])))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
