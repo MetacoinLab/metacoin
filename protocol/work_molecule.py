@@ -812,10 +812,22 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
     idx-17 generation; 0.3 molecules -> catalog/0.2). `as_of_index` is the
     generation-lock rebuild mode (see build_molecule): an anchored catalog at ledger
     index N rebuilds exactly with as_of_index = N - 1.
+
+    REGISTERED-BUT-UNRECORDED TASKS ARE SKIPPED (the cut_certificate._molecule_pool
+    precedent): a molecule REQUIRES a citing ledger record, so a registry task with
+    no records in the (as-of) chain state cannot appear — this is what keeps every
+    anchored generation pinned to its HISTORICAL roster by chain state alone when
+    the registry later grows (new tasks stay unanchored until the next milestone
+    batch). The skip is never silent where it matters: catalog comparisons against
+    an anchored catalog_hash/entries list alarm loudly on any roster difference,
+    and the routine sweep reports the registered-vs-recorded delta as typed drift.
+    An explicit `task_ids` list still raises for an unrecorded task — narrowing
+    callers named the roster and get told when it cannot be built.
     """
     if schema_version not in SUPPORTED_SCHEMAS:
         raise ValueError(f"unsupported molecule schema {schema_version!r}; "
                          f"supported: {SUPPORTED_SCHEMAS}")
+    skip_unrecorded = task_ids is None
     if task_ids is None:
         task_ids = sorted(TASK_MODULES)
     entries = []
@@ -825,11 +837,18 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
         special = _CATALOG_SUBMISSIONS.get(short)
         if special is not None:
             submission_path = find_evidence_file(special)
-        molecule = build_molecule(short, ledger_path=ledger_path,
-                                  submission_path=submission_path,
-                                  schema_version=schema_version,
-                                  metering_report_path=metering_report_path,
-                                  as_of_index=as_of_index)
+        try:
+            molecule = build_molecule(short, ledger_path=ledger_path,
+                                      submission_path=submission_path,
+                                      schema_version=schema_version,
+                                      metering_report_path=metering_report_path,
+                                      as_of_index=as_of_index)
+        except ValueError as exc:
+            # ONLY the no-citing-records case is skippable; any other build
+            # failure (missing spec file, malformed record) stays loud.
+            if skip_unrecorded and "no ledger entries reference" in str(exc):
+                continue
+            raise
         ok, reasons = validate(molecule, ledger_path=ledger_path)
         if not ok:
             raise ValueError(f"molecule for {short} does not validate: {reasons}")
@@ -1335,6 +1354,28 @@ def _selftest() -> int:
                        and c1["molecule_schema"] == SCHEMA_VERSION_02
                        and [sorted(e) for e in c1["entries"]] ==
                        [["task_id", "work_id"]]))
+
+        # [7c-2] ROSTER-PIN semantics: with the DEFAULT roster (task_ids=None),
+        # registry tasks with no records in this ledger are SKIPPED — the fixture
+        # ledger only records task-0001, so the catalog contains exactly that one
+        # regardless of how large the live registry grows (this is what keeps
+        # anchored generations pinned to their historical roster by chain state).
+        # An EXPLICIT roster naming an unrecorded task still raises.
+        c_default = build_catalog(ledger_path=fixture_ledger,
+                                  schema_version=SCHEMA_VERSION_02)
+        checks.append(("default-roster catalog skips registered-but-unrecorded "
+                       "tasks (fixture: exactly task-0001)",
+                       [e["task_id"] for e in c_default["entries"]]
+                       == ["task-0001"]))
+        try:
+            build_catalog(ledger_path=fixture_ledger,
+                          task_ids=["task-0001", "task-0002"],
+                          schema_version=SCHEMA_VERSION_02)
+            explicit_raised = False
+        except ValueError:
+            explicit_raised = True
+        checks.append(("explicit roster naming an unrecorded task still raises",
+                       explicit_raised))
 
         # ---- schema 0.3: append-only absorption of metering evidence -----------------
         # [7d] a ledger WITHOUT a metering anchor still builds 0.3 gracefully: the

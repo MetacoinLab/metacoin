@@ -59,6 +59,9 @@ TASK_MODULES = {
     "task-0011": "demo.tasks.task_0011_ballistic_reentry",
     "task-0012": "demo.tasks.task_0012_comms_link_budget",
     "task-0013": "demo.tasks.task_0013_lambert_transfer",
+    "task-0014": "demo.tasks.task_0014_fdir_state_machine",
+    "task-0015": "demo.tasks.task_0015_sabatier_isru",
+    "task-0016": "demo.tasks.task_0016_triad_attitude",
 }
 
 # Honest note embedded in every submission (and visible in output).

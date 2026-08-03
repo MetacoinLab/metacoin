@@ -112,8 +112,12 @@ def _selftest() -> int:
                        code == 0 and st.get("snapshot_verifies") is True
                        and st.get("anchor_tip_matches") is True))
         code, out = _run_cli(["task", "list", "--json"])
-        checks.append(("task list: 13 tasks with taxonomy tags",
-                       code == 0 and len(json.loads(out)) == 13))
+        # LIVE-ROSTER consumer: the CLI lists the registry, which legitimately
+        # grows ahead of the anchored corpus (new tasks stay unanchored until
+        # the next milestone batch) — so the expectation is the registry itself.
+        from protocol.verifier_cli import TASK_MODULES
+        checks.append((f"task list: all {len(TASK_MODULES)} registered tasks",
+                       code == 0 and len(json.loads(out)) == len(TASK_MODULES)))
         code, out = _run_cli(["task", "run", "task-0007", "--json"])
         checks.append(("task run task-0007 recomputes a hash",
                        code == 0

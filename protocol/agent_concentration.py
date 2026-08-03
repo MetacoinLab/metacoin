@@ -709,7 +709,13 @@ def build_paths(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH,
 
     `as_of_index` is the generation-lock rebuild mode (see work_molecule): the ACI
     baseline anchored at ledger index N re-measures exactly with as_of_index = N-1,
-    while an unbounded re-measurement reflects the current chain."""
+    while an unbounded re-measurement reflects the current chain.
+
+    REGISTERED-BUT-UNRECORDED TASKS ARE SKIPPED (the work_molecule.build_catalog
+    semantics): a recordless task has no verification paths by definition, and the
+    skip keeps anchored ACI generations pinned to their historical roster by chain
+    state alone as the registry grows. Path-count comparisons against the anchored
+    baselines alarm loudly on any roster difference."""
     molecules = []
     for tid in sorted(work_molecule.TASK_MODULES):
         submission_path = None
@@ -719,9 +725,14 @@ def build_paths(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH,
             # evidence bundle) — citations stay basename-only, so location never
             # leaks into molecule content or the ACI measurement
             submission_path = work_molecule.find_evidence_file(special)
-        molecule = work_molecule.build_molecule(tid, ledger_path=ledger_path,
-                                                submission_path=submission_path,
-                                                as_of_index=as_of_index)
+        try:
+            molecule = work_molecule.build_molecule(tid, ledger_path=ledger_path,
+                                                    submission_path=submission_path,
+                                                    as_of_index=as_of_index)
+        except ValueError as exc:
+            if "no ledger entries reference" in str(exc):
+                continue
+            raise
         ok, reasons = work_molecule.validate(molecule, ledger_path=ledger_path)
         if not ok:
             raise ValueError(f"molecule for {tid} does not validate: {reasons}")

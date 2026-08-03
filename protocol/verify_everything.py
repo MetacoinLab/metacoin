@@ -227,21 +227,32 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
             elif p.get("molecule_schema") == work_molecule.SCHEMA_VERSION_03:
                 gen2_i, gen2 = e["index"], p
 
-    # --- layer 2: the thirteen tasks ---------------------------------------------
+    # --- layer 2: the recorded tasks -----------------------------------------------
+    # Every RECORDED task must re-derive its ledger hash exactly. Registry tasks
+    # with no ledger record yet (new tasks stay unanchored until the next
+    # milestone batch — the standing cadence policy) are counted and NAMED,
+    # never failed and never silently skipped: absence of a record is expected
+    # evolution; a mismatch on a recorded task is always a failure.
     task_ids = sorted(verifier_cli.TASK_MODULES)
     canonical = {}
     if full:
-        bad = []
+        bad, unanchored = [], []
         for tid in task_ids:
             module = verifier_cli.load_task(tid)
             local = module.output_hash(module.compute())
             canonical[tid] = local
             recorded = _find_task_hash(entries, tid)
-            if recorded != local:
+            if recorded is None:
+                unanchored.append(tid)
+            elif recorded != local:
                 bad.append(tid)
-        rows.append(("tasks (13 re-run)", FULL, not bad,
-                     "all 13 canonical hashes re-derived and match the ledger"
-                     if not bad else f"hash mismatch: {bad}"))
+        recorded_n = len(task_ids) - len(unanchored)
+        note = (f"all {recorded_n} recorded canonical hashes re-derived and "
+                "match the ledger" if not bad else f"hash mismatch: {bad}")
+        if unanchored:
+            note += (f"; {len(unanchored)} registered-unanchored "
+                     f"{unanchored} (expected until the next milestone anchor)")
+        rows.append((f"tasks ({recorded_n} re-run)", FULL, not bad, note))
     else:
         probe = "task-0002"
         module = verifier_cli.load_task(probe)
@@ -415,7 +426,16 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
     if idx22 is None:
         rows.append(("cut certificate", FULL, False, "no anchored cut certificate"))
     elif full:
-        cert = cut_certificate.build_cut(task_ids, ledger_path=source,
+        # ROSTER PIN: the cut's roots are the tasks RECORDED as of the anchor's
+        # chain state, never the live registry — registry growth (new tasks stay
+        # unanchored until the next milestone batch) must not change what the
+        # anchored idx-22 certificate is rebuilt over.
+        as_of_entries = [e for e in entries
+                         if isinstance(e.get("index"), int)
+                         and e["index"] <= idx22_i - 1]
+        cut_roots = [tid for tid in task_ids
+                     if _find_task_hash(as_of_entries, tid) is not None]
+        cert = cut_certificate.build_cut(cut_roots, ledger_path=source,
                                          as_of_index=idx22_i - 1)
         hash_ok = cert["certificate_hash"] == idx22["certificate_hash"]
         v_ok, _v_reasons = cut_certificate.verify_full(cert, ledger_path=source,

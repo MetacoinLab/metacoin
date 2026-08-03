@@ -388,13 +388,26 @@ def build_tv_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
                      as_of_index: int = None) -> dict:
     """Build + validate the vector for every known task; return the catalog dict
     ({schema, vector_entries, catalog_hash} — the idx-17 record-shape precedent).
-    `as_of_index` is the generation-lock rebuild mode (see build_vector)."""
+    `as_of_index` is the generation-lock rebuild mode (see build_vector).
+
+    REGISTERED-BUT-UNRECORDED TASKS ARE SKIPPED when the default roster is in
+    effect (the work_molecule.build_catalog / cut_certificate._molecule_pool
+    semantics): a vector derives from a molecule, and a molecule requires citing
+    records — this keeps anchored generations pinned to their historical roster
+    by chain state alone as the registry grows. An explicit `task_ids` list
+    still raises for an unrecorded task."""
+    skip_unrecorded = task_ids is None
     if task_ids is None:
         task_ids = sorted(TASK_MODULES)
     vector_entries = []
     for tid in sorted(normalize_task_id(t) for t in task_ids):
-        vector = build_vector(tid, ledger_path=ledger_path,
-                              as_of_index=as_of_index)
+        try:
+            vector = build_vector(tid, ledger_path=ledger_path,
+                                  as_of_index=as_of_index)
+        except ValueError as exc:
+            if skip_unrecorded and "no ledger entries reference" in str(exc):
+                continue
+            raise
         ok, reasons = validate_vector(vector, ledger_path=ledger_path)
         if not ok:
             raise ValueError(f"vector for {tid} does not validate: {reasons}")

@@ -520,17 +520,30 @@ def section_drift(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
     # anchored catalog generation (new verification events -> new WMIDs)
     if last_cat is not None:
         lock = last_cat["index"] - 1
-        drifted = []
+        drifted, unanchored = [], []
         for tid in sorted(work_molecule.TASK_MODULES):
             sub = None
             if tid in work_molecule._CATALOG_SUBMISSIONS:
                 sub = work_molecule.find_evidence_file(
                     work_molecule._CATALOG_SUBMISSIONS[tid])
-            live = work_molecule.build_molecule(tid, ledger_path=src,
-                                                submission_path=sub)
-            locked = work_molecule.build_molecule(tid, ledger_path=src,
-                                                  submission_path=sub,
-                                                  as_of_index=lock)
+            try:
+                live = work_molecule.build_molecule(tid, ledger_path=src,
+                                                    submission_path=sub)
+            except ValueError:
+                # registry task with no ledger records yet: no molecule exists
+                # on ANY chain state — typed below, never a crash or a finding
+                unanchored.append(tid)
+                continue
+            try:
+                locked = work_molecule.build_molecule(tid, ledger_path=src,
+                                                      submission_path=sub,
+                                                      as_of_index=lock)
+            except ValueError:
+                # recorded only AFTER the lock point: the molecule did not
+                # exist in the anchored generation at all — maximal drift,
+                # absorbed by the next catalog generation
+                drifted.append(tid)
+                continue
             if live["work_id"] != locked["work_id"]:
                 drifted.append(tid)
         details.append(
@@ -538,6 +551,12 @@ def section_drift(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
             f"at ledger:{last_cat['index']}: {len(drifted)} molecule(s) "
             f"absorbed post-anchor events {drifted} — new generations are "
             "how the catalog evolves; never a rewrite")
+        if unanchored:
+            details.append(
+                f"EXPECTED EVOLUTION — registered-unanchored tasks: "
+                f"{len(unanchored)} {unanchored} have no ledger records yet "
+                "(the cadence policy: new tasks join the corpus at the next "
+                "milestone anchor batch; until then they are registry-only)")
 
     paths = agent_concentration.build_paths(ledger_path=src)
     if idx18 is not None:

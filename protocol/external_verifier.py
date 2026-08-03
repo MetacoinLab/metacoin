@@ -3782,7 +3782,8 @@ def _selftest() -> int:
             ev_cut["status"] == "cut-certificate-confirmed"
             and out_cut["ledger_entry"] is not None
             and ev_cut["coordinator_reconfirmed"]["full_verification_passed"] is True
-            and ev_cut["coordinator_reconfirmed"]["rebuilt_interior_count"] == 13
+            and ev_cut["coordinator_reconfirmed"]["rebuilt_interior_count"]
+            == len(verifier_cli.TASK_MODULES)  # fixture records EVERY registry task
             and cut_chain_ok is True,
             ev_cut["status"],
         ))
@@ -3796,8 +3797,10 @@ def _selftest() -> int:
             "task_id" not in ev_cut and "task_ids" not in ev_cut
             and "interior" not in ev_cut and "root_work_ids" not in ev_cut
             and "boundary_input_ids" not in ev_cut
-            and ev_cut["interior_count"] == 13 and ev_cut["boundary_count"] == 0
-            and accepted and "rebuilt 1 of 13" in cost_note,
+            and ev_cut["interior_count"] == len(verifier_cli.TASK_MODULES)
+            and ev_cut["boundary_count"] == 0
+            and accepted
+            and f"rebuilt 1 of {len(verifier_cli.TASK_MODULES)}" in cost_note,
             f"task-keys={sorted(k for k in ev_cut if 'task_id' in k)}",
         ))
 
@@ -3856,10 +3859,11 @@ def _selftest() -> int:
         ev_tv = out_tv["evaluation"]
         tv_chain_ok, _tv_reason = Ledger(met_ledger_a).verify_chain()
         checks.append((
-            "TRUST-VECTOR CATALOG CONFIRMED (13 vectors rebuilt -> anchored)",
+            "TRUST-VECTOR CATALOG CONFIRMED (all registry vectors rebuilt -> "
+            "anchored)",
             ev_tv["status"] == "trust-vector-catalog-confirmed"
             and out_tv["ledger_entry"] is not None
-            and ev_tv["vector_count"] == 13
+            and ev_tv["vector_count"] == len(verifier_cli.TASK_MODULES)
             and ev_tv["coordinator_reconfirmed"]["catalog_hash_matches"] is True
             and tv_chain_ok is True,
             ev_tv["status"],
@@ -4570,8 +4574,19 @@ def _selftest() -> int:
                                and e["payload"].get("status") ==
                                _CUT_CONFIRMED_STATUS), None)
             if cut_anchor is not None:
+                # ROSTER PIN (the verify_everything cut-layer rule): the anchored
+                # cut's roots are the tasks RECORDED as of its chain state, never
+                # the live registry — new registry tasks stay unanchored until
+                # the next milestone batch and must not enter this rebuild.
+                cut_roots = [
+                    tid for tid in sorted(verifier_cli.TASK_MODULES)
+                    if any(work_molecule._payload_references_task(
+                               e.get("payload"), tid)
+                           for e in real_entries
+                           if isinstance(e.get("index"), int)
+                           and e["index"] <= cut_anchor["index"] - 1)]
                 cut_after = cut_certificate.build_cut(
-                    sorted(verifier_cli.TASK_MODULES), ledger_path=triple_ledger,
+                    cut_roots, ledger_path=triple_ledger,
                     as_of_index=cut_anchor["index"] - 1)
                 cut_accept, _cut_note = cut_certificate.accept_by_anchor(
                     cut_after, ledger_path=triple_ledger)

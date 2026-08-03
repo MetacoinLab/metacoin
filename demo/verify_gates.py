@@ -47,6 +47,9 @@ import demo.tasks.task_0010_thermal_equilibrium as task_0010
 import demo.tasks.task_0011_ballistic_reentry as task_0011
 import demo.tasks.task_0012_comms_link_budget as task_0012
 import demo.tasks.task_0013_lambert_transfer as task_0013
+import demo.tasks.task_0014_fdir_state_machine as task_0014
+import demo.tasks.task_0015_sabatier_isru as task_0015
+import demo.tasks.task_0016_triad_attitude as task_0016
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -67,6 +70,9 @@ _TASK_REGISTRY = {
     "task-0011-ballistic-reentry": task_0011,
     "task-0012-comms-link-budget": task_0012,
     "task-0013-lambert-transfer": task_0013,
+    "task-0014-fdir-state-machine": task_0014,
+    "task-0015-sabatier-isru": task_0015,
+    "task-0016-triad-attitude": task_0016,
 }
 
 
@@ -266,6 +272,9 @@ if __name__ == "__main__":
         ("task-0011-ballistic-reentry", task_0011),
         ("task-0012-comms-link-budget", task_0012),
         ("task-0013-lambert-transfer", task_0013),
+        ("task-0014-fdir-state-machine", task_0014),
+        ("task-0015-sabatier-isru", task_0015),
+        ("task-0016-triad-attitude", task_0016),
     ]
 
     print("=== verify_gates.py self-test (task-agnostic: Gate-1 stand-in + Gate-2 + two-run reproducibility) ===\n")

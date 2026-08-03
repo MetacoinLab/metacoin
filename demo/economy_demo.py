@@ -106,8 +106,13 @@ ROUND_DECIMALS = 6           # applied to every numeric that enters the log (all
 
 AGENT_ADDRESS = "economy-sim-agent"
 
-# The 13 registered tasks in task-id order; day d runs TASKS[d % 13], so every task is
-# exercised (30 days over 13 tasks: tasks 0001-0004 three times, the rest twice).
+# FROZEN ROSTER — deliberately NOT the live task registry. This is the exact
+# 13-task rotation the anchored idx-19 economy summary was produced over
+# (day d runs TASKS[d % 13]; 30 days: tasks 0001-0004 three times, the rest
+# twice), and verify_everything's economy layer re-runs THIS list and requires
+# the log hash to equal the anchored one. Growing it would silently break that
+# anchored replay: new registry tasks (task-0014+) join a NEW economy
+# generation at a future anchor, never this list.
 TASKS = [
     ("task-0001", task_0001), ("task-0002", task_0002), ("task-0003", task_0003),
     ("task-0004", task_0004), ("task-0005", task_0005), ("task-0006", task_0006),
