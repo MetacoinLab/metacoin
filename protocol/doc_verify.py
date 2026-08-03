@@ -80,7 +80,8 @@ if _REPO_ROOT not in sys.path:
 
 # REUSE: chain-source resolution, ledger reader, evidence discovery, task registry.
 from protocol.prov_export import resolve_ledger_path
-from protocol.work_molecule import _read_ledger, find_evidence_file
+from protocol.work_molecule import (_read_ledger, find_evidence_file,
+                                    _payload_references_task)
 from protocol.verifier_cli import TASK_MODULES
 
 DOCS_DIR = os.path.join(_REPO_ROOT, "docs")
@@ -139,6 +140,13 @@ def compute_tokens(repo_root=_REPO_ROOT, entries=None):
         "tip_hash_prefix": tip["hash"][:12],
         "genesis_hash_prefix": entries[0]["hash"][:12],
         "task_count": str(len(TASK_MODULES)),
+        # Registered vs RECORDED can legitimately differ: new tasks stay
+        # unanchored until the next milestone batch (the cadence policy), so
+        # docs must be able to state each number honestly.
+        "recorded_task_count": str(sum(
+            1 for tid in TASK_MODULES
+            if any(_payload_references_task(e.get("payload"), tid)
+                   for e in entries if isinstance(e, dict)))),
         "actor_count": str(len({e["payload"]["actor_id"] for e in entries
                                 if e.get("payload", {}).get("event")
                                 == "actor_key_registered"})),

@@ -48,8 +48,12 @@ The pasted run below is trimmed to the shape of the report; the full pass has
   <!--chain:tip_hash_prefix-->5b7bf7eb0025<!--/chain-->…, and the committed tip anchor
   matches. In a fresh clone the published snapshot is the source, and the
   report names that.
-- **tasks** — all <!--chain:task_count-->13<!--/chain--> demo tasks re-run to
-  their canonical output hashes.
+- **tasks** — all <!--chain:recorded_task_count-->13<!--/chain--> recorded
+  demo tasks re-run to their canonical output hashes. The registry holds
+  <!--chain:task_count-->16<!--/chain--> tasks in total; registry tasks not
+  yet on the ledger (new tasks join the corpus at the next milestone anchor
+  batch) are counted and named by the report as registered-unanchored —
+  expected evolution, never a failure and never silently skipped.
 - **molecules 0.2 / 0.3** — both anchored work-molecule catalog generations
   rebuild byte-identically, generation-locked to their anchors (idx 17
   <!--idx:17=work_molecule_catalog_anchored--> and later — see
@@ -119,7 +123,7 @@ $ python3 -c "import sys; sys.path.insert(0,'.'); from protocol.verify_everythin
 The suites behind the report are runnable directly:
 `protocol/run_protocol_selftests.sh`
 (<!--chain:protocol_suite_count-->20<!--/chain--> self-tests) and
-`demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->22<!--/chain-->
+`demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->25<!--/chain-->
 self-tests) — CI requires both green plus a fresh-clone full pass on every
 commit. The layer tools remain individually available (`audit.py --verify`,
 `agent_verifier.py`, `challenge_response.py`, …) — the flagship adds no

@@ -21,8 +21,11 @@ says, for each layer, what it proves and what it deliberately does not.
 ## The work layer — idx 0-16
 
 The chain opens with genesis (idx 0 <!--idx:0=ledger_genesis-->) and the
-verification corpus for <!--chain:task_count-->13<!--/chain--> deterministic
-demo tasks:
+verification corpus for <!--chain:recorded_task_count-->13<!--/chain-->
+deterministic demo tasks. (The task *registry* has since grown to
+<!--chain:task_count-->16<!--/chain--> — newer tasks stay registered-but-
+unanchored until the next milestone anchor batch, per the cadence policy, and
+every verifier reports them by name rather than absorbing them silently.)
 
 - One **external verification** (idx 1
   <!--idx:1=external_verification_result-->): a second machine re-derived
@@ -36,7 +39,8 @@ demo tasks:
   adding *no cross-party independence*.
 
 **Proves:** cross-platform deterministic reproducibility of all
-<!--chain:task_count-->13<!--/chain--> task outputs. **Deliberately does not:**
+<!--chain:recorded_task_count-->13<!--/chain--> recorded task outputs.
+**Deliberately does not:**
 independence (every verifier is the same operator, and each record's
 `operator_relationship` field says so) or execution proof (a matching hash can
 be copied; the protocol says "re-derived", never "proven executed").
