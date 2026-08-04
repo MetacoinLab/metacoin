@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->47<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->5b7bf7eb0025<!--/chain-->…,
-> <!--chain:entry_count-->48<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->54<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->e71c5e478cd6<!--/chain-->…,
+> <!--chain:entry_count-->55<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->48<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->55<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -21,11 +21,12 @@ says, for each layer, what it proves and what it deliberately does not.
 ## The work layer — idx 0-16
 
 The chain opens with genesis (idx 0 <!--idx:0=ledger_genesis-->) and the
-verification corpus for <!--chain:recorded_task_count-->13<!--/chain-->
-deterministic demo tasks. (The task *registry* has since grown to
-<!--chain:task_count-->16<!--/chain--> — newer tasks stay registered-but-
-unanchored until the next milestone anchor batch, per the cadence policy, and
-every verifier reports them by name rather than absorbing them silently.)
+verification corpus for the first 13 deterministic demo tasks. (The registry
+now holds <!--chain:task_count-->17<!--/chain--> tasks and — since the idx
+48-52 milestone batch, per the cadence policy — all
+<!--chain:recorded_task_count-->17<!--/chain--> are recorded; between
+milestones, newly registered tasks stay registered-but-unanchored and every
+verifier reports them by name rather than absorbing them silently.)
 
 - One **external verification** (idx 1
   <!--idx:1=external_verification_result-->): a second machine re-derived
@@ -39,7 +40,7 @@ every verifier reports them by name rather than absorbing them silently.)
   adding *no cross-party independence*.
 
 **Proves:** cross-platform deterministic reproducibility of all
-<!--chain:recorded_task_count-->13<!--/chain--> recorded task outputs.
+<!--chain:recorded_task_count-->17<!--/chain--> recorded task outputs.
 **Deliberately does not:**
 independence (every verifier is the same operator, and each record's
 `operator_relationship` field says so) or execution proof (a matching hash can
@@ -59,8 +60,9 @@ be copied; the protocol says "re-derived", never "proven executed").
 - **Catalog generation 2** (idx 21) absorbs that metering evidence into
   schema-0.3 molecules; **generation 3** (idx 26
   <!--idx:26=work_molecule_catalog_anchored-->) absorbs the later
-  challenge records. The chain carries
-  <!--chain:catalog_anchor_count-->3<!--/chain--> catalog anchors in total —
+  challenge records; **generation 4** (idx 53) opens the parented-provenance
+  era, narrated in its own layer below. The chain carries
+  <!--chain:catalog_anchor_count-->4<!--/chain--> catalog anchors in total —
   and **every generation stays verifiable forever**: a generation-locked
   rebuild (`--as-of` the anchor's chain point) must re-derive each anchored
   catalog byte-for-byte. That is the **generation/cadence model**: new
@@ -68,7 +70,8 @@ be copied; the protocol says "re-derived", never "proven executed").
   under new identifiers, and no anchored artifact is ever edited.
 - **Cut certificate** (idx 22 <!--idx:22=cut_certificate_anchored-->): a
   self-contained certificate over the verified interior of the chain at that
-  point.
+  point — degenerate by honest admission (the provenance graph was flat; no
+  edge crossed a cut boundary until idx 54).
 
 **Proves:** the evidence trail for each unit of work is complete, content-
 addressed, and rebuild-stable, with gaps stated as machine-readable
@@ -158,6 +161,45 @@ and anchored **participant-verified** (idx 46
 **mechanically refused at the named rung** (idx 47
 <!--idx:47=participant_intake_rejected-->). Every record honestly labeled
 same-operator rehearsal.
+
+## The parented-provenance layer — idx 48-54
+
+The milestone batch that anchored the 16-task era and recorded the chain's
+first REAL provenance edge:
+
+- **Four self-recompute records** (idx 48-51
+  <!--idx:48=self_recompute_result--><!--idx:51=self_recompute_result-->)
+  bring tasks 0014-0017 into the recorded corpus under the same honesty
+  envelope as idx 4-15 — same-machine, same-operator, explicitly *no*
+  cross-party independence.
+- **The batch attestation** (idx 52 <!--idx:52=agent_verifier_attestation-->)
+  mechanically re-derives every recorded hash across both eras on one record:
+  the 13 historical outputs match their idx-16 hashes to the digit, and the
+  four new tasks reproduce alongside them.
+- **Catalog generation 4** (idx 53
+  <!--idx:53=work_molecule_catalog_anchored-->): 17 molecules, one of them the
+  chain's **first parented molecule**. task-0017 (ISRU ascent propellant
+  budget) declares task-0015 (Sabatier ISRU) as its parent because its
+  `compute()` literally consumes the parent's output — it recomputes the
+  parent's canonical hash live on every execution and refuses drifted input,
+  and its molecule carries the parent's WMID inside its own hashed content
+  plus a `parents_resolution` block citing how the edge resolved. Tampering
+  with the parent therefore cascades detection to the child.
+- **The first non-trivial cut certificate** (idx 54
+  <!--idx:54=cut_certificate_anchored-->): interior {task-0017's molecule},
+  boundary {task-0015's WMID} — a real declared provenance edge crosses the
+  cut boundary, and the boundary molecule is *referenced, not rebuilt*. That
+  is the bound: a cut verifies its interior and only names its inputs. (The
+  idx-22 certificate keeps its degenerate-cut record forever; both anchored
+  cuts are fully re-proved, generation-locked, on every `metacoin verify`.)
+
+**Proves:** work can verifiably *consume* prior verified work — the provenance
+edge is enforced at execution time (parent-hash liveness), at construction
+time (a declared edge that cannot resolve fails the build loudly), and at
+verification time (edge resolution + DAG check + WMID cascade).
+**Deliberately does not:** claim the edge implies independence or usefulness —
+the same same-operator boundary and vacant Gate-3 judgment seat apply to the
+parented work exactly as to everything else.
 
 ## The six defeated-attack drills
 
