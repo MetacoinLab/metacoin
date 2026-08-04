@@ -1,0 +1,25 @@
+{
+  "aggregate_hash": "c13412fe82a4a4480e0ad8af83b31961a75e3df9be7582c47263c56ec15f0f17",
+  "boundary_input_ids": [
+    "d54e0cd50b43c1a9a60216e1787ea54f752a3e002eb4dad4c8fbf62d836d2159"
+  ],
+  "certificate_hash": "61763de430e59c496972d192fbb393bd47cccce35e6eba5cd0816733da2e931b",
+  "challenge_status": "none-filed",
+  "evidence_retention": {
+    "ledger_snapshot": "protocol/ledger_published.json",
+    "rebuild_recipe": "python3 protocol/work_molecule.py --task <task_id>"
+  },
+  "interior": [
+    {
+      "task_id": "task-0017",
+      "work_id": "49b1d5ed54f3d5ee1363df45888f3d2c2e81b23734a37973acf9058fa0b5ee34"
+    }
+  ],
+  "interior_count": 1,
+  "molecule_schema": "work-molecule/0.3",
+  "root_work_ids": [
+    "49b1d5ed54f3d5ee1363df45888f3d2c2e81b23734a37973acf9058fa0b5ee34"
+  ],
+  "schema": "cut-certificate/0.1",
+  "verification_policy_version": "cut-verify/0.1"
+}

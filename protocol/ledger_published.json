@@ -1823,19 +1823,465 @@
       },
       "prev_hash": "462ebd935f6afcf09e1db722aec28303597c2d8f47e74b04e9e4d8a8e0ef3825",
       "timestamp": 1785467580.4798717
+    },
+    {
+      "hash": "9e110e4cc411c34f5462bbdfecc9e07cc54aa157a7732dc23aa7646995a75dc3",
+      "index": 48,
+      "payload": {
+        "anchored": true,
+        "evaluated_at": 1785827964.997114,
+        "event": "self_recompute_result",
+        "limitation_note": "SAME-MACHINE self-recompute (research-stage, zero-value). The coordinator generated and re-evaluated this submission on the SAME host; a matching output_hash proves the result is REPRODUCIBLE run-to-run on this machine. This is NOT cross-machine and NOT independent third-party verification \u2014 no separate party, machine, or platform is involved, so it adds no cross-party independence (it is a stronger sibling of the deterministic re-run check). A hash can be copied. Not consensus, not mainnet, not payment, not a token.",
+        "local_output_hash": "417b1f2661e494bddbe057033dc1bdeab134a45bbb44ba128be3253bcbcef318",
+        "match": true,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R3",
+        "status": "locally-verified",
+        "submitted_output_hash": "417b1f2661e494bddbe057033dc1bdeab134a45bbb44ba128be3253bcbcef318",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0014",
+        "topology": "same-machine-self-recompute",
+        "verifier_id": "spark-local-same-operator",
+        "verifier_machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+        "verifier_repo_commit": "45277ca1ae4ae3e9d8a6d399b6b27986558a3eaf",
+        "zero_value": true
+      },
+      "prev_hash": "5b7bf7eb0025bc016730de7f47bcdc80c68457ef6488f01d20ebcdc9b356790b",
+      "timestamp": 1785827964.9973838
+    },
+    {
+      "hash": "45d99685760921554cc2cc656e8c428a5ffee46e64079e1cc4f5dcab7a4ea50f",
+      "index": 49,
+      "payload": {
+        "anchored": true,
+        "evaluated_at": 1785827965.1541183,
+        "event": "self_recompute_result",
+        "limitation_note": "SAME-MACHINE self-recompute (research-stage, zero-value). The coordinator generated and re-evaluated this submission on the SAME host; a matching output_hash proves the result is REPRODUCIBLE run-to-run on this machine. This is NOT cross-machine and NOT independent third-party verification \u2014 no separate party, machine, or platform is involved, so it adds no cross-party independence (it is a stronger sibling of the deterministic re-run check). A hash can be copied. Not consensus, not mainnet, not payment, not a token.",
+        "local_output_hash": "dab7a6208aa1a751d4f38ec955e9f54aeb61ca6aa16e49c7e5f6cb5e2a924ae1",
+        "match": true,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R3",
+        "status": "locally-verified",
+        "submitted_output_hash": "dab7a6208aa1a751d4f38ec955e9f54aeb61ca6aa16e49c7e5f6cb5e2a924ae1",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0015",
+        "topology": "same-machine-self-recompute",
+        "verifier_id": "spark-local-same-operator",
+        "verifier_machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+        "verifier_repo_commit": "45277ca1ae4ae3e9d8a6d399b6b27986558a3eaf",
+        "zero_value": true
+      },
+      "prev_hash": "9e110e4cc411c34f5462bbdfecc9e07cc54aa157a7732dc23aa7646995a75dc3",
+      "timestamp": 1785827965.1543922
+    },
+    {
+      "hash": "2b55112731b4b7a41b5534618199a40f9ae6b938ac3f73768620b6721fd680b5",
+      "index": 50,
+      "payload": {
+        "anchored": true,
+        "evaluated_at": 1785827965.3026912,
+        "event": "self_recompute_result",
+        "limitation_note": "SAME-MACHINE self-recompute (research-stage, zero-value). The coordinator generated and re-evaluated this submission on the SAME host; a matching output_hash proves the result is REPRODUCIBLE run-to-run on this machine. This is NOT cross-machine and NOT independent third-party verification \u2014 no separate party, machine, or platform is involved, so it adds no cross-party independence (it is a stronger sibling of the deterministic re-run check). A hash can be copied. Not consensus, not mainnet, not payment, not a token.",
+        "local_output_hash": "8b34243cb88197374edb263dce22d5d3ad2a043997cd60f41967f04658f82dc2",
+        "match": true,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R3",
+        "status": "locally-verified",
+        "submitted_output_hash": "8b34243cb88197374edb263dce22d5d3ad2a043997cd60f41967f04658f82dc2",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0016",
+        "topology": "same-machine-self-recompute",
+        "verifier_id": "spark-local-same-operator",
+        "verifier_machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+        "verifier_repo_commit": "45277ca1ae4ae3e9d8a6d399b6b27986558a3eaf",
+        "zero_value": true
+      },
+      "prev_hash": "45d99685760921554cc2cc656e8c428a5ffee46e64079e1cc4f5dcab7a4ea50f",
+      "timestamp": 1785827965.3029654
+    },
+    {
+      "hash": "3de36e33602c9b7075df141bde498e282dcb6b20e273d2061d72eb708e262bc4",
+      "index": 51,
+      "payload": {
+        "anchored": true,
+        "evaluated_at": 1785827965.4761004,
+        "event": "self_recompute_result",
+        "limitation_note": "SAME-MACHINE self-recompute (research-stage, zero-value). The coordinator generated and re-evaluated this submission on the SAME host; a matching output_hash proves the result is REPRODUCIBLE run-to-run on this machine. This is NOT cross-machine and NOT independent third-party verification \u2014 no separate party, machine, or platform is involved, so it adds no cross-party independence (it is a stronger sibling of the deterministic re-run check). A hash can be copied. Not consensus, not mainnet, not payment, not a token.",
+        "local_output_hash": "01dfdf623cfba5cf55053a067ecc5305868481b8c6f20110745785d52f845125",
+        "match": true,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R3",
+        "status": "locally-verified",
+        "submitted_output_hash": "01dfdf623cfba5cf55053a067ecc5305868481b8c6f20110745785d52f845125",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0017",
+        "topology": "same-machine-self-recompute",
+        "verifier_id": "spark-local-same-operator",
+        "verifier_machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+        "verifier_repo_commit": "45277ca1ae4ae3e9d8a6d399b6b27986558a3eaf",
+        "zero_value": true
+      },
+      "prev_hash": "2b55112731b4b7a41b5534618199a40f9ae6b938ac3f73768620b6721fd680b5",
+      "timestamp": 1785827965.4763718
+    },
+    {
+      "hash": "87f6e2113b1016f0bac15fb518d45232d90bb6e1024ed514532d887591976b23",
+      "index": 52,
+      "payload": {
+        "agent_anchor_tip_hash": "3de36e33602c9b7075df141bde498e282dcb6b20e273d2061d72eb708e262bc4",
+        "agent_snapshot_tip_hash": "3de36e33602c9b7075df141bde498e282dcb6b20e273d2061d72eb708e262bc4",
+        "agent_verdict": "verified",
+        "anchor_tip_hash": "3de36e33602c9b7075df141bde498e282dcb6b20e273d2061d72eb708e262bc4",
+        "anchored_at": 1785827975.5799227,
+        "event": "agent_verifier_attestation",
+        "limitation_note": "mechanical re-derivation by the same operator on a second machine \u2014 proves REPRODUCIBILITY, NOT independent third-party verification; verdicts/hashes can be copied. The agent is a deterministic script (no LLM judgment). Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "snapshot_tip_hash": "3de36e33602c9b7075df141bde498e282dcb6b20e273d2061d72eb708e262bc4",
+        "spark_reconfirmed": {
+          "agent_tips_agree": true,
+          "chain_verified": true,
+          "per_task": [
+            {
+              "local_output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0002"
+            },
+            {
+              "local_output_hash": "0330435597a3402f1de3c31f6a9a02c273293c79652b9640d4cfd7c17c31832b",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0001"
+            },
+            {
+              "local_output_hash": "0fa5915205ec4e8a65b3b1a3c89ac707c28ea53c863f98f93b3775fb764e6f09",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0003"
+            },
+            {
+              "local_output_hash": "31d7b7b300af556126d115fa6c099746b62a47fca67108ec22d072c04d65ddc0",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0004"
+            },
+            {
+              "local_output_hash": "28e17f180000ce348d7d7d0c6ded27a34e1fd694f0379d21fd81247e89b6d4e6",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0005"
+            },
+            {
+              "local_output_hash": "531c8c7f162a4e6ca283dc47e257fce2f0b08653b28b0304be5129dc7a407bef",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0006"
+            },
+            {
+              "local_output_hash": "2afce69a357044d983e47c2c3213ab52aed29a5c082244a2e140184e2feb7e4a",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0007"
+            },
+            {
+              "local_output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0008"
+            },
+            {
+              "local_output_hash": "4ae672f4a666f8ef01154ac44fdaa7e25295c7f8464b976377cf2a8d9a5a712e",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0009"
+            },
+            {
+              "local_output_hash": "36c89922b18ddd9b6a00b70cb5b3bf012c832f1b27bcfc22afa3882d6f3a579f",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0010"
+            },
+            {
+              "local_output_hash": "636c25bb38639c3a10005ae6e604cc8e6dbde38889bd1fe98008120c4be3a656",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0011"
+            },
+            {
+              "local_output_hash": "183fccbd03f23be513194abfad2e855aef9a109c14260da0227ad1419cbda1ed",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0012"
+            },
+            {
+              "local_output_hash": "7b555bd00e5b7b061e82453122fe232e33519d81c9ea9d3716b084eb3c5a0439",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0013"
+            },
+            {
+              "local_output_hash": "2afce69a357044d983e47c2c3213ab52aed29a5c082244a2e140184e2feb7e4a",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0007"
+            },
+            {
+              "local_output_hash": "2afce69a357044d983e47c2c3213ab52aed29a5c082244a2e140184e2feb7e4a",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0007"
+            },
+            {
+              "local_output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0008"
+            },
+            {
+              "local_output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0008"
+            },
+            {
+              "local_output_hash": "4ae672f4a666f8ef01154ac44fdaa7e25295c7f8464b976377cf2a8d9a5a712e",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0009"
+            },
+            {
+              "local_output_hash": "417b1f2661e494bddbe057033dc1bdeab134a45bbb44ba128be3253bcbcef318",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0014"
+            },
+            {
+              "local_output_hash": "dab7a6208aa1a751d4f38ec955e9f54aeb61ca6aa16e49c7e5f6cb5e2a924ae1",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0015"
+            },
+            {
+              "local_output_hash": "8b34243cb88197374edb263dce22d5d3ad2a043997cd60f41967f04658f82dc2",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0016"
+            },
+            {
+              "local_output_hash": "01dfdf623cfba5cf55053a067ecc5305868481b8c6f20110745785d52f845125",
+              "matches_agent_recomputed": true,
+              "matches_ledger_recorded": true,
+              "reproduced": true,
+              "task_id": "task-0017"
+            }
+          ],
+          "task_reproduced": true,
+          "tip_matches_anchor": true
+        },
+        "stage": "R-protocol",
+        "status": "agent-result-confirmed",
+        "task_class": "illustrative-demo",
+        "task_ids": [
+          "task-0002",
+          "task-0001",
+          "task-0003",
+          "task-0004",
+          "task-0005",
+          "task-0006",
+          "task-0007",
+          "task-0008",
+          "task-0009",
+          "task-0010",
+          "task-0011",
+          "task-0012",
+          "task-0013",
+          "task-0007",
+          "task-0007",
+          "task-0008",
+          "task-0008",
+          "task-0009",
+          "task-0014",
+          "task-0015",
+          "task-0016",
+          "task-0017"
+        ],
+        "topology": "agent-verifier",
+        "verifier_attestation_method": "mechanical-no-LLM",
+        "verifier_id": "spark-agent-same-operator",
+        "verifier_kind": "autonomous-agent",
+        "zero_value": true
+      },
+      "prev_hash": "3de36e33602c9b7075df141bde498e282dcb6b20e273d2061d72eb708e262bc4",
+      "timestamp": 1785827975.580175
+    },
+    {
+      "hash": "109a2a1b16682eb4c62985d0e6f34d0ad275278d6c9939b77b5f2bac7b871b95",
+      "index": 53,
+      "payload": {
+        "anchored_at": 1785827984.4785557,
+        "catalog_entries": [
+          {
+            "task_id": "task-0001",
+            "work_id": "513d76614ae0e9da2f0b09176612a7c466f955331621ae3967b3139077192142"
+          },
+          {
+            "task_id": "task-0002",
+            "work_id": "caae54a086937eaebdd4bd59e8c8659cd5cfd8970ac560a3f9dc098b5e183e2b"
+          },
+          {
+            "task_id": "task-0003",
+            "work_id": "f8717f57eb669ab924cb0ec31fcdb54156b28918d6ae158493ef262bdbd7024b"
+          },
+          {
+            "task_id": "task-0004",
+            "work_id": "1c33ac4515e54a84e4f29b4f657ba243cc09e06a5f92c2a8f353993836625362"
+          },
+          {
+            "task_id": "task-0005",
+            "work_id": "b628369412ab1dde2043f54a64159bfdeefa2e75e98c57aa5416c56e1ec73a41"
+          },
+          {
+            "task_id": "task-0006",
+            "work_id": "cd72abbb562de06c0c730ead1c15a88bfda16fa92f7c6e143d8258e598d48bff"
+          },
+          {
+            "task_id": "task-0007",
+            "work_id": "1d881318a947badff7bb5d085b6c8bf481af5957e7d5ccc8dcd08e2a317db380"
+          },
+          {
+            "task_id": "task-0008",
+            "work_id": "cc36412ff15c9466292413562688b8c227129f5e46096ffc5b23914d3f115652"
+          },
+          {
+            "task_id": "task-0009",
+            "work_id": "2810fd620ab4c6ab3a0621befaaf427cc61ff8e75a53b59752d0e85004573087"
+          },
+          {
+            "task_id": "task-0010",
+            "work_id": "5ba3728c39d1b7b32fa1467f089fe3c7fc43cf6b765e1541b243e3813bc20f61"
+          },
+          {
+            "task_id": "task-0011",
+            "work_id": "ec4c4b025855a7539aca1895cbcc4d2843246f89421a89e69006a7b0aa6f962e"
+          },
+          {
+            "task_id": "task-0012",
+            "work_id": "4fbad975f64693286a3defcc085018b5e3007477248b2a3565bfe78fc1fcd3d5"
+          },
+          {
+            "task_id": "task-0013",
+            "work_id": "2345bdcbb9c81642e00e71fe19d88b483f2d463f9f4318767138abe9562a37a6"
+          },
+          {
+            "task_id": "task-0014",
+            "work_id": "af33460a3f34d13d6a117cf38d1d0a43e1c31fe27e485451b45554d006782d4b"
+          },
+          {
+            "task_id": "task-0015",
+            "work_id": "d54e0cd50b43c1a9a60216e1787ea54f752a3e002eb4dad4c8fbf62d836d2159"
+          },
+          {
+            "task_id": "task-0016",
+            "work_id": "900d3cdbdc32f8f6ceb1888fc075740b0a08a9cd5e078732fa3235b321d61a81"
+          },
+          {
+            "task_id": "task-0017",
+            "work_id": "49b1d5ed54f3d5ee1363df45888f3d2c2e81b23734a37973acf9058fa0b5ee34"
+          }
+        ],
+        "catalog_entry_count": 17,
+        "catalog_hash": "43cf718bb08085c66188080030c5e1e5270864e4f30f424ceaa8c8a108a915e0",
+        "catalog_schema": "work-molecule-catalog/0.2",
+        "coordinator_reconfirmed": {
+          "catalog_hash_matches": true,
+          "entries_match": true,
+          "rebuild_error": null,
+          "rebuilt_entry_count": 17,
+          "recomputed_catalog_hash": "43cf718bb08085c66188080030c5e1e5270864e4f30f424ceaa8c8a108a915e0"
+        },
+        "event": "work_molecule_catalog_anchored",
+        "limitation_note": "Work Molecules are READ-ONLY ASSEMBLIES of same-operator records, assembled by the same operator; a matching WMID proves DETERMINISTIC RECONSTRUCTIBILITY of the provenance object from the recorded evidence, NOT independence and NOT execution (hashes can be copied). Provenance-debt fields (energy/compute cost, TEE hardware attestation, execution detail) remain open and are listed explicitly inside each molecule. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "molecule_schema": "work-molecule/0.3",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R-provenance",
+        "status": "molecule-catalog-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-molecule-assembly",
+        "zero_value": true
+      },
+      "prev_hash": "87f6e2113b1016f0bac15fb518d45232d90bb6e1024ed514532d887591976b23",
+      "timestamp": 1785827984.4787922
+    },
+    {
+      "hash": "e71c5e478cd6f0bd67817e98497f2bb605b8a11efe1f0bfa075cd87774597f43",
+      "index": 54,
+      "payload": {
+        "aggregate_hash": "c13412fe82a4a4480e0ad8af83b31961a75e3df9be7582c47263c56ec15f0f17",
+        "anchored_at": 1785827993.4461558,
+        "boundary_count": 1,
+        "certificate_hash": "61763de430e59c496972d192fbb393bd47cccce35e6eba5cd0816733da2e931b",
+        "certificate_schema": "cut-certificate/0.1",
+        "coordinator_reconfirmed": {
+          "first_failure_reason": null,
+          "full_verification_passed": true,
+          "rebuilt_interior_count": 1,
+          "verify_error": null
+        },
+        "event": "cut_certificate_anchored",
+        "interior_count": 1,
+        "limitation_note": "First non-trivial cut: a real declared provenance edge crosses the cut boundary; the boundary molecule is referenced, not rebuilt \u2014 that is the bound (the cut verifies its interior and only NAMES its inputs). Full verification was performed by the coordinator at anchoring; subsequent cheap acceptance is conditional on this anchor plus continued retrievability of the molecules. Proves deterministic re-derivability of the summarized set, not independence; not consensus, not payment, not a token; research-stage.",
+        "molecule_schema": "work-molecule/0.3",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R-provenance",
+        "status": "cut-certificate-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-cut-verification",
+        "verification_policy_version": "cut-verify/0.1",
+        "zero_value": true
+      },
+      "prev_hash": "109a2a1b16682eb4c62985d0e6f34d0ad275278d6c9939b77b5f2bac7b871b95",
+      "timestamp": 1785827993.4464023
     }
   ],
   "snapshot_header": {
-    "entry_count": 48,
+    "entry_count": 55,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785467654.3844185,
+    "snapshot_timestamp": 1785828010.0312123,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "5b7bf7eb0025bc016730de7f47bcdc80c68457ef6488f01d20ebcdc9b356790b",
-    "tip_index": 47,
+    "tip_hash": "e71c5e478cd6f0bd67817e98497f2bb605b8a11efe1f0bfa075cd87774597f43",
+    "tip_index": 54,
     "zero_value": true
   }
 }
