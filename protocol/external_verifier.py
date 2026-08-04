@@ -4592,29 +4592,59 @@ def _selftest() -> int:
                                and e["payload"].get("status") ==
                                _CUT_CONFIRMED_STATUS), None)
             if cut_anchor is not None:
-                # ROSTER PIN (the verify_everything cut-layer rule): the anchored
-                # cut's roots are the tasks RECORDED as of its chain state, never
-                # the live registry — new registry tasks stay unanchored until
-                # the next milestone batch and must not enter this rebuild.
-                cut_roots = [
-                    tid for tid in sorted(verifier_cli.TASK_MODULES)
-                    if any(work_molecule._payload_references_task(
-                               e.get("payload"), tid)
-                           for e in real_entries
-                           if isinstance(e.get("index"), int)
-                           and e["index"] <= cut_anchor["index"] - 1)]
-                cut_after = cut_certificate.build_cut(
+                cut_p = cut_anchor["payload"]
+                if cut_p.get("boundary_count", 0) == 0:
+                    # ROSTER PIN (the verify_everything cut-layer rule): a
+                    # degenerate cut's roots are the tasks RECORDED as of its
+                    # chain state, never the live registry — new registry tasks
+                    # stay unanchored until the next milestone batch and must
+                    # not enter this rebuild.
+                    cut_roots = [
+                        tid for tid in sorted(verifier_cli.TASK_MODULES)
+                        if any(work_molecule._payload_references_task(
+                                   e.get("payload"), tid)
+                               for e in real_entries
+                               if isinstance(e.get("index"), int)
+                               and e["index"] <= cut_anchor["index"] - 1)]
+                    cut_scope = "closure"
+                else:
+                    # non-trivial cut (a real edge crosses the boundary): the
+                    # anchor carries counts only, so the shipped content-
+                    # addressed evidence certificate supplies the root ROSTER;
+                    # the from-scratch rebuild below re-derives everything else
+                    # and the hash equality is the proof.
+                    cut_roots = []
+                    for name in (
+                            f"cut_cert_{cut_p['certificate_hash'][:12]}.json",
+                            "cut_cert.json"):
+                        ev_path = work_molecule.find_evidence_file(name)
+                        if ev_path is None:
+                            continue
+                        with open(ev_path, "r", encoding="utf-8") as f:
+                            ev_cert = json.load(f)
+                        if (ev_cert.get("certificate_hash")
+                                == cut_p["certificate_hash"]):
+                            cut_roots = [e["task_id"]
+                                         for e in ev_cert["interior"]]
+                            break
+                    cut_scope = "roots-only"
+                cut_after = (cut_certificate.build_cut(
                     cut_roots, ledger_path=triple_ledger,
-                    as_of_index=cut_anchor["index"] - 1)
-                cut_accept, _cut_note = cut_certificate.accept_by_anchor(
-                    cut_after, ledger_path=triple_ledger)
+                    as_of_index=cut_anchor["index"] - 1,
+                    interior_scope=cut_scope) if cut_roots else None)
+                cut_accept = False
+                if cut_after is not None:
+                    cut_accept, _cut_note = cut_certificate.accept_by_anchor(
+                        cut_after, ledger_path=triple_ledger)
                 checks.append((
                     "QUINTUPLE STABILITY: cut rebuild matches the anchored "
                     "certificate + cheap acceptance holds",
-                    cut_after["certificate_hash"] ==
-                    cut_anchor["payload"]["certificate_hash"]
+                    cut_after is not None
+                    and cut_after["certificate_hash"] ==
+                    cut_p["certificate_hash"]
                     and cut_accept is True,
-                    f"cut={cut_after['certificate_hash'][:12]}..",
+                    f"cut={cut_after['certificate_hash'][:12]}.."
+                    if cut_after else "no shipped certificate roster",
                 ))
             else:
                 print("    (no anchored cut certificate on the real ledger yet — "
