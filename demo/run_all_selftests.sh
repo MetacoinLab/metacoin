@@ -33,6 +33,7 @@ TESTS=(
     "tasks/task_0014_fdir_state_machine.py"
     "tasks/task_0015_sabatier_isru.py"
     "tasks/task_0016_triad_attitude.py"
+    "tasks/task_0017_isru_ascent_budget.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"

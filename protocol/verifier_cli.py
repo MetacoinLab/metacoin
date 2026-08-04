@@ -62,6 +62,7 @@ TASK_MODULES = {
     "task-0014": "demo.tasks.task_0014_fdir_state_machine",
     "task-0015": "demo.tasks.task_0015_sabatier_isru",
     "task-0016": "demo.tasks.task_0016_triad_attitude",
+    "task-0017": "demo.tasks.task_0017_isru_ascent_budget",
 }
 
 # Honest note embedded in every submission (and visible in output).

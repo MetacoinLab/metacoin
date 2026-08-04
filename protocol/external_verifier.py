@@ -510,6 +510,19 @@ CUT_LIMITATION_NOTE = (
     "molecules. Proves deterministic re-derivability of the summarized set, not "
     "independence; not consensus, not payment, not a token; research-stage."
 )
+# A cut whose boundary is non-empty crossed a REAL declared provenance edge — the
+# degenerate-cut language above would be false for it, so the anchored note says
+# what actually happened. (The idx-22 record keeps its original note verbatim on
+# the chain; notes are chosen per-certificate at anchoring time, never rewritten.)
+CUT_NONTRIVIAL_LIMITATION_NOTE = (
+    "First non-trivial cut: a real declared provenance edge crosses the cut "
+    "boundary; the boundary molecule is referenced, not rebuilt — that is the "
+    "bound (the cut verifies its interior and only NAMES its inputs). Full "
+    "verification was performed by the coordinator at anchoring; subsequent cheap "
+    "acceptance is conditional on this anchor plus continued retrievability of the "
+    "molecules. Proves deterministic re-derivability of the summarized set, not "
+    "independence; not consensus, not payment, not a token; research-stage."
+)
 
 METERING_LIMITATION_NOTE = (
     "First-generation compute/energy evidence by the same operator on one host: "
@@ -1658,6 +1671,11 @@ def anchor_cut_certificate(cert: dict, ledger: Ledger) -> dict:
         verify_error = f"{type(exc).__name__}: {exc}"
     status = _CUT_CONFIRMED_STATUS if full_ok else "cut-certificate-mismatch"
 
+    # The note states what THIS certificate is: a crossed boundary means a real
+    # declared edge (non-trivial); an empty boundary means a degenerate cut.
+    cut_note = (CUT_NONTRIVIAL_LIMITATION_NOTE if cert["boundary_input_ids"]
+                else CUT_LIMITATION_NOTE)
+
     # COUNTS ONLY — no task/work-id lists: the molecule citation scanner treats
     # payload task_id/task_ids keys as "this record verifies that task" and would
     # pull this record into every molecule, moving every WMID. This record
@@ -1682,7 +1700,7 @@ def anchor_cut_certificate(cert: dict, ledger: Ledger) -> dict:
             "verify_error": verify_error,
         },
         "operator_relationship": "same-operator",
-        "limitation_note": CUT_LIMITATION_NOTE,
+        "limitation_note": cut_note,
         "zero_value": True,
         "no_token": True,
         "anchored_at": time.time(),

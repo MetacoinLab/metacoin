@@ -211,8 +211,6 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                                           "economy-demo-confirmed")
     idx20_i, idx20 = _find_anchor_payload(entries, "metering_evidence_anchored",
                                           "metering-evidence-confirmed")
-    idx22_i, idx22 = _find_anchor_payload(entries, "cut_certificate_anchored",
-                                          "cut-certificate-confirmed")
     idx23_i, idx23 = _find_anchor_payload(entries, "trust_vector_catalog_anchored",
                                           "trust-vector-catalog-confirmed")
     # idx17 helper found the HIGHEST catalog anchor; split by generation instead:
@@ -259,8 +257,8 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         local = module.output_hash(module.compute())
         ok = _find_task_hash(entries, probe) == local
         rows.append(("tasks (1 probe)", FULL, ok,
-                     f"probe {probe} re-run matches the ledger (12 others not "
-                     "re-run in --quick)"))
+                     f"probe {probe} re-run matches the ledger "
+                     f"({len(task_ids) - 1} others not re-run in --quick)"))
 
     # --- layer 3: molecule catalogs, both generations ------------------------------
     if gen1 is None or gen2 is None:
@@ -280,11 +278,11 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         ok03 = (cat03["catalog_hash"] == gen2["catalog_hash"]
                 and cat03["entries"] == gen2["catalog_entries"])
         rows.append(("molecules 0.2", FULL, ok02,
-                     f"13 WMIDs rebuilt == anchored idx-{gen1_i} catalog "
-                     "(generation-locked)"))
+                     f"{len(cat02['entries'])} WMIDs rebuilt == anchored "
+                     f"idx-{gen1_i} catalog (generation-locked)"))
         rows.append(("molecules 0.3", FULL, ok03,
-                     f"13 WMIDs rebuilt == anchored idx-{gen2_i} catalog "
-                     "(generation-locked)"))
+                     f"{len(cat03['entries'])} WMIDs rebuilt == anchored "
+                     f"idx-{gen2_i} catalog (generation-locked)"))
     else:
         ok02 = ok03 = False
         f02 = _load_evidence_json("wm_catalog.json")
@@ -422,37 +420,75 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "are claims, not re-derivable"
                      if not problems else "; ".join(problems[:3])))
 
-    # --- layer 7: cut certificate ----------------------------------------------------
-    if idx22 is None:
-        rows.append(("cut certificate", FULL, False, "no anchored cut certificate"))
+    # --- layer 7: cut certificates (EVERY confirmed anchor; both cut shapes) --------
+    # Each anchored certificate is located among the shipped evidence copies by
+    # its content-address (certificate_hash covers the whole certificate, so a
+    # hash-matching file IS the anchored certificate), then FULLY re-proved
+    # generation-locked: every interior molecule rebuilt from the ledger, every
+    # WMID + the aggregate recomputed, graph closure checked. Boundary WMIDs are
+    # checked as DECLARED, never rebuilt — that is the bound the certificate
+    # states. This covers the degenerate flat cut (idx 22) and every non-trivial
+    # cut (a real declared provenance edge crossing the boundary) alike.
+    cut_anchors = [(e["index"], e["payload"]) for e in entries
+                   if isinstance(e.get("payload"), dict)
+                   and e["payload"].get("event") == "cut_certificate_anchored"
+                   and e["payload"].get("status") == "cut-certificate-confirmed"]
+
+    def _shipped_cut_cert(cert_hash):
+        """The shipped evidence certificate matching this anchored hash, or None."""
+        for name in (f"cut_cert_{str(cert_hash)[:12]}.json", "cut_cert.json"):
+            cand = _load_evidence_json(name)
+            if isinstance(cand, dict) and cand.get("certificate_hash") == cert_hash:
+                return cand
+        return None
+
+    if not cut_anchors:
+        rows.append(("cut certificates", FULL, False,
+                     "no anchored cut certificate"))
     elif full:
-        # ROSTER PIN: the cut's roots are the tasks RECORDED as of the anchor's
-        # chain state, never the live registry — registry growth (new tasks stay
-        # unanchored until the next milestone batch) must not change what the
-        # anchored idx-22 certificate is rebuilt over.
-        as_of_entries = [e for e in entries
-                         if isinstance(e.get("index"), int)
-                         and e["index"] <= idx22_i - 1]
-        cut_roots = [tid for tid in task_ids
-                     if _find_task_hash(as_of_entries, tid) is not None]
-        cert = cut_certificate.build_cut(cut_roots, ledger_path=source,
-                                         as_of_index=idx22_i - 1)
-        hash_ok = cert["certificate_hash"] == idx22["certificate_hash"]
-        v_ok, _v_reasons = cut_certificate.verify_full(cert, ledger_path=source,
-                                                       as_of_index=idx22_i - 1)
-        rows.append(("cut certificate", FULL, hash_ok and v_ok,
-                     f"rebuilt cut == anchored idx-{idx22_i}; full verification "
-                     "re-proved (13 interior molecules, generation-locked)"))
+        problems = []
+        n_interior = n_boundary = 0
+        for idx, p in cut_anchors:
+            cert = _shipped_cut_cert(p.get("certificate_hash"))
+            if cert is None:
+                problems.append(f"idx {idx}: no shipped certificate matches the "
+                                "anchored certificate_hash")
+                continue
+            v_ok, v_reasons = cut_certificate.verify_full(
+                cert, ledger_path=source, as_of_index=idx - 1)
+            if not v_ok:
+                problems.append(f"idx {idx}: full verification failed: "
+                                f"{v_reasons[:1]}")
+                continue
+            if (cert["interior_count"] != p.get("interior_count")
+                    or len(cert["boundary_input_ids"]) != p.get("boundary_count")):
+                problems.append(f"idx {idx}: certificate counts do not match "
+                                "the anchored record")
+            n_interior += cert["interior_count"]
+            n_boundary += len(cert["boundary_input_ids"])
+        rows.append(("cut certificates", FULL, not problems,
+                     f"{len(cut_anchors)} anchored cut(s) fully re-proved "
+                     f"generation-locked: {n_interior} interior molecule "
+                     f"rebuild(s); {n_boundary} boundary WMID(s) checked as "
+                     "declared, never rebuilt — that is the bound"
+                     if not problems else "; ".join(problems[:3])))
     else:
-        cert = _load_evidence_json("cut_cert.json")
-        if cert is None:
-            rows.append(("cut certificate", ANCHORED, False,
-                         "shipped cut_cert.json missing/unreadable"))
-        else:
+        problems = []
+        for idx, p in cut_anchors:
+            cert = _shipped_cut_cert(p.get("certificate_hash"))
+            if cert is None:
+                problems.append(f"idx {idx}: no shipped certificate matches the "
+                                "anchored certificate_hash")
+                continue
             accepted, note = cut_certificate.accept_by_anchor(cert,
                                                               ledger_path=source)
-            rows.append(("cut certificate", ANCHORED, accepted,
-                         note.split(". ")[0] if accepted else note))
+            if not accepted:
+                problems.append(f"idx {idx}: {note}")
+        rows.append(("cut certificates", ANCHORED, not problems,
+                     f"{len(cut_anchors)} shipped certificate(s) accepted by "
+                     "anchor (1-molecule retrievability probes; conditional, "
+                     "not re-proof)"
+                     if not problems else "; ".join(problems[:3])))
 
     # --- layer 8: trust vectors ------------------------------------------------------
     if idx23 is None:
@@ -464,8 +500,9 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         ok = (tv["catalog_hash"] == idx23["catalog_hash"]
               and len(tv["vector_entries"]) == idx23["vector_count"])
         rows.append(("trust vectors", FULL, ok,
-                     f"13 six-component vectors rebuilt == anchored idx-{idx23_i} "
-                     "(generation-locked; no combined scalar exists, by design)"))
+                     f"{len(tv['vector_entries'])} six-component vectors rebuilt "
+                     f"== anchored idx-{idx23_i} (generation-locked; no combined "
+                     "scalar exists, by design)"))
     else:
         f = _load_evidence_json("tv_catalog.json")
         ok = (isinstance(f, dict)

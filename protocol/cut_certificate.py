@@ -19,12 +19,16 @@ CONDITIONAL on that anchor plus continued retrievability — never a re-proof.
 ================== HONESTY / SCOPE (READ ME) ==================
 Research-stage, ZERO-VALUE, no token, no money, no mainnet, no networking, no payments.
 
-HONESTY RULE for the current data: the real provenance graph is FLAT — every 0.3
-molecule's parent_work_ids is asserted-empty — so the first real certificate is a
-DEGENERATE cut (13 roots, 0 boundary) that exercises the mechanism without exercising
-traversal. The anchored record says exactly this. Non-trivial traversal (multi-
-generation closure, boundary computation, cycle rejection) is proven by SYNTHETIC
-fixtures in the self-test, not claimed on real data.
+HONESTY RULE, by era: the first anchored certificate (idx 22) summarized a FLAT
+provenance graph — every molecule's parent_work_ids asserted-empty — so it is a
+DEGENERATE cut (13 roots, 0 boundary) exercising the mechanism without exercising
+traversal, and its anchored record says exactly that. Since task-0017 declared
+task-0015 as a parent (the first REAL edge), non-trivial cuts exist on real data:
+`--interior-scope roots-only` restricts the interior to the root molecules
+themselves, so a declared parent OUTSIDE the roots lands on the BOUNDARY —
+referenced, never rebuilt (that is the bound). Deeper traversal shapes (multi-
+generation closure, cycle rejection) remain proven by SYNTHETIC fixtures in the
+self-test wherever real data does not yet exercise them.
 
 Determinism: a certificate contains NO construction timestamps; two builds over the
 same ledger are byte-identical. The aggregate_hash covers exactly
@@ -279,17 +283,32 @@ def assemble_certificate(interior_molecules: list, boundary_input_ids: list,
     return cert
 
 
+INTERIOR_SCOPES = ("closure", "roots-only")
+
+
 def build_cut(root_task_ids, ledger_path: str = DEFAULT_LEDGER_PATH,
-              as_of_index: int = None) -> dict:
+              as_of_index: int = None, interior_scope: str = "closure") -> dict:
     """Build the cut certificate rooted at `root_task_ids` over the real ledger.
 
-    Builds the 0.3 molecule pool, closes the interior transitively over
-    parent_work_ids (rejecting cycles), computes the boundary (declared parents that
-    resolve to no molecule), and assembles the certificate. On the current FLAT graph
-    every closure is degenerate (interior == roots, boundary == []). `as_of_index`
-    is the generation-lock rebuild mode: a certificate anchored at ledger index N
+    Builds the 0.3 molecule pool, closes the interior over parent_work_ids
+    (rejecting cycles), computes the boundary (declared parents that resolve to
+    no molecule in scope), and assembles the certificate. `as_of_index` is the
+    generation-lock rebuild mode: a certificate anchored at ledger index N
     rebuilds exactly with as_of_index = N - 1.
+
+    `interior_scope` picks what the cut VERIFIES vs what it only NAMES:
+      * "closure" (default): the interior closes transitively over parent edges —
+        root + all resolvable ancestors; only parents missing from the whole pool
+        reach the boundary. On a flat graph every closure is degenerate
+        (interior == roots, boundary == []).
+      * "roots-only": the interior is EXACTLY the root molecules; every declared
+        parent outside the roots lands on the BOUNDARY — referenced, checked as
+        declared, never rebuilt. This is the root-closure-minus-parent cut: the
+        smallest certificate in which a real provenance edge crosses the bound.
     """
+    if interior_scope not in INTERIOR_SCOPES:
+        raise ValueError(f"unsupported interior_scope {interior_scope!r}; "
+                         f"supported: {INTERIOR_SCOPES}")
     roots = sorted({normalize_task_id(t) for t in root_task_ids})
     pool = _molecule_pool(ledger_path, as_of_index=as_of_index)
     by_task = {m["task_spec"]["task_id"]: m for m in pool.values()}
@@ -297,6 +316,10 @@ def build_cut(root_task_ids, ledger_path: str = DEFAULT_LEDGER_PATH,
     if missing:
         raise ValueError(f"no buildable molecule for root task(s): {missing}")
     root_wids = sorted(by_task[t]["work_id"] for t in roots)
+    if interior_scope == "roots-only":
+        # restrict the resolver to the roots: parents outside them cannot
+        # resolve, so close_cut (REUSED unchanged) puts them on the boundary
+        pool = {wid: pool[wid] for wid in root_wids}
     interior_molecules, boundary = close_cut(root_wids, pool)
     return assemble_certificate(interior_molecules, boundary, root_wids)
 
@@ -549,10 +572,12 @@ def main(argv=None) -> int:
             "conditional. Compression, never erasure."
         ),
         epilog=(
-            "HONESTY: the current real graph is FLAT (no parent edges), so real "
-            "certificates are degenerate cuts exercising the mechanism; non-trivial "
-            "traversal is proven by synthetic self-test fixtures. Not consensus, "
-            "not payment, not a token."
+            "HONESTY: a boundary molecule is REFERENCED, never rebuilt — the cut "
+            "verifies its interior and only NAMES its inputs. A cut whose closure "
+            "meets no outside parent is degenerate (interior == roots, boundary "
+            "[]); --interior-scope roots-only builds the root-closure-minus-parent "
+            "cut, where declared parents cross the bound. Not consensus, not "
+            "payment, not a token."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -572,6 +597,12 @@ def main(argv=None) -> int:
     parser.add_argument("--roots",
                         help="with --build: comma-separated root task ids "
                              "(e.g. task-0001,task-0002)")
+    parser.add_argument("--interior-scope", default="closure",
+                        choices=list(INTERIOR_SCOPES),
+                        help="with --build: 'closure' (default) closes the "
+                             "interior over parent edges; 'roots-only' keeps "
+                             "only the roots interior so declared parents land "
+                             "on the boundary (referenced, not rebuilt)")
     parser.add_argument("--ledger", default=DEFAULT_LEDGER_PATH,
                         help=f"ledger JSONL to read (default: {DEFAULT_LEDGER_PATH})")
     parser.add_argument("--out",
@@ -590,7 +621,8 @@ def main(argv=None) -> int:
         else:
             parser.error("--build requires --all or --roots")
         try:
-            cert = build_cut(roots, ledger_path=args.ledger)
+            cert = build_cut(roots, ledger_path=args.ledger,
+                             interior_scope=args.interior_scope)
         except (KeyError, ValueError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
@@ -682,6 +714,22 @@ def _selftest() -> int:
         c2 = build_cut(["task-0001", "task-0002"], ledger_path=fixture_ledger)
         checks.append(("two builds byte-identical (canonical JSON)",
                        canonical_json(c1) == canonical_json(c2)))
+
+        # [f2] interior scopes: on a FLAT fixture, roots-only equals closure
+        # (no parent edges to cross the bound); an unknown scope is refused.
+        # The real crossing behavior of roots-only is the sub-pool restriction
+        # proven synthetically in [b2] below — same resolver semantics.
+        c_ro = build_cut(["task-0001", "task-0002"], ledger_path=fixture_ledger,
+                         interior_scope="roots-only")
+        checks.append(("flat graph: roots-only cut == closure cut",
+                       canonical_json(c_ro) == canonical_json(c1)))
+        try:
+            build_cut(["task-0001"], ledger_path=fixture_ledger,
+                      interior_scope="everything")
+            scope_refused = False
+        except ValueError:
+            scope_refused = True
+        checks.append(("unknown interior_scope refused", scope_refused))
 
         # --- synthetic 3-generation chain A -> B -> C (parents point backwards) ------
         def _synth(task_id, parents):

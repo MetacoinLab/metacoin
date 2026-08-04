@@ -73,6 +73,28 @@ SCHEMA HISTORY:
     debt remain open. 0.2-mode builds remain byte-for-byte identical to the idx-17
     generation — the two generations coexist; neither replaces the other.
 
+DECLARED PARENTAGE (additive; all existing generations stay byte-locked): a task
+MODULE may declare PARENT_TASKS = ["task-0015"] — a REAL provenance edge, meaning
+its compute() consumes the parent's output. build_molecule resolves each declared
+parent to its WMID WITHIN THE SAME BUILD (the parent's molecule is constructed
+from the identical ledger state, schema generation, and as-of lock), populating
+parent_work_ids (sorted) plus a parents_resolution block citing how each edge
+resolved (parent_task_id -> work_id, generation). Three-state honesty:
+  - no declaration        -> parent_work_ids stays [] (asserted-empty), exactly
+                             as before — every pre-parentage molecule rebuilds
+                             byte-identically (no new key appears);
+  - declared + resolvable -> populated, with the resolution block;
+  - declared + UNBUILDABLE in this generation -> construction FAILS loudly with
+    the reason named. A declared edge that cannot resolve is an ERROR, not a
+    provenance debt: debt marks evidence never captured; a dangling edge marks a
+    claim that contradicts the chain state it is built from.
+Because the parent's WMID is part of the child's hashed content, a parented
+molecule's WMID changes IFF its parent's WMID changes — tampering with the parent
+cascades detection to the child (edge integrity, proven in the self-test).
+validate() enforces the pairing (parents_resolution present iff parent_work_ids
+non-empty) and, given a pool/catalog, that every declared edge resolves and the
+edges form a DAG (cycle rejection REUSES cut_certificate.close_cut).
+
 Usage:
     python3 protocol/work_molecule.py --task task-0001
     python3 protocol/work_molecule.py --task task-0002 --submission jiyu_submission.json --out wm_task-0002.json
@@ -97,8 +119,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-# REUSE the existing task-id registry — do NOT reimplement it.
-from protocol.verifier_cli import TASK_MODULES, normalize_task_id
+# REUSE the existing task-id registry + module loader — do NOT reimplement them.
+from protocol.verifier_cli import TASK_MODULES, load_task, normalize_task_id
 
 _PROTO_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_LEDGER_PATH = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
@@ -181,6 +203,15 @@ _ENERGY_AGGREGATE_NOTE = (
     "hardware power telemetry). Timing is non-reproducible run to run, so the cited "
     "report_hash fixes the claim made at measurement time, not a recomputable value."
 )
+_ENERGY_NOT_COVERED_NOTE = (
+    "this task is NOT COVERED by the anchored metering report (the measured corpus "
+    "predates this task; the hash-matched report carries no per-task row for it); "
+    "citing the anchored aggregate totals of the runs that WERE measured — they say "
+    "nothing about this task's own cost. wall/CPU times MEASURED, energy ESTIMATED "
+    "(assumed constant power; no hardware power telemetry). Timing is "
+    "non-reproducible run to run, so the cited report_hash fixes the claim made at "
+    "measurement time, not a recomputable value."
+)
 
 # Submission files with non-standard names (auto-discovery expects sub_<task-id>.json).
 # task-0002's external-pilot submission predates that naming convention. Used only when
@@ -196,6 +227,18 @@ SPEC_HASH_NOTE = (
     "repo_commit is copied verbatim from the cited ledger record. That the file is "
     "unchanged between the two is checkable via git (content-addressed) but is NOT "
     "proven here."
+)
+
+# Declared derivation method for parent_work_ids resolution (the provenance edge).
+# NO as-of index appears here: a generation-locked rebuild of a parented molecule
+# must be byte-identical to the original build, and the lock point is chain state,
+# not molecule content.
+PARENTS_RESOLUTION_METHOD = (
+    "resolved within the same build: each declared parent's molecule was "
+    "constructed from the identical ledger state, schema generation, and as-of "
+    "lock, and its work_id copied verbatim (the parent's WMID is therefore part "
+    "of this molecule's hashed content — tampering the parent cascades detection "
+    "to this child)"
 )
 
 # The exact set of top-level keys every v0 molecule must have — no more, no less.
@@ -219,6 +262,10 @@ _TOP_KEYS = (
     "scope_and_limitations",
     "provenance_debt",
 )
+# Conditional top-level key: present IFF parent_work_ids is non-empty (declared
+# parentage). Kept OUT of _TOP_KEYS so every pre-parentage molecule — which has
+# no such key — still satisfies the exact-key-set check byte-for-byte.
+_OPTIONAL_TOP_KEYS = ("parents_resolution",)
 
 # Recorded-output-hash fields a task-verification entry may carry, in priority order
 # (same convention as agent_verifier.py).
@@ -422,6 +469,7 @@ def _energy_evidence_from_anchor(anchor_entry: dict, short_task_id: str,
     elif metering_report_path:
         candidates = [metering_report_path]
     row = None
+    report_matched = False  # a hash-matching report WAS found (row may still be absent)
     for candidate in candidates:
         if row is not None:
             break
@@ -437,6 +485,7 @@ def _energy_evidence_from_anchor(anchor_entry: dict, short_task_id: str,
             recomputed = hashlib.sha256(
                 canonical_json(content).encode("utf-8")).hexdigest()
             if recomputed == report.get("report_hash") == payload.get("report_hash"):
+                report_matched = True
                 for r in report.get("per_task", []):
                     if isinstance(r, dict) and r.get("task_id") == short_task_id:
                         row = r
@@ -451,18 +500,31 @@ def _energy_evidence_from_anchor(anchor_entry: dict, short_task_id: str,
         evidence["aggregate_totals"] = _copy_present(payload, (
             "total_wall_time_s", "total_cpu_time_s", "total_energy_j_estimate",
         ))
-        evidence["note"] = _ENERGY_AGGREGATE_NOTE
+        # honest reason for the missing row: a task outside the measured corpus
+        # (report found + hash-matched, row absent) is NOT the same state as a
+        # missing/mismatched report file — the note must not misstate it
+        evidence["note"] = (_ENERGY_NOT_COVERED_NOTE if report_matched
+                           else _ENERGY_AGGREGATE_NOTE)
     return evidence
 
 
 # ----------------------------------------------------------------------------
 # Construction (read-only assembly; NO new claims, NO ledger writes)
 # ----------------------------------------------------------------------------
+def _declared_parents(short_task_id: str) -> list:
+    """The task module's declared PARENT_TASKS, normalized/deduped/sorted ([] if
+    none declared — the asserted-empty state). REUSES verifier_cli.load_task."""
+    declared = getattr(load_task(short_task_id), "PARENT_TASKS", None)
+    if not declared:
+        return []
+    return sorted({normalize_task_id(p) for p in declared})
+
+
 def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
                    submission_path: str = None,
                    schema_version: str = DEFAULT_SCHEMA_VERSION,
                    metering_report_path: str = DEFAULT_METERING_REPORT_PATH,
-                   as_of_index: int = None) -> dict:
+                   as_of_index: int = None, _ancestry: frozenset = frozenset()) -> dict:
     """Assemble the Work Molecule for `task_id` from existing records, read-only.
 
     Scans the ledger for every entry referencing the task (payload task_id match or
@@ -489,6 +551,15 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
                          f"supported: {SUPPORTED_SCHEMAS}")
     short = normalize_task_id(task_id)  # KeyError (with known ids) on unknown task
 
+    # (`_ancestry` is the internal recursion guard for declared parentage: a
+    # declaration cycle would otherwise recurse forever — parent edges must
+    # form a DAG.)
+    if short in _ancestry:
+        raise ValueError(
+            f"declared-parentage cycle through {short} (chain: "
+            f"{sorted(_ancestry)} -> {short}) — provenance parent edges must "
+            "form a DAG; a cyclic declaration cannot be built")
+
     # --- gather the cited ledger entries (read-only; generation-locked if asked) ------
     entries = _read_ledger(ledger_path)
     if as_of_index is not None:
@@ -499,6 +570,43 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
     if not cited:
         raise ValueError(f"no ledger entries reference {short} in {ledger_path}")
     cited.sort(key=lambda e: e["index"])
+
+    # --- declared parentage: resolve each parent WITHIN THIS BUILD --------------------
+    # Ordered AFTER the citing-records gate above, so an unrecorded task always
+    # fails with its OWN "no ledger entries reference" error (the skippable,
+    # roster-pinning case) — only a RECORDED child with an unbuildable parent
+    # raises the loud dangling-edge error below.
+    parent_work_ids = []
+    parents_resolution = None
+    declared = _declared_parents(short)
+    if declared:
+        resolved = []
+        for pid in declared:
+            parent_submission = None
+            special = _CATALOG_SUBMISSIONS.get(pid)
+            if special is not None:
+                # same discovery as the catalog builder, so the parent's WMID
+                # here matches the one the anchored catalog carries
+                parent_submission = find_evidence_file(special)
+            try:
+                pm = build_molecule(pid, ledger_path=ledger_path,
+                                    submission_path=parent_submission,
+                                    schema_version=schema_version,
+                                    metering_report_path=metering_report_path,
+                                    as_of_index=as_of_index,
+                                    _ancestry=_ancestry | {short})
+            except (KeyError, ValueError) as exc:
+                raise ValueError(
+                    f"declared parent {pid} of {short} cannot be built in this "
+                    "generation — a declared edge that cannot resolve is an "
+                    f"error, not a debt: {exc}")
+            resolved.append({"parent_task_id": pid, "work_id": pm["work_id"],
+                             "molecule_schema": pm["schema"]})
+        parent_work_ids = sorted(e["work_id"] for e in resolved)
+        parents_resolution = {
+            "method": PARENTS_RESOLUTION_METHOD,
+            "parents": resolved,  # already sorted by parent_task_id
+        }
 
     # --- optional submission file (auto-discover sub_<task-id>.json: repo root, then
     # the published evidence bundle; the citation below uses the BASENAME only, so
@@ -750,7 +858,9 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
     molecule = {
         "schema": schema_version,
         "task_spec": task_spec,
-        "parent_work_ids": [],        # asserted-empty: v0 tasks have no work lineage
+        # asserted-empty ([]) unless the task module DECLARED parents, in which
+        # case every edge was resolved within this build (see above)
+        "parent_work_ids": parent_work_ids,
         "actors": actors,
         "source_artifact_hashes": [], # asserted-empty: inputs are constants embedded
                                       # in the hashed task source file; no external
@@ -765,6 +875,10 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
         "ledger_anchor": ledger_anchor,
         "scope_and_limitations": scope,
     }
+    if parents_resolution is not None:
+        # conditional key: present IFF parent_work_ids is non-empty, so every
+        # pre-parentage molecule (no declaration) keeps its exact historical bytes
+        molecule["parents_resolution"] = parents_resolution
 
     # --- provenance_debt: auto-generated from the ACTUAL nulls (bidirectional) --------
     debt = [{"field": path, "reason": _DEBT_REASONS.get(path, _DEBT_FALLBACK_REASON)}
@@ -831,6 +945,7 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
     if task_ids is None:
         task_ids = sorted(TASK_MODULES)
     entries = []
+    molecules = []
     for tid in sorted(task_ids):
         short = normalize_task_id(tid)
         submission_path = None
@@ -845,14 +960,29 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
                                       as_of_index=as_of_index)
         except ValueError as exc:
             # ONLY the no-citing-records case is skippable; any other build
-            # failure (missing spec file, malformed record) stays loud.
-            if skip_unrecorded and "no ledger entries reference" in str(exc):
+            # failure (missing spec file, malformed record) stays loud. A
+            # declared-parent failure is deliberately NOT skippable: the child
+            # names it explicitly, so it surfaces by name, never silently.
+            if skip_unrecorded and str(exc).startswith("no ledger entries reference"):
                 continue
             raise
         ok, reasons = validate(molecule, ledger_path=ledger_path)
         if not ok:
             raise ValueError(f"molecule for {short} does not validate: {reasons}")
+        molecules.append(molecule)
         entries.append({"task_id": short, "work_id": molecule["work_id"]})
+    # Declared edges must resolve WITHIN this catalog and form a DAG: every
+    # parented molecule is re-validated against the pool of all catalog
+    # molecules (an explicit roster naming a child without its parent fails
+    # loudly here — a declared edge that cannot resolve is an error).
+    pool = {m["work_id"]: m for m in molecules}
+    for m in molecules:
+        if m.get("parent_work_ids"):
+            ok, reasons = validate(m, parent_pool=pool)
+            if not ok:
+                raise ValueError(
+                    f"parented molecule for {m['task_spec']['task_id']} does "
+                    f"not resolve within this catalog: {reasons}")
     catalog = {
         "schema": _CATALOG_SCHEMA_FOR_MOLECULE[schema_version],
         "molecule_schema": schema_version,
@@ -865,7 +995,7 @@ def build_catalog(ledger_path: str = DEFAULT_LEDGER_PATH, task_ids=None,
 # ----------------------------------------------------------------------------
 # Validation (mechanical, no LLM)
 # ----------------------------------------------------------------------------
-def validate(molecule, ledger_path: str = None):
+def validate(molecule, ledger_path: str = None, parent_pool: dict = None):
     """Mechanically validate a molecule. Returns (ok, reasons).
 
     Checks: (a) supported schema version (0.2 or 0.3); (b) exact top-level key set +
@@ -880,6 +1010,13 @@ def validate(molecule, ledger_path: str = None):
     debt_reduction's reduced_by citation must name a confirmed metering-evidence entry
     whose report_hash matches the absorbed evidence. All checks are entry-level (never
     tip-level), so validation stays true under append-only ledger growth.
+
+    Declared parentage: parents_resolution must be present IFF parent_work_ids is
+    non-empty, and the resolution entries must pair exactly with the declared
+    WMIDs (always checked). With `parent_pool` (a {work_id: molecule} dict, e.g.
+    every molecule of the same catalog build), every parent_work_id must RESOLVE
+    in the pool and the declared edges must form a DAG — the cycle check REUSES
+    cut_certificate.close_cut rather than reimplementing traversal.
     """
     reasons = []
     if not isinstance(molecule, dict):
@@ -891,9 +1028,11 @@ def validate(molecule, ledger_path: str = None):
                        f"supported: {SUPPORTED_SCHEMAS}")
     is_03 = molecule.get("schema") == SCHEMA_VERSION_03
 
-    # (b) exact key set + types
+    # (b) exact key set + types (parents_resolution is CONDITIONAL: allowed here,
+    # required-iff-parented below — pre-parentage molecules never carry it)
     missing = [k for k in _TOP_KEYS if k not in molecule]
-    unknown = [k for k in molecule if k not in _TOP_KEYS]
+    unknown = [k for k in molecule
+               if k not in _TOP_KEYS and k not in _OPTIONAL_TOP_KEYS]
     if missing:
         reasons.append(f"missing top-level fields: {missing}")
     if unknown:
@@ -955,6 +1094,68 @@ def validate(molecule, ledger_path: str = None):
             reasons.append(f"work_id does not recompute from content "
                            f"(stored {wid}, recomputed {recomputed}) — "
                            "molecule content was altered")
+
+    # (c2) declared parentage: resolution block pairing (always), pool resolution
+    # + DAG check (when a pool/catalog is supplied)
+    parents = molecule.get("parent_work_ids") or []
+    resolution = molecule.get("parents_resolution")
+    if parents:
+        if parents != sorted(set(parents)) or not all(
+                isinstance(p, str) and len(p) == 64 for p in parents):
+            reasons.append("parent_work_ids must be a sorted unique list of "
+                           "64-char hashes")
+        if not isinstance(resolution, dict):
+            reasons.append("parented molecule (parent_work_ids non-empty) must "
+                           "carry a parents_resolution block citing how each "
+                           "edge resolved")
+        else:
+            if not (isinstance(resolution.get("method"), str)
+                    and resolution.get("method")):
+                reasons.append("parents_resolution.method missing or empty — "
+                               "a resolved edge must name its derivation")
+            res_entries = resolution.get("parents")
+            if not isinstance(res_entries, list) or not res_entries:
+                reasons.append("parents_resolution.parents must be a non-empty "
+                               "array")
+            else:
+                res_wids, res_tids = [], []
+                for i, r in enumerate(res_entries):
+                    if not (isinstance(r, dict)
+                            and isinstance(r.get("parent_task_id"), str)
+                            and isinstance(r.get("work_id"), str)
+                            and r.get("molecule_schema") in SUPPORTED_SCHEMAS):
+                        reasons.append(f"parents_resolution.parents[{i}] must "
+                                       "be {parent_task_id, work_id, "
+                                       "molecule_schema}")
+                        continue
+                    res_wids.append(r["work_id"])
+                    res_tids.append(r["parent_task_id"])
+                if sorted(set(res_wids)) != parents:
+                    reasons.append("parents_resolution work_ids do not pair "
+                                   "exactly with parent_work_ids")
+                if res_tids != sorted(set(res_tids)):
+                    reasons.append("parents_resolution.parents must be unique "
+                                   "and sorted by parent_task_id")
+        if parent_pool is not None and not reasons:
+            # REUSE the cut-certificate traversal: unresolved parents surface as
+            # BOUNDARY ids; a declaration cycle raises. Lazy import (module-level
+            # would be circular — cut_certificate imports this module).
+            from protocol.cut_certificate import close_cut
+            resolver = dict(parent_pool)
+            resolver[molecule["work_id"]] = molecule
+            try:
+                _interior, boundary = close_cut([molecule["work_id"]], resolver)
+            except ValueError as exc:
+                reasons.append(f"declared-parentage graph check failed: {exc}")
+            else:
+                for wid in boundary:
+                    reasons.append(f"parent_work_id {wid} does not resolve in "
+                                   "the supplied pool/catalog — a declared "
+                                   "edge must resolve")
+    elif resolution is not None:
+        reasons.append("parents_resolution present but parent_work_ids is "
+                       "asserted-empty — the block exists only for declared, "
+                       "resolved edges")
 
     # (d) provenance_debt bidirectional consistency. Three entry shapes:
     #   plain full     {field, reason}                       <-> a null field
@@ -1543,6 +1744,224 @@ def _selftest() -> int:
             checks.append(("mismatched submission file is rejected", False))
         except ValueError:
             checks.append(("mismatched submission file is rejected", True))
+
+        # ---- declared parentage: the first real provenance edge ----------------------
+        # The registry modules for task-0001/0002 declare no parents, so the
+        # fixture DECLARES parentage by temporarily setting PARENT_TASKS on the
+        # imported child module — in-process fixture state only, restored in the
+        # `finally` below; nothing is written anywhere.
+        child_mod = load_task("task-0002")
+        parent_mod = load_task("task-0001")
+        entry_child = led.append({
+            "event": "self_recompute_result",
+            "stage": "R3",
+            "topology": "same-machine-self-recompute",
+            "task_id": "task-0002",
+            "task_class": "selftest-fixture",
+            "verifier_id": "selftest-verifier",
+            "verifier_kind": "selftest-script",
+            "operator_relationship": "same-operator",
+            "verifier_machine_fingerprint": "sha256:" + "a" * 64,
+            "verifier_repo_commit": "selftest-commit",
+            "evaluated_at": 1234567891.0,
+            "status": "locally-verified",
+            "match": True,
+            "local_output_hash": "e" * 64,
+            "submitted_output_hash": "e" * 64,
+            "limitation_note": "selftest fixture — synthetic record, zero-value, "
+                               "no token; exercises the parentage machinery only",
+            "zero_value": True,
+            "no_token": True,
+        })
+        # The child's builds below pass the SAME submission discovery the
+        # catalog builder uses for task-0002 (its external-pilot submission has
+        # a non-standard name), so direct builds and catalog builds compare.
+        child_sub = find_evidence_file(_CATALOG_SUBMISSIONS["task-0002"])
+        try:
+            child_mod.PARENT_TASKS = ["task-0001"]
+
+            # [10] a parented build resolves the edge WITHIN the same build.
+            # (The parent here uses the DEFAULT submission discovery — exactly
+            # what the child's internal parent construction uses — so the two
+            # constructions are comparable.)
+            parent_m = build_molecule("task-0001", ledger_path=fixture_ledger,
+                                      metering_report_path=fixture_report_path)
+            child1 = build_molecule("task-0002", ledger_path=fixture_ledger,
+                                    submission_path=child_sub,
+                                    metering_report_path=fixture_report_path)
+            ok, reasons = validate(child1, ledger_path=fixture_ledger,
+                                   parent_pool={parent_m["work_id"]: parent_m})
+            checks.append(("parented build resolves (edge + resolution block + "
+                           "pool-checked validation)",
+                           ok
+                           and child1["parent_work_ids"] == [parent_m["work_id"]]
+                           and child1["parents_resolution"]["method"]
+                           == PARENTS_RESOLUTION_METHOD
+                           and child1["parents_resolution"]["parents"]
+                           == [{"parent_task_id": "task-0001",
+                                "work_id": parent_m["work_id"],
+                                "molecule_schema": SCHEMA_VERSION_03}]))
+            if not ok:
+                for r in reasons:
+                    print(f"    unexpected: {r}")
+            child1b = build_molecule("task-0002", ledger_path=fixture_ledger,
+                                      submission_path=child_sub,
+                                      metering_report_path=fixture_report_path)
+            checks.append(("parented build deterministic (byte-identical twice)",
+                           canonical_json(child1) == canonical_json(child1b)))
+            lock_idx = entry_child["index"]
+
+            # [10b] the not-covered energy note: the fixture report hash-matches
+            # but carries no task-0002 row — the note must say so honestly
+            # (NOT the file-absent/mismatch wording).
+            energy = child1["energy_and_compute_evidence"]
+            checks.append(("uncovered task cites aggregates with the honest "
+                           "not-covered note",
+                           isinstance(energy, dict)
+                           and "wall_time_s" not in energy
+                           and energy["note"] == _ENERGY_NOT_COVERED_NOTE))
+
+            # [10c] the catalog resolves the edge; naming the child WITHOUT its
+            # parent in an explicit roster fails loudly (a declared edge that
+            # cannot resolve is an error, not a debt).
+            cat_p = build_catalog(ledger_path=fixture_ledger,
+                                  metering_report_path=fixture_report_path)
+            checks.append(("catalog carries the parented pair (edge resolved "
+                           "within the build)",
+                           cat_p["entries"] ==
+                           [{"task_id": "task-0001",
+                             "work_id": parent_m["work_id"]},
+                            {"task_id": "task-0002",
+                             "work_id": child1["work_id"]}]))
+            try:
+                build_catalog(ledger_path=fixture_ledger,
+                              task_ids=["task-0002"],
+                              metering_report_path=fixture_report_path)
+                orphan_edge_raised = False
+            except ValueError as exc:
+                orphan_edge_raised = "does not resolve" in str(exc)
+            checks.append(("explicit roster naming the child without its parent "
+                           "fails loudly", orphan_edge_raised))
+
+            # [11] an UNBUILDABLE declared parent fails construction, NAMED.
+            child_mod.PARENT_TASKS = ["task-0003"]  # no fixture records exist
+            try:
+                build_molecule("task-0002", ledger_path=fixture_ledger,
+                               metering_report_path=fixture_report_path)
+                unresolved_raised = False
+            except ValueError as exc:
+                unresolved_raised = ("declared parent task-0003" in str(exc)
+                                     and "cannot be built in this generation"
+                                     in str(exc))
+            checks.append(("unresolvable declared parent fails construction, "
+                           "reason named", unresolved_raised))
+            child_mod.PARENT_TASKS = ["task-0001"]
+
+            # [12] a declaration CYCLE is rejected at build time...
+            parent_mod.PARENT_TASKS = ["task-0002"]
+            try:
+                build_molecule("task-0002", ledger_path=fixture_ledger,
+                               metering_report_path=fixture_report_path)
+                cycle_raised = False
+            except ValueError as exc:
+                cycle_raised = "cycle" in str(exc)
+            checks.append(("declaration cycle rejected at build time",
+                           cycle_raised))
+            del parent_mod.PARENT_TASKS
+            # ...and at validate time (tampered pool: the parent claims the
+            # child as ITS parent — close_cut's DAG rule, REUSED, rejects it).
+            cyc_parent = copy.deepcopy(parent_m)
+            cyc_parent["parent_work_ids"] = [child1["work_id"]]
+            ok, reasons = validate(child1, parent_pool={
+                parent_m["work_id"]: cyc_parent})
+            checks.append(("cycle across declared edges rejected by "
+                           "pool-checked validation",
+                           not ok and any("cycle" in r for r in reasons)))
+
+            # [13] EDGE INTEGRITY (the cascade): unrelated ledger growth changes
+            # NEITHER WMID; parent-referencing growth changes the parent's WMID
+            # AND (therefore) the child's — and the OLD child's recorded edge no
+            # longer resolves against the NEW parent (tampering/evolving the
+            # parent cascades detection to the child).
+            led.append({"event": "unrelated_marker", "note": "parentage growth "
+                        "probe — must not appear in any molecule",
+                        "zero_value": True, "no_token": True})
+            child_after_unrelated = build_molecule(
+                "task-0002", ledger_path=fixture_ledger,
+                submission_path=child_sub,
+                metering_report_path=fixture_report_path)
+            checks.append(("unrelated ledger growth changes neither WMID",
+                           child_after_unrelated["work_id"]
+                           == child1["work_id"]))
+            led.append({
+                "event": "self_recompute_result", "stage": "R3",
+                "topology": "same-machine-self-recompute",
+                "task_id": "task-0001", "task_class": "selftest-fixture",
+                "verifier_id": "selftest-verifier-2",
+                "verifier_kind": "selftest-script",
+                "operator_relationship": "same-operator",
+                "verifier_machine_fingerprint": "sha256:" + "a" * 64,
+                "verifier_repo_commit": "selftest-commit",
+                "evaluated_at": 1234567892.0, "status": "locally-verified",
+                "match": True, "local_output_hash": "f" * 64,
+                "submitted_output_hash": "f" * 64,
+                "limitation_note": "selftest fixture — a NEW parent-referencing "
+                                   "record (evolves the parent's unbounded "
+                                   "molecule)",
+                "zero_value": True, "no_token": True,
+            })
+            parent_new = build_molecule("task-0001", ledger_path=fixture_ledger,
+                                        metering_report_path=fixture_report_path)
+            child_new = build_molecule("task-0002", ledger_path=fixture_ledger,
+                                        submission_path=child_sub,
+                                        metering_report_path=fixture_report_path)
+            checks.append(("parent WMID changed -> child WMID changed, new edge "
+                           "recorded (WMID cascade)",
+                           parent_new["work_id"] != parent_m["work_id"]
+                           and child_new["work_id"] != child1["work_id"]
+                           and child_new["parent_work_ids"]
+                           == [parent_new["work_id"]]))
+            ok, reasons = validate(child1, parent_pool={
+                parent_new["work_id"]: parent_new})
+            checks.append(("old child vs evolved parent: edge no longer "
+                           "resolves (detection cascades to the child)",
+                           not ok and any("does not resolve" in r
+                                          for r in reasons)))
+
+            # [14] generation-lock: rebuilt as-of the pre-growth chain state,
+            # the parented molecule is byte-identical to the original build
+            # (parent locked to the same state through the same edge).
+            child_locked = build_molecule(
+                "task-0002", ledger_path=fixture_ledger,
+                submission_path=child_sub,
+                metering_report_path=fixture_report_path,
+                as_of_index=lock_idx)
+            checks.append(("generation-locked parented rebuild byte-identical",
+                           canonical_json(child_locked)
+                           == canonical_json(child1)))
+
+            # [15] byte-locks of the PRE-PARENTAGE generations hold: the 0.2 and
+            # 0.3 builds of an undeclared task rebuild exactly as before the
+            # machinery existed (no new key, same WMIDs, growth-locked).
+            m02_again = build_molecule("task-0001", ledger_path=fixture_ledger,
+                                       submission_path=fixture_sub,
+                                       schema_version=SCHEMA_VERSION_02,
+                                       as_of_index=metering_entry["index"])
+            m03_again = build_molecule("task-0001", ledger_path=fixture_ledger,
+                                       submission_path=fixture_sub,
+                                       metering_report_path=fixture_report_path,
+                                       as_of_index=metering_entry["index"])
+            checks.append(("undeclared molecules regression-locked byte-"
+                           "identical (0.2 and 0.3; no parents_resolution key)",
+                           canonical_json(m02_again) == canonical_json(m1)
+                           and canonical_json(m03_again) == canonical_json(m03a)
+                           and "parents_resolution" not in m02_again
+                           and "parents_resolution" not in m03_again))
+        finally:
+            # restore the real (undeclared) module state unconditionally
+            for mod in (child_mod, parent_mod):
+                if hasattr(mod, "PARENT_TASKS"):
+                    del mod.PARENT_TASKS
 
         # [9] real-ledger build (READ-ONLY) when the runtime ledger exists locally:
         # both generations validate, and the 0.2 catalog is REGRESSION-LOCKED to the

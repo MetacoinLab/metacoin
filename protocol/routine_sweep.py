@@ -339,6 +339,15 @@ def _expected_evidence(entries) -> dict:
             want("wm_catalog.json" if p.get("molecule_schema")
                  == "work-molecule/0.2" else "wm_catalog_v03.json", idx,
                  "anchored molecule catalog")
+        if (event == "cut_certificate_anchored"
+                and isinstance(p.get("boundary_count"), int)
+                and p["boundary_count"] > 0
+                and isinstance(p.get("certificate_hash"), str)):
+            # non-trivial cuts (a real edge crosses the boundary) ship a
+            # hash-named evidence copy; the first degenerate cut keeps the
+            # static cut_cert.json name in _STATIC_EXPECTED
+            want(f"cut_cert_{p['certificate_hash'][:12]}.json", idx,
+                 "anchored non-trivial cut certificate")
     return expected
 
 
