@@ -1766,8 +1766,14 @@ def _selftest() -> int:
         from protocol.ledger import Ledger as _Ledger
         tmp_e = tempfile.mkdtemp(prefix=f"aci_epoch_selftest_{os.getpid()}_")
         try:
+            # materialize a JSONL copy from the PARSED entries: `src` may be
+            # the live JSONL ledger OR the published snapshot (a single JSON
+            # document, e.g. in a fresh clone / CI) — a byte copy of the
+            # latter is not a ledger file and Ledger.append would choke on it
             planted_path = os.path.join(tmp_e, "ledger_planted.jsonl")
-            shutil.copyfile(src, planted_path)
+            with open(planted_path, "w", encoding="utf-8") as pf:
+                for entry in work_molecule._read_ledger(src):
+                    pf.write(json.dumps(entry, sort_keys=True) + "\n")
             planted = _Ledger(planted_path).append({
                 "event": "aci_epoch_observed",
                 "status": "aci-epoch-confirmed",
