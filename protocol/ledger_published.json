@@ -2376,19 +2376,206 @@
       },
       "prev_hash": "963f75c6fb884332fb92be949d840670e1d3eb24af4f06b8da56fcdff307cb21",
       "timestamp": 1786352000.4662817
+    },
+    {
+      "hash": "a495d15e2497673f45da784684180e25e78db843c267eb561c09f82f5ec7876c",
+      "index": 57,
+      "payload": {
+        "anchored_at": 1786353095.5151632,
+        "as_of_ledger_index": 56,
+        "concentration_profile": {
+          "machine_fingerprint": 0.9848484848484849,
+          "operator": 1.0,
+          "repo": 1.0
+        },
+        "coordinator_reconfirmed": {
+          "rebuild_error": null,
+          "rebuilt_path_count": 66,
+          "rebuilt_report_hash": "916158abc2349675696a94c35df319c72fe7a0e42c0494463cad9149066921be",
+          "report_hash_matches": true
+        },
+        "deltas_vs_prior_epoch": {
+          "aci_deltas": [
+            {
+              "current": 0.9985081585081585,
+              "current_mode": "exact",
+              "delta": 0.0048573648573649875,
+              "k": 2,
+              "prior": 0.9936507936507936,
+              "prior_mode": "exact"
+            },
+            {
+              "current": 0.9994755244755229,
+              "current_mode": "exact",
+              "delta": 0.003504828504827695,
+              "k": 3,
+              "prior": 0.9959706959706952,
+              "prior_mode": "exact"
+            },
+            {
+              "current": 0.9998600000000001,
+              "current_mode": "sampled",
+              "delta": 0.0020089621489608467,
+              "k": 4,
+              "note": "at least one side of this delta is a sampled estimate \u2014 compare with its interval, never as a bare point",
+              "prior": 0.9978510378510392,
+              "prior_mode": "exact"
+            }
+          ],
+          "coverage_delta": -0.07857142857142863,
+          "delta_rule": "deltas are computed from anchored values only \u2014 the prior side is read off the cited anchored record, the current side is re-derived live; nothing is remembered between epochs",
+          "path_count_delta": 38,
+          "prior_epoch_kind": "baseline-pair (epoch zero)",
+          "prior_epoch_ledger_index": 44
+        },
+        "eis": 0.0014918414918414502,
+        "event": "aci_epoch_observed",
+        "interpretation": "All growth to date is same-operator path accumulation; a rising or flat near-1 ACI is the expected signature of that accumulation, not evidence of any change in independence. Epoch-over-epoch deltas in this series describe how many paths the same operator added, nothing more. The number to watch is the FIRST epoch after an unaffiliated participant anchors verification paths \u2014 this series exists so that day has a baseline.",
+        "k_values_computed": [
+          2,
+          3
+        ],
+        "k_values_refused": [],
+        "k_values_sampled": [
+          4,
+          5,
+          6
+        ],
+        "limitation_note": "Longitudinal SELF-observation of a same-operator system: every epoch in this series measures the protocol's own verification paths, and every path today is operated by the same operator. Epoch-over-epoch deltas describe same-operator path ACCUMULATION, never a change in independence \u2014 a rising or flat near-1 ACI is the expected signature of that accumulation. The series exists as the baseline for future cross-party epochs: the number to watch is the first epoch after an unaffiliated participant anchors verification paths. Sampled profile rows always travel with their finite-population 95% interval; unknown metadata scores worst-case and is flagged, never as independence. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "metadata_coverage_ratio": 0.7,
+        "missing_metadata_flag_count": 99,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "pairwise_aci": 0.9985081585081585,
+        "path_count": 66,
+        "prior_epochs": {
+          "epoch_observations": [],
+          "korder_baseline": {
+            "as_of_ledger_index": 17,
+            "event": "aci_korder_baseline_anchored",
+            "ledger_index": 44,
+            "path_count": 28,
+            "profile": [
+              {
+                "aci_k": 0.9936507936507936,
+                "exact": true,
+                "k": 2,
+                "subset_count": 378
+              },
+              {
+                "aci_k": 0.9959706959706952,
+                "exact": true,
+                "k": 3,
+                "subset_count": 3276
+              },
+              {
+                "aci_k": 0.9978510378510392,
+                "exact": true,
+                "k": 4,
+                "subset_count": 20475
+              }
+            ]
+          },
+          "pairwise_baseline": {
+            "coverage_ratio": 0.7785714285714286,
+            "eis": 0.006349206349206438,
+            "event": "aci_baseline_anchored",
+            "ledger_index": 18,
+            "pairwise_aci": 0.9936507936507936,
+            "path_count": 28
+          }
+        },
+        "profile": [
+          {
+            "aci_k": 0.9985081585081585,
+            "exact": true,
+            "k": 2,
+            "subset_count": 2145
+          },
+          {
+            "aci_k": 0.9994755244755229,
+            "exact": true,
+            "k": 3,
+            "subset_count": 45760
+          },
+          {
+            "ci95": [
+              0.9997877117251908,
+              0.9999322882748094
+            ],
+            "ci_clipped": false,
+            "estimate": 0.9998600000000001,
+            "exact": false,
+            "fpc_applied": true,
+            "k": 4,
+            "mode": "sampled",
+            "population_size": 720720,
+            "sample_size": 20000,
+            "seed": "89157c751476840414ed06a3b170b66333d3ad3a835c3903b7784e7117049880",
+            "standard_error": 3.688177286188432e-05,
+            "subset_count": 720720
+          },
+          {
+            "ci95": [
+              0.9999523131395689,
+              1.0
+            ],
+            "ci_clipped": true,
+            "ci_note": "normal-approximation interval clipped to the ACI domain [0,1]; the reported standard_error is unclipped",
+            "estimate": 0.99998,
+            "exact": false,
+            "fpc_applied": true,
+            "k": 5,
+            "mode": "sampled",
+            "population_size": 8936928,
+            "sample_size": 20000,
+            "seed": "1ad3a53d7c67709260e21269e278e8d0ecf69610b385f375720463609f87a83b",
+            "standard_error": 1.412594919951952e-05,
+            "subset_count": 8936928
+          },
+          {
+            "ci95": [
+              0.9999522851580103,
+              1.0
+            ],
+            "ci_clipped": true,
+            "ci_note": "normal-approximation interval clipped to the ACI domain [0,1]; the reported standard_error is unclipped",
+            "estimate": 0.99998,
+            "exact": false,
+            "fpc_applied": true,
+            "k": 6,
+            "mode": "sampled",
+            "population_size": 90858768,
+            "sample_size": 20000,
+            "seed": "4bb3e9a4944ff359d7f12ace333ecafa035af88cd6036e24ae7fcd11001d7be0",
+            "standard_error": 1.4140225504974294e-05,
+            "subset_count": 90858768
+          }
+        ],
+        "report_hash": "916158abc2349675696a94c35df319c72fe7a0e42c0494463cad9149066921be",
+        "report_schema": "aci-epoch-observation/0.1",
+        "stage": "R-concentration",
+        "status": "aci-epoch-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-aci-epoch",
+        "weights_version": "aci-weights/0.1-uniform",
+        "zero_value": true
+      },
+      "prev_hash": "6c16974e052f72db0e1f6d9d471f95ccbd1752c37acbeca0939c5a15d649962f",
+      "timestamp": 1786353095.5154653
     }
   ],
   "snapshot_header": {
-    "entry_count": 57,
+    "entry_count": 58,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1786352011.616647,
+    "snapshot_timestamp": 1786353101.7956727,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "6c16974e052f72db0e1f6d9d471f95ccbd1752c37acbeca0939c5a15d649962f",
-    "tip_index": 56,
+    "tip_hash": "a495d15e2497673f45da784684180e25e78db843c267eb561c09f82f5ec7876c",
+    "tip_index": 57,
     "zero_value": true
   }
 }

@@ -1,0 +1,245 @@
+{
+  "as_of_ledger_index": 56,
+  "concentration_profile": {
+    "machine_fingerprint": 0.9848484848484849,
+    "operator": 1.0,
+    "repo": 1.0
+  },
+  "deltas_vs_prior_epoch": {
+    "aci_deltas": [
+      {
+        "current": 0.9985081585081585,
+        "current_mode": "exact",
+        "delta": 0.0048573648573649875,
+        "k": 2,
+        "prior": 0.9936507936507936,
+        "prior_mode": "exact"
+      },
+      {
+        "current": 0.9994755244755229,
+        "current_mode": "exact",
+        "delta": 0.003504828504827695,
+        "k": 3,
+        "prior": 0.9959706959706952,
+        "prior_mode": "exact"
+      },
+      {
+        "current": 0.9998600000000001,
+        "current_mode": "sampled",
+        "delta": 0.0020089621489608467,
+        "k": 4,
+        "note": "at least one side of this delta is a sampled estimate \u2014 compare with its interval, never as a bare point",
+        "prior": 0.9978510378510392,
+        "prior_mode": "exact"
+      }
+    ],
+    "coverage_delta": -0.07857142857142863,
+    "delta_rule": "deltas are computed from anchored values only \u2014 the prior side is read off the cited anchored record, the current side is re-derived live; nothing is remembered between epochs",
+    "path_count_delta": 38,
+    "prior_epoch_kind": "baseline-pair (epoch zero)",
+    "prior_epoch_ledger_index": 44
+  },
+  "dimension_breakdown": {
+    "environment": {
+      "mean_sigma": 0.9962703962703963,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 16,
+      "pairs_at_1.0": 2129
+    },
+    "hardware": {
+      "mean_sigma": 0.9962703962703963,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 16,
+      "pairs_at_1.0": 2129
+    },
+    "model": {
+      "mean_sigma": 1.0,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 0,
+      "pairs_at_1.0": 2145
+    },
+    "operator": {
+      "mean_sigma": 1.0,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 0,
+      "pairs_at_1.0": 2145
+    },
+    "source_repo": {
+      "mean_sigma": 1.0,
+      "pairs_at_0.0": 0,
+      "pairs_at_0.5": 0,
+      "pairs_at_1.0": 2145
+    }
+  },
+  "interpretation": "All growth to date is same-operator path accumulation; a rising or flat near-1 ACI is the expected signature of that accumulation, not evidence of any change in independence. Epoch-over-epoch deltas in this series describe how many paths the same operator added, nothing more. The number to watch is the FIRST epoch after an unaffiliated participant anchors verification paths \u2014 this series exists so that day has a baseline.",
+  "korder": {
+    "enum_limit": 200000,
+    "k_max": 6,
+    "k_values_computed": [
+      2,
+      3
+    ],
+    "k_values_refused": [],
+    "k_values_sampled": [
+      4,
+      5,
+      6
+    ],
+    "per_dimension": {
+      "environment": {
+        "all_identical_fraction_at_kmax": 0.012237762237762238,
+        "group_fraction": 0.0026223776223776225,
+        "unknown_flag_count": 45080
+      },
+      "hardware": {
+        "all_identical_fraction_at_kmax": 0.012237762237762238,
+        "group_fraction": 0.0026223776223776225,
+        "unknown_flag_count": 45080
+      },
+      "model": {
+        "all_identical_fraction_at_kmax": 1.0,
+        "group_fraction": 0.0,
+        "unknown_flag_count": 0
+      },
+      "operator": {
+        "all_identical_fraction_at_kmax": 0.48920454545454545,
+        "group_fraction": 0.0,
+        "unknown_flag_count": 2080
+      },
+      "source_repo": {
+        "all_identical_fraction_at_kmax": 1.0,
+        "group_fraction": 0.0,
+        "unknown_flag_count": 0
+      }
+    },
+    "profile": [
+      {
+        "aci_k": 0.9985081585081585,
+        "exact": true,
+        "k": 2,
+        "subset_count": 2145
+      },
+      {
+        "aci_k": 0.9994755244755229,
+        "exact": true,
+        "k": 3,
+        "subset_count": 45760
+      },
+      {
+        "ci95": [
+          0.9997877117251908,
+          0.9999322882748094
+        ],
+        "ci_clipped": false,
+        "estimate": 0.9998600000000001,
+        "exact": false,
+        "fpc_applied": true,
+        "k": 4,
+        "mode": "sampled",
+        "population_size": 720720,
+        "sample_size": 20000,
+        "seed": "89157c751476840414ed06a3b170b66333d3ad3a835c3903b7784e7117049880",
+        "standard_error": 3.688177286188432e-05,
+        "subset_count": 720720
+      },
+      {
+        "ci95": [
+          0.9999523131395689,
+          1.0
+        ],
+        "ci_clipped": true,
+        "ci_note": "normal-approximation interval clipped to the ACI domain [0,1]; the reported standard_error is unclipped",
+        "estimate": 0.99998,
+        "exact": false,
+        "fpc_applied": true,
+        "k": 5,
+        "mode": "sampled",
+        "population_size": 8936928,
+        "sample_size": 20000,
+        "seed": "1ad3a53d7c67709260e21269e278e8d0ecf69610b385f375720463609f87a83b",
+        "standard_error": 1.412594919951952e-05,
+        "subset_count": 8936928
+      },
+      {
+        "ci95": [
+          0.9999522851580103,
+          1.0
+        ],
+        "ci_clipped": true,
+        "ci_note": "normal-approximation interval clipped to the ACI domain [0,1]; the reported standard_error is unclipped",
+        "estimate": 0.99998,
+        "exact": false,
+        "fpc_applied": true,
+        "k": 6,
+        "mode": "sampled",
+        "population_size": 90858768,
+        "sample_size": 20000,
+        "seed": "4bb3e9a4944ff359d7f12ace333ecafa035af88cd6036e24ae7fcd11001d7be0",
+        "standard_error": 1.4140225504974294e-05,
+        "subset_count": 90858768
+      }
+    ],
+    "sampling": {
+      "declared_sample_size": 20000,
+      "estimator": "sample mean of S_k(B)",
+      "honesty_note": "every sampled figure travels with its 95% interval; the schema has NO field for a bare sampled point number \u2014 sampled rows carry estimate/standard_error/ci95, never aci_k",
+      "method": "simple random sampling of k-subsets WITHOUT replacement",
+      "seed_rule": "sha256(canonical path-set | k | sample_size[ | salt]) \u2014 reproducible by anyone; the seed commits to the population, so determinism here is legitimate (unlike security nonces)",
+      "standard_error": "SE = sqrt((1 - m/M) * s^2 / m) \u2014 finite-population corrected (m = sample size, M = C(n,k), s^2 = unbiased sample variance)"
+    },
+    "schema": "aci-korder-report/0.2"
+  },
+  "metadata_coverage": {
+    "coverage_ratio": 0.7,
+    "observed_path_dimensions": 231,
+    "total_path_dimensions": 330
+  },
+  "missing_metadata_flag_count": 99,
+  "no_token": true,
+  "pairwise": {
+    "aci": 0.9985081585081585,
+    "eis": 0.0014918414918414502
+  },
+  "path_count": 66,
+  "prior_epochs": {
+    "epoch_observations": [],
+    "korder_baseline": {
+      "as_of_ledger_index": 17,
+      "event": "aci_korder_baseline_anchored",
+      "ledger_index": 44,
+      "path_count": 28,
+      "profile": [
+        {
+          "aci_k": 0.9936507936507936,
+          "exact": true,
+          "k": 2,
+          "subset_count": 378
+        },
+        {
+          "aci_k": 0.9959706959706952,
+          "exact": true,
+          "k": 3,
+          "subset_count": 3276
+        },
+        {
+          "aci_k": 0.9978510378510392,
+          "exact": true,
+          "k": 4,
+          "subset_count": 20475
+        }
+      ]
+    },
+    "pairwise_baseline": {
+      "coverage_ratio": 0.7785714285714286,
+      "eis": 0.006349206349206438,
+      "event": "aci_baseline_anchored",
+      "ledger_index": 18,
+      "pairwise_aci": 0.9936507936507936,
+      "path_count": 28
+    }
+  },
+  "report_hash": "916158abc2349675696a94c35df319c72fe7a0e42c0494463cad9149066921be",
+  "schema": "aci-epoch-observation/0.1",
+  "weights_version": "aci-weights/0.1-uniform",
+  "zero_value": true
+}
