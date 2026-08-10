@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->56<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->6c16974e052f<!--/chain-->…,
-> <!--chain:entry_count-->57<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->57<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->a495d15e2497<!--/chain-->…,
+> <!--chain:entry_count-->58<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->57<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->58<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -79,7 +79,7 @@ provenance debt. **Deliberately does not:** fill the gaps — TEE attestation
 and hardware power telemetry remain open debts, stated inside the molecules
 themselves (see docs/TRUST-MODEL.md).
 
-## The concentration layer — idx 18 and idx 44
+## The concentration layer — idx 18, 44, and the epoch series from idx 57
 
 The protocol measured its own centralization before anyone else could ask:
 pairwise ACI <!--chain:aci_pairwise-->0.99365<!--/chain--> across
@@ -91,9 +91,25 @@ published deliberately. The k-order profile (idx 44
 pairwise scoring provably misses group dependency. Missing metadata scores as
 worst-case dependence, never as independence.
 
-**Proves:** the concentration status is measured and anchored, not narrated.
-**Deliberately does not:** treat a future low ACI as proof of independence —
-it is descriptive evidence only, never a minting trigger.
+Since idx 57 <!--idx:57=aci_epoch_observed--> the measurement is a **time
+series**: an epoch observation repeats the full measurement at a fixed chain
+point, cites every prior anchored concentration record (the frozen idx-18/44
+baselines are epoch zero), and anchors explicit epoch-over-epoch deltas —
+prior values read off the anchored records, current values re-derived live,
+nothing remembered between epochs. The second epoch (66 paths, as-of 56)
+shows exactly what its anchored interpretation paragraph says it shows: all
+growth to date is same-operator path accumulation, and a rising near-1 ACI
+is that accumulation's expected signature. The number to watch is the first
+epoch after an unaffiliated participant anchors verification paths — the
+series exists so that day has a baseline. Sampled profile rows always carry
+their finite-population 95% interval (clipped to the [0,1] domain and saying
+so); per-k values only — no cross-k aggregate exists, by construction.
+
+**Proves:** the concentration status is measured and anchored, not narrated —
+and now longitudinally: each epoch's deltas re-derive from anchored values
+alone. **Deliberately does not:** treat a future low ACI as proof of
+independence, or an epoch delta as independence change — descriptive evidence
+only, never a minting trigger.
 
 ## The economy and treasury layer — idx 19, 31
 
