@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->54<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->e71c5e478cd6<!--/chain-->…,
-> <!--chain:entry_count-->55<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->56<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->6c16974e052f<!--/chain-->…,
+> <!--chain:entry_count-->57<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->55<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->57<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -200,6 +200,42 @@ verification time (edge resolution + DAG check + WMID cascade).
 **Deliberately does not:** claim the edge implies independence or usefulness —
 the same same-operator boundary and vacant Gate-3 judgment seat apply to the
 parented work exactly as to everything else.
+
+## The economy-generation layer — idx 55-56
+
+The economy became GENERATIONAL and the treasury learned to accumulate across
+generations — without touching a single anchored record:
+
+- **Economy generation 2** (idx 55
+  <!--idx:55=economy_demo_summary_anchored-->): the 17-task era's own
+  30-simulated-day economy under schema `economy-log/0.2` — a frozen 17-task
+  roster pinned at the idx-53 era, a **day-23** planned tamper drill
+  (deliberately not generation 1's day 17, so any log excerpt names its era
+  at a glance), earnings only on verified work, initial grant 0. The
+  coordinator re-ran the entire generation-2 simulation before anchoring,
+  and the record states on-chain that *generation 1 (ledger:19) remains
+  anchored and is unaffected; this record starts a new generation, it
+  replaces nothing.* The gen-1 replay still reproduces the idx-19 hash to
+  the digit — pinned in the selftest and re-proved on every `metacoin
+  verify`.
+- **The treasury funding extension** (idx 56
+  <!--idx:56=treasury_funding_extended-->): funding_roots [ledger:19,
+  ledger:55] — each root's fees independently re-derived from its OWN
+  generation's re-run (3.0 + 3.0 = 6.0); the carried grant/clawback/
+  finalization history restated from the anchored idx 32-36 records with
+  citations; conservation exact ON the record (balance 5.2 + outstanding
+  0.8 == 6.0); caps and budgets restated **unchanged** from the anchored
+  constitution (ledger:31) — a budget change would be a governance event,
+  which a funding extension is not allowed to be. The historical idx 31-36
+  records keep re-deriving under their original single root, undisturbed.
+
+**Proves:** anchored eras are immutable *and* composable — a new economic era
+anchors beside the old one, and the treasury's fee base grows only by
+re-derivable, anchored economic activity (still no mint path, conservation
+asserted at every step).
+**Deliberately does not:** revalue anything — both generations are zero-value
+simulated accounting, the drill rejections are planned demonstrations, and
+scripted determinism is still not market behavior.
 
 ## The six defeated-attack drills
 
