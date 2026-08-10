@@ -1,0 +1,322 @@
+{
+  "economy_log_hash": "29f9c11016a3797ed4388645ef564215fec3a585178f43882b29fce0291d3523",
+  "generation": 2,
+  "labels": {
+    "no_token": true,
+    "operator_relationship": "same-operator",
+    "simulated_time": true,
+    "zero_value": true
+  },
+  "per_day": [
+    {
+      "balance": 1,
+      "day": 0,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "0330435597a3402f1de3c31f6a9a02c273293c79652b9640d4cfd7c17c31832b",
+      "spent": 1,
+      "task": "task-0001",
+      "verified": true
+    },
+    {
+      "balance": 2,
+      "day": 1,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+      "spent": 1,
+      "task": "task-0002",
+      "verified": true
+    },
+    {
+      "balance": 3,
+      "day": 2,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "0fa5915205ec4e8a65b3b1a3c89ac707c28ea53c863f98f93b3775fb764e6f09",
+      "spent": 1,
+      "task": "task-0003",
+      "verified": true
+    },
+    {
+      "balance": 4,
+      "day": 3,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "31d7b7b300af556126d115fa6c099746b62a47fca67108ec22d072c04d65ddc0",
+      "spent": 1,
+      "task": "task-0004",
+      "verified": true
+    },
+    {
+      "balance": 5,
+      "day": 4,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "28e17f180000ce348d7d7d0c6ded27a34e1fd694f0379d21fd81247e89b6d4e6",
+      "spent": 1,
+      "task": "task-0005",
+      "verified": true
+    },
+    {
+      "balance": 6,
+      "day": 5,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "531c8c7f162a4e6ca283dc47e257fce2f0b08653b28b0304be5129dc7a407bef",
+      "spent": 1,
+      "task": "task-0006",
+      "verified": true
+    },
+    {
+      "balance": 7,
+      "day": 6,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "2afce69a357044d983e47c2c3213ab52aed29a5c082244a2e140184e2feb7e4a",
+      "spent": 1,
+      "task": "task-0007",
+      "verified": true
+    },
+    {
+      "balance": 8,
+      "day": 7,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+      "spent": 1,
+      "task": "task-0008",
+      "verified": true
+    },
+    {
+      "balance": 9,
+      "day": 8,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "4ae672f4a666f8ef01154ac44fdaa7e25295c7f8464b976377cf2a8d9a5a712e",
+      "spent": 1,
+      "task": "task-0009",
+      "verified": true
+    },
+    {
+      "balance": 10,
+      "day": 9,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "36c89922b18ddd9b6a00b70cb5b3bf012c832f1b27bcfc22afa3882d6f3a579f",
+      "spent": 1,
+      "task": "task-0010",
+      "verified": true
+    },
+    {
+      "balance": 11,
+      "day": 10,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "636c25bb38639c3a10005ae6e604cc8e6dbde38889bd1fe98008120c4be3a656",
+      "spent": 1,
+      "task": "task-0011",
+      "verified": true
+    },
+    {
+      "balance": 12,
+      "day": 11,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "183fccbd03f23be513194abfad2e855aef9a109c14260da0227ad1419cbda1ed",
+      "spent": 1,
+      "task": "task-0012",
+      "verified": true
+    },
+    {
+      "balance": 13,
+      "day": 12,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "7b555bd00e5b7b061e82453122fe232e33519d81c9ea9d3716b084eb3c5a0439",
+      "spent": 1,
+      "task": "task-0013",
+      "verified": true
+    },
+    {
+      "balance": 14,
+      "day": 13,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "417b1f2661e494bddbe057033dc1bdeab134a45bbb44ba128be3253bcbcef318",
+      "spent": 1,
+      "task": "task-0014",
+      "verified": true
+    },
+    {
+      "balance": 15,
+      "day": 14,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "dab7a6208aa1a751d4f38ec955e9f54aeb61ca6aa16e49c7e5f6cb5e2a924ae1",
+      "spent": 1,
+      "task": "task-0015",
+      "verified": true
+    },
+    {
+      "balance": 16,
+      "day": 15,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "8b34243cb88197374edb263dce22d5d3ad2a043997cd60f41967f04658f82dc2",
+      "spent": 1,
+      "task": "task-0016",
+      "verified": true
+    },
+    {
+      "balance": 17,
+      "day": 16,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "01dfdf623cfba5cf55053a067ecc5305868481b8c6f20110745785d52f845125",
+      "spent": 1,
+      "task": "task-0017",
+      "verified": true
+    },
+    {
+      "balance": 18,
+      "day": 17,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "0330435597a3402f1de3c31f6a9a02c273293c79652b9640d4cfd7c17c31832b",
+      "spent": 1,
+      "task": "task-0001",
+      "verified": true
+    },
+    {
+      "balance": 19,
+      "day": 18,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+      "spent": 1,
+      "task": "task-0002",
+      "verified": true
+    },
+    {
+      "balance": 20,
+      "day": 19,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "0fa5915205ec4e8a65b3b1a3c89ac707c28ea53c863f98f93b3775fb764e6f09",
+      "spent": 1,
+      "task": "task-0003",
+      "verified": true
+    },
+    {
+      "balance": 21,
+      "day": 20,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "31d7b7b300af556126d115fa6c099746b62a47fca67108ec22d072c04d65ddc0",
+      "spent": 1,
+      "task": "task-0004",
+      "verified": true
+    },
+    {
+      "balance": 22,
+      "day": 21,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "28e17f180000ce348d7d7d0c6ded27a34e1fd694f0379d21fd81247e89b6d4e6",
+      "spent": 1,
+      "task": "task-0005",
+      "verified": true
+    },
+    {
+      "balance": 23,
+      "day": 22,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "531c8c7f162a4e6ca283dc47e257fce2f0b08653b28b0304be5129dc7a407bef",
+      "spent": 1,
+      "task": "task-0006",
+      "verified": true
+    },
+    {
+      "balance": 22,
+      "day": 23,
+      "drill": true,
+      "earned": 0,
+      "output_hash": "2afce69a357044d983e47c2c3213ab52aed29a5c082244a2e140184e2feb7e4a",
+      "spent": 1,
+      "task": "task-0007",
+      "verified": false
+    },
+    {
+      "balance": 23,
+      "day": 24,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+      "spent": 1,
+      "task": "task-0008",
+      "verified": true
+    },
+    {
+      "balance": 24,
+      "day": 25,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "4ae672f4a666f8ef01154ac44fdaa7e25295c7f8464b976377cf2a8d9a5a712e",
+      "spent": 1,
+      "task": "task-0009",
+      "verified": true
+    },
+    {
+      "balance": 25,
+      "day": 26,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "36c89922b18ddd9b6a00b70cb5b3bf012c832f1b27bcfc22afa3882d6f3a579f",
+      "spent": 1,
+      "task": "task-0010",
+      "verified": true
+    },
+    {
+      "balance": 26,
+      "day": 27,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "636c25bb38639c3a10005ae6e604cc8e6dbde38889bd1fe98008120c4be3a656",
+      "spent": 1,
+      "task": "task-0011",
+      "verified": true
+    },
+    {
+      "balance": 27,
+      "day": 28,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "183fccbd03f23be513194abfad2e855aef9a109c14260da0227ad1419cbda1ed",
+      "spent": 1,
+      "task": "task-0012",
+      "verified": true
+    },
+    {
+      "balance": 28,
+      "day": 29,
+      "drill": false,
+      "earned": 2,
+      "output_hash": "7b555bd00e5b7b061e82453122fe232e33519d81c9ea9d3716b084eb3c5a0439",
+      "spent": 1,
+      "task": "task-0013",
+      "verified": true
+    }
+  ],
+  "schema": "economy-log/0.2",
+  "simulated_days": 30,
+  "summary": {
+    "distinct_task_count": 17,
+    "final_balance": 28,
+    "rejected_count": 1,
+    "total_earned": 58,
+    "total_spent": 30,
+    "verified_count": 29
+  }
+}

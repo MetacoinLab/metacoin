@@ -2269,19 +2269,126 @@
       },
       "prev_hash": "109a2a1b16682eb4c62985d0e6f34d0ad275278d6c9939b77b5f2bac7b871b95",
       "timestamp": 1785827993.4464023
+    },
+    {
+      "hash": "963f75c6fb884332fb92be949d840670e1d3eb24af4f06b8da56fcdff307cb21",
+      "index": 55,
+      "payload": {
+        "anchored_at": 1786351995.6610312,
+        "coordinator_reconfirmed": {
+          "log_hash_matches": true,
+          "rerun_error": null,
+          "rerun_final_balance": 28,
+          "rerun_log_hash": "29f9c11016a3797ed4388645ef564215fec3a585178f43882b29fce0291d3523"
+        },
+        "distinct_task_count": 17,
+        "economy_log_hash": "29f9c11016a3797ed4388645ef564215fec3a585178f43882b29fce0291d3523",
+        "event": "economy_demo_summary_anchored",
+        "final_balance": 28,
+        "generation": 2,
+        "generation_statement": "generation 1 (ledger:19) remains anchored and is unaffected; this record starts a new generation, it replaces nothing",
+        "limitation_note": "Deterministic SIMULATED-day economy demo by the same operator \u2014 proves the earn->verify->spend loop MECHANICS with zero-value Test-META. The 30 days are simulated day indices, NOT real time; the loop is scripted determinism, NOT market behavior. The single rejection is a PLANNED tamper drill (labeled drill=true), not detected fraud. A matching log hash proves deterministic REPRODUCIBILITY of the simulation, not independence, not payment, not consensus, not a token; zero-value research-stage.",
+        "log_schema": "economy-log/0.2",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "planned_drill_rejections": 1,
+        "rejected_count": 1,
+        "simulated_days": 30,
+        "stage": "Phase-1",
+        "status": "economy-demo-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-simulated-economy",
+        "total_earned": 58,
+        "total_spent": 30,
+        "verified_count": 29,
+        "zero_value": true
+      },
+      "prev_hash": "e71c5e478cd6f0bd67817e98497f2bb605b8a11efe1f0bfa075cd87774597f43",
+      "timestamp": 1786351995.6616611
+    },
+    {
+      "hash": "6c16974e052f72db0e1f6d9d471f95ccbd1752c37acbeca0939c5a15d649962f",
+      "index": 56,
+      "payload": {
+        "anchored_at": 1786352000.465978,
+        "balance": 5.2,
+        "carried_history": {
+          "clawback_ledger_indexes": [
+            35
+          ],
+          "clawed_back": 1.0,
+          "finalization_ledger_indexes": [
+            36
+          ],
+          "finalized_paid": 0.8,
+          "granted_gross": 1.8,
+          "outstanding": 0.8,
+          "statement": "history restated from the anchored lifecycle records only \u2014 the extension changes the fee base, never the history"
+        },
+        "config_unchanged": {
+          "category_budgets": {
+            "reproducible-space-task": 2.0
+          },
+          "fee_rate": 0.1,
+          "governance_statement": "caps and budgets are UNCHANGED from the anchored constitution (ledger:31); a budget change would be a governance event, not a funding extension \u2014 this record extends the fee base only",
+          "per_bounty_cap": 1.0,
+          "treasury_config_ledger_index": 31
+        },
+        "conservation_statement": "balance 5.2 + outstanding 0.8 == total_fees_collected 6.0 \u2014 asserted at anchor time and re-derivable from anchored records alone; no mint path exists",
+        "coordinator_reconfirmed": {
+          "carried_history_source": "anchored gate3 lifecycle records",
+          "per_root_log_hashes_match": true,
+          "rederived_total_fees": 6.0,
+          "roots_rederived": 2
+        },
+        "event": "treasury_funding_extended",
+        "funding_roots": [
+          "ledger:19",
+          "ledger:55"
+        ],
+        "limitation_note": "MetaStar Treasury v0 under same-operator custody over a SIMULATED economy: zero-value Test-META accounting, not payment. Its only inflow is fees derived from the anchored economy record; its only outflows are bounded bounty payments; conservation (balance + outstanding == fees) is asserted at every operation and no mint path exists \u2014 an adjudication failure can at worst drain one capped bounty, never the monetary base. Not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "per_root": [
+          {
+            "economy_log_hash": "f7c8196fa6a2ff9e737194b6165c5d5aa1333e27632d1eaee7592ebe2f74f052",
+            "fees": 3.0,
+            "funding_root": "ledger:19",
+            "generation": 1,
+            "log_schema": "economy-log/0.1"
+          },
+          {
+            "economy_log_hash": "29f9c11016a3797ed4388645ef564215fec3a585178f43882b29fce0291d3523",
+            "fees": 3.0,
+            "funding_root": "ledger:55",
+            "generation": 2,
+            "log_schema": "economy-log/0.2"
+          }
+        ],
+        "stage": "R-treasury",
+        "status": "treasury-funding-extension-confirmed",
+        "task_class": "illustrative-demo",
+        "topology": "same-machine-treasury",
+        "total_fees_collected": 6.0,
+        "treasury_schema": "treasury-ledger/0.1",
+        "two_flow_separation": "Flow 1 emission has no treasury path [flow1_uptime audit]; Flow 2 treasury has no mint path [metastar_treasury audit] \u2014 the constitutional separation is mechanical in both directions",
+        "zero_value": true
+      },
+      "prev_hash": "963f75c6fb884332fb92be949d840670e1d3eb24af4f06b8da56fcdff307cb21",
+      "timestamp": 1786352000.4662817
     }
   ],
   "snapshot_header": {
-    "entry_count": 55,
+    "entry_count": 57,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1785828010.0312123,
+    "snapshot_timestamp": 1786352011.616647,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "e71c5e478cd6f0bd67817e98497f2bb605b8a11efe1f0bfa075cd87774597f43",
-    "tip_index": 54,
+    "tip_hash": "6c16974e052f72db0e1f6d9d471f95ccbd1752c37acbeca0939c5a15d649962f",
+    "tip_index": 56,
     "zero_value": true
   }
 }
