@@ -26,9 +26,11 @@ in order:
                    == origin/main (or named divergence), CI status of HEAD
                    (named skip when offline/unavailable)
   8. drift       — EXPECTED EVOLUTION, never findings: the live-vs-anchored
-                   generation drift set, path_count now vs the frozen
-                   baselines, current-chain ACI vs the anchored values, and
-                   the sampled current-chain ACI_k profile (typed, with
+                   generation drift set, path_count and current-chain ACI vs
+                   the NEWEST anchored epoch observation (the frozen pairwise
+                   baseline stays cited as epoch zero; it is the comparison
+                   point only until a first epoch is anchored), and the
+                   sampled current-chain ACI_k profile (typed, with
                    intervals). The sweep's job is to notice UNEXPECTED
                    change; expected drift is listed under its own heading.
   9. docs        — the verified documentation suite: doc_verify --check
@@ -347,6 +349,12 @@ def _expected_evidence(entries) -> dict:
             want("wm_catalog.json" if p.get("molecule_schema")
                  == "work-molecule/0.2" else "wm_catalog_v03.json", idx,
                  "anchored molecule catalog")
+        if (event == "aci_epoch_observed"
+                and p.get("status") == "aci-epoch-confirmed"
+                and isinstance(p.get("report_hash"), str)):
+            # the longitudinal series ships one hash-named copy per epoch
+            want(f"aci_epoch_{p['report_hash'][:12]}.json", idx,
+                 "anchored ACI epoch observation")
         if (event == "cut_certificate_anchored"
                 and isinstance(p.get("boundary_count"), int)
                 and p["boundary_count"] > 0
@@ -521,7 +529,7 @@ def section_drift(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
     entries = actor_identity._read_entries(src)
 
     last_cat = None
-    idx18 = idxko = None
+    idx18 = idxko = last_epoch = None
     for e in entries:
         p = e.get("payload") if isinstance(e, dict) else None
         if not isinstance(p, dict):
@@ -532,6 +540,9 @@ def section_drift(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
             idx18 = e
         elif p.get("event") == "aci_korder_baseline_anchored":
             idxko = e
+        elif (p.get("event") == "aci_epoch_observed"
+                and p.get("status") == "aci-epoch-confirmed"):
+            last_epoch = e
 
     # generation drift: which tasks' live molecules moved past the last
     # anchored catalog generation (new verification events -> new WMIDs)
@@ -576,7 +587,24 @@ def section_drift(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
                 "milestone anchor batch; until then they are registry-only)")
 
     paths = agent_concentration.build_paths(ledger_path=src)
-    if idx18 is not None:
+    if last_epoch is not None:
+        # the longitudinal series took over as the comparison point: current
+        # vs the NEWEST anchored epoch; the frozen pairwise baseline stays
+        # cited as epoch zero, never displaced
+        pe = last_epoch["payload"]
+        rep = agent_concentration.compute_report(paths)
+        zero = (f"; frozen epoch-zero baseline ledger:{idx18['index']} "
+                f"({idx18['payload'].get('path_count')} paths, pairwise "
+                f"{idx18['payload'].get('pairwise_aci'):.6f}) stands"
+                if idx18 is not None else "")
+        details.append(
+            f"EXPECTED EVOLUTION — path_count now {len(paths)} vs "
+            f"{pe.get('path_count')} at the newest anchored epoch "
+            f"(ledger:{last_epoch['index']}, as-of "
+            f"{pe.get('as_of_ledger_index')}); pairwise ACI now "
+            f"{rep['pairwise_aci']:.6f} vs epoch {pe.get('pairwise_aci'):.6f}"
+            f" (same-operator accumulation){zero}")
+    elif idx18 is not None:
         p18 = idx18["payload"]
         rep = agent_concentration.compute_report(paths)
         details.append(

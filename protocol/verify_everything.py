@@ -316,6 +316,12 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
     # here — --full re-derives anchored claims; fixtures are test material.)
     idxko_i, idxko = _find_anchor_payload(entries, "aci_korder_baseline_anchored",
                                           "aci-korder-confirmed")
+    # the longitudinal series: every confirmed epoch observation re-derives
+    # (full) / hash-checks its shipped evidence copy (quick) at its own as-of
+    epochs = [(e["index"], e["payload"]) for e in entries
+              if isinstance(e.get("payload"), dict)
+              and e["payload"].get("event") == "aci_epoch_observed"
+              and e["payload"].get("status") == "aci-epoch-confirmed"]
     if idx18 is None:
         rows.append(("concentration", FULL, False, "no anchored ACI baseline"))
     elif full:
@@ -342,11 +348,31 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
             ko_note = (f"k-order profile {sorted(r['k'] for r in ko['profile'])} "
                        f"re-enumerated == anchored idx-{idxko_i}; ACI_2 == "
                        "pairwise to the digit")
+        ep_note = "no anchored epoch observation yet"
+        if epochs:
+            ep_bad = []
+            for ei, ep in epochs:
+                k_max_ep = max(
+                    list(ep.get("k_values_computed", []))
+                    + list(ep.get("k_values_sampled", []))
+                    + list(ep.get("k_values_refused", []))
+                    or [agent_concentration.EPOCH_KMAX])
+                rebuilt = agent_concentration.build_epoch_observation(
+                    ledger_path=source,
+                    as_of_index=ep.get("as_of_ledger_index"),
+                    k_max=k_max_ep)
+                if rebuilt["report_hash"] != ep.get("report_hash"):
+                    ep_bad.append(f"idx-{ei}")
+            ok = ok and not ep_bad
+            ep_note = (f"{len(epochs)} epoch observation(s) fully rebuilt "
+                       "(citations + deltas re-derived) == anchored "
+                       + ", ".join(f"idx-{ei}" for ei, _p in epochs)
+                       if not ep_bad else f"epoch rebuild mismatch: {ep_bad}")
         rows.append(("concentration", FULL, ok,
                      f"ACI re-measured (generation-locked): hash == anchored "
                      f"idx-{idx18_i}, {report['path_count']} paths, "
                      f"pairwise {report['pairwise_aci']:.5f} (same-operator); "
-                     f"{ko_note}"))
+                     f"{ko_note}; {ep_note}"))
     else:
         f = _load_evidence_json("aci_report.json")
         ok = (isinstance(f, dict)
@@ -359,9 +385,23 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                   and agent_concentration.compute_report_hash(fk)
                   == fk.get("report_hash") == idxko.get("report_hash"))
             ko_note = f"k-order report hash-matches anchored idx-{idxko_i}"
+        ep_note = "no anchored epoch observation yet"
+        if epochs:
+            ep_bad = []
+            for ei, ep in epochs:
+                rh = ep.get("report_hash") or ""
+                fe = _load_evidence_json(f"aci_epoch_{rh[:12]}.json")
+                if not (isinstance(fe, dict)
+                        and agent_concentration.compute_report_hash(fe)
+                        == fe.get("report_hash") == rh):
+                    ep_bad.append(f"idx-{ei}")
+            ok = ok and not ep_bad
+            ep_note = (f"{len(epochs)} shipped epoch observation(s) "
+                       "hash-match their anchors" if not ep_bad
+                       else f"epoch evidence mismatch: {ep_bad}")
         rows.append(("concentration", ANCHORED, ok,
                      f"shipped report hash-matches anchored idx-{idx18_i} "
-                     f"(no re-measurement); {ko_note}"))
+                     f"(no re-measurement); {ko_note}; {ep_note}"))
 
     # --- layer 5: simulated economy (every anchored generation) ---------------------
     if not econ_gens:

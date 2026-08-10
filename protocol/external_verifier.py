@@ -1199,6 +1199,169 @@ def anchor_aci_korder_report(report: dict, ledger: Ledger) -> dict:
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# --- ACI epoch-observation anchoring (the longitudinal series) ---------------------------
+# An epoch observation (agent_concentration.build_epoch_observation) is the
+# full concentration measurement at a fixed as-of chain point PLUS citations
+# of every prior anchored concentration record and explicit deltas against
+# the most recent prior epoch. The coordinator REBUILDS the entire
+# observation itself at the same as-of point (molecules -> paths -> pairwise
+# -> k-order -> prior-epoch scan -> deltas) and compares report_hash before
+# anchoring — the deltas are thereby re-derived, never trusted.
+_ACI_EPOCH_EVENT = "aci_epoch_observed"
+_ACI_EPOCH_STATUS = "aci-epoch-confirmed"
+
+ACI_EPOCH_LIMITATION_NOTE = (
+    "Longitudinal SELF-observation of a same-operator system: every epoch in "
+    "this series measures the protocol's own verification paths, and every "
+    "path today is operated by the same operator. Epoch-over-epoch deltas "
+    "describe same-operator path ACCUMULATION, never a change in "
+    "independence — a rising or flat near-1 ACI is the expected signature of "
+    "that accumulation. The series exists as the baseline for future "
+    "cross-party epochs: the number to watch is the first epoch after an "
+    "unaffiliated participant anchors verification paths. Sampled profile "
+    "rows always travel with their finite-population 95% interval; unknown "
+    "metadata scores worst-case and is flagged, never as independence. Not "
+    "consensus, not mainnet, not payment, not a token; zero-value "
+    "research-stage."
+)
+
+
+def validate_aci_epoch_observation(report: dict):
+    """Structurally validate an epoch observation file. Returns (ok, reason).
+
+    Internal inconsistency (a report_hash that does not recompute from the
+    file's own content) is MALFORMED input -> rejected before any ledger
+    write. Whether the OBSERVATION is right is decided by the full rebuild in
+    anchor_aci_epoch.
+    """
+    if not isinstance(report, dict):
+        return (False, "epoch observation is not a JSON object")
+    if report.get("schema") != agent_concentration.EPOCH_SCHEMA_VERSION:
+        return (False, f"field 'schema' must be "
+                       f"{agent_concentration.EPOCH_SCHEMA_VERSION!r} "
+                       f"(got {report.get('schema')!r})")
+    asof = report.get("as_of_ledger_index")
+    if not isinstance(asof, int) or isinstance(asof, bool) or asof < 0:
+        return (False, "as_of_ledger_index must be a non-negative integer — "
+                       "an epoch without a fixed chain point is not "
+                       "re-derivable")
+    n = report.get("path_count")
+    if not isinstance(n, int) or isinstance(n, bool) or n < 2:
+        return (False, "path_count must be an integer >= 2")
+    pw = report.get("pairwise")
+    if not (isinstance(pw, dict)
+            and isinstance(pw.get("aci"), (int, float))
+            and isinstance(pw.get("eis"), (int, float))):
+        return (False, "pairwise must carry numeric aci and eis")
+    ko = report.get("korder")
+    if not (isinstance(ko, dict) and isinstance(ko.get("profile"), list)
+            and ko.get("profile")):
+        return (False, "korder.profile must be a non-empty list of typed rows")
+    if not isinstance(report.get("prior_epochs"), dict):
+        return (False, "prior_epochs must be a JSON object (empty citations "
+                       "are explicit, never absent)")
+    if report.get("interpretation") != agent_concentration.EPOCH_INTERPRETATION:
+        return (False, "interpretation must be the fixed honest paragraph "
+                       "verbatim — the series' framing is part of the schema")
+    rh = report.get("report_hash")
+    if not isinstance(rh, str) or len(rh) != 64 or any(c not in _HEX for c in rh):
+        return (False, "report_hash must be a 64-char lowercase hex sha256")
+    if agent_concentration.compute_report_hash(report) != rh:
+        return (False, "report_hash does not recompute from the observation's "
+                       "own content (internally inconsistent file)")
+    return (True, "ok: conforms to the aci-epoch-observation schema")
+
+
+def anchor_aci_epoch(report: dict, ledger: Ledger) -> dict:
+    """Validate + REBUILD + anchor an ACI epoch observation. Returns
+    {evaluation, ledger_entry}.
+
+    Malformed -> 'rejected', NOT anchored. Otherwise the coordinator rebuilds
+    the ENTIRE observation itself at the same as-of chain point — molecules,
+    paths, pairwise, k-order profile, prior-epoch citations, and deltas — and
+    compares report_hash: match -> 'aci-epoch-confirmed'; anything else ->
+    'aci-epoch-mismatch' (a real audit event). Both outcomes anchored.
+    Scanner-invisible: no task keys anywhere (same rationale as the pairwise
+    baseline record).
+    """
+    ok, reason = validate_aci_epoch_observation(report)
+    if not ok:
+        evaluation = {
+            "event": _ACI_EPOCH_EVENT,
+            "stage": "R-concentration",
+            "topology": "same-machine-aci-epoch",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": ACI_EPOCH_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    rebuild_error = None
+    rebuilt = None
+    try:
+        rebuilt = agent_concentration.build_epoch_observation(
+            ledger_path=ledger.path,
+            as_of_index=report["as_of_ledger_index"],
+            k_max=report["korder"].get("k_max",
+                                       agent_concentration.EPOCH_KMAX))
+    except (KeyError, ValueError) as exc:
+        rebuild_error = f"{type(exc).__name__}: {exc}"
+    hash_matches = bool(rebuilt is not None
+                        and rebuilt["report_hash"] == report["report_hash"])
+    status = _ACI_EPOCH_STATUS if hash_matches else "aci-epoch-mismatch"
+
+    evaluation = {
+        "event": _ACI_EPOCH_EVENT,
+        "stage": "R-concentration",
+        "topology": "same-machine-aci-epoch",
+        "status": status,
+        "task_class": _TASK_CLASS,
+        "report_schema": report["schema"],
+        "weights_version": report.get("weights_version"),
+        "report_hash": report["report_hash"],
+        "as_of_ledger_index": report["as_of_ledger_index"],
+        "path_count": report["path_count"],
+        "pairwise_aci": report["pairwise"]["aci"],
+        "eis": report["pairwise"]["eis"],
+        # typed rows verbatim (exact aci_k / sampled estimate+CI) — the
+        # PROFILE is the deliverable, never one collapsed number
+        "k_values_computed": list(report["korder"].get("k_values_computed",
+                                                       [])),
+        "k_values_sampled": list(report["korder"].get("k_values_sampled",
+                                                      [])),
+        "k_values_refused": list(report["korder"].get("k_values_refused",
+                                                      [])),
+        "profile": [dict(row) for row in report["korder"]["profile"]],
+        "concentration_profile": dict(report.get("concentration_profile",
+                                                 {})),
+        "metadata_coverage_ratio": report.get("metadata_coverage", {}).get(
+            "coverage_ratio"),
+        "missing_metadata_flag_count": report.get(
+            "missing_metadata_flag_count"),
+        "prior_epochs": json.loads(json.dumps(report["prior_epochs"])),
+        "deltas_vs_prior_epoch": json.loads(json.dumps(
+            report.get("deltas_vs_prior_epoch"))),
+        "interpretation": report["interpretation"],
+        "coordinator_reconfirmed": {
+            "rebuilt_report_hash": (rebuilt or {}).get("report_hash"),
+            "report_hash_matches": hash_matches,
+            "rebuilt_path_count": (rebuilt or {}).get("path_count"),
+            "rebuild_error": rebuild_error,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": ACI_EPOCH_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # --- economy-demo summary anchoring (a FIFTH record type) --------------------------------
 # The economy log (demo/economy_demo.py) records the deterministic SIMULATED 30-day
 # earn->verify->spend loop. The coordinator RE-RUNS THE ENTIRE SIMULATION itself
@@ -3799,6 +3962,89 @@ def _selftest() -> int:
             f"{out_noasof['evaluation']['status']}",
         ))
 
+        # --- ACI-EPOCH mode coverage (the longitudinal series) ---------------------------
+        # (14d) valid observation -> coordinator FULL REBUILD at the same
+        # as-of confirms -> anchored; scanner-invisible; typed rows carried;
+        # the fixed interpretation paragraph on the record verbatim
+        epoch_tip = Ledger(aci_ledger_path).read_all()[-1]["index"]
+        epoch_obs = agent_concentration.build_epoch_observation(
+            ledger_path=aci_ledger_path, as_of_index=epoch_tip)
+        epoch_ledger_a = os.path.join(tmp, "epoch_ledger_a.jsonl")
+        _copyfile(aci_ledger_path, epoch_ledger_a)
+        out_ep1 = anchor_aci_epoch(epoch_obs, Ledger(epoch_ledger_a))
+        ev_ep1 = out_ep1["evaluation"]
+        ep1_chain_ok, _ep1_reason = Ledger(epoch_ledger_a).verify_chain()
+        checks.append((
+            "ACI-EPOCH CONFIRMED (full rebuild incl. citations+deltas -> "
+            "anchored; scanner-invisible; interpretation verbatim)",
+            ev_ep1["status"] == "aci-epoch-confirmed"
+            and out_ep1["ledger_entry"] is not None
+            and ev_ep1["coordinator_reconfirmed"]["report_hash_matches"]
+            is True
+            and "task_id" not in ev_ep1 and "task_ids" not in ev_ep1
+            and all("k" in r for r in ev_ep1["profile"])
+            and ev_ep1["interpretation"]
+            == agent_concentration.EPOCH_INTERPRETATION
+            and ep1_chain_ok is True,
+            ev_ep1["status"],
+        ))
+
+        # (14e) TWO-EPOCH SERIES: the next observation on the grown chain
+        # must cite the anchored first epoch and compute deltas AGAINST it
+        # (path_count unchanged on the fixture -> delta 0; ACI_2 delta 0.0)
+        ep1_idx = out_ep1["ledger_entry"]["index"]
+        epoch_obs2 = agent_concentration.build_epoch_observation(
+            ledger_path=epoch_ledger_a, as_of_index=ep1_idx)
+        d2 = epoch_obs2["deltas_vs_prior_epoch"]
+        out_ep2 = anchor_aci_epoch(epoch_obs2, Ledger(epoch_ledger_a))
+        checks.append((
+            "ACI-EPOCH SERIES: second epoch cites the anchored first and "
+            "computes deltas against it (0 path growth on the fixture)",
+            any(c["ledger_index"] == ep1_idx for c in
+                epoch_obs2["prior_epochs"]["epoch_observations"])
+            and d2 is not None
+            and d2["prior_epoch_kind"] == "epoch-observation"
+            and d2["prior_epoch_ledger_index"] == ep1_idx
+            and d2["path_count_delta"] == 0
+            and next(r["delta"] for r in d2["aci_deltas"]
+                     if r["k"] == 2) == 0.0
+            and out_ep2["evaluation"]["status"] == "aci-epoch-confirmed",
+            f"{out_ep2['evaluation']['status']} "
+            f"(path_delta {d2 and d2['path_count_delta']})",
+        ))
+
+        # (14f) WRONG content -> coordinator rebuild disagrees -> mismatch
+        # anchored (audit event); malformed (bad hash / missing as-of) ->
+        # rejected, NOT anchored
+        tampered_ep = json.loads(json.dumps(epoch_obs))
+        tampered_ep["path_count"] = 999
+        tampered_ep["report_hash"] = agent_concentration.compute_report_hash(
+            tampered_ep)
+        epoch_ledger_b = os.path.join(tmp, "epoch_ledger_b.jsonl")
+        _copyfile(aci_ledger_path, epoch_ledger_b)
+        out_tep = anchor_aci_epoch(tampered_ep, Ledger(epoch_ledger_b))
+        bad_ep = dict(epoch_obs)
+        bad_ep["report_hash"] = "0" * 64
+        out_badep = anchor_aci_epoch(bad_ep, Ledger(epoch_ledger_b))
+        no_asof_ep = {k: v for k, v in epoch_obs.items()
+                      if k != "as_of_ledger_index"}
+        out_noasof_ep = anchor_aci_epoch(no_asof_ep, Ledger(epoch_ledger_b))
+        checks.append((
+            "ACI-EPOCH MISMATCH anchored (audit event); malformed/no-as-of "
+            "REJECTED (NOT anchored)",
+            out_tep["evaluation"]["status"] == "aci-epoch-mismatch"
+            and out_tep["ledger_entry"] is not None
+            and out_tep["evaluation"]["coordinator_reconfirmed"]
+            ["report_hash_matches"] is False
+            and out_badep["evaluation"]["status"] == "rejected"
+            and out_badep["ledger_entry"] is None
+            and out_noasof_ep["evaluation"]["status"] == "rejected"
+            and out_noasof_ep["ledger_entry"] is None,
+            f"{out_tep['evaluation']['status']} / "
+            f"{out_badep['evaluation']['status']} / "
+            f"{out_noasof_ep['evaluation']['status']}",
+        ))
+
         # --- ECONOMY-SUMMARY mode coverage (re-run-and-compare anchoring) ----------------
         # The economy simulation is ledger-independent (it runs tasks + the faucet), so
         # one in-memory run serves as the "submitted" log. All TEMP ledger paths.
@@ -6122,6 +6368,13 @@ def main(argv=None) -> int:
              "(profile + breakdown — never one collapsed number)",
     )
     mode.add_argument(
+        "--anchor-aci-epoch", metavar="EPOCH_JSON",
+        help="anchor a longitudinal ACI epoch observation "
+             "(agent_concentration.py --epoch); the coordinator REBUILDS the "
+             "entire observation at the same as-of chain point — including "
+             "the prior-epoch citations and deltas — before anchoring",
+    )
+    mode.add_argument(
         "--anchor-economy-summary", metavar="ECONOMY_LOG_JSON",
         help="ingest a 30-simulated-day economy log (economy_demo.py --run-all); RE-RUN "
              "the entire simulation, compare log hashes, and anchor the outcome "
@@ -6274,6 +6527,9 @@ def main(argv=None) -> int:
     if args.anchor_aci_korder_report is not None:
         return _cmd_anchor_json(args.anchor_aci_korder_report, args.ledger,
                                 anchor_aci_korder_report, _KORDER_STATUS)
+    if args.anchor_aci_epoch is not None:
+        return _cmd_anchor_json(args.anchor_aci_epoch, args.ledger,
+                                anchor_aci_epoch, _ACI_EPOCH_STATUS)
     if args.anchor_economy_summary is not None:
         return _cmd_anchor_economy_summary(args.anchor_economy_summary, args.ledger)
     if args.anchor_metering_report is not None:

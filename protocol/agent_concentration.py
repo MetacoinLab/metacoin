@@ -224,6 +224,29 @@ INTERPRETATION = (
     "not a token."
 )
 
+# ---------------------------------------------------------------------------
+# Epoch observation (aci-epoch-observation/0.1, ADDITIVE): the longitudinal
+# series. One observation = the full concentration measurement at a fixed
+# as-of chain point PLUS citations of every prior anchored concentration
+# record and explicit deltas against the most recent prior epoch. The frozen
+# idx-18/idx-44 baselines are epoch zero; each anchored observation becomes
+# the comparison point for the next. The pairwise (0.1) and k-order (0.1/0.2)
+# report builders above are byte-locked — this block only READS their output.
+# ---------------------------------------------------------------------------
+EPOCH_SCHEMA_VERSION = "aci-epoch-observation/0.1"
+EPOCH_KMAX = 6  # matches the sweep's current-profile idiom (exact where
+                # enumerable at the current population, sampled with CI above)
+
+EPOCH_INTERPRETATION = (
+    "All growth to date is same-operator path accumulation; a rising or flat "
+    "near-1 ACI is the expected signature of that accumulation, not evidence "
+    "of any change in independence. Epoch-over-epoch deltas in this series "
+    "describe how many paths the same operator added, nothing more. The "
+    "number to watch is the FIRST epoch after an unaffiliated participant "
+    "anchors verification paths — this series exists so that day has a "
+    "baseline."
+)
+
 LIMITATION_NOTES = [
     "model dimension is DEGENERATE on current data: all paths are mechanical-no-LLM "
     "with models=[] — a shared no-model toolchain is still a shared dependency class "
@@ -855,6 +878,191 @@ def compute_report(paths: list) -> dict:
     return report
 
 
+# ----------------------------------------------------------------------------
+# Epoch observation (the longitudinal series)
+# ----------------------------------------------------------------------------
+def _row_value(row: dict):
+    """(value, mode) for a typed profile row — exact aci_k or sampled estimate.
+    A sampled value never travels without being NAMED sampled."""
+    if row.get("exact"):
+        return (row["aci_k"], "exact")
+    return (row["estimate"], "sampled")
+
+
+def _prior_concentration_records(ledger_path: str, as_of_index):
+    """(pairwise_baseline, korder_baseline, epoch_observations) — every prior
+    CONFIRMED anchored concentration record at or below the as-of point, cited
+    by deterministic value fields only (never timestamps). The baselines keep
+    the LAST confirmed record of their kind (the anchored-generation rule);
+    epoch observations are a series and are all kept, ascending."""
+    pairwise = korder = None
+    epochs = []
+    for e in work_molecule._read_ledger(ledger_path):
+        if as_of_index is not None and e.get("index", 0) > as_of_index:
+            continue
+        p = e.get("payload") if isinstance(e, dict) else None
+        if not isinstance(p, dict):
+            continue
+        if (p.get("event") == "aci_baseline_anchored"
+                and p.get("status") == "aci-baseline-confirmed"):
+            pairwise = {
+                "ledger_index": e["index"],
+                "event": "aci_baseline_anchored",
+                "path_count": p.get("path_count"),
+                "pairwise_aci": p.get("pairwise_aci"),
+                "eis": p.get("eis"),
+                "coverage_ratio": p.get("metadata_coverage_ratio"),
+            }
+        elif (p.get("event") == "aci_korder_baseline_anchored"
+                and p.get("status") == "aci-korder-confirmed"):
+            korder = {
+                "ledger_index": e["index"],
+                "event": "aci_korder_baseline_anchored",
+                "path_count": p.get("path_count"),
+                "as_of_ledger_index": p.get("as_of_ledger_index"),
+                "profile": [dict(r) for r in p.get("profile", [])],
+            }
+        elif (p.get("event") == "aci_epoch_observed"
+                and p.get("status") == "aci-epoch-confirmed"):
+            epochs.append({
+                "ledger_index": e["index"],
+                "event": "aci_epoch_observed",
+                "as_of_ledger_index": p.get("as_of_ledger_index"),
+                "path_count": p.get("path_count"),
+                "pairwise_aci": p.get("pairwise_aci"),
+                "eis": p.get("eis"),
+                "coverage_ratio": p.get("metadata_coverage_ratio"),
+                "profile": [dict(r) for r in p.get("profile", [])],
+            })
+    return (pairwise, korder, epochs)
+
+
+def build_epoch_observation(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH,
+                            as_of_index: int = None, k_max: int = EPOCH_KMAX,
+                            sample_size: int = DEFAULT_SAMPLE_SIZE) -> dict:
+    """One longitudinal epoch observation at a fixed as-of chain point.
+
+    Reuses the pairwise and k-order machinery VERBATIM (exact enumeration
+    where C(n,k) is within ENUM_LIMIT at the current population, sampled rows
+    with finite-population CI and domain clipping above it), then adds what a
+    single report cannot carry: citations of EVERY prior anchored
+    concentration record (the frozen pairwise/k-order baselines as epoch
+    zero, plus every prior anchored epoch observation) and explicit deltas
+    against the MOST RECENT prior epoch. Delta inputs come from anchored
+    values read off the ledger — re-derived context, never remembered state.
+    Deterministic at a fixed as-of: two builds are byte-identical.
+
+    Per-k values only, by construction: no cross-k aggregate exists anywhere
+    in the observation (the no-combined-scalar idiom, asserted below).
+    """
+    paths = build_paths(ledger_path=ledger_path, as_of_index=as_of_index)
+    pair_rep = compute_report(paths)
+    ko = compute_korder_report(paths, k_max=k_max,
+                               as_of_ledger_index=as_of_index,
+                               sample_size=sample_size)
+
+    pairwise_baseline, korder_baseline, epoch_obs = (
+        _prior_concentration_records(ledger_path, as_of_index))
+
+    # The comparison point: the most recent prior anchored epoch, else the
+    # frozen baselines as epoch zero, else nothing (a first-ever measurement).
+    prior = None
+    if epoch_obs:
+        last = epoch_obs[-1]
+        prior = {
+            "kind": "epoch-observation",
+            "ledger_index": last["ledger_index"],
+            "path_count": last["path_count"],
+            "coverage_ratio": last["coverage_ratio"],
+            "per_k": {r["k"]: _row_value(r) for r in last["profile"]},
+        }
+    elif korder_baseline is not None or pairwise_baseline is not None:
+        per_k = {}
+        if korder_baseline is not None:
+            per_k = {r["k"]: _row_value(r)
+                     for r in korder_baseline["profile"]}
+        elif pairwise_baseline is not None:
+            per_k = {2: (pairwise_baseline["pairwise_aci"], "exact")}
+        cited = korder_baseline or pairwise_baseline
+        prior = {
+            "kind": "baseline-pair (epoch zero)",
+            "ledger_index": cited["ledger_index"],
+            "path_count": cited["path_count"],
+            "coverage_ratio": (pairwise_baseline or {}).get("coverage_ratio"),
+            "per_k": per_k,
+        }
+
+    deltas = None
+    if prior is not None:
+        current_per_k = {r["k"]: _row_value(r) for r in ko["profile"]}
+        aci_deltas = []
+        for k in sorted(set(prior["per_k"]) & set(current_per_k)):
+            pv, pm = prior["per_k"][k]
+            cv, cm = current_per_k[k]
+            row = {"k": k, "prior": pv, "prior_mode": pm,
+                   "current": cv, "current_mode": cm, "delta": cv - pv}
+            if "sampled" in (pm, cm):
+                row["note"] = ("at least one side of this delta is a sampled "
+                               "estimate — compare with its interval, never "
+                               "as a bare point")
+            aci_deltas.append(row)
+        deltas = {
+            "prior_epoch_kind": prior["kind"],
+            "prior_epoch_ledger_index": prior["ledger_index"],
+            "path_count_delta": pair_rep["path_count"] - prior["path_count"],
+            "aci_deltas": aci_deltas,
+            "coverage_delta": (
+                pair_rep["metadata_coverage"]["coverage_ratio"]
+                - prior["coverage_ratio"]
+                if prior["coverage_ratio"] is not None else None),
+            "delta_rule": ("deltas are computed from anchored values only — "
+                           "the prior side is read off the cited anchored "
+                           "record, the current side is re-derived live; "
+                           "nothing is remembered between epochs"),
+        }
+
+    observation = {
+        "schema": EPOCH_SCHEMA_VERSION,
+        "weights_version": WEIGHTS_VERSION,
+        "as_of_ledger_index": as_of_index,
+        "path_count": pair_rep["path_count"],
+        "pairwise": {"aci": pair_rep["pairwise_aci"], "eis": pair_rep["eis"]},
+        "korder": {
+            "schema": ko["schema"],
+            "k_max": k_max,
+            "enum_limit": ENUM_LIMIT,
+            "k_values_computed": list(ko["k_values_computed"]),
+            "k_values_sampled": list(ko.get("k_values_sampled", [])),
+            "k_values_refused": [r["k"] for r in ko["k_values_refused"]],
+            "profile": [dict(r) for r in ko["profile"]],
+            "per_dimension": ko["per_dimension"],
+        },
+        "concentration_profile": pair_rep["concentration_profile"],
+        "dimension_breakdown": pair_rep["dimension_breakdown"],
+        "missing_metadata_flag_count": pair_rep["missing_metadata_count"],
+        "metadata_coverage": pair_rep["metadata_coverage"],
+        "prior_epochs": {
+            "pairwise_baseline": pairwise_baseline,
+            "korder_baseline": korder_baseline,
+            "epoch_observations": epoch_obs,
+        },
+        "deltas_vs_prior_epoch": deltas,
+        "interpretation": EPOCH_INTERPRETATION,
+        "zero_value": True,
+        "no_token": True,
+    }
+    if ko.get("sampling"):
+        observation["korder"]["sampling"] = dict(ko["sampling"])
+    # NO-COMBINED-SCALAR, by construction: every concentration value in the
+    # observation is per-k (profile rows / deltas) or per-dimension — no key
+    # aggregates across k anywhere.
+    banned = {"aci_mean", "aci_overall", "combined_aci", "aci_aggregate"}
+    assert not (banned & set(observation)) and all(
+        "k" in row for row in observation["korder"]["profile"])
+    observation["report_hash"] = compute_report_hash(observation)
+    return observation
+
+
 def profile_row_text(row: dict) -> str:
     """One-line human rendering of a profile row, exact vs sampled ALWAYS
     typed — a sampled figure is never printed without its interval."""
@@ -891,6 +1099,10 @@ def main(argv=None) -> int:
                         help="compute the higher-order ACI_k profile (exact "
                              "below ENUM_LIMIT; sampled WITH the "
                              "finite-population interval above it)")
+    parser.add_argument("--epoch", action="store_true",
+                        help="build a longitudinal epoch observation at --as-of: "
+                             "the full measurement plus prior-anchored-epoch "
+                             "citations and explicit deltas (the time series)")
     parser.add_argument("--kmax", type=int, default=4,
                         help="with --korder: largest subset size k (default 4)")
     parser.add_argument("--sample-size", type=int, default=DEFAULT_SAMPLE_SIZE,
@@ -919,8 +1131,34 @@ def main(argv=None) -> int:
     if args.selftest:
         return _selftest()
 
-    if not (args.report or args.korder):
-        parser.error("one of --report, --korder or --selftest is required")
+    if not (args.report or args.korder or args.epoch):
+        parser.error("one of --report, --korder, --epoch or --selftest is required")
+
+    if args.epoch:
+        try:
+            obs = build_epoch_observation(ledger_path=args.ledger,
+                                          as_of_index=args.as_of,
+                                          sample_size=args.sample_size)
+        except (KeyError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        text = json.dumps(obs, indent=2, sort_keys=True)
+        print(text)
+        out = args.out or "aci_epoch_report.json"
+        with open(out, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+        prof = ", ".join(profile_row_text(row)
+                         for row in obs["korder"]["profile"])
+        d = obs["deltas_vs_prior_epoch"]
+        d_note = ("no prior anchored concentration record — first epoch"
+                  if d is None else
+                  f"deltas vs {d['prior_epoch_kind']} "
+                  f"(ledger:{d['prior_epoch_ledger_index']}): path_count "
+                  f"{d['path_count_delta']:+d}")
+        print(f"wrote epoch observation ({obs['path_count']} paths as-of "
+              f"{obs['as_of_ledger_index']}, {prof}; {d_note}) to {out}",
+              file=sys.stderr)
+        return 0
 
     if args.korder:
         try:
@@ -1434,6 +1672,138 @@ def _selftest() -> int:
         else:
             print("    (no anchored k-order baseline on the source — "
                   "exact-mode regression check SKIPPED)")
+
+        # ---------------- epoch observation (the longitudinal series) --------
+        # (h1) PAIRWISE REGRESSION LOCK: the anchored pairwise baseline
+        # re-derives byte-identically at its as-of point (idx-44's korder lock
+        # is (g2); together the epoch layer provably changed neither builder)
+        if baseline is not None:
+            re18 = compute_report(build_paths(ledger_path=src,
+                                              as_of_index=b_idx - 1))
+            checks.append(("anchored pairwise baseline re-derives "
+                           "byte-identically (hash to the digit)",
+                           re18["report_hash"]
+                           == baseline["payload"].get("report_hash")))
+
+        # (h2) determinism + prior-epoch citation completeness + hand-checked
+        # delta arithmetic, on the real source. Written generically so the
+        # check stays green as the series grows: the comparison point must be
+        # the newest prior anchored epoch when one exists, else the frozen
+        # baselines as epoch zero.
+        obs1 = build_epoch_observation(ledger_path=src)
+        obs2 = build_epoch_observation(ledger_path=src)
+        checks.append(("epoch observation deterministic (two builds "
+                       "byte-identical; hash recomputes)",
+                       canonical_json(obs1) == canonical_json(obs2)
+                       and compute_report_hash(obs1) == obs1["report_hash"]))
+        pe = obs1["prior_epochs"]
+        cite_ok = True
+        if baseline is not None:
+            cite_ok = (pe["pairwise_baseline"] is not None
+                       and pe["pairwise_baseline"]["ledger_index"] == b_idx)
+        if ko_anchor is not None:
+            cite_ok = cite_ok and pe["korder_baseline"] is not None
+        checks.append(("epoch observation cites every prior anchored "
+                       "concentration record", cite_ok))
+        d = obs1["deltas_vs_prior_epoch"]
+        if d is not None:
+            if pe["epoch_observations"]:
+                prior_cite = pe["epoch_observations"][-1]
+                prior_pc = prior_cite["path_count"]
+                prior_k = {r["k"]: _row_value(r)[0]
+                           for r in prior_cite["profile"]}
+                prior_cov = prior_cite["coverage_ratio"]
+                kind_ok = (d["prior_epoch_kind"] == "epoch-observation"
+                           and d["prior_epoch_ledger_index"]
+                           == prior_cite["ledger_index"])
+            else:
+                prior_cite = pe["korder_baseline"] or pe["pairwise_baseline"]
+                prior_pc = prior_cite["path_count"]
+                prior_k = ({r["k"]: _row_value(r)[0]
+                            for r in prior_cite["profile"]}
+                           if "profile" in prior_cite
+                           else {2: prior_cite["pairwise_aci"]})
+                prior_cov = (pe["pairwise_baseline"] or {}).get(
+                    "coverage_ratio")
+                kind_ok = d["prior_epoch_kind"].startswith("baseline-pair")
+            cur_k = {r["k"]: _row_value(r)[0]
+                     for r in obs1["korder"]["profile"]}
+            delta_ok = (d["path_count_delta"]
+                        == obs1["path_count"] - prior_pc)
+            for row in d["aci_deltas"]:
+                delta_ok = (delta_ok
+                            and row["delta"]
+                            == cur_k[row["k"]] - prior_k[row["k"]]
+                            and row["prior"] == prior_k[row["k"]]
+                            and row["current"] == cur_k[row["k"]])
+            if prior_cov is not None:
+                delta_ok = (delta_ok and d["coverage_delta"]
+                            == obs1["metadata_coverage"]["coverage_ratio"]
+                            - prior_cov)
+            checks.append(("epoch deltas hand-recompute from the cited "
+                           "anchored values (path_count, per-k, coverage)",
+                           kind_ok and delta_ok))
+        # (h3) inherited sampled-row honesty + the no-combined-scalar idiom
+        rows = obs1["korder"]["profile"]
+        sampled_rows = [r for r in rows if not r.get("exact")]
+        checks.append(("epoch profile rows typed; sampled rows carry "
+                       "CI + clipping fields, never a bare point",
+                       all("k" in r for r in rows)
+                       and all("aci_k" not in r and "ci95" in r
+                               and "standard_error" in r
+                               and "ci_clipped" in r for r in sampled_rows)))
+        banned = {"aci_mean", "aci_overall", "combined_aci", "aci_aggregate"}
+        checks.append(("no cross-k aggregate key exists anywhere in the "
+                       "observation (per-k values only)",
+                       not (banned & set(obs1))
+                       and not (banned & set(obs1["korder"]))))
+
+        # (h4) PLANTED-PRIOR-EPOCH fixture: an anchored epoch on the chain
+        # MUST be cited and MUST become the comparison point — a series that
+        # forgets an epoch is broken. Temp copy only; hand-computed deltas.
+        import shutil
+        import tempfile
+        from protocol.ledger import Ledger as _Ledger
+        tmp_e = tempfile.mkdtemp(prefix=f"aci_epoch_selftest_{os.getpid()}_")
+        try:
+            planted_path = os.path.join(tmp_e, "ledger_planted.jsonl")
+            shutil.copyfile(src, planted_path)
+            planted = _Ledger(planted_path).append({
+                "event": "aci_epoch_observed",
+                "status": "aci-epoch-confirmed",
+                "as_of_ledger_index": 999,
+                "path_count": 60,
+                "pairwise_aci": 0.99,
+                "eis": 0.01,
+                "metadata_coverage_ratio": 0.8,
+                "profile": [{"k": 2, "aci_k": 0.99, "exact": True,
+                             "subset_count": 1770}],
+                "zero_value": True, "no_token": True,
+                "note": "selftest fixture — planted prior epoch, temp copy "
+                        "only, never the real chain",
+            })
+            obs_p = build_epoch_observation(ledger_path=planted_path)
+            dp = obs_p["deltas_vs_prior_epoch"]
+            k2_now = next(_row_value(r)[0]
+                          for r in obs_p["korder"]["profile"]
+                          if r["k"] == 2)
+            checks.append(("planted prior epoch is cited and becomes the "
+                           "comparison point (hand-computed deltas)",
+                           any(c["ledger_index"] == planted["index"]
+                               for c in obs_p["prior_epochs"]
+                               ["epoch_observations"])
+                           and dp["prior_epoch_kind"] == "epoch-observation"
+                           and dp["prior_epoch_ledger_index"]
+                           == planted["index"]
+                           and dp["path_count_delta"]
+                           == obs_p["path_count"] - 60
+                           and dp["aci_deltas"][0]["k"] == 2
+                           and dp["aci_deltas"][0]["delta"] == k2_now - 0.99
+                           and dp["coverage_delta"]
+                           == obs_p["metadata_coverage"]["coverage_ratio"]
+                           - 0.8))
+        finally:
+            shutil.rmtree(tmp_e, ignore_errors=True)
     else:
         print("    (no ledger source at all — real S_2-consistency check "
               "SKIPPED)")

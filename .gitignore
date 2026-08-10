@@ -57,6 +57,12 @@ aci_report*.json
 # evidence copy lives in protocol/evidence/ via the negation block below.
 aci_korder_report*.json
 
+# ACI epoch observations (agent_concentration.py --epoch) are the longitudinal
+# series' working files — deterministic at their as-of chain point, rebuilt on
+# demand; each anchored epoch's hash-named evidence copy lives in
+# protocol/evidence/ via the negation block below.
+aci_epoch*.json
+
 # 30-day simulated-economy artifacts (economy_demo.py): persistent state + final log —
 # derived, deterministic, reconstructible local artifacts, never committed (the canonical
 # record is the ANCHORED summary; simulated day indices, zero value, no token).
