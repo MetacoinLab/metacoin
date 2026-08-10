@@ -43,10 +43,18 @@ Three verified constructs inside the docs:
      additionally asserts entry N carries exactly that event. A doc cannot cite
      a ledger record that is not there, nor mislabel what a record is.
 
+MIP DOCUMENTS (mip/MIP-*.md) are in the --check scan set too: typed idx
+references resolved and verify-run blocks executed exactly like the docs'
+(no contract line required — pre-process drafts predate it). --render NEVER
+touches mip/: an anchored MIP file is immutable-by-citation (the anchored
+decision record pins its sha256), so nothing may rewrite it — which is also
+why MIP files must cite typed idx references instead of chain tokens
+(protocol/mip_process.py --check refuses tokens).
+
 WHAT THIS MODULE NEVER DOES: it never writes to the ledger (read-only against
 the live-or-snapshot chain, same resolution as every verifier); --render
 rewrites ONLY the VALUE spans between chain markers in docs/ files, nothing
-else; --check writes nothing at all outside its temp sandbox.
+else (and never mip/); --check writes nothing at all outside its temp sandbox.
 
 Standard library only (json, os, re, sys, argparse, shutil, subprocess,
 tempfile). Ledger resolution and evidence discovery are REUSED from
@@ -89,6 +97,23 @@ DOCS_DIR = os.path.join(_REPO_ROOT, "docs")
 # -> bundle) must execute in the order a reader would.
 DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
              "TRUST-MODEL.md")
+
+# MIP documents (mip/MIP-*.md) join the scan set: their typed idx references
+# are resolved and their verify-run blocks executed exactly like the docs'.
+# Differences, both deliberate: no DOC-CONTRACT line is required (pre-process
+# drafts predate the contract), and --render NEVER touches mip/ — an anchored
+# MIP file is immutable-by-citation (its sha256 is pinned by the anchored
+# decision record), which is also why a MIP must not embed chain tokens
+# (protocol/mip_process.py --check refuses them).
+MIP_DIR = os.path.join(_REPO_ROOT, "mip")
+
+
+def _mip_files(mip_dir):
+    """Sorted MIP markdown basenames in `mip_dir` ([] if absent)."""
+    if mip_dir is None or not os.path.isdir(mip_dir):
+        return []
+    return sorted(n for n in os.listdir(mip_dir)
+                  if n.startswith("MIP-") and n.endswith(".md"))
 
 CONTRACT_MARKER = "mechanically verified by protocol/doc_verify.py"
 
@@ -251,12 +276,14 @@ def _run_command_blocks(doc_blocks, sandbox, findings, echo=print):
 
 
 def check_docs(docs_dir=DOCS_DIR, repo_root=_REPO_ROOT, execute=True,
-               sandbox_dir=None, echo=print):
+               sandbox_dir=None, echo=print, mip_dir=None):
     """Verify every doc construct. Returns (findings list, stats dict).
     `sandbox_dir` (self-test fixtures) skips the git clone and runs command
-    blocks in the given directory instead."""
+    blocks in the given directory instead. `mip_dir` additionally scans MIP
+    documents (idx references + verify-run blocks; no contract line
+    required) — the real callers pass MIP_DIR, fixtures leave it None."""
     findings = []
-    stats = {"docs": 0, "tokens": 0, "idx_refs": 0, "commands": 0}
+    stats = {"docs": 0, "mips": 0, "tokens": 0, "idx_refs": 0, "commands": 0}
     entries = _read_ledger(resolve_ledger_path())
     tokens = compute_tokens(repo_root, entries)
 
@@ -279,6 +306,22 @@ def check_docs(docs_dir=DOCS_DIR, repo_root=_REPO_ROOT, execute=True,
                               + len(_IDX_TYPED_RE.findall(text)))
         for command, expects in _parse_command_blocks(text):
             doc_blocks.append((name, command, expects))
+    for name in _mip_files(mip_dir):
+        path = os.path.join(mip_dir, name)
+        with open(path) as f:
+            text = f.read()
+        stats["mips"] += 1
+        rel = f"mip/{name}"
+        # chain tokens in a MIP would rot inside an immutable-by-citation
+        # file; if one ever appears it is still value-checked here (a stale
+        # value is a finding either way, and mip_process refuses them)
+        _check_tokens(text, rel, tokens, findings)
+        _check_idx_refs(text, rel, entries, findings)
+        stats["tokens"] += len(_TOKEN_RE.findall(text))
+        stats["idx_refs"] += (len(_IDX_PROSE_RE.findall(text))
+                              + len(_IDX_TYPED_RE.findall(text)))
+        for command, expects in _parse_command_blocks(text):
+            doc_blocks.append((rel, command, expects))
     stats["commands"] = len(doc_blocks)
 
     if doc_blocks and execute:
@@ -448,14 +491,16 @@ def _selftest() -> int:
 
     # [10] the real four docs check clean — commands executed for real in a
     # fresh-clone sandbox (this IS the doc contract being enforced).
-    print("checking the real docs (executes every verify-run block in a "
-          "fresh-clone sandbox — takes a few minutes)...")
-    real_findings, stats = check_docs(echo=print)
+    print("checking the real docs + MIPs (executes every verify-run block in "
+          "a fresh-clone sandbox — takes a few minutes)...")
+    real_findings, stats = check_docs(echo=print, mip_dir=MIP_DIR)
     for f in real_findings:
         print(f"    FINDING: {f}")
-    checks.append((f"the real four docs check clean ({stats['tokens']} tokens, "
+    checks.append((f"the real docs + MIPs check clean ({stats['docs']} docs, "
+                   f"{stats['mips']} MIPs, {stats['tokens']} tokens, "
                    f"{stats['idx_refs']} idx refs, {stats['commands']} "
-                   "commands)", real_findings == [] and stats["docs"] == 4))
+                   "commands)", real_findings == [] and stats["docs"] == 4
+                   and stats["mips"] >= 3))
 
     # Zero-write guarantees.
     ledger_sha_after = None
@@ -508,8 +553,10 @@ def main(argv=None) -> int:
         render_docs()
         return 0
     if args.check:
-        findings, stats = check_docs(execute=not args.no_exec)
-        print(f"\ndocs checked: {stats['docs']}/{len(DOC_FILES)} | chain "
+        findings, stats = check_docs(execute=not args.no_exec,
+                                     mip_dir=MIP_DIR)
+        print(f"\ndocs checked: {stats['docs']}/{len(DOC_FILES)} | MIPs "
+              f"scanned: {stats['mips']} | chain "
               f"tokens: {stats['tokens']} | idx references: "
               f"{stats['idx_refs']} | command blocks: {stats['commands']}")
         if findings:

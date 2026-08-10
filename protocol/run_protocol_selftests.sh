@@ -39,6 +39,7 @@ TESTS=(
     "power_telemetry.py --selftest"
     "prov_export.py --selftest"
     "doc_verify.py --selftest"
+    "mip_process.py --selftest"
     "../metacoin_cli/selftest.py"
 )
 
