@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->57<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->a495d15e2497<!--/chain-->…,
-> <!--chain:entry_count-->58<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->58<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->7575d1c32de2<!--/chain-->…,
+> <!--chain:entry_count-->59<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->58<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->59<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -252,6 +252,39 @@ asserted at every step).
 **Deliberately does not:** revalue anything — both generations are zero-value
 simulated accounting, the drill rejections are planned demonstrations, and
 scripted determinism is still not market behavior.
+
+## The governance layer — idx 58
+
+The MIP path was exercised end-to-end for the first time, with a real
+subject: MIP-0004 ("Concentration measurement epochs and the longitudinal
+baseline") ratifies the epoch series of the concentration layer above. The
+lifecycle the mip/ directory documents is minimal — a Draft status and
+MIP-0001 §7's promise of "transparent on-chain MIPs" — so the exercise
+completed it by its minimal honest reading: *Draft* (committed) →
+*mechanical check* (`protocol/mip_process.py --check`: required sections,
+valid status, every ledger citation resolved against the chain, every
+verify-run block executed in a fresh-clone sandbox, file sha256) →
+*single-seat decision* → *anchored decision record* (idx 58
+<!--idx:58=mip_decision_recorded-->), recorded only behind the same human
+`--confirm` gate as participant intake.
+
+Two properties are the point:
+
+- **The seat statement.** The record says, on-chain: *the review seat has
+  one occupant and says so* — plural review, voting, and the anti-whale
+  dampening MIP-0001 §7 promises do not exist at research stage. A recorded
+  decision proves the process ran, not that the decision is wise (the
+  Gate-3 vacancy idiom, applied to governance).
+- **Immutability-by-citation.** The record pins the decided file's sha256.
+  From that moment the committed MIP file is immutable: the governance
+  layer of `metacoin verify` and the sweep's mip section recompute the hash
+  on every run, an edit breaks re-derivation loudly, and amendments are new
+  MIPs.
+
+**Proves:** the governance process is mechanical, gated, and anchored — a
+decision leaves a re-derivable record citing an immutable document.
+**Deliberately does not:** claim legitimacy beyond one operator's seat — the
+process is real; plural review is not, and every record says so.
 
 ## The six defeated-attack drills
 
