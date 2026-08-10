@@ -68,6 +68,7 @@ import protocol.challenge_response as challenge_response
 import protocol.cut_certificate as cut_certificate
 import protocol.gate3_process as gate3_process
 import protocol.metawork_passport as metawork_passport
+import protocol.mip_process as mip_process
 import protocol.trust_vector as trust_vector
 import demo.flow1_uptime as flow1_uptime
 import demo.metastar_treasury as metastar_treasury
@@ -840,6 +841,55 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "bounded-failure drill(s) stay upheld, "
                      f"{n_final} finalization(s) replay with closed windows; "
                      "prechecks recompute with citations" + ext_note
+                     if not problems else "; ".join(problems[:3])))
+
+    # --- layer 11b: governance (MIP decisions; both modes; cheap) -------------------
+    # Every anchored MIP decision re-derives from the committed file: the
+    # cited file exists at its recorded repo path, its sha256 matches the
+    # anchored pin (immutability-by-citation — an edited anchored MIP breaks
+    # HERE, loudly, which is correct: amendments are new MIPs), and the
+    # structural mechanical checks still pass against the current chain.
+    # Verify-run execution is deliberately NOT repeated here — doc_verify's
+    # mip/ scan executes those blocks in CI; this layer stays cheap.
+    mips = [(e["index"], e["payload"]) for e in entries
+            if isinstance(e.get("payload"), dict)
+            and e["payload"].get("event") == "mip_decision_recorded"]
+    if not mips:
+        rows.append(("governance (MIP)", FULL, True,
+                     "no MIP decisions on the chain yet"))
+    else:
+        problems = []
+        for idx, p in mips:
+            fpath = os.path.join(_REPO_ROOT, p.get("file", ""))
+            if not os.path.exists(fpath):
+                problems.append(f"idx {idx}: cited file {p.get('file')} "
+                                "missing from the repo")
+                continue
+            sha = mip_process._sha256_file(fpath)
+            if sha != p.get("file_sha256"):
+                problems.append(f"idx {idx}: {p.get('file')} sha256 does not "
+                                "match the anchored pin — anchored MIP files "
+                                "are immutable-by-citation (amendments are "
+                                "new MIPs)")
+            v = mip_process.check_mip(fpath, ledger_source=source,
+                                      execute=False, echo=lambda *a: None)
+            if not v["passed"]:
+                failed = [c["name"] for c in v["checks"] if not c["passed"]]
+                problems.append(f"idx {idx}: structural checks fail: {failed}")
+            if (p.get("decision") == "accepted"
+                    and v.get("status") != "Accepted"):
+                problems.append(f"idx {idx}: decision 'accepted' but the "
+                                f"file declares {v.get('status')!r}")
+            if "one occupant" not in p.get("seat_statement", ""):
+                problems.append(f"idx {idx}: the seat statement is missing — "
+                                "a governance record must name its single "
+                                "seat")
+        rows.append(("governance (MIP)", FULL, not problems,
+                     f"{len(mips)} anchored MIP decision(s) re-derive: file "
+                     "hash matches the anchored pin (immutable-by-citation), "
+                     "structural checks pass, the single-seat statement is "
+                     "on the record (verify-run blocks execute in the "
+                     "doc_verify mip/ scan)"
                      if not problems else "; ".join(problems[:3])))
 
     # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------

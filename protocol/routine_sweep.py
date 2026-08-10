@@ -33,6 +33,10 @@ in order:
                    sampled current-chain ACI_k profile (typed, with
                    intervals). The sweep's job is to notice UNEXPECTED
                    change; expected drift is listed under its own heading.
+  8b. mip        — anchored governance decisions re-derive: cited file
+                   present, sha256 matches the anchored pin (immutability-
+                   by-citation), structural checks pass; NAMED skip while
+                   the chain carries no MIP decisions.
   9. docs        — the verified documentation suite: doc_verify --check
                    (every doc command executed, every number chain-checked,
                    every idx reference resolved; named skip if docs/ absent)
@@ -633,6 +637,54 @@ def section_drift(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
 
 
 # ----------------------------------------------------------------------------
+# 8b: mip — anchored governance decisions re-derive (named skip if none)
+# ----------------------------------------------------------------------------
+def section_mip(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
+    """Every anchored MIP decision re-derives: the cited file exists, its
+    sha256 matches the anchored pin (immutability-by-citation), and the
+    structural mechanical checks still pass. Verify-run blocks execute in
+    the docs section's doc_verify run, not here. Named skip if the chain
+    carries no MIP decisions yet."""
+    import protocol.mip_process as mip_process
+    findings, details = [], []
+    src = (ledger_source if ledger_source is not None
+           else actor_identity._default_ledger_source(base_dir))
+    entries = actor_identity._read_entries(src)
+    mips = [(e["index"], e["payload"]) for e in entries
+            if isinstance(e.get("payload"), dict)
+            and e["payload"].get("event") == "mip_decision_recorded"]
+    if not mips:
+        return _section("mip", [],
+                        ["no anchored MIP decisions on the chain yet — "
+                         "SKIPPED (named)"], skipped=True)
+    for idx, p in mips:
+        fpath = os.path.join(base_dir, p.get("file", ""))
+        if not os.path.exists(fpath):
+            findings.append(f"ledger:{idx} cites {p.get('file')} which is "
+                            "missing from the repo")
+            continue
+        with open(fpath, "rb") as f:
+            sha = _sha256_hex(f.read())
+        if sha != p.get("file_sha256"):
+            findings.append(f"ledger:{idx}: {p.get('file')} sha256 no longer "
+                            "matches the anchored pin — anchored MIP files "
+                            "are immutable-by-citation; amendments are new "
+                            "MIPs")
+            continue
+        v = mip_process.check_mip(fpath, ledger_source=src, execute=False,
+                                  echo=lambda *a: None)
+        if not v["passed"]:
+            failed = [c["name"] for c in v["checks"] if not c["passed"]]
+            findings.append(f"ledger:{idx}: structural checks fail: {failed}")
+            continue
+        details.append(f"ledger:{idx}: {p.get('mip_id')} ({p.get('decision')}"
+                       f", seat {p.get('review_seat')}) re-derives — file "
+                       "hash matches the anchored pin; structural checks "
+                       "pass")
+    return _section("mip", findings, details)
+
+
+# ----------------------------------------------------------------------------
 # 9: docs — the verified documentation suite (the doc contract, enforced)
 # ----------------------------------------------------------------------------
 def section_docs(base_dir: str = _REPO_ROOT) -> dict:
@@ -696,6 +748,7 @@ def run_sweep(base_dir: str = _REPO_ROOT) -> dict:
         section_evidence(base_dir),
         section_git(base_dir),
         section_drift(base_dir),
+        section_mip(base_dir),
         section_docs(base_dir),
     ])
 

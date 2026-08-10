@@ -2563,19 +2563,87 @@
       },
       "prev_hash": "6c16974e052f72db0e1f6d9d471f95ccbd1752c37acbeca0939c5a15d649962f",
       "timestamp": 1786353095.5154653
+    },
+    {
+      "hash": "7575d1c32de2dd66cd28d8eed1b3b5d86c717188fb0e03bdeea99b87d04b9aa7",
+      "index": 58,
+      "payload": {
+        "amendment_rule": "the anchored record pins the decided file's sha256: the committed MIP file is immutable-by-citation from this moment, a later edit breaks re-derivation loudly, and amendments are new MIPs",
+        "anchored_at": 1786355127.5784953,
+        "decision": "accepted",
+        "event": "mip_decision_recorded",
+        "file": "mip/MIP-0004-concentration-epochs.md",
+        "file_sha256": "c706558c7fa66642880abd96434c4e68b323ad3726fabea376616f3a39b7eb14",
+        "limitation_note": "First-exercise MIP lifecycle under same-operator custody: the mechanical checks are real (required sections, valid status, ledger citations resolved against the chain, verification blocks executed, file sha256 pinned) and the decision is recorded on-chain \u2014 but the review seat has ONE occupant and says so. A recorded decision proves the PROCESS ran, not that the decision is wise; plural review and voting do not exist yet. Anchored MIP files are immutable-by-citation; amendments are new MIPs. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "mechanical_check": {
+          "checks": [
+            {
+              "detail": "MIP-0004 \u2014 Concentration measurement epochs and the longitudinal baseline",
+              "name": "identity",
+              "passed": true
+            },
+            {
+              "detail": "status 'Accepted'",
+              "name": "status-valid",
+              "passed": true
+            },
+            {
+              "detail": "all present",
+              "name": "required-sections",
+              "passed": true
+            },
+            {
+              "detail": "none (correct: immutable files must not embed live-recomputed numbers)",
+              "name": "no-chain-tokens",
+              "passed": true
+            },
+            {
+              "detail": "8 reference(s) resolve",
+              "name": "ledger-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "2 verify-run block(s)",
+              "name": "verification-blocks-present",
+              "passed": true
+            },
+            {
+              "detail": "all clean",
+              "name": "verification-blocks-execute",
+              "passed": true
+            }
+          ],
+          "idx_references": 8,
+          "passed": true,
+          "verify_run_blocks": 2
+        },
+        "mip_id": "MIP-0004",
+        "mip_title": "Concentration measurement epochs and the longitudinal baseline",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "record_schema": "mip-record/0.1",
+        "review_seat": "same-operator-single-seat",
+        "seat_statement": "the review seat has one occupant and says so \u2014 plural review, voting, and anti-whale dampening (MIP-0001 \u00a77) do not exist at research stage; this record proves the process ran, not that the decision is wise",
+        "stage": "R-governance",
+        "status": "mip-accepted",
+        "topology": "same-operator-single-seat-review",
+        "zero_value": true
+      },
+      "prev_hash": "a495d15e2497673f45da784684180e25e78db843c267eb561c09f82f5ec7876c",
+      "timestamp": 1786355127.5788763
     }
   ],
   "snapshot_header": {
-    "entry_count": 58,
+    "entry_count": 59,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1786353101.7956727,
+    "snapshot_timestamp": 1786355133.6189373,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "a495d15e2497673f45da784684180e25e78db843c267eb561c09f82f5ec7876c",
-    "tip_index": 57,
+    "tip_hash": "7575d1c32de2dd66cd28d8eed1b3b5d86c717188fb0e03bdeea99b87d04b9aa7",
+    "tip_index": 58,
     "zero_value": true
   }
 }
