@@ -108,7 +108,9 @@ _STATIC_DRILLS = {"heartbeat_forged_drill.json": "heartbeat_rejected",
 _STATIC_EXPECTED = {
     "aci_baseline_anchored": ("aci_report.json",),
     "aci_korder_baseline_anchored": ("aci_korder_report.json",),
-    "economy_demo_summary_anchored": ("economy_log.json",),
+    # economy_demo_summary_anchored is handled per-generation in
+    # _expected_evidence (gen-1 keeps the static economy_log.json name;
+    # later generations ship economy_log_gen<N>.json)
     "metering_evidence_anchored": ("metering_report.json",),
     "cut_certificate_anchored": ("cut_cert.json",),
     "trust_vector_catalog_anchored": ("tv_catalog.json",),
@@ -335,6 +337,12 @@ def _expected_evidence(entries) -> dict:
                 and p.get("task_id") in work_molecule._CATALOG_SUBMISSIONS):
             want(work_molecule._CATALOG_SUBMISSIONS[p["task_id"]], idx,
                  "external verification submission")
+        if (event == "economy_demo_summary_anchored"
+                and p.get("status") == "economy-demo-confirmed"):
+            gen = p.get("generation", 1)
+            want("economy_log.json" if gen == 1
+                 else f"economy_log_gen{gen}.json", idx,
+                 f"anchored economy generation {gen}")
         if event == "work_molecule_catalog_anchored":
             want("wm_catalog.json" if p.get("molecule_schema")
                  == "work-molecule/0.2" else "wm_catalog_v03.json", idx,

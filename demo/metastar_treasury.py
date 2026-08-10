@@ -4,10 +4,12 @@
 THE TREASURY CAN NEVER CREATE UNITS. This module is the Two-Flow constitution's
 second flow as executable code:
 
-  * Its ONLY inflow is fees derived from the ANCHORED economy record: FEE_RATE
-    (0.10) of each recorded per-day spend in the anchored 30-simulated-day
-    economy log — a derived accounting VIEW of ledger:19; the anchored record is
-    READ, never modified.
+  * Its ONLY inflow is fees derived from ANCHORED economy records: FEE_RATE
+    (0.10) of each recorded per-day spend in an anchored 30-simulated-day
+    economy log — a derived accounting VIEW of the economy anchors (ledger:19
+    for generation 1; each later generation adds ONE more root beside it,
+    collected idempotently per root). Anchored records are READ, never
+    modified — cross-generation accumulation adds entries, it rewrites nothing.
   * Its ONLY outflows are BOUNDED bounty payments: per-bounty cap, per-category
     budget (GROSS — a clawback returns funds to the balance but does NOT refill
     the category budget: total category exposure stays bounded), and balance
@@ -31,6 +33,7 @@ Not financial, investment, or legal advice.
 
 Usage:
     python3 demo/metastar_treasury.py --init
+    python3 demo/metastar_treasury.py --extend-funding   # collect newly anchored generations
     python3 demo/metastar_treasury.py --status
     python3 demo/metastar_treasury.py --grant --bounty bounty-0001 --work-id <wmid> --task task-0002 --amount 1.0
     python3 demo/metastar_treasury.py --clawback --bounty bounty-0001
@@ -82,26 +85,54 @@ def _round(x) -> float:
 # Fee derivation (append-only CONSUMPTION of anchored data — never a source of
 # new units: the fees are an accounting view of spends the economy already made)
 # ----------------------------------------------------------------------------
-def derive_fees(ledger_path: str = DEFAULT_LEDGER_PATH):
-    """Derive per-day protocol fees from the ANCHORED economy record.
-
-    Re-runs the deterministic simulation (the canonical re-derivation), asserts
-    its log hash matches the anchored economy record, and computes per-day fees
-    as round(spent x FEE_RATE, 6). Returns (funding_root, per_day_fees, total).
-    Raises ValueError if no confirmed economy anchor exists or hashes mismatch —
-    fees may ONLY flow from anchored, verified economic activity.
-    """
-    entries = work_molecule._read_ledger(ledger_path)
-    anchor = None
-    for e in entries:
+def _confirmed_economy_anchors(ledger_path: str) -> list:
+    """All CONFIRMED economy-summary anchor entries, ascending ledger order."""
+    anchors = []
+    for e in work_molecule._read_ledger(ledger_path):
         p = e.get("payload") if isinstance(e, dict) else None
         if (isinstance(p, dict) and p.get("event") == _ECONOMY_EVENT
                 and p.get("status") == _ECONOMY_STATUS):
-            anchor = e
-    if anchor is None:
+            anchors.append(e)
+    return anchors
+
+
+def list_funding_roots(ledger_path: str = DEFAULT_LEDGER_PATH) -> list:
+    """Every anchored funding root ("ledger:N", ascending) — one per confirmed
+    economy generation. A mismatch/rejected economy record is NEVER a root."""
+    return [f"ledger:{e['index']}"
+            for e in _confirmed_economy_anchors(ledger_path)]
+
+
+def derive_fees(ledger_path: str = DEFAULT_LEDGER_PATH, funding_root: str = None):
+    """Derive per-day protocol fees from ONE anchored economy record.
+
+    Re-runs the deterministic simulation for the anchor's GENERATION (the
+    anchored record names it; absent means generation 1), asserts the re-run's
+    log hash matches that anchored record, and computes per-day fees as
+    round(spent x FEE_RATE, 6). Returns (funding_root, per_day_fees, total).
+
+    `funding_root` ("ledger:N") selects a specific anchored generation — the
+    historical re-derivation path: an old record re-derives against ITS root
+    forever, regardless of later generations. None keeps the legacy default
+    (the latest confirmed anchor). Raises ValueError if no confirmed anchor
+    matches or the hash mismatches — fees may ONLY flow from anchored,
+    verified economic activity.
+    """
+    anchors = _confirmed_economy_anchors(ledger_path)
+    if not anchors:
         raise ValueError("no confirmed economy anchor on the ledger — the "
                          "treasury has no funding root without one")
-    log = economy_demo.simulate_all()
+    if funding_root is None:
+        anchor = anchors[-1]
+    else:
+        anchor = next((e for e in anchors
+                       if f"ledger:{e['index']}" == funding_root), None)
+        if anchor is None:
+            raise ValueError(f"funding root {funding_root!r} is not a confirmed "
+                             "economy anchor on this ledger — refusing to "
+                             "derive fees from it")
+    generation = anchor["payload"].get("generation", 1)
+    log = economy_demo.simulate_all(generation)
     if log["economy_log_hash"] != anchor["payload"]["economy_log_hash"]:
         raise ValueError("re-derived economy log hash does not match the "
                          "anchored record — refusing to derive fees")
@@ -161,28 +192,45 @@ def assert_conservation(state: dict):
         assert e["type"] in _ENTRY_TYPES, f"unknown entry type {e['type']!r}"
 
 
-def collect_fees(state: dict, ledger_path: str = DEFAULT_LEDGER_PATH) -> dict:
-    """Collect the anchored-economy fees into the treasury (IDEMPOTENT: a
+def collect_fees(state: dict, ledger_path: str = DEFAULT_LEDGER_PATH,
+                 funding_roots: list = None) -> dict:
+    """Collect anchored-economy fees into the treasury (IDEMPOTENT per root: a
     second collection from the same funding root is a no-op, never a double
     credit). This is one of exactly two balance-increasing paths; the other is
-    clawback, which only returns previously granted funds."""
-    funding_root, per_day, total = derive_fees(ledger_path)
-    already = [e for e in state["entries"]
-               if e["type"] == "fee_collection"
-               and e["funding_root"] == funding_root]
-    if already:
-        assert_conservation(state)
-        return state
-    state["entries"].append({
-        "type": "fee_collection",
-        "funding_root": funding_root,
-        "fee_rate": FEE_RATE,
-        "per_day_fees": per_day,
-        "amount": total,
-    })
-    state["funding_root"] = funding_root
-    state["total_fees_collected"] = _round(state["total_fees_collected"] + total)
-    state["balance"] = _round(state["balance"] + total)
+    clawback, which only returns previously granted funds.
+
+    MULTI-ROOT (cross-generation accumulation): `funding_roots=None` collects
+    from EVERY confirmed economy anchor on the ledger — each root's log is
+    independently re-derived and hash-asserted against ITS anchor by
+    derive_fees. A single-anchor ledger behaves exactly as before. Anchored
+    generations are read, never modified: accumulation adds fee entries beside
+    the old ones and conservation replays over all of them."""
+    if funding_roots is None:
+        funding_roots = list_funding_roots(ledger_path)
+        if not funding_roots:
+            raise ValueError("no confirmed economy anchor on the ledger — the "
+                             "treasury has no funding root without one")
+    for root in funding_roots:
+        funding_root, per_day, total = derive_fees(ledger_path,
+                                                   funding_root=root)
+        already = [e for e in state["entries"]
+                   if e["type"] == "fee_collection"
+                   and e["funding_root"] == funding_root]
+        if already:
+            continue
+        state["entries"].append({
+            "type": "fee_collection",
+            "funding_root": funding_root,
+            "fee_rate": FEE_RATE,
+            "per_day_fees": per_day,
+            "amount": total,
+        })
+        state["funding_root"] = funding_root
+        state["total_fees_collected"] = _round(
+            state["total_fees_collected"] + total)
+        state["balance"] = _round(state["balance"] + total)
+    state["funding_roots"] = [e["funding_root"] for e in state["entries"]
+                              if e["type"] == "fee_collection"]
     assert_conservation(state)
     return state
 
@@ -293,8 +341,10 @@ def save_state(state: dict, path: str):
 # ----------------------------------------------------------------------------
 def _print_status(state: dict):
     granted, clawed, finalized = _flows(state)
+    roots = state.get("funding_roots") or (
+        [state["funding_root"]] if state.get("funding_root") else [])
     print(f"schema        : {state['schema']}")
-    print(f"funding root  : {state['funding_root']} (fee_rate {FEE_RATE})")
+    print(f"funding roots : {', '.join(roots) or '(none)'} (fee_rate {FEE_RATE})")
     print(f"fees collected: {state['total_fees_collected']}")
     print(f"granted/clawed/finalized: {granted}/{clawed}/{finalized}")
     print(f"balance       : {state['balance']}")
@@ -322,7 +372,12 @@ def main(argv=None) -> int:
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--init", action="store_true",
-                      help="create the state file and collect the anchored fees")
+                      help="create the state file and collect the anchored fees "
+                           "(from EVERY confirmed economy anchor)")
+    mode.add_argument("--extend-funding", action="store_true",
+                      help="collect fees from any newly anchored economy "
+                           "generation(s) into the EXISTING state (idempotent "
+                           "per root; anchored records are read, never touched)")
     mode.add_argument("--status", action="store_true", help="print the state")
     mode.add_argument("--grant", action="store_true",
                       help="provisional bounty grant (--bounty --task --work-id "
@@ -350,8 +405,8 @@ def main(argv=None) -> int:
                         help="citation for --clawback (e.g. ledger:34)")
     args = parser.parse_args(argv)
 
-    if args.selftest or not (args.init or args.status or args.grant
-                             or args.clawback_op or args.finalize):
+    if args.selftest or not (args.init or args.extend_funding or args.status
+                             or args.grant or args.clawback_op or args.finalize):
         return _selftest()
 
     try:
@@ -361,6 +416,15 @@ def main(argv=None) -> int:
             _print_status(state)
             return 0
         state = load_state(args.state)
+        if args.extend_funding:
+            before = state["total_fees_collected"]
+            collect_fees(state, ledger_path=args.ledger)
+            save_state(state, args.state)
+            print(f"funding extended: fees {before} -> "
+                  f"{state['total_fees_collected']} (anchored generations "
+                  "read, never modified)")
+            _print_status(state)
+            return 0
         if args.status:
             _print_status(state)
             return 0
@@ -524,6 +588,75 @@ def _selftest() -> int:
         loaded = load_state(p)
         checks.append(("state file round-trip preserves the audited state",
                        canonical_json(loaded) == canonical_json(r1)))
+
+        # [8] MULTI-ROOT fee collection (cross-generation accumulation): anchor
+        # the gen-2 economy beside gen-1 on a copy of the fixture ledger; both
+        # roots re-derive independently and the totals accumulate — hand-
+        # computed: 3.0 (gen-1) + 30 spent x 0.10 (gen-2) = 6.0 exactly.
+        two_gen_ledger = os.path.join(tmp_dir, "ledger_two_gen.jsonl")
+        with open(fixture_ledger, "rb") as src, \
+                open(two_gen_ledger, "wb") as dst:
+            dst.write(src.read())
+        econ2_log = economy_demo.simulate_all(generation=2)
+        out2 = external_verifier.anchor_economy_summary(
+            econ2_log, Ledger(two_gen_ledger))
+        econ2_idx = out2["ledger_entry"]["index"]
+        roots = list_funding_roots(two_gen_ledger)
+        checks.append(("two confirmed anchors -> two funding roots (ascending)",
+                       roots == [f"ledger:{econ_idx}", f"ledger:{econ2_idx}"]))
+        m = collect_fees(_new_state(), ledger_path=two_gen_ledger)
+        m = collect_fees(m, ledger_path=two_gen_ledger)  # idempotent across roots
+        checks.append(("multi-root fee arithmetic exact (3.0 + 3.0 = 6.0, "
+                       "idempotent)",
+                       m["total_fees_collected"] == 6.0 and m["balance"] == 6.0
+                       and m["funding_roots"] == roots
+                       and len([e for e in m["entries"]
+                                if e["type"] == "fee_collection"]) == 2))
+        # ...and each root still re-derives ALONE (historical single-root path)
+        r_g1 = derive_fees(two_gen_ledger, funding_root=f"ledger:{econ_idx}")
+        r_g2 = derive_fees(two_gen_ledger, funding_root=f"ledger:{econ2_idx}")
+        checks.append(("per-root derivation: each generation re-derives against "
+                       "ITS anchor (3.0 each)",
+                       r_g1[2] == 3.0 and r_g2[2] == 3.0
+                       and r_g1[0] == f"ledger:{econ_idx}"))
+
+        # [9] a FORGED gen-2 log never becomes a funding root: the coordinator's
+        # re-run disagrees -> mismatch record (an audit event, not a root), and
+        # an explicit derivation against it is refused by name
+        forged_ledger = os.path.join(tmp_dir, "ledger_forged_gen2.jsonl")
+        with open(fixture_ledger, "rb") as src, \
+                open(forged_ledger, "wb") as dst:
+            dst.write(src.read())
+        forged_log = json.loads(json.dumps(econ2_log))
+        forged_log["summary"]["final_balance"] = 9999
+        forged_log["economy_log_hash"] = economy_demo.compute_log_hash(forged_log)
+        out_forged = external_verifier.anchor_economy_summary(
+            forged_log, Ledger(forged_ledger))
+        forged_idx = out_forged["ledger_entry"]["index"]
+        try:
+            derive_fees(forged_ledger, funding_root=f"ledger:{forged_idx}")
+            checks.append(("forged gen-2 log rejected as a funding root", False))
+        except ValueError as exc:
+            checks.append(("forged gen-2 log rejected as a funding root",
+                           out_forged["evaluation"]["status"]
+                           == "economy-demo-mismatch"
+                           and f"ledger:{forged_idx}"
+                           not in list_funding_roots(forged_ledger)
+                           and "not a confirmed" in str(exc)))
+
+        # [10] FUNDING-EXTENSION CONSERVATION fixture: the full carried story
+        # over both roots — fees 6.0 in, grants 1.0 + 0.8 out, clawback 1.0
+        # back, 0.8 finalized-paid -> balance 5.2, and 5.2 + 0.8 == 6.0 exactly.
+        x = collect_fees(_new_state(), ledger_path=two_gen_ledger)
+        provisional_grant(x, "b-1", wr, 1.0, "reproducible-space-task")
+        provisional_grant(x, "b-2", wr, 0.8, "reproducible-space-task")
+        clawback(x, "b-1", "selftest-adjudication")
+        finalize(x, "b-2")
+        xg, xc, xf = _flows(x)
+        checks.append(("funding-extension conservation: balance 5.2 + "
+                       "outstanding 0.8 == fees 6.0",
+                       x["balance"] == 5.2 and (xg, xc, xf) == (1.8, 1.0, 0.8)
+                       and _round(x["balance"] + (xg - xc)) == 6.0))
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 

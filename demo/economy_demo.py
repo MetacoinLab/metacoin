@@ -9,6 +9,14 @@ submits the result for verification, EARNS zero-value Test-META only if verifica
 passes (via the faucet, which has no verification-free credit path), and SPENDS
 Test-META on simulated next-day compute via the x402 stub.
 
+ECONOMY GENERATIONS (append-only): generation 1 is the 13-task era anchored at
+ledger:19 — its roster, schema (economy-log/0.1), day-17 drill, and byte shape are
+FROZEN FOREVER (the self-test pins its log hash to the anchored digit). Generation 2
+(--generation 2) is the 17-task era: schema economy-log/0.2 with an explicit
+`generation` field, a frozen 17-task roster, a day-23 drill (a different day on
+purpose, so the eras are distinguishable at a glance), and its own state/log files.
+A new generation NEVER modifies an anchored one — it is a new record beside it.
+
 SIMULATED TIME: the 30 "days" are DETERMINISTIC DAY INDICES (0..29), not wall-clock
 time. Nothing here ran for 30 real days, and no artifact of this module may imply it
 did. There are NO wall-clock timestamps anywhere in the state, the log, or the summary
@@ -86,6 +94,10 @@ import demo.tasks.task_0010_thermal_equilibrium as task_0010
 import demo.tasks.task_0011_ballistic_reentry as task_0011
 import demo.tasks.task_0012_comms_link_budget as task_0012
 import demo.tasks.task_0013_lambert_transfer as task_0013
+import demo.tasks.task_0014_fdir_state_machine as task_0014
+import demo.tasks.task_0015_sabatier_isru as task_0015
+import demo.tasks.task_0016_triad_attitude as task_0016
+import demo.tasks.task_0017_isru_ascent_budget as task_0017
 from demo.agent_loop import build_submission, _tamper_first_numeric
 from demo.verify_gates import verify
 from demo.test_meta_faucet import _Faucet
@@ -124,6 +136,44 @@ TASKS = [
 DEFAULT_STATE_PATH = os.path.join(_REPO_ROOT, "economy_state.json")
 DEFAULT_LOG_PATH = os.path.join(_REPO_ROOT, "economy_log.json")
 
+# ------------------------------ generation 2 ---------------------------------
+# ECONOMY GENERATIONS are append-only: generation 1 (schema economy-log/0.1,
+# the 13-task roster above) is anchored at ledger:19 and FROZEN FOREVER — its
+# code path above is byte-locked (the self-test pins its log hash to the
+# anchored digit). Generation 2 covers the 17-task era with its OWN schema,
+# roster, drill day, and state/log files. It replaces nothing.
+SCHEMA_VERSION_GEN2 = "economy-log/0.2"    # adds the explicit `generation` field
+
+TAMPER_DRILL_DAY_GEN2 = 23   # DELIBERATELY a different day than generation 1's
+                             # 17, so the two generations are distinguishable
+                             # at a glance in any log excerpt
+
+# FROZEN ROSTER, generation 2 — pinned at the idx-53 era (the 17 tasks recorded
+# as of the generation-4 molecule catalog). Day d runs TASKS17[d % 17]; 30 days:
+# tasks 0001-0013 twice, 0014-0017 once. Future registry tasks (task-0018+)
+# join a FUTURE economy generation at a future anchor, never this list.
+TASKS17 = TASKS + [
+    ("task-0014", task_0014), ("task-0015", task_0015),
+    ("task-0016", task_0016), ("task-0017", task_0017),
+]
+
+DEFAULT_STATE_PATH_GEN2 = os.path.join(_REPO_ROOT, "economy_state_gen2.json")
+DEFAULT_LOG_PATH_GEN2 = os.path.join(_REPO_ROOT, "economy_log_gen2.json")
+
+# Per-generation frozen configuration. Every mechanic below is shared; ONLY
+# these four facts differ. INITIAL_FAUCET_GRANT stays 0 in every generation
+# (the no-verification-free-credit invariant is constitutional, not per-era),
+# and the earn/spend constants are deliberately identical.
+_GENERATIONS = {
+    1: {"schema": SCHEMA_VERSION, "tasks": TASKS,
+        "drill_day": TAMPER_DRILL_DAY,
+        "state_path": DEFAULT_STATE_PATH, "log_path": DEFAULT_LOG_PATH},
+    2: {"schema": SCHEMA_VERSION_GEN2, "tasks": TASKS17,
+        "drill_day": TAMPER_DRILL_DAY_GEN2,
+        "state_path": DEFAULT_STATE_PATH_GEN2,
+        "log_path": DEFAULT_LOG_PATH_GEN2},
+}
+
 LABELS = {
     "zero_value": True,
     "no_token": True,
@@ -153,21 +203,22 @@ def _num(x):
 
 
 # ------------------------------ the daily mechanics --------------------------
-def _run_day(faucet, day: int, balance_before: int) -> dict:
+def _run_day(faucet, day: int, balance_before: int, generation: int = 1) -> dict:
     """Run ONE simulated day against `faucet` and return the per-day log entry.
 
     verify -> earn (faucet.dispense; credits only on a passing verify) -> spend
-    (x402 buy_compute -> faucet.spend). On TAMPER_DRILL_DAY the day's submission is a
-    deliberately perturbed COPY (PLANNED DRILL — labeled drill=true, never fraud);
-    the honest submission still exists so balance restoration stays possible.
+    (x402 buy_compute -> faucet.spend). On the generation's drill day the submission
+    is a deliberately perturbed COPY (PLANNED DRILL — labeled drill=true, never
+    fraud); the honest submission still exists so balance restoration stays possible.
     """
-    short_id, module = TASKS[day % len(TASKS)]
+    gen = _GENERATIONS[generation]
+    short_id, module = gen["tasks"][day % len(gen["tasks"])]
 
     # RUN + PROVE: honest submission via agent_loop's builder (hash of the honest run).
     honest_submission = build_submission(module, tamper=False)
     output_hash = honest_submission["claimed_output_hash"]
 
-    drill = (day == TAMPER_DRILL_DAY)
+    drill = (day == gen["drill_day"])
     if drill:
         # PLANNED TAMPER DRILL (scripted by the operator, labeled in-log as drill=true;
         # never "detected fraud"): perturb one numeric summary field on a deep copy —
@@ -215,11 +266,16 @@ def _run_day(faucet, day: int, balance_before: int) -> dict:
     }
 
 
-def _build_log(per_day: list) -> dict:
-    """Assemble the final economy log (schema economy-log/0.1) from per-day entries."""
+def _build_log(per_day: list, generation: int = 1) -> dict:
+    """Assemble the final economy log from per-day entries.
+
+    Generation 1 keeps its EXACT anchored shape (schema economy-log/0.1, no
+    `generation` key — the byte-lock the self-test pins); generation 2 carries
+    schema economy-log/0.2 plus the explicit `generation` field.
+    """
     verified_count = sum(1 for e in per_day if e["verified"])
     log = {
-        "schema": SCHEMA_VERSION,
+        "schema": _GENERATIONS[generation]["schema"],
         "simulated_days": SIMULATED_DAYS,
         "per_day": per_day,
         "summary": {
@@ -232,35 +288,48 @@ def _build_log(per_day: list) -> dict:
         },
         "labels": dict(LABELS),
     }
+    if generation != 1:
+        log["generation"] = generation
     log["economy_log_hash"] = compute_log_hash(log)
     return log
 
 
-def simulate_all() -> dict:
+def simulate_all(generation: int = 1) -> dict:
     """Run the full 30-simulated-day economy in memory (no files) and return the log.
 
     Pure and deterministic: a fresh faucet, day indices only, no randomness, no
     wall-clock reads. This is also the coordinator's independent re-run path.
+    `generation` selects the frozen per-era roster/schema/drill-day (default 1,
+    the anchored idx-19 era — legacy callers are untouched).
     """
     faucet = _Faucet()  # fresh instance — sanctioned by buy_compute's contract
     balance = INITIAL_FAUCET_GRANT
     per_day = []
     for day in range(SIMULATED_DAYS):
-        entry = _run_day(faucet, day, balance)
+        entry = _run_day(faucet, day, balance, generation)
         balance = entry["balance"]
         per_day.append(entry)
-    return _build_log(per_day)
+    return _build_log(per_day, generation)
 
 
 # ------------------------------ persistence ----------------------------------
-def _load_state(state_path: str) -> dict:
+def _load_state(state_path: str, generation: int = 1) -> dict:
     if not os.path.exists(state_path):
-        return {"schema": STATE_SCHEMA_VERSION, "day": 0,
-                "balance": INITIAL_FAUCET_GRANT, "log": [], "labels": dict(LABELS)}
+        state = {"schema": STATE_SCHEMA_VERSION, "day": 0,
+                 "balance": INITIAL_FAUCET_GRANT, "log": [], "labels": dict(LABELS)}
+        if generation != 1:
+            state["generation"] = generation
+        return state
     with open(state_path, "r", encoding="utf-8") as f:
         state = json.load(f)
     if state.get("schema") != STATE_SCHEMA_VERSION:
         raise ValueError(f"unsupported state schema {state.get('schema')!r} in {state_path}")
+    # A state file belongs to exactly one generation (gen-1 files predate the
+    # key and carry none) — resuming it under another roster would corrupt it.
+    if state.get("generation", 1) != generation:
+        raise ValueError(
+            f"state file {state_path} belongs to generation "
+            f"{state.get('generation', 1)}, not generation {generation}")
     return state
 
 
@@ -275,7 +344,7 @@ def _write_log(log: dict, log_path: str) -> None:
 
 
 def advance_day(state_path: str = DEFAULT_STATE_PATH,
-                log_path: str = DEFAULT_LOG_PATH) -> dict:
+                log_path: str = DEFAULT_LOG_PATH, generation: int = 1) -> dict:
     """Advance the persistent simulation by ONE simulated day (resumable).
 
     Uses a FRESH faucet every call (the faucet is in-memory only, so a resumed process
@@ -283,12 +352,13 @@ def advance_day(state_path: str = DEFAULT_STATE_PATH,
     day's verified honest submission — the ONLY credit path the faucet allows — and is
     never counted as earnings. Writes the final log when day 30 completes.
     """
-    state = _load_state(state_path)
+    state = _load_state(state_path, generation)
     day = state["day"]
     if day >= SIMULATED_DAYS:
         raise ValueError(f"simulation already complete ({SIMULATED_DAYS} simulated days); "
                          "use --reset to start over")
 
+    tasks = _GENERATIONS[generation]["tasks"]
     faucet = _Faucet()
     balance = state["balance"]
     if balance > 0:
@@ -296,30 +366,32 @@ def advance_day(state_path: str = DEFAULT_STATE_PATH,
         # agent already earned on prior simulated days (recorded in the persisted log),
         # gated — like every credit — behind a verified honest submission for today's
         # task, because the faucet has no verification-free credit path.
-        short_id, module = TASKS[day % len(TASKS)]
+        short_id, module = tasks[day % len(tasks)]
         restore = faucet.dispense(AGENT_ADDRESS, build_submission(module, tamper=False),
                                   amount=balance, task=module)
         if not restore["dispensed"]:
             raise AssertionError(f"day {day}: balance restore failed unexpectedly")
 
-    entry = _run_day(faucet, day, balance)
+    entry = _run_day(faucet, day, balance, generation)
     state["day"] = day + 1
     state["balance"] = entry["balance"]
     state["log"].append(entry)
     _save_state(state, state_path)
 
     if state["day"] == SIMULATED_DAYS:
-        _write_log(_build_log(state["log"]), log_path)
+        _write_log(_build_log(state["log"], generation), log_path)
     return entry
 
 
 def run_all(state_path: str = DEFAULT_STATE_PATH,
-            log_path: str = DEFAULT_LOG_PATH) -> dict:
+            log_path: str = DEFAULT_LOG_PATH, generation: int = 1) -> dict:
     """Run all 30 simulated days from a clean start; write state + final log."""
-    log = simulate_all()
+    log = simulate_all(generation)
     state = {"schema": STATE_SCHEMA_VERSION, "day": SIMULATED_DAYS,
              "balance": log["summary"]["final_balance"], "log": log["per_day"],
              "labels": dict(LABELS)}
+    if generation != 1:
+        state["generation"] = generation
     _save_state(state, state_path)
     _write_log(log, log_path)
     return log
@@ -335,8 +407,9 @@ def main(argv=None) -> int:
             "time; scripted determinism, not market behavior."
         ),
         epilog=(
-            "Day 17 is a PLANNED tamper drill (labeled drill=true — never 'detected "
-            "fraud'). Earnings only on verified work; the faucet has no "
+            "One PLANNED tamper drill per generation (labeled drill=true — never "
+            "'detected fraud'): generation 1 on day 17, generation 2 on day 23. "
+            "Earnings only on verified work; the faucet has no "
             "verification-free credit path. Not consensus, not mainnet, not payment, "
             "not a token."
         ),
@@ -353,11 +426,21 @@ def main(argv=None) -> int:
                       help="print the persistent simulation status")
     mode.add_argument("--selftest", action="store_true",
                       help="run the self-test (temp files only; default with no args)")
-    parser.add_argument("--state", default=DEFAULT_STATE_PATH,
-                        help=f"state file path (default: {DEFAULT_STATE_PATH})")
-    parser.add_argument("--out", default=DEFAULT_LOG_PATH,
-                        help=f"final log path (default: {DEFAULT_LOG_PATH})")
+    parser.add_argument("--generation", type=int, choices=sorted(_GENERATIONS),
+                        default=1,
+                        help="economy generation: 1 = the anchored 13-task era "
+                             "(frozen; default), 2 = the 17-task era")
+    parser.add_argument("--state", default=None,
+                        help="state file path (default: the generation's, e.g. "
+                             f"{DEFAULT_STATE_PATH})")
+    parser.add_argument("--out", default=None,
+                        help="final log path (default: the generation's, e.g. "
+                             f"{DEFAULT_LOG_PATH})")
     args = parser.parse_args(argv)
+    if args.state is None:
+        args.state = _GENERATIONS[args.generation]["state_path"]
+    if args.out is None:
+        args.out = _GENERATIONS[args.generation]["log_path"]
 
     if args.reset:
         if os.path.exists(args.state):
@@ -368,18 +451,21 @@ def main(argv=None) -> int:
         return 0
 
     if args.status:
-        state = _load_state(args.state)
+        state = _load_state(args.state, args.generation)
+        print(f"generation    : {args.generation}")
         print(f"simulated day : {state['day']}/{SIMULATED_DAYS} (day indices, not real time)")
         print(f"balance       : {state['balance']} Test-META (zero value)")
         print(f"logged days   : {len(state['log'])}")
         return 0
 
     if args.run_all:
-        log = run_all(args.state, args.out)
+        log = run_all(args.state, args.out, args.generation)
         s = log["summary"]
-        print(f"ran {SIMULATED_DAYS} SIMULATED days (day indices, not real time)")
+        drill_day = _GENERATIONS[args.generation]["drill_day"]
+        print(f"ran {SIMULATED_DAYS} SIMULATED days (day indices, not real time; "
+              f"generation {args.generation})")
         print(f"  verified {s['verified_count']} / rejected {s['rejected_count']} "
-              f"(the rejection is the planned day-{TAMPER_DRILL_DAY} tamper drill)")
+              f"(the rejection is the planned day-{drill_day} tamper drill)")
         print(f"  earned {s['total_earned']} / spent {s['total_spent']} / "
               f"final balance {s['final_balance']} Test-META (zero value)")
         print(f"  distinct tasks exercised: {s['distinct_task_count']}")
@@ -388,7 +474,7 @@ def main(argv=None) -> int:
         return 0
 
     if args.advance_day:
-        entry = advance_day(args.state, args.out)
+        entry = advance_day(args.state, args.out, args.generation)
         drill_note = "  [PLANNED TAMPER DRILL — rejection expected]" if entry["drill"] else ""
         print(f"simulated day {entry['day']}: task {entry['task']} | "
               f"verify {'PASS' if entry['verified'] else 'FAIL'} | "
@@ -402,10 +488,17 @@ def main(argv=None) -> int:
     return _selftest()
 
 
+# The anchored generation-1 log hash (ledger:19), pinned to the digit: the
+# gen-1 code path is FROZEN, and any drift here is a regression, never evolution.
+_ANCHORED_GEN1_LOG_HASH = (
+    "f7c8196fa6a2ff9e737194b6165c5d5aa1333e27632d1eaee7592ebe2f74f052")
+
+
 # ============================== SELF-TEST ====================================
 def _selftest() -> int:
     """Temp-only self-test: determinism, run-all == day-by-day, drill placement,
-    balance arithmetic, hash recompute, task coverage, and no-timestamp guarantee."""
+    balance arithmetic, hash recompute, task coverage, no-timestamp guarantee,
+    the generation-2 invariants, and the gen-1 anchored-hash regression pin."""
     import shutil
     import tempfile
 
@@ -486,6 +579,64 @@ def _selftest() -> int:
         scan = {k: v for k, v in log1.items() if k != "labels"}
         checks.append(("no wall-clock timestamps in the log (day indices only)",
                        _no_time_keys(scan) and log1["labels"]["simulated_time"] is True))
+
+        # (8) GEN-1 REGRESSION PIN: the anchored idx-19 hash reproduces to the digit
+        # (generation 2 is ADDITIVE — the frozen gen-1 path must never move)
+        checks.append(("gen-1 replay reproduces the ANCHORED idx-19 hash to the digit",
+                       log1["economy_log_hash"] == _ANCHORED_GEN1_LOG_HASH))
+        # ...and the gen-1 log SHAPE is locked: no generation key exists on it
+        checks.append(("gen-1 log shape locked (schema 0.1, no generation key)",
+                       log1["schema"] == SCHEMA_VERSION and "generation" not in log1))
+
+        # (9) generation 2: determinism + schema/generation field + drill on day 23
+        g2a = simulate_all(generation=2)
+        g2b = simulate_all(generation=2)
+        checks.append(("gen-2: two runs byte-identical (deterministic)",
+                       canonical_json(g2a) == canonical_json(g2b)
+                       and compute_log_hash(g2a) == g2a["economy_log_hash"]))
+        checks.append(("gen-2: schema 0.2 + explicit generation field",
+                       g2a["schema"] == SCHEMA_VERSION_GEN2
+                       and g2a["generation"] == 2))
+        g2_drill = [e["day"] for e in g2a["per_day"] if e["drill"]]
+        g2_rejected = [e["day"] for e in g2a["per_day"] if not e["verified"]]
+        checks.append(("gen-2: drill on day 23 exactly; 29 verified / 1 rejected",
+                       g2_drill == [TAMPER_DRILL_DAY_GEN2]
+                       and g2_rejected == [TAMPER_DRILL_DAY_GEN2]
+                       and g2a["summary"]["verified_count"] == SIMULATED_DAYS - 1))
+        checks.append(("gen-2: drill day earns nothing but still spends",
+                       g2a["per_day"][TAMPER_DRILL_DAY_GEN2]["earned"] == 0
+                       and g2a["per_day"][TAMPER_DRILL_DAY_GEN2]["spent"]
+                       == DAILY_COMPUTE_SPEND))
+
+        # (10) gen-2 roster coverage + aggregate arithmetic + distinct hashes
+        s2 = g2a["summary"]
+        checks.append(("gen-2: all 17 distinct tasks exercised (frozen roster)",
+                       s2["distinct_task_count"] == len(TASKS17)
+                       and {e["task"] for e in g2a["per_day"]}
+                       == {t[0] for t in TASKS17}))
+        checks.append(("gen-2: aggregate arithmetic (earned/spent/final balance)",
+                       s2["final_balance"] == INITIAL_FAUCET_GRANT
+                       + s2["total_earned"] - s2["total_spent"]))
+        checks.append(("gen-1 and gen-2 log hashes differ (distinct eras)",
+                       g2a["economy_log_hash"] != log1["economy_log_hash"]))
+
+        # (11) gen-2: 30 x --advance-day == one --run-all (fresh faucet + restore),
+        # and a gen-1 state file refuses to resume under generation 2
+        state2_p = os.path.join(tmp, "state_gen2.json")
+        log2_p = os.path.join(tmp, "log_gen2.json")
+        for _ in range(SIMULATED_DAYS):
+            advance_day(state2_p, log2_p, generation=2)
+        with open(log2_p, "r", encoding="utf-8") as f:
+            g2_daily = json.load(f)
+        checks.append(("gen-2: 30 x --advance-day == one --run-all (byte-identical)",
+                       canonical_json(g2_daily) == canonical_json(g2a)))
+        try:
+            advance_day(state_p, log_p, generation=2)  # state_p is the gen-1 file
+            checks.append(("cross-generation state resume refused (named reason)",
+                           False))
+        except ValueError as exc:
+            checks.append(("cross-generation state resume refused (named reason)",
+                           "generation" in str(exc)))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

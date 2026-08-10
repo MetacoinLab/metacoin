@@ -207,8 +207,15 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                                           "molecule-catalog-confirmed")
     idx18_i, idx18 = _find_anchor_payload(entries, "aci_baseline_anchored",
                                           "aci-baseline-confirmed")
-    idx19_i, idx19 = _find_anchor_payload(entries, "economy_demo_summary_anchored",
-                                          "economy-demo-confirmed")
+    # The economy is GENERATIONAL (one frozen roster per anchored era) —
+    # collect every confirmed economy anchor with its generation; each one
+    # re-derives forever against ITS OWN frozen simulation.
+    econ_gens = []  # [(ledger_index, payload, generation)] ascending
+    for e in entries:
+        p = e.get("payload", {})
+        if (p.get("event") == "economy_demo_summary_anchored"
+                and p.get("status") == "economy-demo-confirmed"):
+            econ_gens.append((e["index"], p, p.get("generation", 1)))
     idx20_i, idx20 = _find_anchor_payload(entries, "metering_evidence_anchored",
                                           "metering-evidence-confirmed")
     idx23_i, idx23 = _find_anchor_payload(entries, "trust_vector_catalog_anchored",
@@ -356,22 +363,35 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      f"shipped report hash-matches anchored idx-{idx18_i} "
                      f"(no re-measurement); {ko_note}"))
 
-    # --- layer 5: simulated economy -------------------------------------------------
-    if idx19 is None:
+    # --- layer 5: simulated economy (every anchored generation) ---------------------
+    if not econ_gens:
         rows.append(("economy", FULL, False, "no anchored economy summary"))
     elif full:
-        log = economy_demo.simulate_all()
-        ok = log["economy_log_hash"] == idx19["economy_log_hash"]
-        rows.append(("economy", FULL, ok,
-                     f"30-simulated-day economy re-run: log hash == anchored "
-                     f"idx-{idx19_i}"))
+        bad_gens = []
+        for gi, gp, gen in econ_gens:
+            log = economy_demo.simulate_all(gen)
+            if log["economy_log_hash"] != gp["economy_log_hash"]:
+                bad_gens.append(f"gen-{gen} (idx-{gi})")
+        rows.append(("economy", FULL, not bad_gens,
+                     f"{len(econ_gens)} generation(s) re-run: "
+                     + ", ".join(f"gen-{gen} log hash == anchored idx-{gi}"
+                                 for gi, _gp, gen in econ_gens)
+                     if not bad_gens else f"replay mismatch: {bad_gens}"))
     else:
-        f = _load_evidence_json("economy_log.json")
-        ok = (isinstance(f, dict)
-              and economy_demo.compute_log_hash(f) == f.get("economy_log_hash")
-              == idx19["economy_log_hash"])
-        rows.append(("economy", ANCHORED, ok,
-                     f"shipped log hash-matches anchored idx-{idx19_i} (no re-run)"))
+        bad_gens = []
+        for gi, gp, gen in econ_gens:
+            name = ("economy_log.json" if gen == 1
+                    else f"economy_log_gen{gen}.json")
+            f = _load_evidence_json(name)
+            if not (isinstance(f, dict)
+                    and economy_demo.compute_log_hash(f)
+                    == f.get("economy_log_hash") == gp["economy_log_hash"]):
+                bad_gens.append(f"gen-{gen} ({name})")
+        rows.append(("economy", ANCHORED, not bad_gens,
+                     f"{len(econ_gens)} shipped log(s) hash-match anchored "
+                     + ", ".join(f"idx-{gi}" for gi, _gp, _g in econ_gens)
+                     + " (no re-run)" if not bad_gens
+                     else f"evidence mismatch: {bad_gens}"))
 
     # --- layer 6: metering claims (CLAIM-CHECK by nature: timing is not
     #     byte-reproducible; what is checkable is the anchored claim's integrity,
@@ -682,8 +702,12 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         problems = []
         fees = 0.0
         for idx, p in treas:
+            # HISTORICAL re-derivation: an anchored config re-derives against
+            # ITS OWN recorded funding root forever — later economy
+            # generations must never disturb it (asserted here explicitly).
             try:
-                root, _pd, total = metastar_treasury.derive_fees(source)
+                root, _pd, total = metastar_treasury.derive_fees(
+                    source, funding_root=p.get("funding_root"))
             except ValueError as exc:
                 problems.append(f"idx {idx}: fee re-derivation failed: {exc}")
                 continue
@@ -728,13 +752,54 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                 if stated != round(fees - (granted - clawed), 6):
                     problems.append(f"idx {idx}: stated balance {stated} breaks "
                                     "conservation against anchored flows")
+        # Funding EXTENSIONS (cross-generation accumulation): every root's
+        # fees re-derive independently, the carried history re-derives from
+        # the anchored lifecycle records above, and conservation is exact —
+        # while the historical configs above kept re-deriving under their
+        # ORIGINAL single root, undisturbed.
+        exts = [(e["index"], e["payload"]) for e in entries
+                if isinstance(e.get("payload"), dict)
+                and e["payload"].get("event") == "treasury_funding_extended"
+                and e["payload"].get("status")
+                == "treasury-funding-extension-confirmed"]
+        ext_fees = None
+        for idx, p in exts:
+            total = 0.0
+            for root in p.get("funding_roots", []):
+                try:
+                    _r, _pd, t = metastar_treasury.derive_fees(
+                        source, funding_root=root)
+                    total = round(total + t, 6)
+                except ValueError as exc:
+                    problems.append(f"idx {idx}: extension root {root} does "
+                                    f"not re-derive: {exc}")
+            ch = p.get("carried_history", {})
+            outstanding = round(granted - clawed, 6)
+            if p.get("total_fees_collected") != total:
+                problems.append(f"idx {idx}: extension fees "
+                                f"{p.get('total_fees_collected')} != "
+                                f"re-derived multi-root total {total}")
+            if (ch.get("granted_gross") != granted
+                    or ch.get("clawed_back") != clawed
+                    or ch.get("outstanding") != outstanding):
+                problems.append(f"idx {idx}: carried history does not "
+                                "re-derive from the anchored lifecycle records")
+            if p.get("balance") != round(total - outstanding, 6):
+                problems.append(f"idx {idx}: extension balance "
+                                f"{p.get('balance')} breaks conservation "
+                                f"({total} - {outstanding})")
+            ext_fees = (p.get("total_fees_collected"), p.get("balance"))
+        ext_note = ("" if not exts else
+                    f"; funding extension re-derives (fees {ext_fees[0]}, "
+                    f"balance {ext_fees[1]}, historical configs undisturbed "
+                    "under their original root)")
         rows.append(("treasury+gate3", FULL, not problems,
                      f"conservation holds: fees {fees} − outstanding "
                      f"{round(granted - clawed, 6)} == balance "
                      f"{round(fees - (granted - clawed), 6)}; {n_claw} "
                      "bounded-failure drill(s) stay upheld, "
                      f"{n_final} finalization(s) replay with closed windows; "
-                     "prechecks recompute with citations"
+                     "prechecks recompute with citations" + ext_note
                      if not problems else "; ".join(problems[:3])))
 
     # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------

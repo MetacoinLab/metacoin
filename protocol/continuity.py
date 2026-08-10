@@ -541,25 +541,31 @@ def capability_replay(home: str) -> tuple:
     if treasury is None:
         problems.append("no anchored treasury config in the restored corpus")
     else:
-        root, _per_day, total = metastar_treasury.derive_fees(src)
+        # against ITS OWN recorded root — later economy generations must
+        # never disturb the anchored config's re-derivation
+        root, _per_day, total = metastar_treasury.derive_fees(
+            src, funding_root=treasury.get("funding_root"))
         if (total != treasury.get("total_fees_collected")
                 or root != treasury.get("funding_root")):
             problems.append(f"fees {total} do not re-derive to the anchored "
                             f"{treasury.get('total_fees_collected')}")
-    econ = next((e["payload"] for e in reversed(entries)
-                 if e.get("payload", {}).get("event")
-                 == "economy_demo_summary_anchored"), None)
-    if econ is None:
+    econs = [e["payload"] for e in entries
+             if e.get("payload", {}).get("event")
+             == "economy_demo_summary_anchored"
+             and e["payload"].get("status") == "economy-demo-confirmed"]
+    if not econs:
         problems.append("no anchored economy summary in the restored corpus")
-    else:
-        log = economy_demo.simulate_all()
+    for econ in econs:
+        # one frozen simulation per anchored generation — replay each
+        log = economy_demo.simulate_all(econ.get("generation", 1))
         if log["economy_log_hash"] != econ.get("economy_log_hash"):
-            problems.append("economy replay hash does not match the anchored "
-                            "summary")
+            problems.append(f"economy generation {econ.get('generation', 1)} "
+                            "replay hash does not match the anchored summary")
     ok = not problems
-    return (ok, "fees re-derive to the anchored total and the economy replay "
-                "reproduces the anchored log hash — the regenerable class "
-                "actually regenerates" if ok else "; ".join(problems))
+    return (ok, "fees re-derive to the anchored total and every economy "
+                "generation's replay reproduces its anchored log hash — the "
+                "regenerable class actually regenerates"
+                if ok else "; ".join(problems))
 
 
 def restore_rehearsal(kit_dir: str = None, base_dir: str = _REPO_ROOT,

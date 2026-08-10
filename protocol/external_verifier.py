@@ -271,6 +271,13 @@ TWO_FLOW_SEPARATION_STATEMENT = (
 _TREASURY_EVENT = "treasury_config_anchored"
 _TREASURY_STATUS = "treasury-config-confirmed"
 
+# A funding EXTENSION is the multi-root counterpart of the config record: it
+# extends the treasury's fee base to every anchored economy generation while
+# restating (never changing) the anchored caps/budgets — a budget change would
+# be a GOVERNANCE event, which this record is not.
+_TREASURY_FUNDING_EVENT = "treasury_funding_extended"
+_TREASURY_FUNDING_STATUS = "treasury-funding-extension-confirmed"
+
 TREASURY_LIMITATION_NOTE = (
     "MetaStar Treasury v0 under same-operator custody over a SIMULATED economy: "
     "zero-value Test-META accounting, not payment. Its only inflow is fees "
@@ -1210,6 +1217,15 @@ ECONOMY_LIMITATION_NOTE = (
 )
 
 
+# Economy-log generations this coordinator can re-run: schema -> generation.
+# Generation 1 logs predate the `generation` field and must NOT carry one (the
+# anchored shape is locked); generation-2 logs must name themselves explicitly.
+_ECONOMY_GENERATIONS = {
+    economy_demo.SCHEMA_VERSION: 1,
+    economy_demo.SCHEMA_VERSION_GEN2: 2,
+}
+
+
 def validate_economy_log(log: dict):
     """Structurally validate an economy log file. Returns (ok, reason).
 
@@ -1219,9 +1235,18 @@ def validate_economy_log(log: dict):
     """
     if not isinstance(log, dict):
         return (False, "economy log is not a JSON object")
-    if log.get("schema") != economy_demo.SCHEMA_VERSION:
-        return (False, f"field 'schema' must be {economy_demo.SCHEMA_VERSION!r} "
+    if log.get("schema") not in _ECONOMY_GENERATIONS:
+        return (False, f"field 'schema' must be one of "
+                       f"{sorted(_ECONOMY_GENERATIONS)} "
                        f"(got {log.get('schema')!r})")
+    generation = _ECONOMY_GENERATIONS[log["schema"]]
+    if generation == 1 and "generation" in log:
+        return (False, "a generation-1 log (schema economy-log/0.1) must not "
+                       "carry a 'generation' field — that shape is anchored "
+                       "and locked")
+    if generation != 1 and log.get("generation") != generation:
+        return (False, f"field 'generation' must be {generation} for schema "
+                       f"{log['schema']!r} (got {log.get('generation')!r})")
     if log.get("simulated_days") != economy_demo.SIMULATED_DAYS:
         return (False, f"field 'simulated_days' must be {economy_demo.SIMULATED_DAYS} "
                        f"(got {log.get('simulated_days')!r})")
@@ -1279,10 +1304,13 @@ def anchor_economy_summary(log: dict, ledger: Ledger) -> dict:
         return {"evaluation": evaluation, "ledger_entry": None}
 
     # RE-RUN the whole simulation (coordinator-reconfirms; never trust the file).
+    # The submitted log's schema names its generation — the coordinator re-runs
+    # THAT generation's frozen roster, never a different one.
+    generation = _ECONOMY_GENERATIONS[log["schema"]]
     rerun_error = None
     rerun = None
     try:
-        rerun = economy_demo.simulate_all()
+        rerun = economy_demo.simulate_all(generation)
     except (AssertionError, KeyError, ValueError) as exc:
         rerun_error = f"{type(exc).__name__}: {exc}"
     hash_matches = bool(rerun is not None
@@ -1328,6 +1356,23 @@ def anchor_economy_summary(log: dict, ledger: Ledger) -> dict:
         "no_token": True,
         "anchored_at": time.time(),
     }
+    if generation != 1:
+        # A new generation ANCHORS BESIDE the old ones, never over them: name
+        # the generation explicitly and state, on the record, what this record
+        # does NOT do to each previously anchored generation.
+        evaluation["generation"] = generation
+        prior = [(e["index"], e["payload"]) for e in ledger.read_all()
+                 if isinstance(e.get("payload"), dict)
+                 and e["payload"].get("event") == _ECONOMY_EVENT
+                 and e["payload"].get("status") == "economy-demo-confirmed"
+                 and _ECONOMY_GENERATIONS.get(e["payload"].get("log_schema"),
+                                              None) is not None
+                 and e["payload"].get("generation", 1) < generation]
+        if prior:
+            evaluation["generation_statement"] = "; ".join(
+                f"generation {p.get('generation', 1)} (ledger:{i}) remains "
+                "anchored and is unaffected; this record starts a new "
+                "generation, it replaces nothing" for i, p in prior)
     entry = ledger.append(evaluation)
     return {"evaluation": evaluation, "ledger_entry": entry}
 
@@ -1862,6 +1907,141 @@ def anchor_treasury_config(state: dict, ledger: Ledger) -> dict:
             "rederived_funding_root": rederived[0],
             "rederived_total_fees": rederived[1],
             "fees_match": True,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": TREASURY_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+def anchor_treasury_funding_extension(ledger: Ledger) -> dict:
+    """Derive + anchor a treasury FUNDING EXTENSION across every anchored
+    economy generation. Returns {evaluation, ledger_entry}.
+
+    Everything on this record is derived by the coordinator from ANCHORED
+    records only — there is no submitted file to trust: each confirmed economy
+    anchor's fees are INDEPENDENTLY re-derived (that generation's simulation
+    re-run, its log hash asserted against its anchor), the carried grant/
+    clawback/finalization history is restated from the anchored Gate-3
+    lifecycle records with citations, conservation is asserted ON the record,
+    and the anchored caps/budgets are restated UNCHANGED — a budget change
+    would be a GOVERNANCE event, not a funding extension, and this path
+    refuses to be one. Preconditions failing -> 'rejected', NOT anchored.
+    """
+    entries = ledger.read_all()
+    config_entry, _cfg_fees, granted, clawed, by_bounty = (
+        _anchored_treasury_flows(entries))
+
+    reason = None
+    roots = metastar_treasury.list_funding_roots(ledger.path)
+    if config_entry is None:
+        reason = ("no anchored treasury config — a funding extension needs "
+                  "the anchored constitution to restate")
+    elif len(roots) < 2:
+        reason = (f"only {len(roots)} confirmed economy anchor(s) on the "
+                  "ledger — a funding extension needs a NEW generation "
+                  "beyond the constitution's root; nothing to extend")
+
+    per_root = []
+    total = 0.0
+    if reason is None:
+        for root in roots:
+            try:
+                _root, _per_day, fees = metastar_treasury.derive_fees(
+                    ledger.path, funding_root=root)
+            except ValueError as exc:
+                reason = f"fee re-derivation failed for {root}: {exc}"
+                break
+            idx = int(root.split(":", 1)[1])
+            anchor_payload = entries[idx]["payload"]
+            per_root.append({
+                "funding_root": root,
+                "generation": anchor_payload.get("generation", 1),
+                "log_schema": anchor_payload.get("log_schema"),
+                "economy_log_hash": anchor_payload.get("economy_log_hash"),
+                "fees": fees,
+            })
+            total = round(total + fees, 6)
+
+    if reason is None:
+        outstanding = round(granted - clawed, 6)
+        balance = round(total - outstanding, 6)
+        if round(balance + outstanding, 6) != total:
+            reason = (f"conservation failed at anchor time: balance {balance} "
+                      f"+ outstanding {outstanding} != fees {total}")
+
+    if reason is not None:
+        evaluation = {
+            "event": _TREASURY_FUNDING_EVENT,
+            "stage": "R-treasury",
+            "topology": "same-machine-treasury",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": TREASURY_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    # Carried history, restated from the anchored lifecycle records themselves
+    # (with citations) — the extension changes the fee base, never the history.
+    claw_idx = sorted(s["clawback"]["index"] for s in by_bounty.values()
+                      if "clawback" in s)
+    final_idx = sorted(s["finalization"]["index"] for s in by_bounty.values()
+                       if "finalization" in s)
+    finalized = round(sum(
+        s["finalization"]["payload"].get("amount_paid", 0)
+        for s in by_bounty.values() if "finalization" in s), 6)
+    cfg = config_entry["payload"]
+    evaluation = {
+        "event": _TREASURY_FUNDING_EVENT,
+        "stage": "R-treasury",
+        "topology": "same-machine-treasury",
+        "status": _TREASURY_FUNDING_STATUS,
+        "task_class": _TASK_CLASS,
+        "treasury_schema": metastar_treasury.SCHEMA_VERSION,
+        "funding_roots": roots,
+        "per_root": per_root,
+        "total_fees_collected": total,
+        "carried_history": {
+            "granted_gross": granted,
+            "clawed_back": clawed,
+            "clawback_ledger_indexes": claw_idx,
+            "finalized_paid": finalized,
+            "finalization_ledger_indexes": final_idx,
+            "outstanding": outstanding,
+            "statement": (
+                "history restated from the anchored lifecycle records only — "
+                "the extension changes the fee base, never the history"),
+        },
+        "balance": balance,
+        "conservation_statement": (
+            f"balance {balance} + outstanding {outstanding} == "
+            f"total_fees_collected {total} — asserted at anchor time and "
+            "re-derivable from anchored records alone; no mint path exists"),
+        "config_unchanged": {
+            "fee_rate": cfg["fee_rate"],
+            "per_bounty_cap": cfg["per_bounty_cap"],
+            "category_budgets": dict(cfg["category_budgets"]),
+            "treasury_config_ledger_index": config_entry["index"],
+            "governance_statement": (
+                "caps and budgets are UNCHANGED from the anchored "
+                f"constitution (ledger:{config_entry['index']}); a budget "
+                "change would be a governance event, not a funding "
+                "extension — this record extends the fee base only"),
+        },
+        "two_flow_separation": TWO_FLOW_SEPARATION_STATEMENT,
+        "coordinator_reconfirmed": {
+            "roots_rederived": len(per_root),
+            "per_root_log_hashes_match": True,
+            "rederived_total_fees": total,
+            "carried_history_source": "anchored gate3 lifecycle records",
         },
         "operator_relationship": "same-operator",
         "limitation_note": TREASURY_LIMITATION_NOTE,
@@ -4339,6 +4519,104 @@ def _selftest() -> int:
             f"(balance {out_fin['evaluation'].get('treasury_totals', {}).get('balance')})",
         ))
 
+        # (42b) FUNDING EXTENSION preconditions: with only ONE confirmed
+        # economy anchor there is nothing to extend -> rejected, NOT anchored
+        out_ext1 = anchor_treasury_funding_extension(Ledger(g3_ledger))
+        checks.append((
+            "FUNDING EXTENSION REJECTED on a single-root ledger (nothing to "
+            "extend -> NOT anchored)",
+            out_ext1["evaluation"]["status"] == "rejected"
+            and out_ext1["ledger_entry"] is None
+            and "nothing to extend" in out_ext1["evaluation"]["reason"],
+            str(out_ext1["evaluation"]["reason"])[:60],
+        ))
+
+        # (42c) GENERATION-2 economy anchor beside gen-1: confirmed via the
+        # gen-2 re-run; names its generation + states on-record that gen-1
+        # remains anchored and unaffected; scanner-invisible like gen-1 —
+        # and the gen-1 record SHAPE stays locked (no generation key on it)
+        econ2_log = economy_demo.simulate_all(generation=2)
+        out_econ2 = anchor_economy_summary(econ2_log, Ledger(g3_ledger))
+        ev_econ2 = out_econ2["evaluation"]
+        checks.append((
+            "ECONOMY GEN-2 CONFIRMED beside gen-1 (own generation + "
+            "replaces-nothing statement; scanner-invisible)",
+            ev_econ2["status"] == "economy-demo-confirmed"
+            and ev_econ2["generation"] == 2
+            and ev_econ2["log_schema"] == economy_demo.SCHEMA_VERSION_GEN2
+            and "remains anchored and is unaffected" in
+            ev_econ2.get("generation_statement", "")
+            and "replaces nothing" in ev_econ2.get("generation_statement", "")
+            and "task_id" not in ev_econ2 and "task_ids" not in ev_econ2
+            and "per_day" not in ev_econ2
+            and "generation" not in ev_econ  # gen-1 shape lock (check 15's record)
+            and ev_econ2["distinct_task_count"] == 17,
+            f"{ev_econ2['status']} (gen {ev_econ2.get('generation')})",
+        ))
+        # ...and a WRONG-generation declaration is malformed -> NOT anchored
+        mislabeled = json.loads(json.dumps(econ_log))
+        mislabeled["generation"] = 2  # 0.1 schema must not carry the field
+        mislabeled["economy_log_hash"] = economy_demo.compute_log_hash(mislabeled)
+        out_mis = anchor_economy_summary(mislabeled, Ledger(g3_ledger))
+        checks.append((
+            "ECONOMY GENERATION MISLABEL rejected (0.1 log claiming a "
+            "generation field -> NOT anchored)",
+            out_mis["evaluation"]["status"] == "rejected"
+            and out_mis["ledger_entry"] is None,
+            str(out_mis["evaluation"].get("reason"))[:60],
+        ))
+
+        # (42d) FUNDING EXTENSION CONFIRMED: both roots independently
+        # re-derived (3.0 + 3.0 = 6.0), the carried lifecycle history restated
+        # with citations (granted 1.8, clawed 1.0, finalized-paid 0.8 ->
+        # outstanding 0.8), conservation exact ON the record (5.2 + 0.8 ==
+        # 6.0), caps/budgets restated unchanged from the anchored config,
+        # scanner-invisible
+        out_ext = anchor_treasury_funding_extension(Ledger(g3_ledger))
+        ev_ext = out_ext["evaluation"]
+        ext_ch = ev_ext.get("carried_history", {})
+        ext_chain_ok, _ext_reason = Ledger(g3_ledger).verify_chain()
+        checks.append((
+            "FUNDING EXTENSION CONFIRMED (multi-root 6.0; carried history "
+            "cited; conservation 5.2 + 0.8 == 6.0 on-record)",
+            ev_ext["status"] == "treasury-funding-extension-confirmed"
+            and out_ext["ledger_entry"] is not None
+            and len(ev_ext["funding_roots"]) == 2
+            and ev_ext["total_fees_collected"] == 6.0
+            and [r["fees"] for r in ev_ext["per_root"]] == [3.0, 3.0]
+            and [r["generation"] for r in ev_ext["per_root"]] == [1, 2]
+            and ext_ch.get("granted_gross") == 1.8
+            and ext_ch.get("clawed_back") == 1.0
+            and ext_ch.get("finalized_paid") == 0.8
+            and ext_ch.get("outstanding") == 0.8
+            and ev_ext["balance"] == 5.2
+            and "5.2 + outstanding 0.8 == total_fees_collected 6.0"
+            in ev_ext["conservation_statement"]
+            and ev_ext["config_unchanged"]["treasury_config_ledger_index"]
+            == out_tc["ledger_entry"]["index"]
+            and "governance event" in
+            ev_ext["config_unchanged"]["governance_statement"]
+            and "both directions" in ev_ext["two_flow_separation"]
+            and "task_id" not in ev_ext and "task_ids" not in ev_ext
+            and ext_chain_ok is True,
+            f"{ev_ext['status']} (fees {ev_ext.get('total_fees_collected')}, "
+            f"balance {ev_ext.get('balance')})",
+        ))
+
+        # (42e) FUNDING EXTENSION without an anchored constitution -> rejected
+        noconfig_ledger = os.path.join(tmp, "ext_noconfig_ledger.jsonl")
+        _copyfile(econ_ledger_a, noconfig_ledger)
+        anchor_economy_summary(econ2_log, Ledger(noconfig_ledger))
+        out_ext_nc = anchor_treasury_funding_extension(Ledger(noconfig_ledger))
+        checks.append((
+            "FUNDING EXTENSION REJECTED without an anchored treasury config",
+            out_ext_nc["evaluation"]["status"] == "rejected"
+            and out_ext_nc["ledger_entry"] is None
+            and "no anchored treasury config" in
+            out_ext_nc["evaluation"]["reason"],
+            str(out_ext_nc["evaluation"]["reason"])[:60],
+        ))
+
         # (43) violations rejected: late challenge (window expired for b-2),
         # premature finalize (fresh grant, window open), failed-precheck grant
         out_late = anchor_gate3_event(
@@ -5324,6 +5602,10 @@ def _cmd_anchor_economy_summary(log_path: str, ledger_path: str) -> int:
     cr = ev["coordinator_reconfirmed"]
     print(f"economy_log_hash: {ev['economy_log_hash']}")
     print(f"rerun_log_hash:   {cr['rerun_log_hash']}")
+    if "generation" in ev:
+        print(f"generation: {ev['generation']}")
+        if "generation_statement" in ev:
+            print(f"  {ev['generation_statement']}")
     print("coordinator re-run (entire simulation re-executed here — NOT trusting the file):")
     print(f"  log_hash_matches      : {cr['log_hash_matches']}")
     print(f"  simulated_days        : {ev['simulated_days']} (day indices, not real time)")
@@ -5339,6 +5621,44 @@ def _cmd_anchor_economy_summary(log_path: str, ledger_path: str) -> int:
 
     # 0 only when the coordinator's own full re-run reproduces the submitted log hash.
     return 0 if status == "economy-demo-confirmed" else 1
+
+
+def _cmd_extend_treasury_funding(ledger_path: str) -> int:
+    """Anchor a treasury funding extension. No input file: every fact on the
+    record is derived from ANCHORED records by the coordinator itself.
+
+    Exit codes: 0 = treasury-funding-extension-confirmed; non-zero = rejected.
+    """
+    print(BANNER)
+    ledger = Ledger(ledger_path)
+    out = anchor_treasury_funding_extension(ledger)
+    ev = out["evaluation"]
+    entry = out["ledger_entry"]
+    print(f"status: {ev['status']}")
+    if entry is None:
+        print(f"reason: {ev.get('reason')}")
+        print("anchored: no (nothing written to the ledger)")
+        return 1
+    print("coordinator derivation (anchored records only — no submitted file):")
+    for r in ev["per_root"]:
+        print(f"  {r['funding_root']}: generation {r['generation']} "
+              f"({r['log_schema']}) re-run -> fees {r['fees']}")
+    ch = ev["carried_history"]
+    print(f"  carried history: granted {ch['granted_gross']} / clawed back "
+          f"{ch['clawed_back']} (idx {ch['clawback_ledger_indexes']}) / "
+          f"finalized-paid {ch['finalized_paid']} "
+          f"(idx {ch['finalization_ledger_indexes']})")
+    print(f"  total_fees_collected: {ev['total_fees_collected']}")
+    print(f"  balance: {ev['balance']}")
+    print(f"  conservation: {ev['conservation_statement']}")
+    cu = ev["config_unchanged"]
+    print(f"  config unchanged (ledger:{cu['treasury_config_ledger_index']}): "
+          f"fee_rate {cu['fee_rate']}, per_bounty_cap {cu['per_bounty_cap']}, "
+          f"budgets {cu['category_budgets']}")
+    print(f"anchored at ledger index: {entry['index']} (path: {ledger_path})")
+    ok, vreason = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAIL'} — {vreason}")
+    return 0 if ev["status"] == _TREASURY_FUNDING_STATUS else 1
 
 
 def _cmd_anchor_metering_report(report_path: str, ledger_path: str) -> int:
@@ -5858,6 +6178,14 @@ def main(argv=None) -> int:
              "rejects any state claiming units the economy never produced",
     )
     mode.add_argument(
+        "--extend-treasury-funding", action="store_true",
+        help="anchor a treasury FUNDING EXTENSION across every anchored "
+             "economy generation: each root's fees independently re-derived, "
+             "carried history restated from anchored records, conservation "
+             "asserted on-record, caps/budgets restated UNCHANGED (a budget "
+             "change would be a governance event, not a funding extension)",
+    )
+    mode.add_argument(
         "--anchor-gate3-event", metavar="REQUEST_JSON",
         help="anchor one Gate-3 lifecycle event ({phase, bounty_id, ...}); the "
              "coordinator recomputes the machine pre-check, window arithmetic, "
@@ -5973,6 +6301,8 @@ def main(argv=None) -> int:
     if args.anchor_treasury_config is not None:
         return _cmd_anchor_json(args.anchor_treasury_config, args.ledger,
                                 anchor_treasury_config, _TREASURY_STATUS)
+    if args.extend_treasury_funding:
+        return _cmd_extend_treasury_funding(args.ledger)
     if args.anchor_gate3_event is not None:
         return _cmd_anchor_json(
             args.anchor_gate3_event, args.ledger,

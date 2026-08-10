@@ -60,8 +60,8 @@ aci_korder_report*.json
 # 30-day simulated-economy artifacts (economy_demo.py): persistent state + final log —
 # derived, deterministic, reconstructible local artifacts, never committed (the canonical
 # record is the ANCHORED summary; simulated day indices, zero value, no token).
-economy_state.json
-economy_log.json
+economy_state*.json
+economy_log*.json
 
 # metering reports (task_metering.py --all) are local measurement artifacts, never
 # committed: timing is non-reproducible run to run, so the file cannot be re-derived
