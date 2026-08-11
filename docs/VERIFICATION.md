@@ -7,8 +7,8 @@
 > chain point it describes and re-checked against live state, and nothing here
 > claims more than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->60<!--/chain-->,
-> <!--chain:entry_count-->61<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->62<!--/chain-->,
+> <!--chain:entry_count-->63<!--/chain--> entries.
 
 `metacoin verify` (the zero-install form is
 `python3 metacoin_cli/main.py verify`) is the flagship: one command that
@@ -45,7 +45,7 @@ The pasted run below is trimmed to the shape of the report; the full pass has
 
 - **chain+anchor** — the hash chain is intact from genesis
   <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->… to tip
-  <!--chain:tip_hash_prefix-->ad58905879bf<!--/chain-->…, and the committed tip anchor
+  <!--chain:tip_hash_prefix-->095b0bbb7111<!--/chain-->…, and the committed tip anchor
   matches. In a fresh clone the published snapshot is the source, and the
   report names that.
 - **tasks** — all <!--chain:recorded_task_count-->17<!--/chain--> recorded

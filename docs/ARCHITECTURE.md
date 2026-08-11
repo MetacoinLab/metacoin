@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->60<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->ad58905879bf<!--/chain-->…,
-> <!--chain:entry_count-->61<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->62<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->095b0bbb7111<!--/chain-->…,
+> <!--chain:entry_count-->63<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->61<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->63<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -253,7 +253,7 @@ asserted at every step).
 simulated accounting, the drill rejections are planned demonstrations, and
 scripted determinism is still not market behavior.
 
-## The governance layer — idx 58-60
+## The governance layer — idx 58-62
 
 The MIP path was exercised end-to-end for the first time, with a real
 subject: MIP-0004 ("Concentration measurement epochs and the longitudinal
@@ -295,6 +295,21 @@ by design, and a successor MIP declaring `Supersedes` retires the era
 assertion while the file stays immutable-by-citation. The sweep reports
 the gate's verdict informationally: NOT-READY between releases is the
 expected state, never an alarm.
+
+The housekeeping walks (idx 61 <!--idx:61=mip_decision_recorded-->, idx 62
+<!--idx:62=mip_decision_recorded-->) gave every file in mip/ an anchored
+lifecycle state without ratifying anything unbuilt. The June drafts
+(MIP-0001 genesis, MIP-0002 PoUSW) describe voting, attestation hardware,
+and token economics that do not exist — accepting them would ratify
+unbuilt promises as met criteria, so both were reviewed
+**retained-as-draft**: a recorded single-seat review that keeps the file
+in Draft, with the built / spec-consistent / aspirational classification
+on-chain (genesis: 4 built claim groups against 5 aspirational; PoUSW:
+5 against 5 — the built columns cite their enforcing records). A
+retained-as-draft record pins its file sha **as-reviewed, not
+as-frozen**: drafts stay editable, and a later edit reads as "draft
+evolved since review" — informational, in deliberate contrast to accepted
+MIPs, whose pins freeze their files immutable-by-citation.
 
 Two properties are the point:
 
