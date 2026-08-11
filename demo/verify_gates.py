@@ -51,6 +51,7 @@ import demo.tasks.task_0014_fdir_state_machine as task_0014
 import demo.tasks.task_0015_sabatier_isru as task_0015
 import demo.tasks.task_0016_triad_attitude as task_0016
 import demo.tasks.task_0017_isru_ascent_budget as task_0017
+import demo.tasks.task_0018_ascent_feasibility as task_0018
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -75,6 +76,7 @@ _TASK_REGISTRY = {
     "task-0015-sabatier-isru": task_0015,
     "task-0016-triad-attitude": task_0016,
     "task-0017-isru-ascent-budget": task_0017,
+    "task-0018-ascent-feasibility": task_0018,
 }
 
 
@@ -278,6 +280,7 @@ if __name__ == "__main__":
         ("task-0015-sabatier-isru", task_0015),
         ("task-0016-triad-attitude", task_0016),
         ("task-0017-isru-ascent-budget", task_0017),
+        ("task-0018-ascent-feasibility", task_0018),
     ]
 
     print("=== verify_gates.py self-test (task-agnostic: Gate-1 stand-in + Gate-2 + two-run reproducibility) ===\n")

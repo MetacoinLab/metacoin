@@ -2010,6 +2010,61 @@ def _selftest() -> int:
             else:
                 print("    (no published snapshot present — real snapshot-source "
                       "check SKIPPED; the fixture snapshot check covers the path)")
+
+            # [16] THE REAL THREE-GENERATION CHAIN (guarded: present once
+            # task-0018 is recorded — until then a named skip, per the cadence
+            # policy). Until now only fixtures proved transitivity; this block
+            # proves it ON REAL DATA: the interior closure from root task-0018
+            # is exactly {0018, 0017, 0015}, and the cascade crosses TWO hops
+            # (a tampered 0015 breaks 0017's edge; a 0017 whose WMID moved
+            # breaks 0018's edge).
+            try:
+                r18 = build_molecule("task-0018",
+                                     ledger_path=DEFAULT_LEDGER_PATH)
+            except ValueError as exc:
+                if "no ledger entries reference" not in str(exc):
+                    raise
+                r18 = None
+                print("    (task-0018 not yet recorded on the real ledger — "
+                      "three-generation-chain checks SKIPPED until the next "
+                      "milestone anchor)")
+            if r18 is not None:
+                r17 = build_molecule("task-0017",
+                                     ledger_path=DEFAULT_LEDGER_PATH)
+                r15 = build_molecule("task-0015",
+                                     ledger_path=DEFAULT_LEDGER_PATH)
+                closure = {r18["work_id"], r17["work_id"], r15["work_id"]}
+                checks.append(("REAL transitive closure from task-0018 is "
+                               "exactly {0018, 0017, 0015}",
+                               r18["parent_work_ids"] == [r17["work_id"]]
+                               and r17["parent_work_ids"]
+                               == [r15["work_id"]]
+                               and "parent_work_ids" not in r15
+                               and len(closure) == 3))
+                # hop 1: a tampered grandparent no longer resolves 0017's edge
+                t15 = json.loads(canonical_json(r15))
+                t15["result_hash"] = "0" * 64
+                t15["work_id"] = compute_work_id(t15)
+                ok_t, reasons_t = validate(
+                    r17, parent_pool={t15["work_id"]: t15})
+                # hop 2: re-resolving 0017 against the tampered grandparent
+                # moves 0017's WMID, which breaks 0018's recorded edge
+                t17 = json.loads(canonical_json(r17))
+                t17["parent_work_ids"] = [t15["work_id"]]
+                t17["parents_resolution"]["parents"][0]["work_id"] = (
+                    t15["work_id"])
+                t17["work_id"] = compute_work_id(t17)
+                ok_t2, reasons_t2 = validate(
+                    r18, parent_pool={t17["work_id"]: t17})
+                checks.append(("REAL two-hop cascade: tampered 0015 breaks "
+                               "0017's edge; the moved 0017 WMID breaks "
+                               "0018's edge",
+                               not ok_t and not ok_t2
+                               and any("does not resolve" in r
+                                       for r in reasons_t)
+                               and any("does not resolve" in r
+                                       for r in reasons_t2)
+                               and t17["work_id"] != r17["work_id"]))
         else:
             print("    (no runtime ledger present — real-ledger build SKIPPED; "
                   "fixture checks above cover the same paths)")

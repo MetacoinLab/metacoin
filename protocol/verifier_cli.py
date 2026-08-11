@@ -63,6 +63,7 @@ TASK_MODULES = {
     "task-0015": "demo.tasks.task_0015_sabatier_isru",
     "task-0016": "demo.tasks.task_0016_triad_attitude",
     "task-0017": "demo.tasks.task_0017_isru_ascent_budget",
+    "task-0018": "demo.tasks.task_0018_ascent_feasibility",
 }
 
 # Honest note embedded in every submission (and visible in output).

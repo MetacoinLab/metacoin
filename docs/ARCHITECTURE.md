@@ -22,7 +22,7 @@ says, for each layer, what it proves and what it deliberately does not.
 
 The chain opens with genesis (idx 0 <!--idx:0=ledger_genesis-->) and the
 verification corpus for the first 13 deterministic demo tasks. (The registry
-now holds <!--chain:task_count-->17<!--/chain--> tasks and — since the idx
+now holds <!--chain:task_count-->18<!--/chain--> tasks and — since the idx
 48-52 milestone batch, per the cadence policy — all
 <!--chain:recorded_task_count-->17<!--/chain--> are recorded; between
 milestones, newly registered tasks stay registered-but-unanchored and every

@@ -47,6 +47,7 @@ import demo.tasks.task_0014_fdir_state_machine as task_0014
 import demo.tasks.task_0015_sabatier_isru as task_0015
 import demo.tasks.task_0016_triad_attitude as task_0016
 import demo.tasks.task_0017_isru_ascent_budget as task_0017
+import demo.tasks.task_0018_ascent_feasibility as task_0018
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -230,6 +231,9 @@ if __name__ == "__main__":
     #   R18 task-0016 honest: earn 2, spend 1                 -> balance 15  (TRIAD attitude task earns)
     #   R19 task-0017 honest: earn 2, spend 1                 -> balance 16  (ISRU ascent budget earns —
     #                         the first PARENTED task: it consumes task-0015's output)
+    #   R20 task-0018 honest: earn 2, spend 1                 -> balance 17  (ascent feasibility earns —
+    #                         the three-generation chain 0015 -> 0017 -> 0018; the verdict is an
+    #                         honest feasible:false, and an honest negative VERIFIES)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
@@ -250,6 +254,7 @@ if __name__ == "__main__":
         {"task": task_0015, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0016, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0017, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0018, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -276,11 +281,12 @@ if __name__ == "__main__":
         {"task_id": "task-0015-sabatier-isru", "verify_passed": True},
         {"task_id": "task-0016-triad-attitude", "verify_passed": True},
         {"task_id": "task-0017-isru-ascent-budget", "verify_passed": True},
+        {"task_id": "task-0018-ascent-feasibility", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs all seventeen real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+    print("Runs all eighteen real tasks: task-0001 (link budget), task-0002 (two-body orbit "
           "propagation), task-0003 (eclipse/power budget), task-0004 (comms access), "
           "task-0005 (rover path), task-0006 (docking approach), task-0007 (Hohmann transfer), "
           "task-0008 (arm inverse kinematics), task-0009 (power budget), "
@@ -288,7 +294,9 @@ if __name__ == "__main__":
           "task-0012 (deep-space comms link budget), task-0013 (Lambert transfer), "
           "task-0014 (FDIR state machine), task-0015 (Sabatier ISRU), "
           "task-0016 (TRIAD attitude), task-0017 (ISRU ascent budget — the "
-          "first parented task, consuming task-0015's output).\n")
+          "first parented task, consuming task-0015's output), and "
+          "task-0018 (ascent feasibility — the three-generation chain "
+          "0015 -> 0017 -> 0018, honestly infeasible at these constants).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -325,12 +333,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 19,
-        "passed": 18,
+        "rounds": 20,
+        "passed": 19,
         "rejected": 1,
-        "total_earned": 36,
-        "total_spent": 20,
-        "final_balance": 16,
+        "total_earned": 38,
+        "total_spent": 21,
+        "final_balance": 17,
     }
     totals_ok = totals == expected
 
