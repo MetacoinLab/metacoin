@@ -115,6 +115,21 @@ def _mip_files(mip_dir):
     return sorted(n for n in os.listdir(mip_dir)
                   if n.startswith("MIP-") and n.endswith(".md"))
 
+
+_MIP_CITE_RE = re.compile(r"\bMIP-(\d{4})\b")
+
+
+def unresolved_mip_citations(text, mip_dir, own_number=None):
+    """Cited MIP numbers with no matching MIP-NNNN-*.md beside them.
+
+    A MIP (or any doc) may not cite a proposal that does not exist — a
+    dangling citation is a promise the corpus cannot back (MIP-0002 §3
+    pointed at an unwritten MIP-0003 for months; this check makes that
+    state loud). `own_number` excludes the citing file's own id."""
+    existing = {n[4:8] for n in _mip_files(mip_dir)}
+    return sorted({f"MIP-{n}" for n in _MIP_CITE_RE.findall(text)
+                   if n != own_number and n not in existing})
+
 CONTRACT_MARKER = "mechanically verified by protocol/doc_verify.py"
 
 # README is ERA-PINNED, not live-rendered: it declares its as-of chain point
@@ -423,6 +438,12 @@ def check_docs(docs_dir=DOCS_DIR, repo_root=_REPO_ROOT, execute=True,
             text = f.read()
         stats["mips"] += 1
         rel = f"mip/{name}"
+        dangling = unresolved_mip_citations(text, mip_dir,
+                                            own_number=name[4:8])
+        if dangling:
+            findings.append(f"{rel}: cites {dangling} but no such MIP "
+                            "file(s) exist — a citation may not point at "
+                            "an unwritten proposal")
         # chain tokens in a MIP would rot inside an immutable-by-citation
         # file; if one ever appears it is still value-checked here (a stale
         # value is a finding either way, and mip_process refuses them)

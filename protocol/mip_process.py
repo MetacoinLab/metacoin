@@ -199,6 +199,19 @@ def check_mip(path: str, ledger_source: str = None, execute: bool = True,
                    else "; ".join(idx_findings)[:300]),
     })
 
+    # [5b] every cited MIP resolves to a file beside this one (own id
+    # excluded): a proposal may not cite an unwritten proposal — dangling
+    # citations are how MIP-0002 §3 pointed at nothing for months
+    dangling = doc_verify.unresolved_mip_citations(
+        text, os.path.dirname(os.path.abspath(path)),
+        own_number=(m_name.group(1) if m_name else None))
+    checks.append({
+        "name": "mip-citations-resolve",
+        "passed": not dangling,
+        "detail": ("every cited MIP exists" if not dangling
+                   else f"dangling citation(s): {dangling}"),
+    })
+
     # [6] verification blocks present and (by default) executed clean in a
     # fresh-clone sandbox — the doc_verify command machinery, reused
     blocks = doc_verify._parse_command_blocks(text)
@@ -471,6 +484,11 @@ def _selftest() -> int:
                        _failing("no-chain-tokens", name="MIP-9105-token.md",
                                 extra="<!--chain:entry_count-->1"
                                       "<!--/chain-->")))
+        checks.append(("dangling MIP citation fails by name (a proposal may "
+                       "not cite an unwritten proposal)",
+                       _failing("mip-citations-resolve",
+                                name="MIP-9106-dangling.md",
+                                extra="builds on MIP-8888.")))
 
         # [3] NO WRITE WITHOUT CONFIRM: a dry-run decision returns the
         # would-be record and the ledger is byte-identical after
@@ -536,16 +554,18 @@ def _selftest() -> int:
                        and out_rej["record"]["mechanical_check"]["passed"]
                        is False))
 
-        # [6] the REAL MIP file checks clean structurally (blocks not
+        # [6] the REAL walked MIP files check clean structurally (blocks not
         # executed here — doc_verify's mip/ scan and CI execute them; this
         # keeps the selftest fast and the responsibilities separated)
-        real_mip = os.path.join(_REPO_ROOT, "mip",
-                                "MIP-0004-concentration-epochs.md")
-        v_real = check_mip(real_mip, execute=False, echo=quiet)
-        checks.append(("the real MIP-0004 passes every structural check "
-                       "(sections, status, citations, hash)",
-                       v_real["passed"] and v_real["mip_id"] == "MIP-0004"
-                       and v_real["verify_run_blocks"] >= 1))
+        for real_name, real_id in (
+                ("MIP-0004-concentration-epochs.md", "MIP-0004"),
+                ("MIP-0003-operator-responsibility.md", "MIP-0003")):
+            v_real = check_mip(os.path.join(_REPO_ROOT, "mip", real_name),
+                               execute=False, echo=quiet)
+            checks.append((f"the real {real_id} passes every structural "
+                           "check (sections, status, citations, hash)",
+                           v_real["passed"] and v_real["mip_id"] == real_id
+                           and v_real["verify_run_blocks"] >= 1))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
