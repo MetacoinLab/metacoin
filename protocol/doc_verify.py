@@ -117,6 +117,17 @@ def _mip_files(mip_dir):
 
 CONTRACT_MARKER = "mechanically verified by protocol/doc_verify.py"
 
+# README is ERA-PINNED, not live-rendered: it declares its as-of chain point
+# ONCE (the era-pin marker) and every tagged number is checked against the
+# chain AT that point — generation-lock semantics for prose. The README stays
+# verifiably green as the chain grows and goes red only if it misstates its
+# own declared era (wrong pin, or a wrong number at the pinned state). The
+# monthly README batch moves the pin deliberately, like a --render.
+README_PATH = os.path.join(_REPO_ROOT, "README.md")
+_ERA_PIN_RE = re.compile(
+    r"<!--era-pin:entry_count=(\d+) tip_hash_prefix=([0-9a-f]{12})-->")
+_ERA_TOKEN_RE = re.compile(r"<!--era:([a-z0-9_]+)-->(.*?)<!--/era-->", re.S)
+
 _TOKEN_RE = re.compile(r"<!--chain:([a-z0-9_]+)-->(.*?)<!--/chain-->", re.S)
 _IDX_TYPED_RE = re.compile(r"<!--idx:(\d+)=([a-z0-9_]+)-->")
 _IDX_PROSE_RE = re.compile(r"\bidx (\d+)(?:[-–](\d+))?")
@@ -190,6 +201,106 @@ def compute_tokens(repo_root=_REPO_ROOT, entries=None):
         "passport_actor_count": str(len(passports["entries"])),
         "assumed_power_w": f"{metering['assumed_cpu_power_w']}",
     }
+
+
+def compute_era_tokens(entries, pin_count):
+    """Era-pinned token values: every value is derived from the chain AT the
+    declared as-of point (the first `pin_count` entries) and NOTHING else —
+    no live files, no registry state that later growth could move. Returns
+    {key: str} exactly as each value must appear between era markers."""
+    era = entries[:pin_count]
+    tip = era[-1]
+    payloads = [e.get("payload", {}) for e in era if isinstance(e, dict)]
+    epoch = next((p for p in reversed(payloads)
+                  if p.get("event") == "aci_epoch_observed"
+                  and p.get("status") == "aci-epoch-confirmed"), {})
+    baseline = next((p for p in reversed(payloads)
+                     if p.get("event") == "aci_baseline_anchored"
+                     and p.get("status") == "aci-baseline-confirmed"), {})
+    return {
+        "entry_count": str(len(era)),
+        "tip_index": str(tip["index"]),
+        "tip_hash_prefix": tip["hash"][:12],
+        "recorded_task_count": str(sum(
+            1 for tid in TASK_MODULES
+            if any(_payload_references_task(e.get("payload"), tid)
+                   for e in era if isinstance(e, dict)))),
+        "drill_entry_count": str(sum(1 for p in payloads if p.get("drill"))),
+        "catalog_anchor_count": str(sum(
+            1 for p in payloads
+            if p.get("event") == "work_molecule_catalog_anchored")),
+        "mip_decision_count": str(sum(
+            1 for p in payloads
+            if p.get("event") == "mip_decision_recorded")),
+        "epoch_path_count": str(epoch.get("path_count", "")),
+        "epoch_pairwise_aci": (f"{round(epoch['pairwise_aci'], 6)}"
+                               if "pairwise_aci" in epoch else ""),
+        "baseline_path_count": str(baseline.get("path_count", "")),
+        "baseline_pairwise_aci": (f"{round(baseline['pairwise_aci'], 5)}"
+                                  if "pairwise_aci" in baseline else ""),
+    }
+
+
+def check_readme(readme_path=README_PATH, entries=None):
+    """Era-pinned README verification. Returns (findings, stats).
+
+    No era-pin marker -> named non-finding (stats['pinned'] False): a
+    pre-batch README simply has not opted in. With a marker: the PIN itself
+    must match the chain (enough entries exist and the pinned tip hash
+    prefix matches — a README cannot claim an era the chain never had), and
+    every `<!--era:KEY-->VALUE<!--/era-->` must equal KEY's value computed
+    at the pinned chain state. Live-tip growth beyond the pin NEVER reddens
+    an era-pinned claim. Typed/prose idx references are checked against the
+    full chain (records never vanish, so a citation is era-independent)."""
+    findings = []
+    stats = {"pinned": False, "era_tokens": 0, "idx_refs": 0}
+    if entries is None:
+        entries = _read_ledger(resolve_ledger_path())
+    if not os.path.exists(readme_path):
+        return ([f"README missing: {readme_path}"], stats)
+    with open(readme_path) as f:
+        text = f.read()
+    name = os.path.basename(readme_path)
+
+    _check_idx_refs(text, name, entries, findings)
+    stats["idx_refs"] = (len(_IDX_PROSE_RE.findall(text))
+                         + len(_IDX_TYPED_RE.findall(text)))
+
+    pins = _ERA_PIN_RE.findall(text)
+    era_tokens_found = _ERA_TOKEN_RE.findall(text)
+    if not pins:
+        if era_tokens_found:
+            findings.append(f"{name}: era tokens present but no era-pin "
+                            "marker declares the as-of point")
+        return (findings, stats)
+    if len(pins) > 1:
+        findings.append(f"{name}: {len(pins)} era-pin markers — the as-of "
+                        "point must be declared exactly once")
+        return (findings, stats)
+    stats["pinned"] = True
+    pin_count, pin_prefix = int(pins[0][0]), pins[0][1]
+    if pin_count < 1 or pin_count > len(entries):
+        findings.append(f"{name}: era pin claims entry_count {pin_count} but "
+                        f"the chain has {len(entries)} — a README cannot "
+                        "claim an era the chain never had")
+        return (findings, stats)
+    actual_prefix = entries[pin_count - 1]["hash"][:12]
+    if actual_prefix != pin_prefix:
+        findings.append(f"{name}: era pin says tip {pin_prefix!r} at entry "
+                        f"{pin_count} but the chain records "
+                        f"{actual_prefix!r} — the declared era is misstated")
+        return (findings, stats)
+
+    era_values = compute_era_tokens(entries, pin_count)
+    for key, value in era_tokens_found:
+        stats["era_tokens"] += 1
+        if key not in era_values:
+            findings.append(f"{name}: unknown era token {key!r}")
+        elif value != era_values[key]:
+            findings.append(f"{name}: era token {key} says {value!r} but the "
+                            f"chain at the pinned era (entry_count "
+                            f"{pin_count}) computes {era_values[key]!r}")
+    return (findings, stats)
 
 
 # ----------------------------------------------------------------------------
@@ -489,6 +600,68 @@ def _selftest() -> int:
                        and f"<!--chain:entry_count-->{tokens_now['entry_count']}"
                            f"<!--/chain-->" in rendered))
 
+        # [9b] ERA-PINNED README fixtures: the pin declares the as-of point;
+        # every era token is checked against the chain AT that point.
+        entries_now = _read_ledger(resolve_ledger_path())
+        n_now = len(entries_now)
+
+        def _readme_findings(body):
+            p = os.path.join(tmp, "README_fixture.md")
+            with open(p, "w") as f:
+                f.write(body + "\n")
+            found, st = check_readme(p, entries=entries_now)
+            return found, st
+
+        era_now = compute_era_tokens(entries_now, n_now)
+        pin_now = (f"<!--era-pin:entry_count={n_now} "
+                   f"tip_hash_prefix={entries_now[-1]['hash'][:12]}-->")
+        ok_body = (f"{pin_now}\nchain has <!--era:entry_count-->{n_now}"
+                   f"<!--/era--> entries.")
+        f_ok, st_ok = _readme_findings(ok_body)
+        checks.append(("era-pinned README: correct era checks green",
+                       f_ok == [] and st_ok["pinned"]
+                       and st_ok["era_tokens"] == 1))
+
+        wrong_body = (f"{pin_now}\nchain has <!--era:entry_count-->9999"
+                      f"<!--/era--> entries.")
+        f_wrong, _ = _readme_findings(wrong_body)
+        checks.append(("era-pinned README: wrong number AT the era is red",
+                       len(f_wrong) == 1 and "9999" in f_wrong[0]
+                       and "pinned era" in f_wrong[0]))
+
+        # live-tip drift immunity: pin an OLD era (half the chain); the
+        # token states the OLD entry_count and stays green even though the
+        # live tip has moved far past it — generation-lock semantics
+        old_n = max(1, n_now // 2)
+        old_era = compute_era_tokens(entries_now, old_n)
+        old_body = (f"<!--era-pin:entry_count={old_n} tip_hash_prefix="
+                    f"{entries_now[old_n - 1]['hash'][:12]}-->\n"
+                    f"chain had <!--era:entry_count-->{old_n}<!--/era--> "
+                    f"entries and <!--era:drill_entry_count-->"
+                    f"{old_era['drill_entry_count']}<!--/era--> drills.")
+        f_old, st_old = _readme_findings(old_body)
+        checks.append(("era-pinned README: live-tip drift does NOT redden "
+                       "an old-era claim (generation-lock semantics)",
+                       f_old == [] and st_old["pinned"] and old_n < n_now))
+
+        # a misstated era (wrong pinned tip hash) is red at the PIN itself
+        bad_pin = (f"<!--era-pin:entry_count={n_now} "
+                   f"tip_hash_prefix={'0' * 12}-->\nx")
+        f_badpin, _ = _readme_findings(bad_pin)
+        checks.append(("era-pinned README: a misstated era pin is red by "
+                       "name",
+                       len(f_badpin) == 1 and "misstated" in f_badpin[0]))
+
+        # era tokens without any pin -> red (numbers must hang off a
+        # declared as-of point); no pin and no tokens -> named non-finding
+        f_nopin, _ = _readme_findings(
+            "chain has <!--era:entry_count-->1<!--/era--> entries.")
+        f_plain, st_plain = _readme_findings("just prose, cites idx 0.")
+        checks.append(("era tokens without a pin are red; a pinless plain "
+                       "README is a named non-finding",
+                       len(f_nopin) == 1 and "no era-pin" in f_nopin[0]
+                       and f_plain == [] and st_plain["pinned"] is False))
+
     # [10] the real four docs check clean — commands executed for real in a
     # fresh-clone sandbox (this IS the doc contract being enforced).
     print("checking the real docs + MIPs (executes every verify-run block in "
@@ -501,6 +674,17 @@ def _selftest() -> int:
                    f"{stats['idx_refs']} idx refs, {stats['commands']} "
                    "commands)", real_findings == [] and stats["docs"] == 4
                    and stats["mips"] >= 3))
+
+    # [10b] the real README checks clean under era-pin semantics (pinless
+    # pre-batch READMEs are a named non-finding; once pinned, every era
+    # token must match the chain at the declared as-of point)
+    rn_findings, rn_stats = check_readme()
+    for f in rn_findings:
+        print(f"    FINDING: {f}")
+    checks.append(("the real README checks clean (era-pinned: "
+                   f"{rn_stats['pinned']}, {rn_stats['era_tokens']} era "
+                   f"tokens, {rn_stats['idx_refs']} idx refs)",
+                   rn_findings == []))
 
     # Zero-write guarantees.
     ledger_sha_after = None
@@ -555,8 +739,14 @@ def main(argv=None) -> int:
     if args.check:
         findings, stats = check_docs(execute=not args.no_exec,
                                      mip_dir=MIP_DIR)
+        r_findings, r_stats = check_readme()
+        findings.extend(r_findings)
+        readme_note = (f"era-pinned, {r_stats['era_tokens']} era tokens"
+                       if r_stats["pinned"] else "no era pin (not yet opted "
+                       "in)")
         print(f"\ndocs checked: {stats['docs']}/{len(DOC_FILES)} | MIPs "
-              f"scanned: {stats['mips']} | chain "
+              f"scanned: {stats['mips']} | README: {readme_note}, "
+              f"{r_stats['idx_refs']} idx refs | chain "
               f"tokens: {stats['tokens']} | idx references: "
               f"{stats['idx_refs']} | command blocks: {stats['commands']}")
         if findings:
