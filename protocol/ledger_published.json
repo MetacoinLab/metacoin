@@ -2704,19 +2704,92 @@
       },
       "prev_hash": "7575d1c32de2dd66cd28d8eed1b3b5d86c717188fb0e03bdeea99b87d04b9aa7",
       "timestamp": 1786433188.2716181
+    },
+    {
+      "hash": "ad58905879bf9dc2ae6529004d3e1b6fd750407dbab904546379633b77cc10e4",
+      "index": 60,
+      "payload": {
+        "amendment_rule": "the anchored record pins the decided file's sha256: the committed MIP file is immutable-by-citation from this moment, a later edit breaks re-derivation loudly, and amendments are new MIPs",
+        "anchored_at": 1786434584.6996386,
+        "decision": "accepted",
+        "event": "mip_decision_recorded",
+        "file": "mip/MIP-0005-release-criteria.md",
+        "file_sha256": "6cf2797b3623789684e8dc6152b6951c2b22f9aca7fb054f70e23fa5a91da7c3",
+        "limitation_note": "First-exercise MIP lifecycle under same-operator custody: the mechanical checks are real (required sections, valid status, ledger citations resolved against the chain, verification blocks executed, file sha256 pinned) and the decision is recorded on-chain \u2014 but the review seat has ONE occupant and says so. A recorded decision proves the PROCESS ran, not that the decision is wise; plural review and voting do not exist yet. Anchored MIP files are immutable-by-citation; amendments are new MIPs. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "mechanical_check": {
+          "checks": [
+            {
+              "detail": "MIP-0005 \u2014 Release criteria and the complete-product gate",
+              "name": "identity",
+              "passed": true
+            },
+            {
+              "detail": "status 'Accepted'",
+              "name": "status-valid",
+              "passed": true
+            },
+            {
+              "detail": "all present",
+              "name": "required-sections",
+              "passed": true
+            },
+            {
+              "detail": "none (correct: immutable files must not embed live-recomputed numbers)",
+              "name": "no-chain-tokens",
+              "passed": true
+            },
+            {
+              "detail": "8 reference(s) resolve",
+              "name": "ledger-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "every cited MIP exists",
+              "name": "mip-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "2 verify-run block(s)",
+              "name": "verification-blocks-present",
+              "passed": true
+            },
+            {
+              "detail": "all clean",
+              "name": "verification-blocks-execute",
+              "passed": true
+            }
+          ],
+          "idx_references": 8,
+          "passed": true,
+          "verify_run_blocks": 2
+        },
+        "mip_id": "MIP-0005",
+        "mip_title": "Release criteria and the complete-product gate",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "record_schema": "mip-record/0.1",
+        "review_seat": "same-operator-single-seat",
+        "seat_statement": "the review seat has one occupant and says so \u2014 plural review, voting, and anti-whale dampening (MIP-0001 \u00a77) do not exist at research stage; this record proves the process ran, not that the decision is wise",
+        "stage": "R-governance",
+        "status": "mip-accepted",
+        "topology": "same-operator-single-seat-review",
+        "zero_value": true
+      },
+      "prev_hash": "058f4391f8a1fb07939dd184dbbcba9803436e585cf126b22efff0d3458b1d1a",
+      "timestamp": 1786434584.7000413
     }
   ],
   "snapshot_header": {
-    "entry_count": 60,
+    "entry_count": 61,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1786433188.3005996,
+    "snapshot_timestamp": 1786434584.7444232,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "058f4391f8a1fb07939dd184dbbcba9803436e585cf126b22efff0d3458b1d1a",
-    "tip_index": 59,
+    "tip_hash": "ad58905879bf9dc2ae6529004d3e1b6fd750407dbab904546379633b77cc10e4",
+    "tip_index": 60,
     "zero_value": true
   }
 }

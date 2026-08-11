@@ -1,6 +1,6 @@
 # MIP-0005 — Release criteria and the complete-product gate
 
-**Status:** Draft · **Layer:** Protocol · **Supersedes:** none · **Depends on:** none
+**Status:** Accepted · **Layer:** Protocol · **Supersedes:** none · **Depends on:** none
 **Note:** Research specification only. No token exists. Not financial or legal advice.
 
 > **THE DOC CONTRACT.** Every claim in this MIP is mechanically checkable:
