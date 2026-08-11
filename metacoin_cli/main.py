@@ -327,7 +327,7 @@ def build_parser() -> argparse.ArgumentParser:
         "PROVES: the snapshot verifies and matches the committed anchor. "
         "DOES NOT prove: anything about the work beyond re-derivability.")
 
-    sp = add("task", _cmd_task, "run or list the 13 reproducible tasks",
+    sp = add("task", _cmd_task, "run or list the registered reproducible tasks",
              "PROVES: a matching output_hash means deterministic "
              "reproducibility on this machine. DOES NOT prove: who executed "
              "it (a hash can be copied).")

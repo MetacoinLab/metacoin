@@ -35,6 +35,9 @@ This README describes two distinct things, and labels which is which:
 
 We keep that line sharp on purpose. A design is not a deployment, and we never write the future in the present tense.
 
+<!--era-pin:entry_count=59 tip_hash_prefix=7575d1c32de2-->
+> **Protocol state as of ledger entry <!--era:entry_count-->59<!--/era--> (tip index <!--era:tip_index-->58<!--/era-->, hash `<!--era:tip_hash_prefix-->7575d1c32de2<!--/era-->…`, August 2026).** Every number in this README hangs off that declared chain point, and `protocol/doc_verify.py` mechanically re-checks each tagged number against the chain **at that point** on every CI run — so this document stays verifiably green as the chain grows, and goes red only if it misstates its own era. The README is updated in deliberate monthly batches; the chain and `docs/` move faster and carry the live numbers.
+
 ---
 
 ## One-sentence thesis
@@ -104,46 +107,67 @@ Agentic payment rails let agents *pay*. MetaCoin defines what useful space-machi
 
 Everything in this section exists in the repository and is exercised by CI. Each item is deliberately scoped — these are mechanical, deterministic facts, not marketing.
 
-- **Reproducible task demo** — thirteen reproducible space-engineering tasks spanning NASA-taxonomy domains (orbital mechanics & Lambert transfer, propulsion/Hohmann, robotics/ISAM arm IK, power budget, thermal equilibrium, ballistic re-entry/EDL, deep-space comms & Doppler, comms access windows, rover path planning, rendezvous/docking), wired into a task-agnostic verifier and an earn→verify→spend agent loop. CI 19/19 (demo) + 10/10 (protocol).
+- **Reproducible task library** — <!--era:recorded_task_count-->17<!--/era--> reproducible space-engineering tasks spanning NASA-taxonomy domains (orbital mechanics & Lambert transfer, propulsion/Hohmann, robotics/ISAM arm IK, power budget, thermal equilibrium, ballistic re-entry/EDL, deep-space comms & Doppler, comms access windows, rover path planning, rendezvous/docking, FDIR fault management, Sabatier ISRU chemistry, TRIAD attitude determination, ISRU ascent propellant budgeting), wired into a task-agnostic verifier and an earn→verify→spend agent loop; the full demo and protocol self-test suites run on every push. The library carries its **first real provenance edge**: task-0017 (ascent budget) consumes task-0015's (Sabatier) output, recomputes the parent's canonical hash live on every execution, and refuses drifted input.
 - **R1 — Tamper-evident ledger** — an append-only, hash-chained ledger; verification recomputes every hash from content and detects mutation, reordering, insertion, and deletion.
 - **R2 — Honest attestation** — software-rooted HMAC attestation, anchored to the ledger. The hardware was investigated and found to have **no usable TPM/TEE**, so the mechanism is honestly labeled *software-rooted, not hardware* — a future hardware/public-key root drops into the same interface.
 - **R3 — External verifier + coordinator** — an external party re-derives a task hash; the coordinator anchors the outcome only after **independently recomputing it** (a matching hash proves reproducibility, not who executed the task).
 - **Public auditability** — `audit.py` exports a verifiable snapshot, verifies it standalone (no original ledger needed), and commits a tiny public tip anchor — closing the external-anchor gap so anyone can confirm the chain was not silently rewritten.
 - **Autonomous agent-verifier** — a published, CI-tested tool that fetches the public snapshot, mechanically re-verifies the chain, checks the tip against the committed anchor, and re-runs the recorded task — **no LLM/AI judgment, hashes and re-runs only.**
-- **Cross-platform reproducibility** — the canonical task hash `ff03231f…ba300c` reproduces byte-for-byte on **macOS (arm64)**, **Linux (aarch64)**, **Linux x86-64 (CI)**, and **Windows 11 (AMD64)** — and the CI environment independently re-derives all **thirteen** task hashes against the published snapshot on every push (same-operator; reproducibility evidence, not third-party independence).
-- **Full demo↔protocol wiring** — every one of the thirteen tasks is anchored in the tamper-evident ledger: twelve honestly-labeled same-machine self-recompute evaluations plus one batch autonomous-agent attestation covering the entire catalog (Spark-reconfirmed), each record carrying explicit honesty labels (`task_class: illustrative-demo`, topology, zero-value/no-token, limitation notes).
-- **Provenance layer — Work Molecules** (`work-molecule/0.2`) — thirteen content-addressed provenance objects, one per task, each assembling the task's spec hash, actors, manifests, execution timestamps, hardware evidence, verification citations, and result hash into a single deterministic document with **three-state field semantics** (populated / asserted-empty / not-captured) and machine-readable **provenance debt**: missing evidence (energy cost, TEE attestation, execution detail) is listed explicitly, never fabricated. The WMID catalog was anchored only after the coordinator independently rebuilt every molecule.
-- **Concentration self-measurement** (`aci-report/0.1`) — the protocol measured its **own** agent-concentration baseline: pairwise **ACI 0.99365** over **28 same-operator verification paths** (five evidence dimensions; missing metadata scored worst-case, never as independence) with the multi-scale profile Γ(operator)=Γ(repo)=1.0, Γ(machine)=27/28 — and anchored it. A deliberate, published maximal-concentration starting point: descriptive evidence, never a minting trigger.
-- **30-day agent economy demo (simulated time)** — a deterministic earn→verify→spend loop over **30 simulated day indices** (not wall-clock time — nothing ran for 30 real days) rotating through all thirteen tasks: zero-value Test-META is earned only on verified work, spent on simulated compute via the x402 stub, and a **planned day-17 tamper drill** (labeled in-log as a drill, not fraud) proves the rejection path — no earnings, economy continues. Summary (29 verified / 1 drill rejection, 58 earned / 30 spent / 28 final) anchored after the coordinator re-ran the entire simulation and matched the log hash.
+- **Cross-platform reproducibility** — the canonical task hash `ff03231f…ba300c` reproduces byte-for-byte on **macOS (arm64)**, **Linux (aarch64)**, **Linux x86-64 (CI)**, and **Windows 11 (AMD64)** for the original thirteen-task era — and the CI environment independently re-derives all **seventeen** recorded task hashes against the published snapshot on every push (same-operator; reproducibility evidence, not third-party independence).
+- **Full demo↔protocol wiring** — every recorded task is anchored in the tamper-evident ledger via honestly-labeled same-machine self-recompute evaluations plus **two batch autonomous-agent attestations** (idx 16 over the 13-task era; idx 52 re-deriving every recorded hash across both eras, the 13 historical outputs matching to the digit), each record carrying explicit honesty labels (`task_class: illustrative-demo`, topology, zero-value/no-token, limitation notes).
+- **Provenance layer — Work Molecules** (`work-molecule/0.2`→`0.3`) — content-addressed provenance objects, one per task, each assembling the task's spec hash, actors, manifests, execution timestamps, hardware evidence, verification citations, and result hash into a single deterministic document with **three-state field semantics** (populated / asserted-empty / not-captured) and machine-readable **provenance debt**: missing evidence (energy cost, TEE attestation, execution detail) is listed explicitly, never fabricated. <!--era:catalog_anchor_count-->4<!--/era--> catalog generations are anchored — every one rebuilt independently by the coordinator before anchoring, every one still verifiable byte-for-byte forever (generation-locked rebuilds) — and generation 4 carries the chain's **first parented molecule**: task-0017's WMID contains its parent's WMID, so tampering with the parent cascades detection to the child.
+- **Concentration self-measurement, now a time series** (`aci-report/0.1` → `aci-epoch-observation/0.1`) — the protocol measured its **own** agent-concentration baseline: pairwise **ACI <!--era:baseline_pairwise_aci-->0.99365<!--/era-->** over **<!--era:baseline_path_count-->28<!--/era--> same-operator verification paths** (five evidence dimensions; missing metadata scored worst-case, never as independence), anchored deliberately as the maximal-concentration starting point. The **k-order profile** (idx 44) extends it beyond pairs — with a hand-computed fixture demonstrating the pairwise blind spot it exists to close — and the **longitudinal epoch series** (from idx 57, ratified by MIP-0004) turns the measurement into a baseline over time: each epoch cites every prior anchored measurement and re-derives its deltas from anchored values only. Descriptive evidence, never a minting trigger.
+- **Simulated agent economy, two anchored generations** — a deterministic earn→verify→spend loop over **30 simulated day indices** (not wall-clock time — nothing ran for 30 real days): zero-value Test-META is earned only on verified work, spent on simulated compute via the x402 stub, and a **planned tamper drill** per generation (labeled in-log as a drill, not fraud — day 17 in generation 1, day 23 in generation 2, deliberately different days) proves the rejection path. Generation 1 (13-task roster, idx 19) is frozen forever and still replays to the anchored hash to the digit; generation 2 (17-task roster, idx 55) anchored beside it with an on-record *replaces-nothing* statement. The **treasury accumulates across generations** (idx 56): each funding root's fees independently re-derived (3.0 + 3.0 = 6.0), conservation exact on the record (balance 5.2 + outstanding 0.8 == 6.0), caps and budgets restated unchanged — a budget change would be a governance event, not a funding extension.
 - **Provenance debt paydown — compute/energy evidence** (`metering-report/0.1`, `work-molecule/0.3`) — wall-clock and CPU time were **measured** for all thirteen tasks and anchored **append-only** (idx 20); energy is labeled **estimated** (CPU time × an assumed 15 W nameplate figure — no hardware power telemetry exists on this host, and that remains open debt). Timing is non-reproducible by nature, so the anchored `report_hash` fixes the claim made at measurement time, not a recomputable value; the coordinator re-metered every task for plausibility (same output hashes, sane timings) before anchoring. Molecules absorb the evidence as a **new generation** (`work-molecule/0.3`, thirteen new WMIDs, idx 21) with machine-readable **debt_reduction** records that preserve the debt history — while the original 0.2 catalog stays verifiable forever: debt is reduced only by appending evidence, never by modifying a record.
-- **Cut certificates** (`cut-certificate/0.1`) — bounded verification of the provenance graph: the coordinator runs the **expensive full proof once, at anchoring** (rebuild every interior molecule, recompute every WMID and the aggregate hash), and every later verifier can **accept cheaply** — one anchored-hash lookup plus a single-molecule retrievability probe — with acceptance explicitly **conditional on the anchor plus continued retrievability** of the molecules (compression, never erasure). The first anchored certificate (idx 22) covers the current **flat** 13-molecule graph — no parent edges exist yet, so it is a degenerate cut exercising the mechanism, and its record says so; non-trivial traversal, boundary computation, and cycle rejection are proven by synthetic self-test fixtures.
-- **Trust Vector** (`trust-vector/0.1`) — the per-work evidence vector: **six separately-verified components** per task — integrity (deterministic re-run, software-rooted, no TEE), reproducibility (facts: event counts, statuses, canonical hash), independence (per-work actor count **plus the anchored ACI 0.99365 maximal-concentration baseline**), provenance completeness (counted three-state slots, open debts and debt-reductions listed), usefulness (**honestly empty**: "not-assessed" — Gate 3 does not exist), and verification cost (estimated energy; ρ ≈ 1 stated as trivially uninformative). **No combined score exists, by mechanical rule** — the self-test scans every key for aggregation-shaped names and validation rejects any smuggled scalar. The 13-vector catalog was anchored (idx 23) only after the coordinator independently rebuilt every vector.
-- **One-command full-stack verification** — `python3 protocol/verify_everything.py --full` mechanically re-verifies every layer (chain, 13 tasks, both molecule generations, concentration, economy, metering claims, cut certificate, trust vectors) with zero LLM judgment, and is **fresh-clone proven**: the CI self-test copies only git-tracked files to a temp dir and requires a full pass there — every layer's evidence ships in-repo (`protocol/evidence/`, privacy-checked), so a stranger's clone verifies end-to-end with no local-only inputs.
+- **Cut certificates** (`cut-certificate/0.1`) — bounded verification of the provenance graph: the coordinator runs the **expensive full proof once, at anchoring** (rebuild every interior molecule, recompute every WMID and the aggregate hash), and every later verifier can **accept cheaply** — with acceptance explicitly **conditional on the anchor plus continued retrievability** of the molecules (compression, never erasure). Two cuts are anchored: the first (idx 22) covered the then-flat graph and its record honestly calls itself degenerate; the **first non-trivial cut** (idx 54) is rooted at the parented molecule with a **real declared provenance edge crossing the boundary** — the boundary molecule is referenced, never rebuilt; that is the bound.
+- **Trust Vector** (`trust-vector/0.1`) — the per-work evidence vector: **six separately-verified components** per task — integrity (deterministic re-run, software-rooted, no TEE), reproducibility (facts: event counts, statuses, canonical hash), independence (per-work actor count **plus the anchored maximal-concentration baseline**), provenance completeness (counted three-state slots, open debts and debt-reductions listed), usefulness (**honestly empty**: "not-assessed" — Gate 3's judgment seat is vacant and says so), and verification cost (estimated energy; ρ ≈ 1 stated as trivially uninformative). **No combined score exists, by mechanical rule** — the self-test scans every key for aggregation-shaped names and validation rejects any smuggled scalar. The 13-vector catalog was anchored (idx 23, regenerated at idx 27) only after the coordinator independently rebuilt every vector.
 
-### Current ledger
+**Anchored since the last README batch (the idx 24–58 era):**
+
+- **Challenge-response possession proofs** — nonce-bound rounds in which a verifier must re-derive a task under a fresh challenge; three verified rounds anchored, and the **copy-attack replay drill defeated twice** (idx 25, idx 30): a replayed response stays refuted on every re-verification, forever.
+- **The complete identity lifecycle** — actor identity as a Merkle root over one-time Lamport keys: registrations, signed challenge rounds, staged key reserves, a legitimate **key rotation** (idx 41), and two defeated drills — **key reuse** rejected by the ledger-wide index scan and a **forged rotation** (idx 42) rejected from public material alone. Continuity of key possession, never proof of who operates a key: operator relationships remain declared, `-claimed`.
+- **The two-flow constitution, executable** — the treasury as code with conservation asserted at every operation and **no mint path in the module** (the self-test greps for one); the Gate-3 bounded-optimistic lifecycle exercised end-to-end (grants, a challenged wrongful grant **clawed back** — bounded failure proven live at idx 35 — and a clean finalization) with the usefulness judgment seat **honestly vacant**; Flow-1 uptime emission from signed heartbeats with the **missed slot honestly paying zero** and a **forged heartbeat defeated** (idx 38).
+- **MetaWork Passports + Useful-Work-per-Watt** — per-actor verified-contribution histories (idx 40) with a mechanical **no-leaderboard rule**, and UWW published as transparency only — neither ever mints or ranks.
+- **Participant intake pipeline** — the six-rung validation ladder (schema → identity → signature → facts → replay scan → honest labels) rehearsed end-to-end on-ledger: identity registered (idx 45), a bundle anchored **participant-verified** (idx 46), and a **tampered bundle refused at the named rung** (idx 47). Nothing auto-anchors: a human `--confirm` gates every write.
+- **Coordinator continuity + the weekly sentry** — recovery-manifest, public mirror export, and restore rehearsals proving the four capabilities (verify / sign / write / replay) from a restored home — including the public-only boundary rehearsal where signing honestly fails; a scheduled **weekly sweep** re-derives every layer, reconciles the evidence bundle both directions, and reports drift under its own expected-evolution heading.
+- **The verified docs suite** — `docs/` (and `mip/`) under a mechanical anti-rot contract: every command executed in a fresh-clone sandbox, every number recomputed from live state, every ledger citation resolved, on every CI run. This README is **era-pinned** under the same machinery (see the state block above).
+- **MIP governance, exercised** — <!--era:mip_decision_count-->1<!--/era--> anchored MIP decision (idx 58): MIP-0004 (ratifying the concentration epoch series) walked Draft → mechanical check → single-seat decision → anchored record, with the **seat statement on-chain** — the review seat has one occupant and says so — and the decided file pinned by sha256: **immutable-by-citation, amendments are new MIPs**.
+- **One-command full-stack verification** — `python3 protocol/verify_everything.py --full` (or `metacoin verify`) mechanically re-verifies **every layer above** — chain+anchor, all seventeen tasks, four molecule generations, concentration (baseline, k-order, epoch series), both economy generations, metering claims, both cut certificates, trust vectors, challenges, identity, treasury+Gate-3, governance, Flow-1 emission, passports, and participant intake — with zero LLM judgment, and is **fresh-clone proven**: every layer's evidence ships in-repo (`protocol/evidence/`, privacy-checked), so a stranger's clone verifies end-to-end with no local-only inputs.
+
+**Defeated attacks on the record:** eight scripted adversarial demonstrations — six distinct on-ledger attacks defeated across <!--era:drill_entry_count-->7<!--/era--> drill-labeled entries (two challenge replays, a Gate-3 wrongful grant challenged *and* clawed back, a forged heartbeat, a forged key rotation, a tampered intake bundle) plus the two planned in-log economy tamper rejections (one per generation). Every one is labeled a drill on its record — scripted by the operator, never presented as "detected fraud" — and every refusal re-proves on every verification run.
+
+### The ledger, by layer
+
+The chain is past per-line listing (<!--era:entry_count-->59<!--/era--> entries); the full record-by-record narration lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), mechanically verified on every CI run. The map:
 
 ```text
-idx 0      genesis (neutral chain-start marker)
-idx 1      external verification — task-0002 reproduced (second machine)
-idx 2–3    autonomous-agent attestations — macOS, Windows (Spark-reconfirmed)
-idx 4–15   self-recompute evaluations — tasks 0001, 0003–0013
-           (honestly labeled same-machine, task_class: illustrative-demo)
-idx 16     batch agent attestation — all 13 tasks re-derived & confirmed
-idx 17     work-molecule catalog — 13 WMIDs anchored after independent rebuild
-idx 18     ACI baseline — self-measured maximal concentration (pairwise ACI 0.99365)
-idx 19     30-day simulated-economy summary — 29 verified / 1 planned drill rejection
-idx 20     metering evidence — 13 tasks, measured wall/CPU + estimated energy (append-only)
-idx 21     work-molecule catalog generation 2 — 13 new 0.3 WMIDs (0.2 catalog stays valid)
-idx 22     cut certificate — degenerate flat cut over the 13 molecules (full-proof at anchor)
-idx 23     trust-vector catalog — 13 six-component vectors, no combined score by design
-public tip anchor: 3f323cff…
+work            idx 0-16, 48-52    genesis; external verification; agent attestations;
+                                   self-recomputes — the 13-task then 17-task eras
+provenance      idx 17, 20-22,     molecule catalogs generations 1-4; metering evidence;
+                    26, 53-54      both cut certificates (idx 54: the first non-trivial cut)
+concentration   idx 18, 44, 57     pairwise baseline; k-order profile; the epoch series
+economy         idx 19, 55-56      economy generations 1-2; the cross-generation
+                                   treasury funding extension
+trust           idx 23, 27, 40     trust-vector catalogs (no combined score);
+                                   MetaWork passports (history, never a leaderboard)
+challenge +     idx 24-25, 28-30,  nonce possession rounds + defeated replay drills;
+  identity          37, 41-43      Lamport roots, rotation, defeated forged-rotation drill
+two-flow        idx 31-36, 38-39   treasury constitution + Gate-3 lifecycle (bounded
+                                   clawback drill); Flow-1 heartbeat epoch + forged-
+                                   heartbeat drill
+intake          idx 45-47          participant identity; six-rung verified bundle;
+                                   tampered-bundle rejection
+governance      idx 58             MIP-0004 accepted — the first anchored MIP decision
+                                   (single-seat, stated on the record)
+
+public tip anchor: 7575d1c3… (59 entries; committed at protocol/ledger_anchor.json)
 ```
 
-**Honest boundary.** Every entry so far is the **same operator** on machines under direct control — and the entries now include **same-machine self-recompute** records that are explicitly labeled as adding *no cross-party independence* (this host generated and re-evaluated its own submissions). The anchored concentration baseline **quantifies** that status: pairwise ACI 0.99365 across all 28 verification paths — maximal same-operator concentration, measured and published by the protocol itself. The catalog-wide claim remains **cross-platform reproducibility under one operator** — *not* independent multi-party consensus. The next meaningful milestone is still operational, not code: an unaffiliated third party running the public verifier and submitting a result.
+**Honest boundary.** Every entry so far is the **same operator** on machines under direct control — including every self-recompute record, explicitly labeled as adding *no cross-party independence*. The concentration series **quantifies** that status and now tracks it over time: the frozen epoch-zero baseline measured pairwise ACI <!--era:baseline_pairwise_aci-->0.99365<!--/era--> over <!--era:baseline_path_count-->28<!--/era--> paths; the latest anchored epoch measures <!--era:epoch_pairwise_aci-->0.998508<!--/era--> over <!--era:epoch_path_count-->66<!--/era--> paths — rising toward 1 exactly as expected when one operator accumulates paths, which is what happened, and which is what the anchored record says. Self-declared relationships from intake are honored as declarations only (`-claimed`, never verified) and can never lower measured concentration. The catalog-wide claim remains **cross-platform reproducibility under one operator** — *not* independent multi-party consensus. The next meaningful milestone is still operational, not code: an unaffiliated third party running the public verifier and submitting a result. These docs will say so until it happens — the epoch series exists so that day has a baseline.
 
 ### Verify it yourself
 
-Don't trust — reproduce. One command mechanically re-verifies **every layer** — chain, all thirteen tasks, both molecule-catalog generations, the concentration baseline, the simulated economy, the metering claims, the cut certificate, and the trust vectors — with no LLM/AI judgment anywhere:
+Don't trust — reproduce. One command mechanically re-verifies **every layer** — sixteen of them, from the hash chain and all seventeen tasks through the epoch series, both economy generations, and the anchored MIP decision — with no LLM/AI judgment anywhere:
 
 ```bash
 # install the product (from source — not yet published to PyPI):
@@ -151,9 +175,10 @@ pip install git+https://github.com/MetacoinLab/metacoin        # straight from G
 # ...or from a clone / an unpacked release tarball:
 #   pip install .
 
-metacoin verify            # re-derive everything (--full is the default), ~seconds
+metacoin verify            # re-derive everything (--full is the default), ~a few minutes
 metacoin verify --quick    # bounded-cost anchored acceptance
 metacoin status            # one-screen honest chain state
+metacoin participate       # the participant-kit path (six-rung validated bundles)
 metacoin --help            # every protocol capability as a subcommand
 ```
 
@@ -181,8 +206,8 @@ The first verification from an unaffiliated party will be the project's first cr
 
 | Phase | Goal | State |
 |---|---|---|
-| 0 | Constitutional repo — whitepaper, tokenomics, MIP-0001/0002, legal | `[BUILT]` |
-| 1 | Agentic testnet — zero-value Test-META, 30-day earn→spend agent demo | `[BUILT]` (simulated days, zero value; summary anchored at idx 19) |
+| 0 | Constitutional repo — whitepaper, tokenomics, MIP drafts, legal; governance lifecycle exercised (MIP-0004 anchored, idx 58) | `[BUILT]` |
+| 1 | Agentic testnet — zero-value Test-META, 30-day earn→spend agent demo | `[BUILT]` (simulated days, zero value; two generations anchored at idx 19 and idx 55) |
 | 2 | Verification engine — the three-gate stack from MIP-0002 | `[SPEC]` |
 | 3 | Treasury & first small real grants — milestone-based | `[SPEC]` |
 | 4 | Token launch — legal-gated, BTC/gold pairs only | `[SPEC]` |
@@ -195,9 +220,10 @@ The first verification from an unaffiliated party will be the project's first cr
 - [`WHITEPAPER.md`](WHITEPAPER.md) — full architecture (Master Plan v2.0)
 - [`TOKENOMICS.md`](TOKENOMICS.md) — supply, 5-year halving, the two-flow split
 - [`ROADMAP.md`](ROADMAP.md) · [`MISSION.md`](MISSION.md) · [`HISTORY.md`](HISTORY.md)
-- [`mip/MIP-0001-genesis.md`](mip/MIP-0001-genesis.md) · [`mip/MIP-0002-proof-of-useful-space-work.md`](mip/MIP-0002-proof-of-useful-space-work.md)
-- [`protocol/`](protocol/) — ledger, attestation, external & autonomous verifiers, auditability, work-molecule provenance, concentration index
-- [`demo/`](demo/) — thirteen reproducible space-engineering tasks + the 30-simulated-day economy demo
+- [`docs/`](docs/) — the mechanically verified suite: architecture (the chain layer by layer), verification guide, trust model, participation
+- [`mip/MIP-0001-genesis.md`](mip/MIP-0001-genesis.md) · [`mip/MIP-0002-proof-of-useful-space-work.md`](mip/MIP-0002-proof-of-useful-space-work.md) · [`mip/MIP-0004-concentration-epochs.md`](mip/MIP-0004-concentration-epochs.md) (accepted, anchored at idx 58)
+- [`protocol/`](protocol/) — ledger, attestation, verifiers, auditability, molecule provenance, cuts, concentration, challenges, identity, treasury+Gate-3, uptime emission, passports, intake, continuity, sweep, MIP process, docs anti-rot
+- [`demo/`](demo/) — the seventeen reproducible space-engineering tasks + the simulated economy generations
 - [`legal/`](legal/) — disclaimers and risk notes
 
 ## Lineage
