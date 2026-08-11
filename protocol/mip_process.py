@@ -559,7 +559,8 @@ def _selftest() -> int:
         # keeps the selftest fast and the responsibilities separated)
         for real_name, real_id in (
                 ("MIP-0004-concentration-epochs.md", "MIP-0004"),
-                ("MIP-0003-operator-responsibility.md", "MIP-0003")):
+                ("MIP-0003-operator-responsibility.md", "MIP-0003"),
+                ("MIP-0005-release-criteria.md", "MIP-0005")):
             v_real = check_mip(os.path.join(_REPO_ROOT, "mip", real_name),
                                execute=False, echo=quiet)
             checks.append((f"the real {real_id} passes every structural "

@@ -117,6 +117,24 @@ def _mip_files(mip_dir):
 
 
 _MIP_CITE_RE = re.compile(r"\bMIP-(\d{4})\b")
+_MIP_SUPERSEDES_RE = re.compile(r"\*\*Supersedes:\*\* ([^·\n]+)")
+
+
+def _superseded_mips(mip_dir):
+    """MIP numbers some other MIP declares it supersedes. A superseded MIP
+    stays immutable-by-citation (its anchored hash still re-derives), but
+    its verify-run blocks are RETIRED from execution: an anchored document
+    may assert its era's honest state (e.g. MIP-0005's named release gaps),
+    and when reality moves past that state the successor MIP retires the
+    assertion without ever editing the anchored file."""
+    superseded = set()
+    for name in _mip_files(mip_dir):
+        with open(os.path.join(mip_dir, name)) as f:
+            header = f.read(2000)
+        m = _MIP_SUPERSEDES_RE.search(header)
+        if m:
+            superseded |= set(_MIP_CITE_RE.findall(m.group(1)))
+    return superseded
 
 
 def unresolved_mip_citations(text, mip_dir, own_number=None):
@@ -432,6 +450,7 @@ def check_docs(docs_dir=DOCS_DIR, repo_root=_REPO_ROOT, execute=True,
                               + len(_IDX_TYPED_RE.findall(text)))
         for command, expects in _parse_command_blocks(text):
             doc_blocks.append((name, command, expects))
+    retired = _superseded_mips(mip_dir)
     for name in _mip_files(mip_dir):
         path = os.path.join(mip_dir, name)
         with open(path) as f:
@@ -452,6 +471,12 @@ def check_docs(docs_dir=DOCS_DIR, repo_root=_REPO_ROOT, execute=True,
         stats["tokens"] += len(_TOKEN_RE.findall(text))
         stats["idx_refs"] += (len(_IDX_PROSE_RE.findall(text))
                               + len(_IDX_TYPED_RE.findall(text)))
+        if name[4:8] in retired:
+            # superseded: citations/refs stay checked forever (above); the
+            # era-state assertions in its blocks are retired from execution
+            echo(f"  [{rel}] verify-run blocks RETIRED (superseded by a "
+                 "later MIP; the file stays immutable-by-citation)")
+            continue
         for command, expects in _parse_command_blocks(text):
             doc_blocks.append((rel, command, expects))
     stats["commands"] = len(doc_blocks)
@@ -682,6 +707,32 @@ def _selftest() -> int:
                        "README is a named non-finding",
                        len(f_nopin) == 1 and "no era-pin" in f_nopin[0]
                        and f_plain == [] and st_plain["pinned"] is False))
+
+        # [9c] SUPERSEDED MIPs: a later MIP declaring Supersedes retires the
+        # earlier one's verify-run blocks from execution (an anchored file
+        # may assert its era's state; the successor retires the assertion
+        # without editing the immutable file) — citations stay checked
+        fx_mip = os.path.join(tmp, "mip")
+        os.makedirs(fx_mip)
+        with open(os.path.join(fx_mip, "MIP-9001-old.md"), "w") as f:
+            f.write("# MIP-9001 — Old era assertion\n"
+                    "**Status:** Accepted · **Layer:** Protocol · "
+                    "**Supersedes:** none\n\n"
+                    "```verify-run\n$ python3 -c \"import sys; "
+                    "sys.exit(3)\"\nx\n```\n")
+        with open(os.path.join(fx_mip, "MIP-9002-new.md"), "w") as f:
+            f.write("# MIP-9002 — Successor\n"
+                    "**Status:** Accepted · **Layer:** Protocol · "
+                    "**Supersedes:** MIP-9001\n\nprose.\n")
+        _write_fixture("contract body")  # a clean docs fixture alongside
+        sup_found, sup_stats = check_docs(fixture_dir, _REPO_ROOT,
+                                          execute=True, sandbox_dir=sandbox,
+                                          echo=quiet, mip_dir=fx_mip)
+        sup_found = [x for x in sup_found if ": missing from" not in x]
+        checks.append(("superseded MIP's failing verify-run block is "
+                       "retired from execution (file stays immutable)",
+                       sup_found == [] and sup_stats["mips"] == 2
+                       and sup_stats["commands"] == 0))
 
     # [10] the real four docs check clean — commands executed for real in a
     # fresh-clone sandbox (this IS the doc contract being enforced).

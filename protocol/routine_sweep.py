@@ -37,6 +37,10 @@ in order:
                    present, sha256 matches the anchored pin (immutability-
                    by-citation), structural checks pass; NAMED skip while
                    the chain carries no MIP decisions.
+  8c. release    — the release-readiness gate's verdict + named gaps as
+                   INFORMATION (MIP-0005: NOT-READY is the expected state
+                   between releases; a change in the gap list deserves a
+                   glance, never an alarm — this section cannot fail).
   9. docs        — the verified documentation suite: doc_verify --check
                    (every doc command executed, every number chain-checked,
                    every idx reference resolved; named skip if docs/ absent)
@@ -685,6 +689,33 @@ def section_mip(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
 
 
 # ----------------------------------------------------------------------------
+# 8c: release — the readiness gate, INFORMATIONAL by definition
+# ----------------------------------------------------------------------------
+def section_release(base_dir: str = _REPO_ROOT) -> dict:
+    """The release-readiness verdict as INFORMATION, never findings:
+    NOT-READY is the expected state between releases (MIP-0005), so the gap
+    list is reported under this heading the way drift is — a change in the
+    gap list is worth a human glance, not an alarm. Fast mode (the cold
+    install runs in CI's cli selftest already). This section NEVER emits
+    findings; a broken gate shows up in the suites section instead."""
+    import protocol.release_readiness as release_readiness
+    details = []
+    try:
+        report = release_readiness.run_gate(fast=True, echo=lambda *a: None)
+    except Exception as exc:  # noqa: BLE001 — informational section, never a crash
+        return _section("release", [],
+                        [f"gate could not run here ({exc}) — see the suites "
+                         "section for the gate's own selftest"])
+    details.append(f"INFORMATIONAL — verdict {report['verdict']}: "
+                   f"{report['note']}")
+    for c in report["criteria"]:
+        if c["status"] == "GAP":
+            details.append(f"  gap: {c['name']} — closes with: "
+                           f"{c['closes_with']}")
+    return _section("release", [], details)
+
+
+# ----------------------------------------------------------------------------
 # 9: docs — the verified documentation suite (the doc contract, enforced)
 # ----------------------------------------------------------------------------
 def section_docs(base_dir: str = _REPO_ROOT) -> dict:
@@ -749,6 +780,7 @@ def run_sweep(base_dir: str = _REPO_ROOT) -> dict:
         section_git(base_dir),
         section_drift(base_dir),
         section_mip(base_dir),
+        section_release(base_dir),
         section_docs(base_dir),
     ])
 
@@ -964,6 +996,19 @@ def _selftest() -> int:
                        "with intervals",
                        any("sampled" in d and "95% CI" in d
                            for d in s_drift["details"])))
+
+        # [8d] the release-readiness section is INFORMATIONAL by definition:
+        # a NOT-READY verdict (today's expected state, MIP-0005) emits
+        # details only — NEVER findings, never a sweep failure
+        s_rel = section_release(_REPO_ROOT)
+        checks.append(("release section: NOT-READY is informational — "
+                       "never findings, never failure",
+                       s_rel["findings"] == []
+                       and s_rel["status"] == "pass"
+                       and any("INFORMATIONAL" in d and "NOT-READY" in d
+                               for d in s_rel["details"])
+                       and any("closes with" in d
+                               for d in s_rel["details"])))
 
         # [8b] PUBLIC-CORPUS MODE: on a machine with no kit, no mirrors, and
         # no local keychains (CI, fresh clones), the coordinator-machine
