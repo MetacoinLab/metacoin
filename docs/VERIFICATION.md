@@ -7,8 +7,8 @@
 > chain point it describes and re-checked against live state, and nothing here
 > claims more than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->62<!--/chain-->,
-> <!--chain:entry_count-->63<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->66<!--/chain-->,
+> <!--chain:entry_count-->67<!--/chain--> entries.
 
 `metacoin verify` (the zero-install form is
 `python3 metacoin_cli/main.py verify`) is the flagship: one command that
@@ -45,10 +45,10 @@ The pasted run below is trimmed to the shape of the report; the full pass has
 
 - **chain+anchor** — the hash chain is intact from genesis
   <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->… to tip
-  <!--chain:tip_hash_prefix-->095b0bbb7111<!--/chain-->…, and the committed tip anchor
+  <!--chain:tip_hash_prefix-->cb2f14ebe142<!--/chain-->…, and the committed tip anchor
   matches. In a fresh clone the published snapshot is the source, and the
   report names that.
-- **tasks** — all <!--chain:recorded_task_count-->17<!--/chain--> recorded
+- **tasks** — all <!--chain:recorded_task_count-->18<!--/chain--> recorded
   demo tasks re-run to their canonical output hashes. The registry holds
   <!--chain:task_count-->18<!--/chain--> tasks in total; registry tasks not
   yet on the ledger (new tasks join the corpus at the next milestone anchor
