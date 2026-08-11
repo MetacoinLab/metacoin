@@ -2039,7 +2039,10 @@ def _selftest() -> int:
                                r18["parent_work_ids"] == [r17["work_id"]]
                                and r17["parent_work_ids"]
                                == [r15["work_id"]]
-                               and "parent_work_ids" not in r15
+                               # asserted-empty terminates the closure (the
+                               # three-state honesty: undeclared is an
+                               # explicit [], never a missing key)
+                               and r15["parent_work_ids"] == []
                                and len(closure) == 3))
                 # hop 1: a tampered grandparent no longer resolves 0017's edge
                 t15 = json.loads(canonical_json(r15))

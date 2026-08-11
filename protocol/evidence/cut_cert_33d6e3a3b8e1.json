@@ -1,0 +1,30 @@
+{
+  "aggregate_hash": "c7b879c7984408cf2c0ec57b712cff16fc1bab95b39e7d76ddb16b33bdf3a78b",
+  "boundary_input_ids": [
+    "1f169ea8d68d4a13e9f2de792c0fada5d7b049a6a830cb1adf9d92f71d6ad6a3"
+  ],
+  "certificate_hash": "33d6e3a3b8e1ed0c91174fd2bef287ba3222ebb5bfdb7dc735c8a477f69d30d8",
+  "challenge_status": "none-filed",
+  "evidence_retention": {
+    "ledger_snapshot": "protocol/ledger_published.json",
+    "rebuild_recipe": "python3 protocol/work_molecule.py --task <task_id>"
+  },
+  "interior": [
+    {
+      "task_id": "task-0017",
+      "work_id": "486bcd58a23f9fa0a30340a5878ab399dae91719968e2c70cf5b9dc183706c96"
+    },
+    {
+      "task_id": "task-0018",
+      "work_id": "aec138713faeda6159b92fb840338028dfc6b85b0885483d3aaad3a7288dc0eb"
+    }
+  ],
+  "interior_count": 2,
+  "molecule_schema": "work-molecule/0.3",
+  "root_work_ids": [
+    "486bcd58a23f9fa0a30340a5878ab399dae91719968e2c70cf5b9dc183706c96",
+    "aec138713faeda6159b92fb840338028dfc6b85b0885483d3aaad3a7288dc0eb"
+  ],
+  "schema": "cut-certificate/0.1",
+  "verification_policy_version": "cut-verify/0.1"
+}

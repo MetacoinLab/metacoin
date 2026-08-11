@@ -1,13 +1,13 @@
 {
-  "anchor_timestamp": 1786441762.6590242,
+  "anchor_timestamp": 1786442981.8367162,
   "anchor_version": 1,
-  "entry_count": 63,
+  "entry_count": 67,
   "format": "metacoin-ledger-anchor",
   "no_token": true,
   "note": "public commitment to the MetaCoin protocol ledger tip (research-stage, zero-value, no token). Contains ONLY tip_hash + tip_index + entry_count \u2014 NOT ledger contents. Commit this file; an auditor checks a published snapshot's tip against it to confirm the chain was not silently rewritten.",
   "research_only": true,
   "stage": "R-protocol",
-  "tip_hash": "095b0bbb71110dc9eb3838e5e9d1aebf00811635c9ed0ca6b521da5c49bed043",
-  "tip_index": 62,
+  "tip_hash": "cb2f14ebe14269823694faa118a5e1bfaee479f79cd531c899c3ff7dc4e63a36",
+  "tip_index": 66,
   "zero_value": true
 }
