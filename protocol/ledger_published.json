@@ -2631,19 +2631,92 @@
       },
       "prev_hash": "a495d15e2497673f45da784684180e25e78db843c267eb561c09f82f5ec7876c",
       "timestamp": 1786355127.5788763
+    },
+    {
+      "hash": "058f4391f8a1fb07939dd184dbbcba9803436e585cf126b22efff0d3458b1d1a",
+      "index": 59,
+      "payload": {
+        "amendment_rule": "the anchored record pins the decided file's sha256: the committed MIP file is immutable-by-citation from this moment, a later edit breaks re-derivation loudly, and amendments are new MIPs",
+        "anchored_at": 1786433188.2712398,
+        "decision": "accepted",
+        "event": "mip_decision_recorded",
+        "file": "mip/MIP-0003-operator-responsibility.md",
+        "file_sha256": "c52cb6c13b3e8ac7aba0967c52778427d08c8b4abcbdd561c6d79c230b47ab56",
+        "limitation_note": "First-exercise MIP lifecycle under same-operator custody: the mechanical checks are real (required sections, valid status, ledger citations resolved against the chain, verification blocks executed, file sha256 pinned) and the decision is recorded on-chain \u2014 but the review seat has ONE occupant and says so. A recorded decision proves the PROCESS ran, not that the decision is wise; plural review and voting do not exist yet. Anchored MIP files are immutable-by-citation; amendments are new MIPs. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "mechanical_check": {
+          "checks": [
+            {
+              "detail": "MIP-0003 \u2014 Operator responsibility",
+              "name": "identity",
+              "passed": true
+            },
+            {
+              "detail": "status 'Accepted'",
+              "name": "status-valid",
+              "passed": true
+            },
+            {
+              "detail": "all present",
+              "name": "required-sections",
+              "passed": true
+            },
+            {
+              "detail": "none (correct: immutable files must not embed live-recomputed numbers)",
+              "name": "no-chain-tokens",
+              "passed": true
+            },
+            {
+              "detail": "18 reference(s) resolve",
+              "name": "ledger-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "every cited MIP exists",
+              "name": "mip-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "5 verify-run block(s)",
+              "name": "verification-blocks-present",
+              "passed": true
+            },
+            {
+              "detail": "all clean",
+              "name": "verification-blocks-execute",
+              "passed": true
+            }
+          ],
+          "idx_references": 18,
+          "passed": true,
+          "verify_run_blocks": 5
+        },
+        "mip_id": "MIP-0003",
+        "mip_title": "Operator responsibility",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "record_schema": "mip-record/0.1",
+        "review_seat": "same-operator-single-seat",
+        "seat_statement": "the review seat has one occupant and says so \u2014 plural review, voting, and anti-whale dampening (MIP-0001 \u00a77) do not exist at research stage; this record proves the process ran, not that the decision is wise",
+        "stage": "R-governance",
+        "status": "mip-accepted",
+        "topology": "same-operator-single-seat-review",
+        "zero_value": true
+      },
+      "prev_hash": "7575d1c32de2dd66cd28d8eed1b3b5d86c717188fb0e03bdeea99b87d04b9aa7",
+      "timestamp": 1786433188.2716181
     }
   ],
   "snapshot_header": {
-    "entry_count": 59,
+    "entry_count": 60,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1786355133.6189373,
+    "snapshot_timestamp": 1786433188.3005996,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "7575d1c32de2dd66cd28d8eed1b3b5d86c717188fb0e03bdeea99b87d04b9aa7",
-    "tip_index": 58,
+    "tip_hash": "058f4391f8a1fb07939dd184dbbcba9803436e585cf126b22efff0d3458b1d1a",
+    "tip_index": 59,
     "zero_value": true
   }
 }
