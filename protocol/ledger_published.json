@@ -2777,19 +2777,227 @@
       },
       "prev_hash": "058f4391f8a1fb07939dd184dbbcba9803436e585cf126b22efff0d3458b1d1a",
       "timestamp": 1786434584.7000413
+    },
+    {
+      "hash": "1c105ca1e98c45112c7627fc31bc3dce8d77ee3209076f8a6a69fc9a850f6916",
+      "index": 61,
+      "payload": {
+        "amendment_rule": "as-reviewed, not as-frozen: Draft files remain editable \u2014 this pin identifies exactly what was reviewed, and a later edit means the review predates the edit (informational, never a failure); contrast an ACCEPTED record, whose pin freezes the file immutable-by-citation",
+        "anchored_at": 1786441762.5081162,
+        "classification": {
+          "aspirational": {
+            "count": 5,
+            "headline": [
+              "token economics: META units, the 1.81B hard cap, decimals, the 5-year halving schedule - no token exists",
+              "the three base-emission channels with percentage splits (uptime 45 / liquidity 35 / proof-of-humanity 20) - liquidity and PoH have no implementation",
+              "anti-whale voting (quadratic or capped) - no voting exists; the review seat has one occupant and says so",
+              "TEE attestation as an uptime verification option - no attestation hardware (standing open debt)",
+              "on-chain deployment of any of it - the research ledger is not a mainnet"
+            ]
+          },
+          "built": {
+            "count": 4,
+            "headline": [
+              "the two-flow separation is executable: the no-mint treasury with bounded bounties and conservation (idx 31-36) and Flow-1 objective uptime emission (idx 38-39) exist at research scale, zero-value",
+              "section 7's 'transparent on-chain MIPs' endpoint exists and has been exercised three times (idx 58-60)",
+              "the treasury starts empty and fills only from protocol usage fees - enforced by the no-mint audit and the cross-generation funding derivation (idx 31, idx 56)",
+              "'an exploit can at worst drain a bounded bounty' - proven live by the Gate-3 clawback drill (idx 35)"
+            ]
+          },
+          "spec_consistent": {
+            "count": 3,
+            "headline": [
+              "the fair-launch structure (no premine, no reserve, no discretionary minting) - consistent with everything built; no token exists to violate it",
+              "the hard rule 'subjective work may never mint base supply' - mirrored by the mechanical two-flow separation statement on the record",
+              "sections 8-9 (deferred decisions; compliance counsel) are honest out-of-band deferrals"
+            ]
+          }
+        },
+        "decision": "retained-as-draft",
+        "event": "mip_decision_recorded",
+        "file": "mip/MIP-0001-genesis.md",
+        "file_sha256": "e17a0b161fd0f6735c1b140ded87b5c9b3d9bd00cff7ae7c96532da6138a7651",
+        "honesty_trap_statement": "accepting this draft would ratify unbuilt promises (voting, anti-whale dampening, hardware attestation gates, token economics) as if they were met criteria \u2014 forbidden by the labeling discipline and MIP-0005's spirit; the review therefore retains Draft with the classification on-chain",
+        "limitation_note": "First-exercise MIP lifecycle under same-operator custody: the mechanical checks are real (required sections, valid status, ledger citations resolved against the chain, verification blocks executed, file sha256 pinned) and the decision is recorded on-chain \u2014 but the review seat has ONE occupant and says so. A recorded decision proves the PROCESS ran, not that the decision is wise; plural review and voting do not exist yet. Anchored MIP files are immutable-by-citation; amendments are new MIPs. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "mechanical_check": {
+          "checks": [
+            {
+              "detail": "MIP-0001 \u2014 Genesis",
+              "name": "identity",
+              "passed": true
+            },
+            {
+              "detail": "status 'Draft'",
+              "name": "status-valid",
+              "passed": true
+            },
+            {
+              "detail": "missing: ['Summary', 'Motivation', 'Specification', 'Backwards compatibility', 'Honest limitations', 'Verification']",
+              "name": "required-sections",
+              "passed": false
+            },
+            {
+              "detail": "waived for a draft review (editable, not immutable-by-citation); none present",
+              "name": "no-chain-tokens",
+              "passed": true
+            },
+            {
+              "detail": "0 reference(s) resolve",
+              "name": "ledger-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "every cited MIP exists",
+              "name": "mip-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "none \u2014 a draft may omit them (present blocks must pass)",
+              "name": "verification-blocks-present",
+              "passed": true
+            }
+          ],
+          "idx_references": 0,
+          "passed": false,
+          "verify_run_blocks": 0
+        },
+        "mip_id": "MIP-0001",
+        "mip_title": "Genesis",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "record_schema": "mip-record/0.1",
+        "retention_reason": "acceptance would ratify capabilities that do not exist; the document is retained as an aspirational draft",
+        "review_seat": "same-operator-single-seat",
+        "seat_statement": "the review seat has one occupant and says so \u2014 plural review, voting, and anti-whale dampening (MIP-0001 \u00a77) do not exist at research stage; this record proves the process ran, not that the decision is wise",
+        "stage": "R-governance",
+        "status": "mip-retained-as-draft",
+        "topology": "same-operator-single-seat-review",
+        "what_would_change_it": [
+          "the named aspirational capabilities existing (built and exercised, not promised)",
+          "legal review where token-economic content is involved"
+        ],
+        "zero_value": true
+      },
+      "prev_hash": "ad58905879bf9dc2ae6529004d3e1b6fd750407dbab904546379633b77cc10e4",
+      "timestamp": 1786441762.5084429
+    },
+    {
+      "hash": "095b0bbb71110dc9eb3838e5e9d1aebf00811635c9ed0ca6b521da5c49bed043",
+      "index": 62,
+      "payload": {
+        "amendment_rule": "as-reviewed, not as-frozen: Draft files remain editable \u2014 this pin identifies exactly what was reviewed, and a later edit means the review predates the edit (informational, never a failure); contrast an ACCEPTED record, whose pin freezes the file immutable-by-citation",
+        "anchored_at": 1786441762.5735152,
+        "classification": {
+          "aspirational": {
+            "count": 5,
+            "headline": [
+              "the TEE/attestation integrity gate (NVIDIA CC, Intel TDX, AMD SEV-SNP) - no attestation hardware exists here (standing open debt)",
+              "stake-weighted disputes and an elected, rotating human council - no stake and no election exist; the council seat is a same-operator script and says so",
+              "the compliance gate (OpenShell-class sandbox producing signed compliance attestations; ITAR/EAR guarding) - no such runtime exists",
+              "IPFS/Arweave-anchored submission inputs - no such anchoring exists",
+              "the computational-complexity ceiling as an enforced admissibility rule - stated, not implemented"
+            ]
+          },
+          "built": {
+            "count": 5,
+            "headline": [
+              "Gate 2 reproducibility by deterministic re-run with auto-reject on mismatch - the standing verification stack, exercised by every tamper drill",
+              "Gate 3's bounded optimistic lifecycle (machine pre-check, bounded provisional grants, challenge window, adjudication, clawback) exercised end-to-end (idx 32-36) with the usefulness judgment seat honestly vacant",
+              "the MetaWork Passport (section 4) - anchored per-actor histories with the mechanical no-leaderboard rule (idx 40)",
+              "Useful-Work-per-Watt as transparency-never-minting (section 5) - published per task; no minting path exists",
+              "integrity != reproducibility != usefulness (section 1) - the trust vector verifies exactly these components separately, with no combined score by mechanical rule"
+            ]
+          },
+          "spec_consistent": {
+            "count": 4,
+            "headline": [
+              "cheap-gates-first filtering (section 1) - the cut-certificate bounded-verification pattern embodies checking-far-cheaper-than-producing",
+              "the flagship category (section 6, reproducible space simulation on the NASA taxonomy) - the 17-task library is its seed corpus",
+              "the settlement flow (section 7) - the anchored Gate-3 lifecycle mirrors it mechanically at research scale",
+              "the invariants (section 8) - no-mint, no-vendor-privilege, passport-never-mints all match what is enforced today"
+            ]
+          }
+        },
+        "decision": "retained-as-draft",
+        "event": "mip_decision_recorded",
+        "file": "mip/MIP-0002-proof-of-useful-space-work.md",
+        "file_sha256": "713cfb9c64b1541283e347de5ab19a555ea3fda3e7d7716657a6cf4381b18641",
+        "honesty_trap_statement": "accepting this draft would ratify unbuilt promises (voting, anti-whale dampening, hardware attestation gates, token economics) as if they were met criteria \u2014 forbidden by the labeling discipline and MIP-0005's spirit; the review therefore retains Draft with the classification on-chain",
+        "limitation_note": "First-exercise MIP lifecycle under same-operator custody: the mechanical checks are real (required sections, valid status, ledger citations resolved against the chain, verification blocks executed, file sha256 pinned) and the decision is recorded on-chain \u2014 but the review seat has ONE occupant and says so. A recorded decision proves the PROCESS ran, not that the decision is wise; plural review and voting do not exist yet. Anchored MIP files are immutable-by-citation; amendments are new MIPs. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "mechanical_check": {
+          "checks": [
+            {
+              "detail": "MIP-0002 \u2014 Proof-of-Useful-Space-Work (PoUSW)",
+              "name": "identity",
+              "passed": true
+            },
+            {
+              "detail": "status 'Draft'",
+              "name": "status-valid",
+              "passed": true
+            },
+            {
+              "detail": "missing: ['Summary', 'Motivation', 'Specification', 'Backwards compatibility', 'Honest limitations', 'Verification']",
+              "name": "required-sections",
+              "passed": false
+            },
+            {
+              "detail": "waived for a draft review (editable, not immutable-by-citation); none present",
+              "name": "no-chain-tokens",
+              "passed": true
+            },
+            {
+              "detail": "0 reference(s) resolve",
+              "name": "ledger-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "every cited MIP exists",
+              "name": "mip-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "none \u2014 a draft may omit them (present blocks must pass)",
+              "name": "verification-blocks-present",
+              "passed": true
+            }
+          ],
+          "idx_references": 0,
+          "passed": false,
+          "verify_run_blocks": 0
+        },
+        "mip_id": "MIP-0002",
+        "mip_title": "Proof-of-Useful-Space-Work (PoUSW)",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "record_schema": "mip-record/0.1",
+        "retention_reason": "acceptance would ratify capabilities that do not exist; the document is retained as an aspirational draft",
+        "review_seat": "same-operator-single-seat",
+        "seat_statement": "the review seat has one occupant and says so \u2014 plural review, voting, and anti-whale dampening (MIP-0001 \u00a77) do not exist at research stage; this record proves the process ran, not that the decision is wise",
+        "stage": "R-governance",
+        "status": "mip-retained-as-draft",
+        "topology": "same-operator-single-seat-review",
+        "what_would_change_it": [
+          "the named aspirational capabilities existing (built and exercised, not promised)",
+          "legal review where token-economic content is involved"
+        ],
+        "zero_value": true
+      },
+      "prev_hash": "1c105ca1e98c45112c7627fc31bc3dce8d77ee3209076f8a6a69fc9a850f6916",
+      "timestamp": 1786441762.5738602
     }
   ],
   "snapshot_header": {
-    "entry_count": 61,
+    "entry_count": 63,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1786434584.7444232,
+    "snapshot_timestamp": 1786441762.6180959,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "ad58905879bf9dc2ae6529004d3e1b6fd750407dbab904546379633b77cc10e4",
-    "tip_index": 60,
+    "tip_hash": "095b0bbb71110dc9eb3838e5e9d1aebf00811635c9ed0ca6b521da5c49bed043",
+    "tip_index": 62,
     "zero_value": true
   }
 }
