@@ -859,21 +859,25 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "no MIP decisions on the chain yet"))
     else:
         problems = []
+        n_frozen = n_retained = n_evolved = 0
         for idx, p in mips:
-            fpath = os.path.join(_REPO_ROOT, p.get("file", ""))
-            if not os.path.exists(fpath):
-                problems.append(f"idx {idx}: cited file {p.get('file')} "
-                                "missing from the repo")
+            # SHARED SEMANTICS (mip_process.review_drift): accepted records
+            # FREEZE their file (a hash mismatch is the immutability alarm);
+            # retained-as-draft records pin AS-REVIEWED (a mismatch is the
+            # informational "draft evolved since review", never a failure)
+            state, note = mip_process.review_drift(p, _REPO_ROOT)
+            if state in ("file-missing", "frozen-BROKEN"):
+                problems.append(f"idx {idx}: {note}")
                 continue
-            sha = mip_process._sha256_file(fpath)
-            if sha != p.get("file_sha256"):
-                problems.append(f"idx {idx}: {p.get('file')} sha256 does not "
-                                "match the anchored pin — anchored MIP files "
-                                "are immutable-by-citation (amendments are "
-                                "new MIPs)")
+            retained = p.get("decision") == "retained-as-draft"
+            n_retained += retained
+            n_frozen += not retained
+            n_evolved += state == "draft-evolved"
+            fpath = os.path.join(_REPO_ROOT, p.get("file", ""))
             v = mip_process.check_mip(fpath, ledger_source=source,
-                                      execute=False, echo=lambda *a: None)
-            if not v["passed"]:
+                                      execute=False, echo=lambda *a: None,
+                                      draft_expectations=retained)
+            if not retained and not v["passed"]:
                 failed = [c["name"] for c in v["checks"] if not c["passed"]]
                 problems.append(f"idx {idx}: structural checks fail: {failed}")
             if (p.get("decision") == "accepted"
@@ -884,12 +888,17 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                 problems.append(f"idx {idx}: the seat statement is missing — "
                                 "a governance record must name its single "
                                 "seat")
+        evolved_note = (f"; {n_evolved} draft(s) evolved since review "
+                        "(informational — the pin is as-reviewed, not "
+                        "as-frozen)" if n_evolved else "")
         rows.append(("governance (MIP)", FULL, not problems,
-                     f"{len(mips)} anchored MIP decision(s) re-derive: file "
-                     "hash matches the anchored pin (immutable-by-citation), "
-                     "structural checks pass, the single-seat statement is "
-                     "on the record (verify-run blocks execute in the "
-                     "doc_verify mip/ scan)"
+                     f"{len(mips)} anchored MIP decision(s) re-derive: "
+                     f"{n_frozen} frozen file(s) match their anchored pins "
+                     f"(immutable-by-citation), {n_retained} "
+                     "retained-as-draft review(s) carry as-reviewed pins, "
+                     "the single-seat statement is on every record "
+                     "(verify-run blocks execute in the doc_verify mip/ "
+                     f"scan){evolved_note}"
                      if not problems else "; ".join(problems[:3])))
 
     # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------

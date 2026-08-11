@@ -662,29 +662,24 @@ def section_mip(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
                         ["no anchored MIP decisions on the chain yet — "
                          "SKIPPED (named)"], skipped=True)
     for idx, p in mips:
+        # shared semantics with verify_everything: frozen records alarm on
+        # any drift; retained-as-draft pins are as-reviewed, so an evolved
+        # draft is an informational detail, never a finding
+        state, note = mip_process.review_drift(p, base_dir)
+        if state in ("file-missing", "frozen-BROKEN"):
+            findings.append(f"ledger:{idx}: {note}")
+            continue
+        retained = p.get("decision") == "retained-as-draft"
         fpath = os.path.join(base_dir, p.get("file", ""))
-        if not os.path.exists(fpath):
-            findings.append(f"ledger:{idx} cites {p.get('file')} which is "
-                            "missing from the repo")
-            continue
-        with open(fpath, "rb") as f:
-            sha = _sha256_hex(f.read())
-        if sha != p.get("file_sha256"):
-            findings.append(f"ledger:{idx}: {p.get('file')} sha256 no longer "
-                            "matches the anchored pin — anchored MIP files "
-                            "are immutable-by-citation; amendments are new "
-                            "MIPs")
-            continue
         v = mip_process.check_mip(fpath, ledger_source=src, execute=False,
-                                  echo=lambda *a: None)
-        if not v["passed"]:
+                                  echo=lambda *a: None,
+                                  draft_expectations=retained)
+        if not retained and not v["passed"]:
             failed = [c["name"] for c in v["checks"] if not c["passed"]]
             findings.append(f"ledger:{idx}: structural checks fail: {failed}")
             continue
         details.append(f"ledger:{idx}: {p.get('mip_id')} ({p.get('decision')}"
-                       f", seat {p.get('review_seat')}) re-derives — file "
-                       "hash matches the anchored pin; structural checks "
-                       "pass")
+                       f", seat {p.get('review_seat')}) re-derives — {note}")
     return _section("mip", findings, details)
 
 

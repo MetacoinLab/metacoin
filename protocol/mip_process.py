@@ -26,6 +26,27 @@ edit breaks re-derivation loudly (verify_everything's governance layer and
 the routine sweep both recompute the hash), and that breakage is correct:
 amendments are new MIPs, never edits to anchored ones.
 
+THE HONESTY TRAP (why the third status exists): the pre-process June
+drafts (MIP-0001 genesis, MIP-0002 PoUSW) describe voting, anti-whale
+dampening, hardware attestation gates, and token economics — capabilities
+that DO NOT EXIST. Accepting them would ratify unbuilt promises as if they
+were met criteria, which the labeling discipline (and MIP-0005's spirit)
+forbids; rejecting them would misstate their standing as the project's
+declared direction. The honest third status is RETAINED-AS-DRAFT: a
+recorded single-seat review that keeps the file in Draft, with the
+built / spec-consistent / aspirational classification on-chain.
+
+RETAINED-AS-DRAFT SEMANTICS (the reviewed-not-frozen contrast): an
+ACCEPTED record freezes its file — the pinned sha256 is
+immutability-by-citation, and a later edit breaks re-derivation loudly.
+A RETAINED-AS-DRAFT record pins the file sha256 AS-REVIEWED, not
+as-frozen: Draft files remain editable, the pin identifies exactly what
+was reviewed, and a later edit simply means the review predates the edit —
+verifiers treat reviewed != current as the INFORMATIONAL note "draft
+evolved since review", never a failure. Both semantics live in
+review_drift(), which verify_everything's governance layer and the sweep's
+mip section share.
+
 NO AUTO-ANCHORING: --record-decision writes NOTHING without --confirm (the
 same human gate, for the same reason, as participant intake — a
 validation tool that auto-anchored would let any file spam the ledger).
@@ -72,7 +93,19 @@ _MIP_EVENT = "mip_decision_recorded"
 # the pre-existing MIP files document; Accepted/Rejected are the minimal
 # honest completion (the anchored decision endpoint MIP-0001 §7 promises).
 VALID_STATUSES = ("Draft", "Accepted", "Rejected")
-DECISIONS = ("accepted", "rejected")
+DECISIONS = ("accepted", "rejected", "retained-as-draft")
+
+RETENTION_REASON = (
+    "acceptance would ratify capabilities that do not exist; the document "
+    "is retained as an aspirational draft"
+)
+RETAINED_SHA_SEMANTICS = (
+    "as-reviewed, not as-frozen: Draft files remain editable — this pin "
+    "identifies exactly what was reviewed, and a later edit means the "
+    "review predates the edit (informational, never a failure); contrast "
+    "an ACCEPTED record, whose pin freezes the file immutable-by-citation"
+)
+_CLASSIFICATION_CLASSES = ("built", "spec_consistent", "aspirational")
 
 # Required sections for a MIP walked through this process (the template this
 # first exercise sets; pre-process drafts simply have not been walked yet).
@@ -114,7 +147,8 @@ def _sha256_file(path: str) -> str:
 
 
 def check_mip(path: str, ledger_source: str = None, execute: bool = True,
-              sandbox_dir: str = None, echo=print) -> dict:
+              sandbox_dir: str = None, echo=print,
+              draft_expectations: bool = False) -> dict:
     """Run every mechanical check on a MIP file. Returns the verdict dict
     (no writes, ever): {mip_id, title, file, file_sha256, status, passed,
     checks: [{name, passed, detail}], idx_references, verify_run_blocks}.
@@ -123,6 +157,15 @@ def check_mip(path: str, ledger_source: str = None, execute: bool = True,
     re-derivation mode verify_everything uses; CI executes them via
     doc_verify's mip/ scan and --check's default). `sandbox_dir` (self-test
     fixtures) runs blocks in the given directory instead of a fresh clone.
+
+    `draft_expectations=True` applies the DRAFT-review reading of two
+    checks (a retained-as-draft review, not an acceptance): chain tokens
+    are not refused (a draft is editable, not immutable-by-citation — any
+    token would still be value-checked by the doc scan), and verify-run
+    blocks may be ABSENT (present blocks must still pass). Everything else
+    — identity, status, sections, resolving citations — is checked exactly
+    as for an acceptance, and failures are honest FINDINGS carried in the
+    review record rather than blockers.
     """
     checks = []
     text = None
@@ -175,15 +218,27 @@ def check_mip(path: str, ledger_source: str = None, execute: bool = True,
 
     # [4] no chain tokens: an anchored MIP file is immutable-by-citation, and
     # a live-recomputed number inside an immutable file rots by design — MIPs
-    # cite typed idx references (stable forever) instead
+    # cite typed idx references (stable forever) instead. DRAFT reading: an
+    # editable draft is not immutable, so tokens are not refused (they would
+    # still be value-checked by doc_verify's scan).
     tokens = doc_verify._TOKEN_RE.findall(text)
-    checks.append({
-        "name": "no-chain-tokens",
-        "passed": not tokens,
-        "detail": ("none (correct: immutable files must not embed "
-                   "live-recomputed numbers)" if not tokens else
-                   f"chain tokens present: {[k for k, _v in tokens]}"),
-    })
+    if draft_expectations:
+        checks.append({
+            "name": "no-chain-tokens",
+            "passed": True,
+            "detail": ("waived for a draft review (editable, not "
+                       "immutable-by-citation); "
+                       + (f"{len(tokens)} token(s) present, value-checked "
+                          "by the doc scan" if tokens else "none present")),
+        })
+    else:
+        checks.append({
+            "name": "no-chain-tokens",
+            "passed": not tokens,
+            "detail": ("none (correct: immutable files must not embed "
+                       "live-recomputed numbers)" if not tokens else
+                       f"chain tokens present: {[k for k, _v in tokens]}"),
+        })
 
     # [5] every ledger citation resolves (doc_verify's idx machinery, reused)
     entries = _read_ledger(ledger_source if ledger_source is not None
@@ -217,8 +272,11 @@ def check_mip(path: str, ledger_source: str = None, execute: bool = True,
     blocks = doc_verify._parse_command_blocks(text)
     checks.append({
         "name": "verification-blocks-present",
-        "passed": bool(blocks),
-        "detail": f"{len(blocks)} verify-run block(s)",
+        "passed": bool(blocks) or draft_expectations,
+        "detail": (f"{len(blocks)} verify-run block(s)" if blocks else
+                   ("none — a draft may omit them (present blocks must "
+                    "pass)" if draft_expectations else
+                    "none — an acceptance requires at least one")),
     })
     if blocks and execute:
         block_findings = []
@@ -254,9 +312,17 @@ def check_mip(path: str, ledger_source: str = None, execute: bool = True,
     }
 
 
-def build_decision_record(verdict: dict, decision: str) -> dict:
+def build_decision_record(verdict: dict, decision: str,
+                          classification: dict = None) -> dict:
     """The mip_decision_recorded payload for a checked file + a decision.
-    Pure function; scanner-invisible keys (no task_id/task_ids anywhere)."""
+    Pure function; scanner-invisible keys (no task_id/task_ids anywhere).
+
+    `classification` is REQUIRED for retained-as-draft: the reviewer's
+    built / spec_consistent / aspirational breakdown ({class: {count,
+    headline: [...]}}), carried on-chain as the review's content. A
+    retained-as-draft decision requires the file to still SAY Draft, and
+    deliberately does NOT require the mechanical checks to pass — findings
+    in a reviewed draft are honest findings, carried in the record."""
     if decision not in DECISIONS:
         raise ValueError(f"decision must be one of {DECISIONS} "
                          f"(got {decision!r})")
@@ -273,6 +339,23 @@ def build_decision_record(verdict: dict, decision: str) -> dict:
                 f"{verdict['status']!r} but the decision is 'accepted' — "
                 "the record pins the post-decision file, so the file must "
                 "declare the state being anchored")
+    if decision == "retained-as-draft":
+        if verdict["status"] != "Draft":
+            raise ValueError(
+                f"refused: retained-as-draft requires the file to still "
+                f"say Draft (got {verdict['status']!r}) — retaining a "
+                "non-draft is a contradiction")
+        if not (isinstance(classification, dict)
+                and set(classification) == set(_CLASSIFICATION_CLASSES)
+                and all(isinstance(v, dict)
+                        and isinstance(v.get("count"), int)
+                        and isinstance(v.get("headline"), list)
+                        for v in classification.values())):
+            raise ValueError(
+                "refused: retained-as-draft requires the reviewer's "
+                "classification ({built|spec_consistent|aspirational: "
+                "{count, headline: [...]}}) — the classification IS the "
+                "review")
     return {
         "event": _MIP_EVENT,
         "record_schema": RECORD_SCHEMA,
@@ -292,7 +375,23 @@ def build_decision_record(verdict: dict, decision: str) -> dict:
         },
         "review_seat": REVIEW_SEAT,
         "seat_statement": SEAT_STATEMENT,
-        "amendment_rule": AMENDMENT_RULE,
+        "amendment_rule": (AMENDMENT_RULE if decision != "retained-as-draft"
+                           else RETAINED_SHA_SEMANTICS),
+        **({"classification": json.loads(json.dumps(classification)),
+            "retention_reason": RETENTION_REASON,
+            "what_would_change_it": [
+                "the named aspirational capabilities existing (built and "
+                "exercised, not promised)",
+                "legal review where token-economic content is involved",
+            ],
+            "honesty_trap_statement": (
+                "accepting this draft would ratify unbuilt promises "
+                "(voting, anti-whale dampening, hardware attestation "
+                "gates, token economics) as if they were met criteria — "
+                "forbidden by the labeling discipline and MIP-0005's "
+                "spirit; the review therefore retains Draft with the "
+                "classification on-chain"),
+            } if decision == "retained-as-draft" else {}),
         "operator_relationship": "same-operator",
         "limitation_note": MIP_LIMITATION_NOTE,
         "zero_value": True,
@@ -302,18 +401,55 @@ def build_decision_record(verdict: dict, decision: str) -> dict:
 
 
 def record_decision(path: str, decision: str, confirm: bool,
-                    ledger_path: str = None, echo=print) -> dict:
+                    ledger_path: str = None, echo=print,
+                    classification: dict = None) -> dict:
     """Check the file, build the decision record, and — ONLY with
     confirm=True — anchor it. Returns {verdict, record, ledger_entry}.
-    Without confirm, the would-be record is shown and NOTHING is written."""
+    Without confirm, the would-be record is shown and NOTHING is written.
+    A retained-as-draft decision checks with draft expectations and
+    requires the reviewer's classification."""
     ledger_path = (ledger_path if ledger_path is not None
                    else os.path.join(_PROTO_DIR, "ledger_data.jsonl"))
-    verdict = check_mip(path, ledger_source=ledger_path, echo=echo)
-    record = build_decision_record(verdict, decision)  # raises on refusal
+    verdict = check_mip(path, ledger_source=ledger_path, echo=echo,
+                        draft_expectations=(decision == "retained-as-draft"))
+    record = build_decision_record(verdict, decision,
+                                   classification=classification)
     if not confirm:
         return {"verdict": verdict, "record": record, "ledger_entry": None}
     entry = Ledger(ledger_path).append(record)
     return {"verdict": verdict, "record": record, "ledger_entry": entry}
+
+
+def review_drift(payload: dict, repo_root: str = _REPO_ROOT):
+    """(state, note) for an anchored MIP decision vs the repo's current file
+    — THE shared semantics for verify_everything's governance layer and the
+    sweep's mip section:
+
+      accepted/rejected + hash match     -> ("frozen-intact", ...)
+      accepted/rejected + hash mismatch  -> ("frozen-BROKEN", ...)   FAILURE
+      retained-as-draft + hash match     -> ("draft-unchanged", ...)
+      retained-as-draft + hash mismatch  -> ("draft-evolved", ...)   INFO
+      cited file missing                 -> ("file-missing", ...)    FAILURE
+
+    A broken freeze is the immutability-by-citation alarm; an evolved draft
+    is informational by design (the pin is as-reviewed, not as-frozen)."""
+    fpath = os.path.join(repo_root, payload.get("file", ""))
+    if not os.path.exists(fpath):
+        return ("file-missing",
+                f"cited file {payload.get('file')} missing from the repo")
+    sha = _sha256_file(fpath)
+    match = sha == payload.get("file_sha256")
+    if payload.get("decision") == "retained-as-draft":
+        return (("draft-unchanged", "reviewed file unchanged since the "
+                 "review") if match else
+                ("draft-evolved", "draft evolved since the review — "
+                 "informational, never a failure (the pin is as-reviewed, "
+                 "not as-frozen)"))
+    return (("frozen-intact", "file hash matches the anchored pin "
+             "(immutable-by-citation)") if match else
+            ("frozen-BROKEN", "file no longer matches the anchored pin — "
+             "anchored MIP files are immutable-by-citation; amendments are "
+             "new MIPs"))
 
 
 # ----------------------------------------------------------------------------
@@ -361,6 +497,11 @@ def main(argv=None) -> int:
                            "default with no args)")
     parser.add_argument("--status", choices=DECISIONS,
                         help="with --record-decision: the decision to record")
+    parser.add_argument("--classification", metavar="CLASSIFICATION_JSON",
+                        help="with --record-decision --status "
+                             "retained-as-draft: the reviewer's built/"
+                             "spec_consistent/aspirational breakdown "
+                             "(JSON file; the classification IS the review)")
     parser.add_argument("--confirm", action="store_true",
                         help="with --record-decision: the HUMAN gate — "
                              "actually anchor the shown record")
@@ -378,10 +519,20 @@ def main(argv=None) -> int:
     if args.record_decision is not None:
         if not args.status:
             parser.error("--record-decision requires --status "
-                         "accepted|rejected")
+                         "accepted|rejected|retained-as-draft")
+        classification = None
+        if args.classification:
+            try:
+                with open(args.classification, encoding="utf-8") as f:
+                    classification = json.load(f)
+            except (OSError, json.JSONDecodeError) as exc:
+                print(f"error: classification unreadable: {exc}",
+                      file=sys.stderr)
+                return 2
         try:
             out = record_decision(args.record_decision, args.status,
-                                  args.confirm, ledger_path=args.ledger)
+                                  args.confirm, ledger_path=args.ledger,
+                                  classification=classification)
         except (ValueError, OSError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
@@ -389,6 +540,13 @@ def main(argv=None) -> int:
         print(f"decision      : {out['record']['decision']} "
               f"(review seat: {out['record']['review_seat']})")
         print(f"seat statement: {out['record']['seat_statement']}")
+        if out["record"]["decision"] == "retained-as-draft":
+            print(f"retention     : {out['record']['retention_reason']}")
+            for cls in _CLASSIFICATION_CLASSES:
+                c = out["record"]["classification"][cls]
+                print(f"  {cls:16s}: {c['count']} claim group(s) — "
+                      f"{'; '.join(c['headline'][:3])}")
+            print(f"sha semantics : {out['record']['amendment_rule']}")
         if out["ledger_entry"] is None:
             print("anchored: NO — dry run (re-run with --confirm to anchor "
                   "exactly the record above)")
@@ -553,6 +711,92 @@ def _selftest() -> int:
                        out_rej["record"]["status"] == "mip-rejected"
                        and out_rej["record"]["mechanical_check"]["passed"]
                        is False))
+
+        # [5c] RETAINED-AS-DRAFT: the honest third status. A Draft with
+        # findings (missing sections — a June-style draft) is reviewable:
+        # the record carries the findings + the classification, requires
+        # the classification, refuses non-Draft files, and pins the sha
+        # AS-REVIEWED (review_drift: an edit is informational, never a
+        # break — while an accepted record's freeze still alarms).
+        cls_fx = {c: {"count": 1, "headline": ["x"]}
+                  for c in _CLASSIFICATION_CLASSES}
+        june = _fixture(name="MIP-9107-june.md", status="Draft",
+                        sections=REQUIRED_SECTIONS[:-2], block="")
+        v_june = check_mip(june, ledger_source=fixture_ledger,
+                           sandbox_dir=sandbox, echo=quiet,
+                           draft_expectations=True)
+        rec_ret = build_decision_record(v_june, "retained-as-draft",
+                                        classification=cls_fx)
+        entry_ret = Ledger(fixture_ledger).append(rec_ret)
+        ret_chain_ok, _rr = Ledger(fixture_ledger).verify_chain()
+        checks.append(("retained-as-draft anchors with findings carried "
+                       "(not blocked), classification + retention reason "
+                       "+ honesty trap on the record",
+                       entry_ret is not None
+                       and rec_ret["status"] == "mip-retained-as-draft"
+                       and rec_ret["mechanical_check"]["passed"] is False
+                       and rec_ret["retention_reason"] == RETENTION_REASON
+                       and "unbuilt promises"
+                       in rec_ret["honesty_trap_statement"]
+                       and rec_ret["amendment_rule"]
+                       == RETAINED_SHA_SEMANTICS
+                       and "task_id" not in rec_ret
+                       and ret_chain_ok is True))
+        checks.append(("draft expectations: absent blocks + tokens waived, "
+                       "citations still checked",
+                       any(c["name"] == "verification-blocks-present"
+                           and c["passed"] for c in v_june["checks"])
+                       and any(c["name"] == "no-chain-tokens"
+                               and c["passed"] and "waived" in c["detail"]
+                               for c in v_june["checks"])
+                       and any(c["name"] == "ledger-citations-resolve"
+                               for c in v_june["checks"])))
+        try:
+            build_decision_record(v_june, "retained-as-draft")
+            checks.append(("retained-as-draft REQUIRES the classification",
+                           False))
+        except ValueError as exc:
+            checks.append(("retained-as-draft REQUIRES the classification",
+                           "classification IS the review" in str(exc)))
+        try:
+            build_decision_record(v, "retained-as-draft",
+                                  classification=cls_fx)  # v: Accepted file
+            checks.append(("retaining a non-Draft file is refused", False))
+        except ValueError as exc:
+            checks.append(("retaining a non-Draft file is refused",
+                           "still say Draft" in str(exc)))
+        try:
+            build_decision_record(v_june, "ratified", classification=cls_fx)
+            checks.append(("unknown decision values are rejected", False))
+        except ValueError as exc:
+            checks.append(("unknown decision values are rejected",
+                           "must be one of" in str(exc)))
+
+        # [5d] REVIEWED-NOT-FROZEN vs FROZEN semantics (review_drift):
+        # editing a retained draft is informational; editing an accepted
+        # file still breaks the freeze (regression)
+        tmp_repo = os.path.join(tmp, "drift_repo")
+        os.makedirs(tmp_repo)
+        dpath = os.path.join(tmp_repo, "draft.md")
+        with open(dpath, "w") as f:
+            f.write("reviewed content\n")
+        sha0 = _sha256_file(dpath)
+        ret_payload = {"decision": "retained-as-draft", "file": "draft.md",
+                       "file_sha256": sha0}
+        acc_payload = {"decision": "accepted", "file": "draft.md",
+                       "file_sha256": sha0}
+        s1, _n1 = review_drift(ret_payload, tmp_repo)
+        s2, _n2 = review_drift(acc_payload, tmp_repo)
+        with open(dpath, "a") as f:
+            f.write("edited after review\n")
+        s3, n3 = review_drift(ret_payload, tmp_repo)
+        s4, _n4 = review_drift(acc_payload, tmp_repo)
+        checks.append(("review_drift: retained pin is as-reviewed (edit -> "
+                       "draft-evolved, informational); accepted pin still "
+                       "freezes (edit -> frozen-BROKEN)",
+                       (s1, s2) == ("draft-unchanged", "frozen-intact")
+                       and (s3, s4) == ("draft-evolved", "frozen-BROKEN")
+                       and "never a failure" in n3))
 
         # [6] the REAL walked MIP files check clean structurally (blocks not
         # executed here — doc_verify's mip/ scan and CI execute them; this
