@@ -530,6 +530,20 @@ CUT_NONTRIVIAL_LIMITATION_NOTE = (
     "molecules. Proves deterministic re-derivability of the summarized set, not "
     "independence; not consensus, not payment, not a token; research-stage."
 )
+# A cut whose INTERIOR itself contains a declared edge (a multi-hop ancestry:
+# child and parent both rebuilt inside the cut, the grandparent on the
+# boundary) is a third shape — the note names it, per-certificate as always.
+CUT_MULTIHOP_LIMITATION_NOTE = (
+    "Multi-hop cut: the cut interior contains a real declared provenance edge "
+    "(child and parent both rebuilt and their edge re-resolved inside the "
+    "interior), and the boundary parent is referenced, not rebuilt — bounded "
+    "verification across a multi-hop ancestry: the cut verifies its interior "
+    "and only NAMES its inputs. Full verification was performed by the "
+    "coordinator at anchoring; subsequent cheap acceptance is conditional on "
+    "this anchor plus continued retrievability of the molecules. Proves "
+    "deterministic re-derivability of the summarized set, not independence; "
+    "not consensus, not payment, not a token; research-stage."
+)
 
 METERING_LIMITATION_NOTE = (
     "First-generation compute/energy evidence by the same operator on one host: "
@@ -1879,9 +1893,19 @@ def anchor_cut_certificate(cert: dict, ledger: Ledger) -> dict:
         verify_error = f"{type(exc).__name__}: {exc}"
     status = _CUT_CONFIRMED_STATUS if full_ok else "cut-certificate-mismatch"
 
-    # The note states what THIS certificate is: a crossed boundary means a real
-    # declared edge (non-trivial); an empty boundary means a degenerate cut.
-    cut_note = (CUT_NONTRIVIAL_LIMITATION_NOTE if cert["boundary_input_ids"]
+    # The note states what THIS certificate is: an empty boundary means a
+    # degenerate cut; a crossed boundary means a real declared edge
+    # (non-trivial); and a crossed boundary PLUS an edge inside the interior
+    # (some interior task's declared parent is also interior) means a
+    # multi-hop ancestry — three shapes, one honest note each.
+    interior_tasks = {e["task_id"] for e in cert.get("interior", [])}
+    interior_edge = any(
+        set(work_molecule._declared_parents(t)) & interior_tasks
+        for t in interior_tasks)
+    cut_note = (CUT_MULTIHOP_LIMITATION_NOTE
+                if cert["boundary_input_ids"] and interior_edge
+                else CUT_NONTRIVIAL_LIMITATION_NOTE
+                if cert["boundary_input_ids"]
                 else CUT_LIMITATION_NOTE)
 
     # COUNTS ONLY — no task/work-id lists: the molecule citation scanner treats
