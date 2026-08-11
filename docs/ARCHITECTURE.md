@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->59<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->058f4391f8a1<!--/chain-->…,
-> <!--chain:entry_count-->60<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->60<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->ad58905879bf<!--/chain-->…,
+> <!--chain:entry_count-->61<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->60<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->61<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -253,7 +253,7 @@ asserted at every step).
 simulated accounting, the drill rejections are planned demonstrations, and
 scripted determinism is still not market behavior.
 
-## The governance layer — idx 58-59
+## The governance layer — idx 58-60
 
 The MIP path was exercised end-to-end for the first time, with a real
 subject: MIP-0004 ("Concentration measurement epochs and the longitudinal
@@ -279,6 +279,22 @@ executed verification blocks sampling that machinery. The mechanical check
 gained a **citation resolver** in the same batch: every MIP cited anywhere
 in mip/ must resolve to an existing file, so a dangling citation is now a
 named CI failure instead of a months-long silent promise.
+
+The third walk (idx 60 <!--idx:60=mip_decision_recorded-->) made the
+release discipline governance law: MIP-0005 ratifies the
+**complete-product standard** (the next release must let an unaffiliated
+stranger complete the whole participant loop without contacting the
+project) and `protocol/release_readiness.py` as the standing gate — nine
+criteria typed PASS / GAP(named) / HUMAN, where coordinator approval is
+HUMAN by construction and never converts to a machine verdict. The
+anchored document's own verification blocks run the gate and assert
+**today's honest NOT-READY** with its two named external-reality gaps
+(a second machine or unaffiliated participant; a second device for the
+mirror) — so the day reality closes a gap, the anchored document goes red
+by design, and a successor MIP declaring `Supersedes` retires the era
+assertion while the file stays immutable-by-citation. The sweep reports
+the gate's verdict informationally: NOT-READY between releases is the
+expected state, never an alarm.
 
 Two properties are the point:
 
