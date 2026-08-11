@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->58<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->7575d1c32de2<!--/chain-->…,
-> <!--chain:entry_count-->59<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->59<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->058f4391f8a1<!--/chain-->…,
+> <!--chain:entry_count-->60<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->59<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->60<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -253,7 +253,7 @@ asserted at every step).
 simulated accounting, the drill rejections are planned demonstrations, and
 scripted determinism is still not market behavior.
 
-## The governance layer — idx 58
+## The governance layer — idx 58-59
 
 The MIP path was exercised end-to-end for the first time, with a real
 subject: MIP-0004 ("Concentration measurement epochs and the longitudinal
@@ -267,6 +267,18 @@ verify-run block executed in a fresh-clone sandbox, file sha256) →
 *single-seat decision* → *anchored decision record* (idx 58
 <!--idx:58=mip_decision_recorded-->), recorded only behind the same human
 `--confirm` gate as participant intake.
+
+The second walk (idx 59 <!--idx:59=mip_decision_recorded-->) closed the
+repository's last dangling citation: MIP-0003 ("Operator responsibility")
+is the proposal MIP-0002 §3 had cited since its drafting — the human
+operator remains responsible; a compliance gate is protection, never a
+waiver. It codifies five operator duties *already practiced and
+mechanically enforced* (disclosure, deliberate anchoring, key custody,
+honest labeling, history immutability), each citing its enforcement, with
+executed verification blocks sampling that machinery. The mechanical check
+gained a **citation resolver** in the same batch: every MIP cited anywhere
+in mip/ must resolve to an existing file, so a dangling citation is now a
+named CI failure instead of a months-long silent promise.
 
 Two properties are the point:
 
