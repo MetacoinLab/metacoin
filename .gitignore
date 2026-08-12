@@ -185,3 +185,4 @@ MACBOOK_REVERIFY.md
 # cross-machine incident evidence (held locally by the coordinator; the
 # canonical facts live on-chain in the hash-era records)
 task8_mac*.json
+macbook_bundle*.json

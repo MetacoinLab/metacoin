@@ -18,10 +18,11 @@ jobs:
   selftests:
     runs-on: ubuntu-latest
     strategy:
-      # Test what we claim: requires-python >=3.9, so the floor runs in CI
-      # beside the current stable (the macOS incident machine ran 3.9.6).
+      # Test what we claim: requires-python is >=3.12 and CI tests exactly
+      # that. (A 3.9 floor-test failed real checks — sampling fixture +
+      # full-run layers — so 3.9 support was withdrawn, not papered over.)
       matrix:
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.12"]
     steps:
       # Check out the repository so the demo and protocol scripts are available.
       - name: Checkout

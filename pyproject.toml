@@ -18,7 +18,11 @@ name = "metacoin-protocol"
 dynamic = ["version"]
 description = "The credibly neutral money-and-work protocol for the Space Machine Economy — research-stage, zero-value, no token; installable verifier with the complete anchored evidence corpus."
 readme = "README.md"
-requires-python = ">=3.9"
+# >=3.12: the 3.9 CI floor-test failed real checks (deterministic-sampling
+# fixture + full-run layers) — we claim exactly what CI tests. The macOS
+# incident machine ran 3.9.6; its concentration-layer failure was this
+# version class, not the negative-zero bug (both anchored: idx 67).
+requires-python = ">=3.12"
 license = { file = "LICENSE.md" }
 authors = [{ name = "MetaCoin-Lab" }]
 # ZERO runtime dependencies — stdlib only (a hard protocol constraint).
