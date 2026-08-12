@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """verify_everything.py — MetaCoin ONE-COMMAND FULL-STACK VERIFIER.
 
 ================== PRODUCT GOAL (READ ME) ==================

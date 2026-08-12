@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """continuity.py — coordinator CONTINUITY & MIRROR-READINESS v0 (operational tooling).
 
 ================== HONESTY / SCOPE (READ ME) ==================

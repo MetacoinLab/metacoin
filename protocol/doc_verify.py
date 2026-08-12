@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """doc_verify.py — the documentation anti-rot machine (doc suite "docs/0.1").
 
 ================== HONESTY / SCOPE (READ ME) ==================

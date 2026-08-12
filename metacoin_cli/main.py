@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """main.py — the unified `metacoin` command (thin argparse router).
 
 EVERY subcommand delegates to an existing, already-verified protocol/demo

@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """metawork_passport.py — MetaWork PASSPORT v0 (schema "metawork-passport/0.1").
 
 ================== CONSTITUTIONAL RULES (READ ME) ==================

@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """test_meta_faucet.py — zero-value Test-META faucet for the Phase 1 agentic demo.
 
 ================================ INVARIANTS (READ ME) ================================

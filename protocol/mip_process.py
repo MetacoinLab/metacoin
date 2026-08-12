@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """mip_process.py — the MIP lifecycle machine (schema "mip-record/0.1").
 
 ================== HONESTY / SCOPE (READ ME) ==================

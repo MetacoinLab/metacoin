@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """selftest.py — install-grade correctness tests for the `metacoin` CLI.
 
 Covers: (a) entry-point routing (every subcommand --help + a cheap real call

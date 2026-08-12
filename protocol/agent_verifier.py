@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """agent_verifier.py — MetaCoin AUTONOMOUS AGENT-VERIFIER (fully mechanical, no AI oracle).
 
 ================== HONESTY / SCOPE (READ ME) ==================

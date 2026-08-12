@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """cut_certificate.py — MetaCoin CUT CERTIFICATE v0 (schema "cut-certificate/0.1").
 
 ================== CONCEPT (READ ME) ==================

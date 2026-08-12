@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """audit.py — MetaCoin protocol auditability: export, standalone verify, and tip anchor.
 
 ================== HONESTY / SCOPE (READ ME) ==================

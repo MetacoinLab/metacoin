@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """metacoin_cli — the unified `metacoin` command over the MetaCoin protocol stack.
 
 THIN ROUTING ONLY: every subcommand delegates to the existing, already-verified

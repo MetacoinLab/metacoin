@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """external_verifier.py — MetaCoin R3 COORDINATOR for the external-verifier-pilot.
 
 ================== CRITICAL HONESTY NOTICE (READ ME) ==================

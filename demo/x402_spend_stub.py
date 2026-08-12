@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """x402_spend_stub.py — simulated x402-class micropayment for the Phase 1 agentic demo.
 
 ================================ STUB / NO REAL VALUE ================================

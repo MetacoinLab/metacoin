@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """agent_loop.py — Phase 1 demo orchestrator (the full WHITEPAPER paragraph 10 cycle).
 
 This wires the demo end to end, one round per task attempt:

@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """trust_vector.py — MetaCoin TRUST VECTOR v0 (schema "trust-vector/0.1").
 
 ================== CONCEPT (READ ME) ==================

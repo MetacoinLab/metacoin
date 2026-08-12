@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """attest.py — MetaCoin R2: HONEST software-rooted attestation, anchored to the R1 ledger.
 
 ================== CRITICAL HONESTY NOTICE (READ ME — THIS IS THE POINT) ==================

@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """participant_kit.py — the PARTICIPANT-side kit: one command each to join, verify, and
 submit (`metacoin participate init | run | bundle`).
 

@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """verifier_cli.py — MetaCoin R3 EXTERNAL VERIFIER tool (the verifier-side command).
 
 ================== CRITICAL HONESTY NOTICE (READ ME) ==================

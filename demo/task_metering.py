@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """task_metering.py — MetaCoin compute/energy METERING runner (schema "metering-report/0.1").
 
 ================== CONSTITUTIONAL RULE (READ ME) ==================

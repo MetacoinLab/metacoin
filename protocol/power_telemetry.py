@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """power_telemetry.py — hardware power telemetry probe v0 (schemas
 "sensor-inventory/0.1" and "power-characterization/0.1").
 

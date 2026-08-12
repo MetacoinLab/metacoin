@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """prov_export.py — PROV-compatible Work Molecule export (schema "prov-export/0.1").
 
 ================== HONESTY / SCOPE (READ ME) ==================

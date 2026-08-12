@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """work_molecule.py — MetaCoin WORK MOLECULE v0 (schemas "work-molecule/0.2" and "/0.3").
 
 ================== CONSTITUTIONAL RULE (READ ME) ==================

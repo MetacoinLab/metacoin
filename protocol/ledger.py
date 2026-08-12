@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """ledger.py — research-stage append-only, hash-chained, verifiable event ledger.
 
 ============================ SAFETY / SCOPE (READ ME) ============================

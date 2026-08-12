@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """metastar_treasury.py — MetaStar TREASURY v0 (schema "treasury-ledger/0.1").
 
 ================== THE CONSTITUTIONAL INVARIANT (READ ME) ==================

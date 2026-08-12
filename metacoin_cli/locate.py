@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """locate.py — resource resolution for the `metacoin` CLI.
 
 Resolves WHERE the verification corpus (published snapshot, tip anchor, live

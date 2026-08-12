@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """verify_gates.py — task-agnostic Gate-1 / Gate-2 verifier for the Phase 1 agentic demo.
 
 Research-only. Implements the CI-side checks from MIP-0002:

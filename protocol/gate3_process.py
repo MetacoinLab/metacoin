@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """gate3_process.py — Gate-3 BOUNDED OPTIMISTIC USEFULNESS PROCESS v0 (schema "gate3-process/0.1").
 
 ================== THE PROCESS (READ ME) ==================

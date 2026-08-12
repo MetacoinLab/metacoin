@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """release_readiness.py — the complete-product release gate (schema
 "release-readiness/0.1").
 

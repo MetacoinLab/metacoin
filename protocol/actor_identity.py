@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """actor_identity.py — MetaCoin ACTOR IDENTITY v0 (scheme "lamport-sha256-merkle/0.1").
 
 ================== THE MECHANISM (READ ME) ==================

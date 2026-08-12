@@ -1,3 +1,5 @@
+# Copyright (c) 2023-2026 MetaCoin-Lab.
+# Licensed under SML-1.0 — see LICENSE.md.
 """economy_demo.py — Phase 1 deterministic SIMULATED 30-day agent economy demo.
 
 ================================ HONESTY / SCOPE (READ ME) ================================
