@@ -152,7 +152,14 @@ def submit_work_item(work_ref: dict, ledger_path: str = DEFAULT_LEDGER_PATH) -> 
     rederives = False
     if recorded_hash is not None:
         module = load_task(task_id)
-        rederives = module.output_hash(module.compute()) == recorded_hash
+        # HASH-ERA aware: the recorded hash validates against ITS anchored
+        # code era — the current re-run must land on the era-translated
+        # value (identity when no transition record exists on the chain)
+        from protocol.verifier_cli import (era_expected_hash,
+                                           load_hash_era_map)
+        _expected = era_expected_hash(
+            task_id, recorded_hash, load_hash_era_map(entries))
+        rederives = module.output_hash(module.compute()) == _expected
     checks.append({
         "name": "gate12-standing",
         "passed": bool(recorded_idx is not None and rederives),

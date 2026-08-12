@@ -579,6 +579,22 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
 
     # --- gather the cited ledger entries (read-only; generation-locked if asked) ------
     entries = _read_ledger(ledger_path)
+    # SPEC-HASH ERA MAP from the FULL chain (a transition may postdate the
+    # as-of point): {task_id: [(transition_index, era1_spec_hash), ...]}.
+    # A generation-locked rebuild predating an anchored spec-hash transition
+    # reconstructs the molecule as it stood THEN: the anchored era-1 spec
+    # hash IS that chain state's declared source hash (the current checkout
+    # holds era-2+ bytes). Live/unbounded builds always use current bytes —
+    # the next catalog generation absorbs the new spec hash per cadence.
+    _spec_eras = {}
+    for _e in entries:
+        _p = _e.get("payload", {}) if isinstance(_e, dict) else {}
+        if (_p.get("event") == "task_hash_era_recorded"
+                and _p.get("status") == "hash-era-recorded"):
+            for _t in _p.get("transitions", []):
+                if _t.get("era1_spec_hash"):
+                    _spec_eras.setdefault(_t.get("task_id"), []).append(
+                        (_e.get("index"), _t["era1_spec_hash"]))
     if as_of_index is not None:
         entries = [e for e in entries
                    if isinstance(e.get("index"), int) and e["index"] <= as_of_index]
@@ -680,6 +696,13 @@ def build_molecule(task_id: str, ledger_path: str = DEFAULT_LEDGER_PATH,
         raise ValueError(f"task source file not found: {spec_abs}")
     with open(spec_abs, "rb") as f:
         spec_hash = hashlib.sha256(f.read()).hexdigest()
+    if as_of_index is not None:
+        # hash-era lock: the earliest transition AFTER the as-of point names
+        # the spec hash that was current at that chain state
+        for _t_idx, _era1 in sorted(_spec_eras.get(short, [])):
+            if as_of_index < _t_idx:
+                spec_hash = _era1
+                break
 
     # repo_commit: copied from the highest-index cited record that carries one, else
     # from the submission file, else honestly null (-> debt).

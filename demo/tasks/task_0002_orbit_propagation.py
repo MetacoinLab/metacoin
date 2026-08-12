@@ -206,6 +206,23 @@ def compute() -> dict:
     }
 
 
+# THE NEGATIVE-ZERO CANONICAL RULE (hash-era 2): -0.0 vs 0.0 is a platform
+# artifact of last-ulp libm cancellation with no semantic content — the
+# 2026-08 macOS incident proved a single sign-of-zero bit was the ONLY
+# cross-platform divergence in this task's output. Canonical artifacts are
+# sign-of-zero-free by rule; the hash-era transition is anchored on-chain
+# (task_hash_era_recorded), and era-1 values remain re-derivable at their
+# recorded commits. Same rule as every protocol serializer.
+def _sign_safe_zero(obj):
+    if isinstance(obj, float):
+        return 0.0 if obj == 0.0 else obj
+    if isinstance(obj, dict):
+        return {k: _sign_safe_zero(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sign_safe_zero(v) for v in obj]
+    return obj
+
+
 def canonical_json(result: dict) -> str:
     """Serialize the result deterministically.
 
@@ -213,7 +230,7 @@ def canonical_json(result: dict) -> str:
     byte-stable across runs and platforms (assuming identical rounded float values).
     """
     return json.dumps(
-        result,
+        _sign_safe_zero(result),
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=True,

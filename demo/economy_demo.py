@@ -505,10 +505,15 @@ def main(argv=None) -> int:
     return _selftest()
 
 
-# The anchored generation-1 log hash (ledger:19), pinned to the digit: the
-# gen-1 code path is FROZEN, and any drift here is a regression, never evolution.
+# The generation-1 log hash pinned to the digit — ERA-2 (the negative-zero
+# canonical rule): the anchored ledger:19 value
+# f7c8196fa6a2ff9e737194b6165c5d5aa1333e27632d1eaee7592ebe2f74f052 is the
+# ERA-1 fact (re-derivable at its recorded commits); the current-era replay
+# lands on the era-2 value below, anchored as an era2_expectation on the
+# task_hash_era_recorded transition record. The gen-1 ROSTER and mechanics
+# stay frozen; only the embedded task-0002/0008 canonical hashes moved.
 _ANCHORED_GEN1_LOG_HASH = (
-    "f7c8196fa6a2ff9e737194b6165c5d5aa1333e27632d1eaee7592ebe2f74f052")
+    "34a3abec4c8eab7779f34c3f785db0ae7ff02befdcee32d3ecd720f885f2aaad")
 
 
 # ============================== SELF-TEST ====================================

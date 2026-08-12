@@ -1391,6 +1391,143 @@ def anchor_aci_epoch(report: dict, ledger: Ledger) -> dict:
     return {"evaluation": evaluation, "ledger_entry": entry}
 
 
+# --- hash-era transition anchoring (append-only code-era transitions) --------------------
+# When a canonical-form fix changes a task's output hash (e.g. the negative-
+# zero rule), the transition is ANCHORED: era-1 values remain the recorded
+# records' true values (re-derivable at their recorded commits), era-2 values
+# govern current re-runs via verifier_cli's anchored map, and generation-
+# locked molecule rebuilds keep re-deriving byte-identically through the
+# anchored era-1 spec hashes. History is never rewritten.
+HASH_ERA_LIMITATION_NOTE = (
+    "A CODE-ERA TRANSITION, append-only: nothing is rewritten. Era-1 hashes "
+    "remain the anchored records' true values — re-derivable at their "
+    "recorded verifier_repo_commits — and era-2 values govern current-era "
+    "re-runs via this anchored map; generation-locked molecule rebuilds "
+    "reconstruct frozen generations byte-identically through the anchored "
+    "era-1 spec hashes. Same-operator research-stage evidence; a matching "
+    "hash proves reproducibility in its era, not independence. Not "
+    "consensus, not mainnet, not payment, not a token; zero-value."
+)
+HASH_ERA_ROOT_CAUSE = (
+    "IEEE-754 negative-zero canonicalization divergence: for analytically-"
+    "zero quantities (task-0002 results[0].vx_kms; task-0008 "
+    "results[1].fk_x_m) catastrophic cancellation leaves a ~1e-16-scale "
+    "residual whose SIGN depends on platform libm last-ulps; round(x, 6) "
+    "preserves that sign (-0.0), and canonical JSON serialized '-0.0' vs "
+    "'0.0' — a single sign-of-zero bit, carrying zero physical content, was "
+    "the ENTIRE cross-platform divergence (proven by a one-bit flip "
+    "reproducing the macOS hash exactly; every numeric agreed to 6 decimals "
+    "across platforms). Era-2 canonical form is sign-of-zero-free by rule, "
+    "in every protocol serializer and in the affected task sources."
+)
+
+
+def derive_hash_era_transitions(ledger_path, era1_spec_hashes):
+    """Coordinator-derived transition list: every recorded task whose
+    CURRENT re-run hash differs from its era-terminal recorded value.
+    `era1_spec_hashes` maps task_id -> the pre-fix source sha256 (from
+    immutable git history — the working tree already holds era-2 bytes)."""
+    entries = work_molecule._read_ledger(ledger_path)
+    era_map = verifier_cli.load_hash_era_map(entries)
+    transitions = []
+    for tid in sorted(verifier_cli.TASK_MODULES):
+        recorded = None
+        for e in entries:
+            p = e.get("payload", {}) if isinstance(e, dict) else {}
+            if p.get("task_id") == tid or tid in (p.get("task_ids") or []):
+                for k in ("local_output_hash", "output_hash",
+                          "submitted_output_hash"):
+                    v = p.get(k)
+                    if isinstance(v, str) and len(v) == 64:
+                        recorded = v
+                        break
+        if recorded is None:
+            continue
+        terminal = verifier_cli.era_expected_hash(tid, recorded, era_map)
+        module = verifier_cli.load_task(tid)
+        current = module.output_hash(module.compute())
+        if current != terminal:
+            spec_abs = os.path.join(
+                _REPO_ROOT, *verifier_cli.TASK_MODULES[tid].split(".")) + ".py"
+            with open(spec_abs, "rb") as f:
+                era2_spec = hashlib.sha256(f.read()).hexdigest()
+            transitions.append({
+                "task_id": tid,
+                "era1_output_hash": terminal,
+                "era2_output_hash": current,
+                "era1_spec_hash": era1_spec_hashes.get(tid),
+                "era2_spec_hash": era2_spec,
+            })
+    return transitions
+
+
+def anchor_hash_era_transition(ledger: Ledger, era1_spec_hashes: dict,
+                               cross_platform_bundle_sha256: str = None,
+                               cross_platform_note: str = None) -> dict:
+    """Derive + anchor one code-era transition record. Returns
+    {evaluation, ledger_entry}. Refuses (NOT anchored) when no task
+    transitioned or an era-1 spec hash is missing for a transitioned task."""
+    transitions = derive_hash_era_transitions(ledger.path, era1_spec_hashes)
+    reason = None
+    if not transitions:
+        reason = ("no recorded task's current re-run differs from its "
+                  "era-terminal value — nothing transitioned")
+    elif any(not t.get("era1_spec_hash") for t in transitions):
+        missing = [t["task_id"] for t in transitions
+                   if not t.get("era1_spec_hash")]
+        reason = (f"era-1 spec hash missing for {missing} — the frozen "
+                  "generations cannot stay locked without it")
+    if reason is not None:
+        evaluation = {
+            "event": verifier_cli.HASH_ERA_EVENT,
+            "stage": "R-provenance",
+            "topology": "code-era-transition",
+            "status": "rejected",
+            "reason": reason,
+            "anchored": False,
+            "zero_value": True,
+            "no_token": True,
+            "limitation_note": HASH_ERA_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+
+    entries = ledger.read_all()
+    # every anchored record whose payload carries an era-1 value, by index
+    era1_values = {t["era1_output_hash"] for t in transitions}
+    dependents = sorted({
+        e["index"] for e in entries
+        if any(v in work_molecule.canonical_json(e.get("payload", {}))
+               for v in era1_values)})
+    evaluation = {
+        "event": verifier_cli.HASH_ERA_EVENT,
+        "stage": "R-provenance",
+        "topology": "code-era-transition",
+        "status": verifier_cli.HASH_ERA_STATUS,
+        "task_class": _TASK_CLASS,
+        "transitions": transitions,
+        "era1_dependent_ledger_indexes": dependents,
+        "era2_expectations": {
+            "economy_gen1_log_hash":
+                economy_demo.simulate_all(1)["economy_log_hash"],
+            "economy_gen2_log_hash":
+                economy_demo.simulate_all(2)["economy_log_hash"],
+        },
+        "root_cause": HASH_ERA_ROOT_CAUSE,
+        **({"cross_platform_confirmation": {
+            "bundle_sha256": cross_platform_bundle_sha256,
+            "note": cross_platform_note or "",
+        }} if cross_platform_bundle_sha256 else {}),
+        "operator_relationship": "same-operator",
+        "limitation_note": HASH_ERA_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
 # --- economy-demo summary anchoring (a FIFTH record type) --------------------------------
 # The economy log (demo/economy_demo.py) records the deterministic SIMULATED 30-day
 # earn->verify->spend loop. The coordinator RE-RUNS THE ENTIRE SIMULATION itself

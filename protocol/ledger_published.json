@@ -3365,19 +3365,94 @@
       },
       "prev_hash": "8c4e69fb7e4a960a4f7d7170785b59bf21a28abfb6521d8c70dade41692ae577",
       "timestamp": 1786442970.8370798
+    },
+    {
+      "hash": "a2f16ad52cc2747e46b028e060960fa96843531924536923d0c61ddc5da42fb7",
+      "index": 67,
+      "payload": {
+        "anchored_at": 1786506912.3619118,
+        "cross_platform_confirmation": {
+          "bundle_sha256": "d21636dc7a1b2c54ce7e00e461a24a704c569e2f1c2273de552f9c17a24d5be3",
+          "note": "task-0008 era-2 EQUALS the macOS arm64 machine's organically produced output (macOS-26.5.1, Python 3.9.6) \u2014 the incident bundle is this era's founding cross-platform evidence; task-0002 era-2 is new on all platforms and awaits the macOS re-verification"
+        },
+        "era1_dependent_ledger_indexes": [
+          1,
+          2,
+          3,
+          10,
+          16,
+          29,
+          30,
+          52,
+          64
+        ],
+        "era2_expectations": {
+          "economy_gen1_log_hash": "34a3abec4c8eab7779f34c3f785db0ae7ff02befdcee32d3ecd720f885f2aaad",
+          "economy_gen2_log_hash": "42797a7edeffda6babe26e247d5ec0cb603899fa96312c68c0b9792e51abec4d"
+        },
+        "event": "task_hash_era_recorded",
+        "limitation_note": "A CODE-ERA TRANSITION, append-only: nothing is rewritten. Era-1 hashes remain the anchored records' true values \u2014 re-derivable at their recorded verifier_repo_commits \u2014 and era-2 values govern current-era re-runs via this anchored map; generation-locked molecule rebuilds reconstruct frozen generations byte-identically through the anchored era-1 spec hashes. Same-operator research-stage evidence; a matching hash proves reproducibility in its era, not independence. Not consensus, not mainnet, not payment, not a token; zero-value.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "root_cause": "IEEE-754 negative-zero canonicalization divergence: for analytically-zero quantities (task-0002 results[0].vx_kms; task-0008 results[1].fk_x_m) catastrophic cancellation leaves a ~1e-16-scale residual whose SIGN depends on platform libm last-ulps; round(x, 6) preserves that sign (-0.0), and canonical JSON serialized '-0.0' vs '0.0' \u2014 a single sign-of-zero bit, carrying zero physical content, was the ENTIRE cross-platform divergence (proven by a one-bit flip reproducing the macOS hash exactly; every numeric agreed to 6 decimals across platforms). Era-2 canonical form is sign-of-zero-free by rule, in every protocol serializer and in the affected task sources.",
+        "stage": "R-provenance",
+        "status": "hash-era-recorded",
+        "task_class": "illustrative-demo",
+        "topology": "code-era-transition",
+        "transitions": [
+          {
+            "era1_output_hash": "ff03231fc53a0505f648e2ec24e251ced41c896fbfd2553ffaa914ffd5ba300c",
+            "era1_spec_hash": "0586a2af876b56047a232f31f3b7c21d755bd14b44c1f5930b26d188208cb066",
+            "era2_output_hash": "7dad33e550a1d78083a5f3edcbea37534c8d17472c38db754843591be40523d8",
+            "era2_spec_hash": "e3432c2419513abd46aa39f99a2f909d20922a8a225f2382934b85b3a9a3f000",
+            "task_id": "task-0002"
+          },
+          {
+            "era1_output_hash": "56a44d28a0cb136f113c60158002c0438ea491829b63ff6b1bb359503d8ce3ee",
+            "era1_spec_hash": "e29fa64d7f6b354ff18cf6074f7872cfc7ce43968da7a44c8d2c55c26273efb2",
+            "era2_output_hash": "b4758afc0e4e94d87aac2a4a60ad98168726cc6e876de04363d29a4dc040443c",
+            "era2_spec_hash": "5fb4f2e1a825bb667b47464e40d3be3d40f9e5544656d1bb8b07c9fb65c66f15",
+            "task_id": "task-0008"
+          }
+        ],
+        "zero_value": true
+      },
+      "prev_hash": "cb2f14ebe14269823694faa118a5e1bfaee479f79cd531c899c3ff7dc4e63a36",
+      "timestamp": 1786506912.3623705
+    },
+    {
+      "hash": "831655e5c8287070afd7f81841a03e6b237037e305dbcf88d358d2ade54cc45b",
+      "index": 68,
+      "payload": {
+        "cause": "operator transcription error at anchoring: the correct 16-hex prefix of the incident bundle's canonical sha256 was extended with a fabricated tail instead of the recomputed full digest; caught minutes later by the coordinator's own post-anchor verification against the held bundle file",
+        "correct_value": "d21636dc7a1b2c54beafadfe86291966075e6a3db8cfb4a3943f10b6ba00783f",
+        "corrected_field": "cross_platform_confirmation.bundle_sha256",
+        "corrects_ledger_index": 67,
+        "erroneous_value": "d21636dc7a1b2c54ce7e00e461a24a704c569e2f1c2273de552f9c17a24d5be3",
+        "event": "anchored_record_correction",
+        "limitation_note": "APPEND-ONLY CORRECTION: the erroneous record stays on-chain verbatim \u2014 history is never rewritten; this record supersedes exactly one cited field. An error anchored is corrected by appending the correction, the same rule as every provenance-debt reduction. Not consensus, not payment, not a token; zero-value research-stage.",
+        "no_token": true,
+        "stage": "R-provenance",
+        "status": "correction-appended",
+        "topology": "append-only-correction",
+        "verification": "correct_value recomputed as sha256 of the canonical JSON of the held macbook_bundle.json at correction time; the transition data on idx 67 (era hashes, spec hashes, expectations) is unaffected and verified correct",
+        "zero_value": true
+      },
+      "prev_hash": "a2f16ad52cc2747e46b028e060960fa96843531924536923d0c61ddc5da42fb7",
+      "timestamp": 1786506950.3610575
     }
   ],
   "snapshot_header": {
-    "entry_count": 67,
+    "entry_count": 69,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1786442981.7993913,
+    "snapshot_timestamp": 1786506959.1205432,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "cb2f14ebe14269823694faa118a5e1bfaee479f79cd531c899c3ff7dc4e63a36",
-    "tip_index": 66,
+    "tip_hash": "831655e5c8287070afd7f81841a03e6b237037e305dbcf88d358d2ade54cc45b",
+    "tip_index": 68,
     "zero_value": true
   }
 }
