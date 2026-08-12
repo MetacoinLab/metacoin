@@ -99,8 +99,13 @@ precisely what partnership closes:
 
 ```verify-run
 $ python3 protocol/release_readiness.py --check --fast
-VERDICT: NOT-READY — 2 named gap(s) stand between here and the next release  (trimmed)
+VERDICT: NOT-READY — 1 named gap(s) stand between here and the next release  (trimmed)
 ```
 <!--expect:VERDICT: NOT-READY-->
-<!--expect:awaits a second machine or an external participant-->
 <!--expect:awaits the second device-->
+
+(The cross-machine gap closed on 2026-08-11 — the first
+cross-machine-same-operator participation, anchored at idx 69–70 and
+ratified as the MIP-0006 era. Same operator, second machine: the
+unaffiliated-participant milestone remains open, and closing it is
+precisely the collaboration this document invites.)

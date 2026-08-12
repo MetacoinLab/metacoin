@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->68<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->831655e5c828<!--/chain-->…,
-> <!--chain:entry_count-->69<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->71<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->00a9db5f75de<!--/chain-->…,
+> <!--chain:entry_count-->72<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->69<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->72<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -149,7 +149,7 @@ registrations at idx 28 <!--idx:28=actor_key_registered-->, idx 37 and idx 45;
 a legitimate **key rotation** at idx 41 <!--idx:41=actor_key_rotated-->; a
 **forged-rotation drill** at idx 42 <!--idx:42=actor_key_rotation_rejected-->
 that stays rejected from public material alone. The chain currently carries
-<!--chain:actor_count-->3<!--/chain--> registered actors. **Proves:**
+<!--chain:actor_count-->4<!--/chain--> registered actors. **Proves:**
 continuity of key possession across time and rotation. **Deliberately does
 not:** prove who operates a key, or that two actors are different people —
 operator relationships remain declared, `-claimed`.
@@ -180,7 +180,9 @@ and anchored **participant-verified** (idx 46
 <!--idx:46=participant_result_anchored-->), and a tampered bundle
 **mechanically refused at the named rung** (idx 47
 <!--idx:47=participant_intake_rejected-->). Every record honestly labeled
-same-operator rehearsal.
+same-operator rehearsal. The rehearsed pipeline carried its first real
+cross-machine bundle a month later (idx 69-70 — the cross-machine layer
+below).
 
 ## The parented-provenance layer — idx 48-54 and 63-66
 
@@ -318,9 +320,14 @@ anchored document's own verification blocks run the gate and assert
 (a second machine or unaffiliated participant; a second device for the
 mirror) — so the day reality closes a gap, the anchored document goes red
 by design, and a successor MIP declaring `Supersedes` retires the era
-assertion while the file stays immutable-by-citation. The sweep reports
-the gate's verdict informationally: NOT-READY between releases is the
-expected state, never an alarm.
+assertion while the file stays immutable-by-citation. That day came on
+2026-08-11: the first cross-machine participation closed the first gap,
+MIP-0005's blocks went red exactly as designed, and MIP-0006 (idx 71
+<!--idx:71=mip_decision_recorded-->) is the named successor — the four
+release rules carried forward verbatim, the era assertion moved to the
+one-gap state, the supersession mechanism exercised for real on its first
+trigger. The sweep reports the gate's verdict informationally: NOT-READY
+between releases is the expected state, never an alarm.
 
 The housekeeping walks (idx 61 <!--idx:61=mip_decision_recorded-->, idx 62
 <!--idx:62=mip_decision_recorded-->) gave every file in mip/ an anchored
@@ -383,6 +390,34 @@ era-aware, honest about which values belong to which era.
 **Deliberately does not:** claim bit-reproducibility is unconditional
 across platforms — it is a property the canonical form must EARN, rule by
 rule, and the era machinery exists for the day another rule is needed.
+
+## The cross-machine layer — idx 69-71
+
+The era rule earned its keep immediately: the same macOS arm64 machine
+re-ran the public verifier under era-2 and produced a fully green bundle —
+23/23 recorded task results reproduced byte-for-byte on a different
+platform family, signed under its own one-time key. The bundle passed the
+six-rung intake ladder (which itself gained era awareness at rung 4: a
+ledger hash recorded under an older anchored era validates through the
+anchored transition, identity when no transition exists — with a
+no-slack selftest control proving the transition record is the only thing
+that admits the translation). The human `--confirm` gate anchored the
+first cross-machine records: registration (idx 69
+<!--idx:69=actor_key_registered-->) and participant-verified (idx 70
+<!--idx:70=participant_result_anchored-->), both labeled
+`cross-machine-same-operator` — the topology decided by the **machine
+fingerprint carried on the record, never the declaration**. That flipped
+the release gate's cross-machine criterion (2 named gaps → 1) and
+triggered the governance supersession ratified at idx 71
+<!--idx:71=mip_decision_recorded-->.
+
+**Proves:** the participant loop works end-to-end across real machines —
+reproduce, sign, bundle, validate, anchor — and the gate criterion derives
+from chain evidence, not assertion.
+**Deliberately does not:** add independence — the same operator controls
+both machines, the records say so, and a `-claimed` relationship can never
+lower measured concentration. The unaffiliated-participant milestone
+remains open, and every document still says so.
 
 ## The six defeated-attack drills
 
