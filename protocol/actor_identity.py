@@ -1204,8 +1204,29 @@ def identity_health(ledger_source=None, base_dir: str = _REPO_ROOT,
             consumed_rows.append({"key_index": i, "sources": srcs})
         remaining = max(0, total - len(consumed))
 
+        # a cross-machine registration (topology on the anchored record,
+        # fingerprint-decided at intake) means the keychain LIVES on the
+        # participant's machine: its absence here is the topology working,
+        # never a loss — the continuity-kit restore advice would be wrong
+        # (copying the keys here would defeat the second machine)
+        reg_topology = None
+        for e in entries:
+            p = e.get("payload", {}) if isinstance(e, dict) else {}
+            if (p.get("event") == "actor_key_registered"
+                    and p.get("actor_id") == actor_id
+                    and isinstance(p.get("topology"), str)):
+                reg_topology = p["topology"]
+        remote_actor = (keychain is None
+                        and reg_topology == "cross-machine-same-operator")
+
         risks = []
-        if keychain is None:
+        if remote_actor:
+            risks.append("keychain lives on the participant's machine "
+                         "(anchored topology cross-machine-same-operator) — "
+                         "absence on this machine IS the topology; signing "
+                         "and reserve staging happen where the participant "
+                         "is")
+        elif keychain is None:
             risks.append("no local keychain holds the ACTIVE root on this "
                          "machine — this actor cannot sign here; restore the "
                          "keychain from the continuity kit")
@@ -1229,6 +1250,11 @@ def identity_health(ledger_source=None, base_dir: str = _REPO_ROOT,
         elif reserve["state"] == "invalid":
             risks.append("reserve FAILS verification — it would not anchor; "
                          "investigate and re-stage: " + reserve["detail"])
+        elif remote_actor:
+            risks.append(f"{remaining}/{total} remaining; reserve staging "
+                         "is the participant's own action on their machine "
+                         "— none staged yet (their identity loss stays "
+                         "fatal-by-default until they stage it there)")
         else:
             risks.append(f"{remaining}/{total} remaining, no reserve -> "
                          "stage one (--stage-reserve): identity loss is "
