@@ -39,6 +39,11 @@ in order:
                    present, sha256 matches the anchored pin (immutability-
                    by-citation), structural checks pass; NAMED skip while
                    the chain carries no MIP decisions.
+  8d. private-repo — coordinator-side hygiene of the private incubation
+                   clone (~/projects/metacoin-lab): the same forbidden-
+                   material patterns the public repo enforces (keychains,
+                   secrets, ledger, kit) — findings on any hit; NAMED
+                   skip when the clone is absent (CI, fresh clones).
   8c. release    — the release-readiness gate's verdict + named gaps as
                    INFORMATION (MIP-0005: NOT-READY is the expected state
                    between releases; a change in the gap list deserves a
@@ -686,6 +691,55 @@ def section_mip(base_dir: str = _REPO_ROOT, ledger_source=None) -> dict:
 
 
 # ----------------------------------------------------------------------------
+# 8d: private-repo hygiene — coordinator-side only (named skip elsewhere)
+# ----------------------------------------------------------------------------
+# The three-layer policy (metacoin-lab/WORKFLOW.md): public repo = product,
+# private repo = strategic incubation, offline = keys/ledger/kit. Layer 3
+# material must never enter ANY GitHub repo — the public repo enforces this
+# with its forbidden-material scans; this section applies the same patterns
+# to the private incubation clone, when present on this machine.
+PRIVATE_REPO_DIR = os.path.expanduser("~/projects/metacoin-lab")
+_PRIVATE_FORBIDDEN = ("keychain*.json", "*.secret", "*.pem", "*.key",
+                      "ledger_data.jsonl", "recovery_manifest.json",
+                      "continuity_kit")
+
+
+def section_private_repo(private_dir: str = None) -> dict:
+    """Scan the private incubation clone for layer-3 (offline-only) material:
+    keychains, signing secrets, key files, the live ledger, the recovery
+    manifest, the continuity kit. Any hit is a FINDING (private material in
+    a GitHub repo is a policy violation whichever repo it is); an absent
+    clone is a NAMED skip (CI and fresh clones have no private checkout)."""
+    import fnmatch
+    d = private_dir if private_dir is not None else PRIVATE_REPO_DIR
+    if not os.path.isdir(d):
+        return _section("private-repo", [],
+                        [f"no private incubation clone at {d} — SKIPPED "
+                         "(named; coordinator-machine check only)"],
+                        skipped=True)
+    findings, details = [], []
+    scanned = 0
+    for root, dirs, files in os.walk(d):
+        if ".git" in dirs:
+            dirs.remove(".git")
+        for name in list(dirs) + files:
+            scanned += name not in dirs
+            for pat in _PRIVATE_FORBIDDEN:
+                if fnmatch.fnmatch(name, pat):
+                    rel = os.path.relpath(os.path.join(root, name), d)
+                    findings.append(
+                        f"forbidden (offline-only) material in the private "
+                        f"repo: {rel} matches {pat!r} — layer-3 files never "
+                        "enter ANY GitHub repository")
+    if not findings:
+        details.append(f"private incubation clone clean: {scanned} file(s) "
+                       "scanned, no keychain/secret/ledger/kit patterns "
+                       "(the same forbidden-material discipline as the "
+                       "public repo)")
+    return _section("private-repo", findings, details)
+
+
+# ----------------------------------------------------------------------------
 # 8c: release — the readiness gate, INFORMATIONAL by definition
 # ----------------------------------------------------------------------------
 def section_release(base_dir: str = _REPO_ROOT) -> dict:
@@ -778,6 +832,7 @@ def run_sweep(base_dir: str = _REPO_ROOT) -> dict:
         section_drift(base_dir),
         section_mip(base_dir),
         section_release(base_dir),
+        section_private_repo(),
         section_docs(base_dir),
     ])
 
@@ -993,6 +1048,25 @@ def _selftest() -> int:
                        "with intervals",
                        any("sampled" in d and "95% CI" in d
                            for d in s_drift["details"])))
+
+        # [8e] PRIVATE-REPO HYGIENE fixtures: a planted keychain is a named
+        # finding; a clean tree passes; an absent clone is a NAMED skip
+        fx_priv = os.path.join(tmp, "private_repo")
+        os.makedirs(os.path.join(fx_priv, "funding"))
+        with open(os.path.join(fx_priv, "funding", "notes.md"), "w") as f:
+            f.write("clean\n")
+        s_clean_priv = section_private_repo(fx_priv)
+        with open(os.path.join(fx_priv, "keychain_oops.json"), "w") as f:
+            f.write("{}")
+        s_dirty_priv = section_private_repo(fx_priv)
+        s_absent_priv = section_private_repo(os.path.join(tmp, "nope"))
+        checks.append(("private-repo hygiene: clean passes, planted keychain "
+                       "is a named finding, absent clone is a NAMED skip",
+                       s_clean_priv["findings"] == []
+                       and s_clean_priv["status"] == "pass"
+                       and any("keychain_oops.json" in x
+                               for x in s_dirty_priv["findings"])
+                       and s_absent_priv["status"] == "skip"))
 
         # [8d] the release-readiness section is INFORMATIONAL by definition:
         # a NOT-READY verdict (today's expected state, MIP-0005) emits
