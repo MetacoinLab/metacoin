@@ -1060,7 +1060,9 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
     # verified prefix points of this chain, every task-reproduction fact
     # re-derives (recorded hashes match the ledger; recomputed hashes match this
     # run's own re-runs in --full), and the honesty labels hold ('-claimed'
-    # relationship; same-operator intakes labeled as rehearsals). Rejected
+    # relationship; same-operator intakes carry an EARNED topology label —
+    # rehearsal with its no-independence note, or cross-machine justified
+    # by the fingerprint against the coordinator set). Rejected
     # intakes must STAY refuted: the shipped tampered bundle's named failure
     # must still fail today, and the rejection record must remain scanner- and
     # scan-invisible.
@@ -1096,12 +1098,43 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                 problems.append(f"idx {idx}: relationship label must be "
                                 "'-claimed' and match the bundle "
                                 f"(got {rel!r})")
-            if (rel == "same-operator-claimed"
-                    and (p.get("topology") != "intake-rehearsal-same-operator"
-                         or "does not add independence"
-                         not in p.get("limitation_note", ""))):
-                problems.append(f"idx {idx}: same-operator intake not labeled "
-                                "as a rehearsal")
+            if rel == "same-operator-claimed":
+                # two honest labels exist for a same-operator intake, and
+                # each must be EARNED: the rehearsal label carries its
+                # no-independence note; the cross-machine label is decided
+                # by the machine fingerprint, never the declaration — the
+                # recorded fingerprint must match the bundle's and be
+                # foreign to every coordinator machine on the chain (the
+                # same rule release_readiness applies to its criterion)
+                topo = p.get("topology")
+                if topo == "intake-rehearsal-same-operator":
+                    if ("does not add independence"
+                            not in p.get("limitation_note", "")):
+                        problems.append(f"idx {idx}: rehearsal intake "
+                                        "missing the no-independence note")
+                elif topo == "cross-machine-same-operator":
+                    coord_fps = set()
+                    for e2 in entries:
+                        p2 = (e2.get("payload", {})
+                              if isinstance(e2, dict) else {})
+                        for k2 in ("machine_fingerprint",
+                                   "verifier_machine_fingerprint"):
+                            v2 = p2.get(k2)
+                            if isinstance(v2, str) and v2:
+                                coord_fps.add(v2)
+                    rec_fp = p.get("participant_machine_fingerprint")
+                    bun_fp = (f["signed_result"]["result"]
+                              .get("machine_fingerprint"))
+                    if not (isinstance(rec_fp, str) and rec_fp == bun_fp
+                            and coord_fps and rec_fp not in coord_fps):
+                        problems.append(f"idx {idx}: cross-machine label "
+                                        "not earned by the fingerprint "
+                                        "(record vs bundle vs coordinator "
+                                        "set)")
+                else:
+                    problems.append(f"idx {idx}: same-operator intake "
+                                    "carries neither honest topology "
+                                    f"label (got {topo!r})")
             result = f["signed_result"]["result"]
             sig = f["signed_result"]["signature"]
             root = actor_identity.active_root_asof(p.get("actor_id"), entries,
@@ -1169,7 +1202,9 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "bundle sha256 + as-of signature + prefix-bound tips + "
                      "task facts re-derived from shipped evidence; "
                      f"{len(pi_rejects)} rejection(s) (tampered-bundle drill) "
-                     "stay refuted; '-claimed' + rehearsal labeling verified"
+                     "stay refuted; '-claimed' + earned topology labels "
+                     "(rehearsal / fingerprint-justified cross-machine) "
+                     "verified"
                      if not problems else "; ".join(problems[:3])))
 
     all_ok = all(ok for _l, _m, ok, _d in rows)
