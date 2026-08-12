@@ -447,10 +447,20 @@ def _selftest() -> int:
                     if c["status"] == "GAP")
     checks.append(("current state is NOT-READY (expected between releases)",
                    report["verdict"] == "NOT-READY"))
-    checks.append(("exactly the two external-reality gaps are named",
-                   gap_names == ["cross-machine participation",
-                                 "independent mirror active"]
-                   and closes == [CROSS_MACHINE_GAP, MIRROR_GAP]))
+    # ERA-HONEST (not a gap-count assertion — that lives in the current
+    # MIP's anchored verify-run blocks and moves by supersession): every
+    # open gap must be one of the named external-reality criteria with its
+    # own honest closes_with, and the mirror gap is open until the second
+    # device exists
+    _gap_map = {"cross-machine participation": CROSS_MACHINE_GAP,
+                "independent mirror active": MIRROR_GAP,
+                "docs verified": "clean docs"}
+    checks.append(("every open gap is a named criterion with its honest "
+                   "closes_with (external reality, never simulated)",
+                   len(gap_names) >= 1
+                   and all(n in _gap_map for n in gap_names)
+                   and closes == sorted(_gap_map[n] for n in gap_names)
+                   and "independent mirror active" in gap_names))
     checks.append(("every non-gap mechanical criterion passes today",
                    all(c["status"] in ("PASS", "GAP", "SKIPPED", "HUMAN")
                        for c in report["criteria"])
@@ -480,7 +490,9 @@ def _selftest() -> int:
                    and report["verdict"] in ("READY", "NOT-READY")
                    and all({"name", "status", "detail"} <= set(c)
                            for c in report["criteria"])
-                   and report["gap_names"] == [CROSS_MACHINE_GAP, MIRROR_GAP]))
+                   and report["gap_names"] == [c["closes_with"] for c in
+                                               report["criteria"]
+                                               if c["status"] == "GAP"]))
 
     # [5] FIXTURE: a participant record whose bundle fingerprint is NOT a
     # coordinator fingerprint flips the cross-machine criterion to PASS —
@@ -495,7 +507,14 @@ def _selftest() -> int:
     loader = lambda sha: {"signed_result": {"result": {
         "machine_fingerprint": "sha256:" + "e" * 64}}}
     flipped = crit_cross_machine(fake, bundle_loader=loader)
-    rehearsal_only = crit_cross_machine(entries)
+    # the "never flips" fixture must stay honest on a chain that now HAS a
+    # real cross-machine record: force every participant bundle's evidence
+    # fingerprint to a coordinator machine's own — a chain of pure
+    # same-machine rehearsals — and the criterion must stay a GAP
+    _coord_fp = sorted(_coordinator_fingerprints(entries))[0]
+    same_loader = lambda sha: {"signed_result": {"result": {
+        "machine_fingerprint": _coord_fp}}}
+    rehearsal_only = crit_cross_machine(entries, bundle_loader=same_loader)
     checks.append(("fixture cross-machine participant flips the criterion",
                    flipped["status"] == "PASS"))
     checks.append(("the same-machine rehearsal can never flip it (its "
