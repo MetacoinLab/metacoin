@@ -96,7 +96,11 @@ DOCS_DIR = os.path.join(_REPO_ROOT, "docs")
 # Fixed processing order: multi-step walkthrough state (participate init -> run
 # -> bundle) must execute in the order a reader would.
 DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
-             "TRUST-MODEL.md")
+             "TRUST-MODEL.md", "TOUR.md")
+# TOUR.md is ERA-PINNED like the README (era tokens, no chain tokens):
+# --render never touches it, and --check verifies its tagged numbers at
+# its own declared as-of point via the same check_readme machinery.
+TOUR_PATH = os.path.join(DOCS_DIR, "TOUR.md")
 
 # MIP documents (mip/MIP-*.md) join the scan set: their typed idx references
 # are resolved and their verify-run blocks executed exactly like the docs'.
@@ -744,19 +748,22 @@ def _selftest() -> int:
     checks.append((f"the real docs + MIPs check clean ({stats['docs']} docs, "
                    f"{stats['mips']} MIPs, {stats['tokens']} tokens, "
                    f"{stats['idx_refs']} idx refs, {stats['commands']} "
-                   "commands)", real_findings == [] and stats["docs"] == 4
+                   "commands)", real_findings == [] and stats["docs"] == 5
                    and stats["mips"] >= 3))
 
     # [10b] the real README checks clean under era-pin semantics (pinless
     # pre-batch READMEs are a named non-finding; once pinned, every era
     # token must match the chain at the declared as-of point)
     rn_findings, rn_stats = check_readme()
+    t_findings, t_stats = check_readme(TOUR_PATH)
+    rn_findings = rn_findings + t_findings
     for f in rn_findings:
         print(f"    FINDING: {f}")
-    checks.append(("the real README checks clean (era-pinned: "
-                   f"{rn_stats['pinned']}, {rn_stats['era_tokens']} era "
-                   f"tokens, {rn_stats['idx_refs']} idx refs)",
-                   rn_findings == []))
+    checks.append(("the real README + TOUR check clean (era-pinned: "
+                   f"{rn_stats['pinned']}/{t_stats['pinned']}, "
+                   f"{rn_stats['era_tokens']}+{t_stats['era_tokens']} era "
+                   f"tokens)",
+                   rn_findings == [] and t_stats["pinned"]))
 
     # Zero-write guarantees.
     ledger_sha_after = None
@@ -813,9 +820,13 @@ def main(argv=None) -> int:
                                      mip_dir=MIP_DIR)
         r_findings, r_stats = check_readme()
         findings.extend(r_findings)
+        t_findings, t_stats = check_readme(TOUR_PATH)
+        findings.extend(t_findings)
         readme_note = (f"era-pinned, {r_stats['era_tokens']} era tokens"
                        if r_stats["pinned"] else "no era pin (not yet opted "
                        "in)")
+        readme_note += (f" | TOUR era-pinned, {t_stats['era_tokens']} era "
+                        "tokens" if t_stats["pinned"] else " | TOUR unpinned")
         print(f"\ndocs checked: {stats['docs']}/{len(DOC_FILES)} | MIPs "
               f"scanned: {stats['mips']} | README: {readme_note}, "
               f"{r_stats['idx_refs']} idx refs | chain "
