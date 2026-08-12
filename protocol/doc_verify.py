@@ -98,7 +98,7 @@ DOCS_DIR = os.path.join(_REPO_ROOT, "docs")
 # Fixed processing order: multi-step walkthrough state (participate init -> run
 # -> bundle) must execute in the order a reader would.
 DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
-             "TRUST-MODEL.md", "TOUR.md")
+             "TRUST-MODEL.md", "TOUR.md", "COLLABORATE.md")
 # TOUR.md is ERA-PINNED like the README (era tokens, no chain tokens):
 # --render never touches it, and --check verifies its tagged numbers at
 # its own declared as-of point via the same check_readme machinery.
@@ -750,7 +750,7 @@ def _selftest() -> int:
     checks.append((f"the real docs + MIPs check clean ({stats['docs']} docs, "
                    f"{stats['mips']} MIPs, {stats['tokens']} tokens, "
                    f"{stats['idx_refs']} idx refs, {stats['commands']} "
-                   "commands)", real_findings == [] and stats["docs"] == 5
+                   "commands)", real_findings == [] and stats["docs"] == 6
                    and stats["mips"] >= 3))
 
     # [10b] the real README checks clean under era-pin semantics (pinless
