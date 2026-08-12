@@ -7,8 +7,8 @@
 > chain point it describes and re-checked against live state, and nothing here
 > claims more than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->66<!--/chain-->,
-> <!--chain:entry_count-->67<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->68<!--/chain-->,
+> <!--chain:entry_count-->69<!--/chain--> entries.
 
 `metacoin verify` (the zero-install form is
 `python3 metacoin_cli/main.py verify`) is the flagship: one command that
@@ -21,7 +21,9 @@ timing claim, and an anchored acceptance.
 ## The three integrity models
 
 - **VERIFIED-FULL — reproducible computation.** The claim is re-derived from
-  scratch on your machine and compared byte-for-byte (or hash-for-hash)
+  scratch on your machine and compared byte-for-byte (or hash-for-hash;
+  cross-platform bit-equality is earned by the canonical form — see the
+  anchored hash-era transition at idx 67 for the one repair to date)
   against the anchored value. Strongest model: disagreement is impossible to
   miss, and a pass means *your* hardware reproduced the claim.
 - **CLAIM-CHECK — claim-fixing for timing.** Wall-clock and CPU timings are
@@ -45,7 +47,7 @@ The pasted run below is trimmed to the shape of the report; the full pass has
 
 - **chain+anchor** — the hash chain is intact from genesis
   <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->… to tip
-  <!--chain:tip_hash_prefix-->cb2f14ebe142<!--/chain-->…, and the committed tip anchor
+  <!--chain:tip_hash_prefix-->831655e5c828<!--/chain-->…, and the committed tip anchor
   matches. In a fresh clone the published snapshot is the source, and the
   report names that.
 - **tasks** — all <!--chain:recorded_task_count-->18<!--/chain--> recorded

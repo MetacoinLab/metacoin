@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->66<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->cb2f14ebe142<!--/chain-->…,
-> <!--chain:entry_count-->67<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->68<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->831655e5c828<!--/chain-->…,
+> <!--chain:entry_count-->69<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->67<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->69<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -39,9 +39,13 @@ verifier reports them by name rather than absorbing them silently.)
   the same host re-verified its own results — records explicitly labeled as
   adding *no cross-party independence*.
 
-**Proves:** cross-platform deterministic reproducibility of all
-<!--chain:recorded_task_count-->18<!--/chain--> recorded task outputs.
-**Deliberately does not:**
+**Proves:** deterministic reproducibility of all
+<!--chain:recorded_task_count-->18<!--/chain--> recorded task outputs on
+Linux and in CI on every push; cross-platform reproducibility is verified
+for the canonical task on four platforms, and — since the era-2
+negative-zero rule (idx 67 <!--idx:67=task_hash_era_recorded-->) —
+task-0008's era-2 value is cross-confirmed by the macOS incident bundle
+that discovered the divergence. **Deliberately does not:**
 independence (every verifier is the same operator, and each record's
 `operator_relationship` field says so) or execution proof (a matching hash can
 be copied; the protocol says "re-derived", never "proven executed").
@@ -350,6 +354,35 @@ Two properties are the point:
 decision leaves a re-derivable record citing an immutable document.
 **Deliberately does not:** claim legitimacy beyond one operator's seat — the
 process is real; plural review is not, and every record says so.
+
+## The hash-era layer — idx 67-68
+
+The first genuinely-new machine (macOS arm64) found a real bug: two tasks
+emitted an IEEE-754 **negative zero** for analytically-zero quantities, and
+the sign of that zero — a platform artifact of last-ulp libm cancellation,
+with no physical content — was the entire cross-platform divergence (one
+bit; every numeric agreed to six decimals). The fix is a canonical-form
+rule (**no negative zero in any canonical artifact**, in all 17 protocol
+serializers and the affected task sources) and an anchored **code-era
+transition** (idx 67 <!--idx:67=task_hash_era_recorded-->): era-1 hashes
+remain the anchored records' true values, re-derivable at their recorded
+commits; era-2 values govern current re-runs via the anchored map;
+generation-locked rebuilds stay byte-identical through the anchored era-1
+spec hashes. Nothing was rewritten. task-0008's era-2 hash EQUALS the
+macOS machine's organically produced output — the incident bundle is the
+era's founding cross-platform evidence. idx 68
+<!--idx:68=anchored_record_correction--> is an **append-only correction**
+of the coordinator's own transcription error in idx 67's bundle citation,
+caught by post-anchor verification: an error anchored is corrected by
+appending the correction, never by editing — the same rule the protocol
+applies to everything else, applied to the coordinator itself.
+
+**Proves:** the verification stack survives contact with real platform
+diversity by fixing the code and anchoring the transition — append-only,
+era-aware, honest about which values belong to which era.
+**Deliberately does not:** claim bit-reproducibility is unconditional
+across platforms — it is a property the canonical form must EARN, rule by
+rule, and the era machinery exists for the day another rule is needed.
 
 ## The six defeated-attack drills
 

@@ -77,6 +77,10 @@ $ python3 demo/tasks/task_0018_ascent_feasibility.py
 tasks state their engineering-representative constants and idealizations
 in their docstrings). The point is narrower and checkable: negative
 verdicts reproduce bit-for-bit and are anchored like any other fact.
+(Bit-reproducibility across PLATFORMS is a property the canonical form
+must earn — a real macOS run once diverged by a single sign-of-zero bit,
+and the anchored era-2 canonical rule at idx 67 is the repair; the chain
+records the whole story.)
 
 ## Minute 5-7 — the self-measurement
 

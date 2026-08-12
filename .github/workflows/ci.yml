@@ -17,6 +17,11 @@ on:
 jobs:
   selftests:
     runs-on: ubuntu-latest
+    strategy:
+      # Test what we claim: requires-python >=3.9, so the floor runs in CI
+      # beside the current stable (the macOS incident machine ran 3.9.6).
+      matrix:
+        python-version: ["3.9", "3.12"]
     steps:
       # Check out the repository so the demo and protocol scripts are available.
       - name: Checkout
@@ -26,7 +31,7 @@ jobs:
       - name: Set up Python 3
         uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       # Run all demo self-tests through the single runner.
       - name: Run demo self-tests
