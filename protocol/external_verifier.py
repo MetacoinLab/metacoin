@@ -802,8 +802,14 @@ def _rederive_agent_claims(result: dict, ledger: Ledger, snapshot_path: str, anc
             local_hash = None
         ledger_recorded = _find_ledger_task_hash(entries, tid)
         matches_agent = bool(local_hash is not None and local_hash == agent_recomputed)
+        # HASH-ERA aware: the ledger-recorded hash validates against ITS
+        # anchored code era — this host's re-run must land on the
+        # era-translated value (identity when no transition record exists)
+        _era_expected = (verifier_cli.era_expected_hash(
+            tid, ledger_recorded, verifier_cli.load_hash_era_map(entries))
+            if ledger_recorded is not None else None)
         matches_ledger = bool(
-            local_hash is not None and ledger_recorded is not None and local_hash == ledger_recorded
+            local_hash is not None and _era_expected is not None and local_hash == _era_expected
         )
         reproduced = bool(matches_agent and matches_ledger)
         all_tasks_reproduced = all_tasks_reproduced and reproduced
@@ -3123,8 +3129,14 @@ def _rederive_bundle_claims(result: dict, ledger: Ledger, snapshot_path: str,
         ledger_recorded = _find_ledger_task_hash(entries, tid)
         matches_participant = bool(local_hash is not None
                                    and local_hash == rep.get("recomputed_hash"))
+        # HASH-ERA aware: the ledger-recorded hash validates against ITS
+        # anchored code era — this host's re-run must land on the
+        # era-translated value (identity when no transition record exists)
+        _era_expected = (verifier_cli.era_expected_hash(
+            tid, ledger_recorded, verifier_cli.load_hash_era_map(entries))
+            if ledger_recorded is not None else None)
         matches_ledger = bool(local_hash is not None
-                              and local_hash == ledger_recorded)
+                              and local_hash == _era_expected)
         recorded_matches_ledger = bool(ledger_recorded is not None
                                        and rep.get("recorded_hash")
                                        == ledger_recorded)
@@ -5597,6 +5609,62 @@ def _selftest() -> int:
             and "unaffiliated-participant milestone remains open"
             in out_x["evaluation"]["limitation_note"],
             out_x["evaluation"]["topology"],
+        ))
+
+        # (I3c) HASH-ERA AWARE RUNG 4 (the phase-2 intake regression): a
+        # ledger that recorded a task hash under an OLDER anchored code era
+        # must accept a participant whose re-run lands on the CURRENT era's
+        # value — and the anchored transition record is the ONLY thing that
+        # admits it (the control below proves the hook adds no slack).
+        H_OLD = _find_ledger_task_hash(Ledger(agent_base).read_all(), TASK)
+        H_NEW = "3" * 64
+        era_result = _copy.deepcopy(good_bundle["signed_result"]["result"])
+        for _rep in era_result["task_reproductions"]:
+            if _rep["task_id"] == TASK:
+                _rep["recomputed_hash"] = H_NEW
+        kc_era = json.load(open(os.path.join(intake_work,
+                                             participant_kit.KEYCHAIN_FILE),
+                                encoding="utf-8"))
+        e_sig = actor_identity.sign(
+            kc_era, 1,
+            participant_kit.canonical_json(era_result).encode("utf-8"))
+        era_bundle = _copy.deepcopy(good_bundle)
+        era_bundle["signed_result"] = {"result": era_result,
+                                       "signature": e_sig, "key_index": 1}
+        led_era = _fresh_intake_ledger("intake_era.jsonl")
+        led_era.append({"event": verifier_cli.HASH_ERA_EVENT,
+                        "status": verifier_cli.HASH_ERA_STATUS,
+                        "transitions": [{"task_id": TASK,
+                                         "era1_output_hash": H_OLD,
+                                         "era2_output_hash": H_NEW}]})
+        led_ctrl = _fresh_intake_ledger("intake_era_control.jsonl")
+        _era_stub = type("EraStubModule", (),
+                         {"compute": staticmethod(lambda: {}),
+                          "output_hash": staticmethod(lambda r: H_NEW)})
+        _real_load_task = verifier_cli.load_task
+        try:
+            verifier_cli.load_task = (
+                lambda tid: _era_stub if tid == TASK
+                else _real_load_task(tid))
+            v_era = evaluate_intake_bundle(era_bundle, led_era, agent_snap,
+                                           agent_anchor)
+            v_ctrl = evaluate_intake_bundle(era_bundle, led_ctrl, agent_snap,
+                                            agent_anchor)
+        finally:
+            verifier_cli.load_task = _real_load_task
+        checks.append((
+            "RUNG 4 IS HASH-ERA AWARE (era-1-recorded ledger hash validates "
+            "via the anchored transition; era-translated ladder passes)",
+            v_era["overall"] == "pass"
+            and all(r["passed"] for r in v_era["rungs"]),
+            f"overall={v_era['overall']}",
+        ))
+        checks.append((
+            "ERA HOOK ADDS NO SLACK (same bundle WITHOUT the transition "
+            "record still fails rung 4 — identity absent anchored eras)",
+            v_ctrl["overall"] == "fail"
+            and v_ctrl["first_failed_rung"] == "result-substance-rederived",
+            str(v_ctrl["first_failed_rung"]),
         ))
 
         # (I4) EVERY RUNG'S FAILURE FIXTURE — each named check refuses its own
