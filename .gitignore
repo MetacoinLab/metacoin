@@ -176,3 +176,7 @@ prov_*.json
 dist/
 build/
 *.egg-info/
+
+# operator run-sheets for cross-machine sessions contain internal addresses
+# (Tailscale IPs) — never committed; the coordinator prints them in-session
+MACBOOK_STEPS.md

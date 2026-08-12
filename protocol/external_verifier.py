@@ -428,6 +428,19 @@ _INTAKE_REJECTED_EVENT = "participant_intake_rejected"
 _INTAKE_REJECTED_STATUS = "participant-intake-rejected"
 _INTAKE_TOPOLOGY = "participant-intake"
 _INTAKE_REHEARSAL_TOPOLOGY = "intake-rehearsal-same-operator"
+# Same operator, GENUINELY different machine: the bundle's machine
+# fingerprint matches no coordinator machine on the chain. The claim rests
+# on the fingerprint, never on the (self-declared) relationship — and the
+# note says exactly what it adds and what it does not.
+_INTAKE_CROSS_MACHINE_TOPOLOGY = "cross-machine-same-operator"
+INTAKE_CROSS_MACHINE_NOTE = (
+    " CROSS-MACHINE, SAME OPERATOR: this bundle's machine fingerprint "
+    "matches no coordinator machine recorded on the chain — the participant "
+    "pipeline is proven to work across machines and fingerprints. It does "
+    "NOT add operator independence (the relationship is the operator's own "
+    "declaration, and it honestly declares same-operator); the "
+    "unaffiliated-participant milestone remains open."
+)
 _RELATIONSHIP_BASES = ("unaffiliated", "affiliated", "same-operator")
 _CLAIMED_SUFFIX = "-claimed"
 _BUNDLE_REQUIRED_FIELDS = (
@@ -3291,18 +3304,40 @@ def _finish_verdict(bundle, bundle_sha, rungs, state) -> dict:
     }
 
 
-def _intake_labels(relationship_claimed):
+def _intake_labels(relationship_claimed, machine_fingerprint=None,
+                   coordinator_fps=None):
     """(topology, limitation_note) for an intake outcome. A truthfully declared
-    same-operator participant IS a rehearsal of the intake path and every such
-    record says so; any other claimed relationship gets the plain intake
+    same-operator participant on a COORDINATOR machine is a rehearsal of the
+    intake path and every such record says so; the same declaration from a
+    machine whose fingerprint matches no coordinator machine on the chain is
+    the CROSS-MACHINE topology (the claim rests on the fingerprint, not the
+    declaration); any other claimed relationship gets the plain intake
     topology (the note still marks the relationship as claimed-only)."""
     base = (relationship_claimed[: -len(_CLAIMED_SUFFIX)]
             if isinstance(relationship_claimed, str)
             and relationship_claimed.endswith(_CLAIMED_SUFFIX) else None)
     if base == "same-operator":
+        if (isinstance(machine_fingerprint, str) and machine_fingerprint
+                and coordinator_fps
+                and machine_fingerprint not in coordinator_fps):
+            return (_INTAKE_CROSS_MACHINE_TOPOLOGY,
+                    PARTICIPANT_LIMITATION_NOTE + INTAKE_CROSS_MACHINE_NOTE)
         return (_INTAKE_REHEARSAL_TOPOLOGY,
                 PARTICIPANT_LIMITATION_NOTE + INTAKE_REHEARSAL_NOTE)
     return (_INTAKE_TOPOLOGY, PARTICIPANT_LIMITATION_NOTE)
+
+
+def _coordinator_machine_fingerprints(entries):
+    """Every machine fingerprint a coordinator record carries — the same rule
+    protocol/release_readiness.py applies for its cross-machine criterion."""
+    fps = set()
+    for e in entries:
+        p = e.get("payload", {}) if isinstance(e, dict) else {}
+        for k in ("machine_fingerprint", "verifier_machine_fingerprint"):
+            v = p.get(k)
+            if isinstance(v, str) and v:
+                fps.add(v)
+    return fps
 
 
 def anchor_intake(bundle: dict, verdict: dict, ledger: Ledger,
@@ -3333,7 +3368,11 @@ def anchor_intake(bundle: dict, verdict: dict, ledger: Ledger,
             f"is {sha[:16]}..) — re-run the intake evaluation")
 
     rel = bundle.get("relationship_claimed")
-    topology, note = _intake_labels(rel)
+    bundle_fp = (((bundle.get("signed_result") or {}).get("result") or {})
+                 .get("machine_fingerprint"))
+    topology, note = _intake_labels(
+        rel, machine_fingerprint=bundle_fp,
+        coordinator_fps=_coordinator_machine_fingerprints(ledger.read_all()))
 
     if verdict.get("overall") != "pass":
         failed_name = verdict.get("first_failed_rung")
@@ -3438,6 +3477,10 @@ def anchor_intake(bundle: dict, verdict: dict, ledger: Ledger,
         "signature_valid": True,
         "key_root_ledger_index": root_index,
         "operator_relationship": rel,
+        # the participant machine's fingerprint ON the record (additive): the
+        # cross-machine topology's factual basis, verifiable against the
+        # shipped bundle evidence and the coordinator fingerprints on-chain
+        "participant_machine_fingerprint": bundle_fp,
         "human_confirmed": True,
         "limitation_note": note,
         "zero_value": True,
@@ -5360,6 +5403,63 @@ def _selftest() -> int:
             and out_r["evaluation"]["operator_relationship"]
             == "same-operator-claimed",
             out_r["evaluation"]["topology"],
+        ))
+
+        # (I3b) CROSS-MACHINE, SAME OPERATOR: the topology decision rests on
+        # the machine fingerprint, never the declaration. Unit mapping first;
+        # then the FULL ladder with a foreign-fingerprint bundle (built by
+        # patching the fingerprint source during the participant run — the
+        # signature covers the foreign value, so every rung passes honestly).
+        fps_fix = {"sha256:" + "c" * 64}
+        checks.append((
+            "INTAKE LABELS: same-op + coordinator fp = rehearsal; same-op + "
+            "foreign fp = cross-machine; unknown coordinator set stays "
+            "rehearsal (conservative); other relationships plain",
+            _intake_labels("same-operator-claimed", "sha256:" + "c" * 64,
+                           fps_fix)[0] == _INTAKE_REHEARSAL_TOPOLOGY
+            and _intake_labels("same-operator-claimed", "sha256:" + "d" * 64,
+                               fps_fix)[0] == _INTAKE_CROSS_MACHINE_TOPOLOGY
+            and _intake_labels("same-operator-claimed", "sha256:" + "d" * 64,
+                               set())[0] == _INTAKE_REHEARSAL_TOPOLOGY
+            and _intake_labels("unaffiliated-claimed", "sha256:" + "d" * 64,
+                               fps_fix)[0] == _INTAKE_TOPOLOGY,
+            "mapping holds",
+        ))
+        xm_work = os.path.join(tmp, "crossmachine_work")
+        os.makedirs(xm_work)
+        # the participant result's fingerprint is bound inside agent_verifier
+        # (from-import), so THAT is the name to patch for the foreign-machine
+        # fixture — the signature then covers the foreign value honestly
+        import protocol.agent_verifier as _agent_verifier
+        _real_fp = _agent_verifier.machine_fingerprint
+        try:
+            _agent_verifier.machine_fingerprint = (
+                lambda: "sha256:" + "e" * 64)
+            participant_kit.init_participant(
+                "crossmachine-fixture", "same-operator", key_count=2,
+                workdir=xm_work, published_path=agent_snap)
+            participant_kit.run_participant(xm_work, agent_snap, agent_anchor)
+            xm_bundle, _xm_sha = participant_kit.build_bundle(xm_work)
+        finally:
+            _agent_verifier.machine_fingerprint = _real_fp
+        led_x = _fresh_intake_ledger("intake_crossmachine.jsonl")
+        v_x = evaluate_intake_bundle(xm_bundle, led_x, agent_snap,
+                                     agent_anchor)
+        out_x = anchor_intake(xm_bundle, v_x, led_x)
+        checks.append((
+            "CROSS-MACHINE INTAKE: foreign fingerprint -> cross-machine "
+            "topology on BOTH records, fingerprint ON the record, the "
+            "'remains open' note carried",
+            v_x["overall"] == "pass"
+            and out_x["evaluation"]["topology"]
+            == _INTAKE_CROSS_MACHINE_TOPOLOGY
+            and out_x["registration_entry"]["payload"]["topology"]
+            == _INTAKE_CROSS_MACHINE_TOPOLOGY
+            and out_x["evaluation"]["participant_machine_fingerprint"]
+            == "sha256:" + "e" * 64
+            and "unaffiliated-participant milestone remains open"
+            in out_x["evaluation"]["limitation_note"],
+            out_x["evaluation"]["topology"],
         ))
 
         # (I4) EVERY RUNG'S FAILURE FIXTURE — each named check refuses its own
