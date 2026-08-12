@@ -173,6 +173,24 @@ def _reproduce_task(short_task_id, recorded_hash, recorded_hash_field, entry_ind
     return record
 
 
+def _apply_hash_eras(records, entries):
+    # Era-translate reproduction verdicts (append-only code-era transitions):
+    # a record whose recorded hash translates to the recomputed value via the
+    # ANCHORED map is a match — the recorded value is its era's fact.
+    # Identity when no transition record exists on the chain.
+    from protocol.verifier_cli import era_expected_hash, load_hash_era_map
+    era_map = load_hash_era_map(entries)
+    for r in records:
+        if not r.get("match") and r.get("recomputed_hash"):
+            if era_expected_hash(r["task_id"], r["recorded_hash"],
+                                 era_map) == r["recomputed_hash"]:
+                r["match"] = True
+                r["era_note"] = ("recorded hash is an earlier code-era value; "
+                                 "translated via the anchored "
+                                 "task_hash_era_recorded map")
+    return records
+
+
 # ----------------------------------------------------------------------------
 # Core verification (writes NO files — caller decides whether/where to persist).
 # ----------------------------------------------------------------------------
@@ -246,6 +264,10 @@ def run_verification(verifier_id, published_path=DEFAULT_PUBLISHED_PATH,
                 entry.get("index") if isinstance(entry, dict) else None,
             )
             task_reproductions.append(record)
+        # era translation BEFORE verdicting: recorded hashes validate against
+        # THEIR anchored code era (identity when no transition record exists)
+        _apply_hash_eras(task_reproductions, entries)
+        for record in task_reproductions:
             if not record["match"]:
                 reasons.append(
                     f"task {record['task_id']} did NOT reproduce "

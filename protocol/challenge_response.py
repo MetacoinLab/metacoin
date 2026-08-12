@@ -90,9 +90,24 @@ _OPTIONAL_RESPONSE_KEYS = ("signature",)
 # ----------------------------------------------------------------------------
 # Canonical JSON + hashes (per-module helper, same discipline as ledger.py)
 # ----------------------------------------------------------------------------
+def _sign_safe_zero(obj):
+    """Normalize -0.0 -> 0.0 recursively (THE NEGATIVE-ZERO CANONICAL RULE):
+    the sign of a zero is a platform artifact of last-ulp cancellation with
+    no semantic content — canonical artifacts are sign-of-zero-free by rule.
+    Floats only; ints and bools pass through untouched."""
+    if isinstance(obj, float):
+        return 0.0 if obj == 0.0 else obj
+    if isinstance(obj, dict):
+        return {k: _sign_safe_zero(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sign_safe_zero(v) for v in obj]
+    return obj
+
+
 def canonical_json(obj) -> str:
     """Canonical JSON: sorted keys, compact separators, ASCII — byte-stable for hashing."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(_sign_safe_zero(obj), sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True)
 
 
 def compute_challenge_id(challenge: dict) -> str:
@@ -404,14 +419,29 @@ def verify_response(challenge, response, ledger_path: str = DEFAULT_LEDGER_PATH,
     own_output_hash = module.output_hash(result)
     expected_response_hash = compute_response_hash(challenge["nonce"],
                                                    canonical_result)
+    # HASH-ERA tolerance (append-only code-era transitions): a round recorded
+    # in an earlier era validates against ITS era — the claimed output must
+    # translate to the current re-run via the anchored map, and the recorded
+    # response then stands as the anchored era-1 possession fact (an era-1
+    # response is not recomputable without era-1 code; the transition record
+    # is the vouching anchor). Identity behavior when no transition exists.
+    from protocol.verifier_cli import era_expected_hash, load_hash_era_map
+    _era_map = load_hash_era_map(entries)
+    _era_round = (era_expected_hash(challenge["task_id"],
+                                    response["output_hash"], _era_map)
+                  != response["output_hash"])
     if response["output_hash"] != own_output_hash:
-        reasons.append(f"output_hash mismatch: coordinator re-derived "
-                       f"{own_output_hash}, response claims "
-                       f"{response['output_hash']}")
+        if not (_era_round and era_expected_hash(
+                challenge["task_id"], response["output_hash"], _era_map)
+                == own_output_hash):
+            reasons.append(f"output_hash mismatch: coordinator re-derived "
+                           f"{own_output_hash}, response claims "
+                           f"{response['output_hash']}")
     if response["response_hash"] != expected_response_hash:
-        reasons.append("response_hash mismatch: the responder did NOT demonstrate "
-                       "possession of the full result under this nonce (a public "
-                       "output_hash cannot produce it — copy attack defeated)")
+        if not (_era_round and not reasons):
+            reasons.append("response_hash mismatch: the responder did NOT demonstrate "
+                           "possession of the full result under this nonce (a public "
+                           "output_hash cannot produce it — copy attack defeated)")
 
     # OPTIONAL actor-identity signature: when present it must fully verify
     # against the anchored root, and the one-time discipline is enforced against

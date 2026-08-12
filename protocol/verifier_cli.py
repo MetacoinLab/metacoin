@@ -110,6 +110,60 @@ def load_task(task_id: str):
     return importlib.import_module(TASK_MODULES[normalize_task_id(task_id)])
 
 
+# ----------------------------------------------------------------------------
+# HASH ERAS (the append-only code-era transition machinery). A recorded task
+# hash was produced by the code at its recorded verifier_repo_commit; when a
+# canonical-form fix changes a task's output hash, the transition is ANCHORED
+# (event task_hash_era_recorded) and verifiers translate: current re-runs are
+# checked against the CURRENT era's value, historical records validate against
+# THEIR era via the anchored map. Absent any transition record, every function
+# here is the identity — behavior byte-identical to the pre-era protocol.
+# History is never rewritten: era-1 values remain re-derivable at their
+# recorded commits, and the map itself is an anchored, append-only fact.
+# ----------------------------------------------------------------------------
+HASH_ERA_EVENT = "task_hash_era_recorded"
+HASH_ERA_STATUS = "hash-era-recorded"
+
+
+def load_hash_era_map(entries) -> dict:
+    """{(task_id, older_hash): newer_hash} from every anchored confirmed
+    hash-era transition record, in chain order."""
+    m = {}
+    for e in entries:
+        p = e.get("payload", {}) if isinstance(e, dict) else {}
+        if (p.get("event") == HASH_ERA_EVENT
+                and p.get("status") == HASH_ERA_STATUS):
+            for t in p.get("transitions", []):
+                m[(t.get("task_id"), t.get("era1_output_hash"))] = (
+                    t.get("era2_output_hash"))
+    return m
+
+
+def era_expected_hash(task_id, recorded_hash, era_map) -> str:
+    """Translate a recorded hash to the CURRENT era's expected value by
+    following anchored transitions (identity when none apply)."""
+    seen = set()
+    h = recorded_hash
+    while (task_id, h) in era_map and h not in seen:
+        seen.add(h)
+        h = era_map[(task_id, h)]
+    return h
+
+
+def era2_expectation(entries, key):
+    """A named era-2 replay expectation (e.g. 'economy_gen1_log_hash') from
+    the NEWEST anchored transition record, or None when none carries it."""
+    value = None
+    for e in entries:
+        p = e.get("payload", {}) if isinstance(e, dict) else {}
+        if (p.get("event") == HASH_ERA_EVENT
+                and p.get("status") == HASH_ERA_STATUS):
+            v = (p.get("era2_expectations") or {}).get(key)
+            if v is not None:
+                value = v
+    return value
+
+
 def machine_fingerprint() -> str:
     """A COARSE, NON-identifying fingerprint: sha256 of platform string + machine arch.
 

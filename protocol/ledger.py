@@ -63,9 +63,24 @@ DEFAULT_LEDGER_PATH = os.path.join(
 )
 
 
+def _sign_safe_zero(obj):
+    """Normalize -0.0 -> 0.0 recursively (THE NEGATIVE-ZERO CANONICAL RULE):
+    the sign of a zero is a platform artifact of last-ulp cancellation with
+    no semantic content — canonical artifacts are sign-of-zero-free by rule.
+    Floats only; ints and bools pass through untouched."""
+    if isinstance(obj, float):
+        return 0.0 if obj == 0.0 else obj
+    if isinstance(obj, dict):
+        return {k: _sign_safe_zero(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sign_safe_zero(v) for v in obj]
+    return obj
+
+
 def _canonical(obj) -> str:
     """Canonical JSON: sorted keys, compact separators, ASCII — byte-stable for hashing."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(_sign_safe_zero(obj), sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True)
 
 
 def _content_for_hash(entry: dict) -> dict:
@@ -400,10 +415,68 @@ def _selftest() -> int:
         print()
 
         # --- overall pass/fail ----------------------------------------------------------
+        # --- THE NEGATIVE-ZERO CANONICAL RULE + the hash-era machinery ------------
+        # (a) normalization: bare, nested, listed; ints/bools untouched
+        rule_ok = (_canonical(-0.0) == "0.0"
+                   and _canonical({"a": -0.0, "b": [-0.0, {"c": -0.0}]})
+                   == '{"a":0.0,"b":[0.0,{"c":0.0}]}'
+                   and _canonical({"i": 0, "t": True}) == '{"i":0,"t":true}')
+        # (b) round(x, 6) interplay: the incident mechanism — a tiny negative
+        # residual rounds to -0.0, and canonical form erases the sign
+        residual = -2.7755575615628914e-16
+        rule_ok = (rule_ok and repr(round(residual, 6)) == "-0.0"
+                   and _canonical({"v": round(residual, 6)}) == '{"v":0.0}')
+        # (c) the one-bit fixture: dicts differing ONLY by zero-sign
+        # canonicalize identically (the macOS incident, made impossible)
+        rule_ok = (rule_ok and _canonical({"fk_x_m": -0.0})
+                   == _canonical({"fk_x_m": 0.0}))
+        # (d) CROSS-COPY BYTE-COMPAT: every canonical serializer in the
+        # protocol implements the same rule and produces identical bytes
+        import importlib
+        import sys as _sys
+        _repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _repo_root not in _sys.path:
+            _sys.path.insert(0, _repo_root)
+        fixture = {"z": -0.0, "list": [1, -0.0, 2.5], "nested": {"w": -0.0},
+                   "s": "keep -0.0 strings verbatim", "n": 3}
+        outs = {_canonical(fixture)}
+        for modname in ("protocol.work_molecule", "protocol.actor_identity",
+                        "protocol.agent_concentration",
+                        "protocol.challenge_response",
+                        "protocol.cut_certificate", "protocol.gate3_process",
+                        "protocol.metawork_passport", "protocol.routine_sweep",
+                        "protocol.trust_vector", "demo.economy_demo",
+                        "demo.flow1_uptime", "demo.metastar_treasury",
+                        "demo.participant_kit", "demo.task_metering"):
+            outs.add(importlib.import_module(modname).canonical_json(fixture))
+        from protocol.attest import _canonical_json as _attest_cj
+        from protocol.verify_everything import _canonical as _ve_cj
+        outs.add(_attest_cj(fixture))
+        outs.add(_ve_cj(fixture))
+        compat_ok = len(outs) == 1 and '"z":0.0' in next(iter(outs))
+        # (e) hash-era machinery: identity absent transitions; translation +
+        # chaining + cycle-safety with a fixture map
+        from protocol.verifier_cli import era_expected_hash
+        m = {("task-x", "a"): "b", ("task-x", "b"): "c"}
+        era_ok = (era_expected_hash("task-x", "a", {}) == "a"
+                  and era_expected_hash("task-x", "a", m) == "c"
+                  and era_expected_hash("task-y", "a", m) == "a"
+                  and era_expected_hash("task-x", "zzz", m) == "zzz"
+                  and era_expected_hash("task-x", "a",
+                                        {("task-x", "a"): "b",
+                                         ("task-x", "b"): "a"}) in ("a", "b"))
+        print(f"NEGATIVE-ZERO RULE (normalize/round/one-bit): "
+              f"{'PASS' if rule_ok else 'FAIL'}")
+        print(f"CROSS-COPY BYTE-COMPAT (17 canonical serializers, one byte "
+              f"stream): {'PASS' if compat_ok else 'FAIL'}")
+        print(f"HASH-ERA MAP (identity absent transitions; chained "
+              f"translation): {'PASS' if era_ok else 'FAIL'}")
+
         ok_overall = (
             honest_ok
             and honest_again_ok
             and all(detected for _l, detected, _r in results)
+            and rule_ok and compat_ok and era_ok
         )
         print("=== self-test summary: " +
               ("ALL CHECKS BEHAVED CORRECTLY" if ok_overall else "FAILURE — see above") +

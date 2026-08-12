@@ -74,9 +74,24 @@ _ECONOMY_STATUS = "economy-demo-confirmed"
 _ENTRY_TYPES = ("fee_collection", "provisional_grant", "clawback", "finalization")
 
 
+def _sign_safe_zero(obj):
+    """Normalize -0.0 -> 0.0 recursively (THE NEGATIVE-ZERO CANONICAL RULE):
+    the sign of a zero is a platform artifact of last-ulp cancellation with
+    no semantic content — canonical artifacts are sign-of-zero-free by rule.
+    Floats only; ints and bools pass through untouched."""
+    if isinstance(obj, float):
+        return 0.0 if obj == 0.0 else obj
+    if isinstance(obj, dict):
+        return {k: _sign_safe_zero(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sign_safe_zero(v) for v in obj]
+    return obj
+
+
 def canonical_json(obj) -> str:
     """Canonical JSON: sorted keys, compact separators, ASCII — byte-stable."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(_sign_safe_zero(obj), sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True)
 
 
 def _round(x) -> float:
@@ -135,7 +150,16 @@ def derive_fees(ledger_path: str = DEFAULT_LEDGER_PATH, funding_root: str = None
                              "derive fees from it")
     generation = anchor["payload"].get("generation", 1)
     log = economy_demo.simulate_all(generation)
-    if log["economy_log_hash"] != anchor["payload"]["economy_log_hash"]:
+    # HASH-ERA aware: after an anchored code-era transition, the current-era
+    # replay lands on the era-2 log hash anchored ON the transition record;
+    # the original anchored hash remains the era-1 fact (identity when no
+    # transition record exists).
+    from protocol.verifier_cli import era2_expectation
+    expected_log = (era2_expectation(
+        work_molecule._read_ledger(ledger_path),
+        f"economy_gen{generation}_log_hash")
+                    or anchor["payload"]["economy_log_hash"])
+    if log["economy_log_hash"] != expected_log:
         raise ValueError("re-derived economy log hash does not match the "
                          "anchored record — refusing to derive fees")
     per_day = [{"day": d["day"], "spent": d["spent"],

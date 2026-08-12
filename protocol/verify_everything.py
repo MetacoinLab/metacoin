@@ -103,8 +103,23 @@ conditional on the committed anchors — not re-proof. Not consensus, not paymen
 not investment advice."""
 
 
+def _sign_safe_zero(obj):
+    """Normalize -0.0 -> 0.0 recursively (THE NEGATIVE-ZERO CANONICAL RULE):
+    the sign of a zero is a platform artifact of last-ulp cancellation with
+    no semantic content — canonical artifacts are sign-of-zero-free by rule.
+    Floats only; ints and bools pass through untouched."""
+    if isinstance(obj, float):
+        return 0.0 if obj == 0.0 else obj
+    if isinstance(obj, dict):
+        return {k: _sign_safe_zero(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sign_safe_zero(v) for v in obj]
+    return obj
+
+
 def _canonical(obj) -> str:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(_sign_safe_zero(obj), sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True)
 
 
 def _find_task_hash(entries, task_id):
@@ -204,6 +219,10 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
     source_note = ("source: live ledger (coordinator machine)" if have_live
                    else "source: published snapshot (fresh clone)")
     entries = work_molecule._read_ledger(source)
+    # HASH-ERA translation (append-only code-era transitions): recorded
+    # hashes validate against THEIR era; re-runs compare against the CURRENT
+    # era via the anchored map. Identity when no transition record exists.
+    era_map = verifier_cli.load_hash_era_map(entries)
 
     # anchored records every later layer compares against
     idx17_i, idx17 = _find_anchor_payload(entries, "work_molecule_catalog_anchored",
@@ -252,7 +271,8 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
             recorded = _find_task_hash(entries, tid)
             if recorded is None:
                 unanchored.append(tid)
-            elif recorded != local:
+            elif verifier_cli.era_expected_hash(tid, recorded,
+                                               era_map) != local:
                 bad.append(tid)
         recorded_n = len(task_ids) - len(unanchored)
         note = (f"all {recorded_n} recorded canonical hashes re-derived and "
@@ -265,7 +285,8 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         probe = "task-0002"
         module = verifier_cli.load_task(probe)
         local = module.output_hash(module.compute())
-        ok = _find_task_hash(entries, probe) == local
+        ok = verifier_cli.era_expected_hash(
+            probe, _find_task_hash(entries, probe), era_map) == local
         rows.append(("tasks (1 probe)", FULL, ok,
                      f"probe {probe} re-run matches the ledger "
                      f"({len(task_ids) - 1} others not re-run in --quick)"))
@@ -413,7 +434,10 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         bad_gens = []
         for gi, gp, gen in econ_gens:
             log = economy_demo.simulate_all(gen)
-            if log["economy_log_hash"] != gp["economy_log_hash"]:
+            expected_log = (verifier_cli.era2_expectation(
+                entries, f"economy_gen{gen}_log_hash")
+                or gp["economy_log_hash"])
+            if log["economy_log_hash"] != expected_log:
                 bad_gens.append(f"gen-{gen} (idx-{gi})")
         rows.append(("economy", FULL, not bad_gens,
                      f"{len(econ_gens)} generation(s) re-run: "
@@ -470,7 +494,10 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                         "— the exact-arithmetic rule")
                 expected = (canonical.get(tid)
                             if full else _find_task_hash(entries, tid))
-                if row.get("output_hash") != expected:
+                if verifier_cli.era_expected_hash(
+                        tid, row.get("output_hash"), era_map) != (
+                        verifier_cli.era_expected_hash(tid, expected, era_map)
+                        if not full else expected):
                     problems.append(
                         f"{tid}: recorded output_hash "
                         f"{str(row.get('output_hash'))[:16]}.. does not match "
@@ -596,9 +623,17 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
             expected = challenge_response.compute_response_hash(
                 p["nonce"], module.canonical_json(result))
             own_hash = module.output_hash(result)
+            # a round on a transitioned task validates against ITS era: the
+            # current re-run must land on the era-translated output, and the
+            # recorded response stands as the anchored era-1 possession fact
+            transitioned = (verifier_cli.era_expected_hash(
+                p["task_id"], p["output_hash"], era_map) != p["output_hash"])
             if p["status"] == "challenge-verified":
                 n_verified += 1
-                if p["response_hash"] != expected or p["output_hash"] != own_hash:
+                out_ok = (verifier_cli.era_expected_hash(
+                    p["task_id"], p["output_hash"], era_map) == own_hash)
+                resp_ok = (p["response_hash"] == expected) or transitioned
+                if not (out_ok and resp_ok):
                     problems.append(f"idx {idx}: verified round does not re-derive")
             else:
                 n_failed += 1
@@ -1089,7 +1124,10 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                 ledger_hash = _find_task_hash(entries, tid)
                 expected = canonical.get(tid) if full else ledger_hash
                 if (rep.get("recorded_hash") != ledger_hash
-                        or rep.get("recomputed_hash") != expected):
+                        or verifier_cli.era_expected_hash(
+                            tid, rep.get("recomputed_hash"), era_map)
+                        != verifier_cli.era_expected_hash(
+                            tid, expected, era_map)):
                     problems.append(f"idx {idx}: task {tid} reproduction facts "
                                     "do not re-derive")
                     break

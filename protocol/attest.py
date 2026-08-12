@@ -76,12 +76,27 @@ MACHINE_NOTE = (
 ATTESTATION_VERSION = 1
 
 
+def _sign_safe_zero(obj):
+    """Normalize -0.0 -> 0.0 recursively (THE NEGATIVE-ZERO CANONICAL RULE):
+    the sign of a zero is a platform artifact of last-ulp cancellation with
+    no semantic content — canonical artifacts are sign-of-zero-free by rule.
+    Floats only; ints and bools pass through untouched."""
+    if isinstance(obj, float):
+        return 0.0 if obj == 0.0 else obj
+    if isinstance(obj, dict):
+        return {k: _sign_safe_zero(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sign_safe_zero(v) for v in obj]
+    return obj
+
+
 def _canonical_json(obj) -> str:
     """Canonical JSON: sorted keys, compact separators, ASCII — byte-stable for the MAC.
 
     (Same serialization discipline as the R1 ledger, so both layers are deterministic.)
     """
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return json.dumps(_sign_safe_zero(obj), sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=True)
 
 
 class SoftwareAttestor:

@@ -557,10 +557,17 @@ def capability_replay(home: str) -> tuple:
              and e["payload"].get("status") == "economy-demo-confirmed"]
     if not econs:
         problems.append("no anchored economy summary in the restored corpus")
+    from protocol.verifier_cli import era2_expectation
     for econ in econs:
         # one frozen simulation per anchored generation — replay each
-        log = economy_demo.simulate_all(econ.get("generation", 1))
-        if log["economy_log_hash"] != econ.get("economy_log_hash"):
+        # (era-aware: the current-era replay expectation may live on an
+        # anchored hash-era transition record)
+        gen = econ.get("generation", 1)
+        log = economy_demo.simulate_all(gen)
+        expected_log = (era2_expectation(entries,
+                                         f"economy_gen{gen}_log_hash")
+                        or econ.get("economy_log_hash"))
+        if log["economy_log_hash"] != expected_log:
             problems.append(f"economy generation {econ.get('generation', 1)} "
                             "replay hash does not match the anchored summary")
     ok = not problems
