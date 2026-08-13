@@ -54,6 +54,7 @@ sys.dont_write_bytecode = True
 
 import argparse
 import glob
+import hashlib
 import json
 import os
 import subprocess
@@ -70,11 +71,6 @@ from protocol.prov_export import resolve_ledger_path
 from protocol.work_molecule import _read_ledger, find_evidence_file
 
 SCHEMA_VERSION = "release-readiness/0.1"
-
-# The declared location for EXTERNAL (non-coordinator-device) mirrors: a
-# gitignored local config naming paths a second device syncs. Absent config
-# is the honest current state — the gap is named, never simulated away.
-EXTERNAL_MIRRORS_CONFIG = os.path.join(_REPO_ROOT, "external_mirrors.json")
 
 CROSS_MACHINE_GAP = "awaits a second machine or an external participant"
 MIRROR_GAP = "awaits the second device"
@@ -200,36 +196,83 @@ def crit_cross_machine(entries, bundle_loader=None) -> dict:
               CROSS_MACHINE_GAP)
 
 
-def crit_independent_mirror() -> dict:
-    """An external, non-coordinator-device mirror: requires the gitignored
-    external_mirrors.json config naming path(s) a second device syncs, each
-    passing continuity's --check-mirror. No config is today's honest state."""
-    if not os.path.exists(EXTERNAL_MIRRORS_CONFIG):
+def crit_independent_mirror(entries, bundle_loader=None) -> dict:
+    """CHAIN-DERIVED (the criterion must re-derive in any fresh clone —
+    CI, doc sandboxes, cold installs — so its evidence is the chain plus
+    the committed evidence bundle, never a coordinator-local config):
+    the newest anchored mirror attestation must exist, its shipped
+    evidence bundle must match the anchored sha, the signed fingerprint
+    must match no coordinator machine on the chain (the device rule,
+    fingerprint-decided), the attested chain point must be a verified
+    prefix of the current chain, and the mirror check verdict must be
+    IDENTICAL/BEHIND. Ongoing freshness is the weekly sweep's
+    informational job — the anchored attestation is the criterion's
+    evidence. (The earlier external_mirrors.json config form was never
+    exercised and is retired by MIP-0007.)"""
+    recs = [e for e in entries
+            if isinstance(e.get("payload"), dict)
+            and e["payload"].get("event") == "mirror_attestation_anchored"
+            and e["payload"].get("status") == "mirror-attested"]
+    if not recs:
         return _c("independent mirror active", "GAP",
-                  "no external mirror is configured "
-                  f"({os.path.basename(EXTERNAL_MIRRORS_CONFIG)} absent) — "
+                  "no anchored mirror attestation from a second device — "
                   "the in-repo mirror_export/ is the coordinator's own "
                   "device and does not count",
                   MIRROR_GAP)
+    e = recs[-1]
+    p = e["payload"]
+    sha = str(p.get("bundle_sha256"))
+
+    def _default_loader(s):
+        path = find_evidence_file(f"mirror_attestation_{s[:12]}.json")
+        if not path:
+            return None
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    loader = bundle_loader or _default_loader
     try:
-        with open(EXTERNAL_MIRRORS_CONFIG) as f:
-            paths = json.load(f).get("mirrors", [])
-    except (json.JSONDecodeError, OSError) as exc:
+        bundle = loader(sha)
+    except (OSError, json.JSONDecodeError, ValueError):
+        bundle = None
+    if not isinstance(bundle, dict):
         return _c("independent mirror active", "GAP",
-                  f"mirror config unreadable: {exc}", MIRROR_GAP)
-    if not paths:
+                  f"idx {e['index']}: mirror attestation evidence file "
+                  "missing", "the shipped evidence bundle")
+    canonical = json.dumps(bundle, sort_keys=True, separators=(",", ":"),
+                           ensure_ascii=True).encode("utf-8")
+    if hashlib.sha256(canonical).hexdigest() != sha:
         return _c("independent mirror active", "GAP",
-                  "mirror config names no paths", MIRROR_GAP)
-    import protocol.continuity as continuity
-    bad = []
-    for path in paths:
-        verdict = continuity.check_mirror(path)
-        if verdict.get("verdict") not in ("IDENTICAL", "BEHIND"):
-            bad.append(f"{path}: {verdict.get('verdict')}")
-    return _c("independent mirror active", "PASS" if not bad else "GAP",
-              f"{len(paths)} external mirror(s) verify (IDENTICAL/BEHIND)"
-              if not bad else "; ".join(bad),
-              None if not bad else "a healthy external mirror")
+                  f"idx {e['index']}: evidence bundle sha256 does not match "
+                  "the anchored claim", "matching evidence")
+    att = bundle.get("attestation", {})
+    fp = att.get("machine_fingerprint")
+    coord = _coordinator_fingerprints(entries)
+    m = p.get("mirror", {})
+    ti, th = m.get("tip_index"), m.get("tip_hash")
+    prefix_ok = (isinstance(ti, int) and 0 <= ti < len(entries)
+                 and entries[ti].get("hash") == th)
+    problems = []
+    if not (isinstance(fp, str) and fp
+            and fp == p.get("participant_machine_fingerprint")
+            and coord and fp not in coord):
+        problems.append("the device rule fails: the signed fingerprint must "
+                        "match the record and no coordinator machine")
+    if not prefix_ok:
+        problems.append("the attested chain point is not a verified prefix "
+                        "of the current chain")
+    if p.get("check_verdict") not in ("IDENTICAL", "BEHIND"):
+        problems.append(f"check verdict {p.get('check_verdict')!r} does not "
+                        "attest a healthy mirror")
+    if problems:
+        return _c("independent mirror active", "GAP",
+                  f"idx {e['index']}: " + "; ".join(problems),
+                  "a verifying second-device attestation")
+    return _c("independent mirror active", "PASS",
+              f"idx {e['index']}: mirror attested by a non-coordinator "
+              "device (fingerprint-decided); attested chain point idx "
+              f"{ti} is a verified prefix of the current chain; freshness "
+              "is reported by the weekly sweep")
 
 
 def crit_docs(entries) -> dict:
@@ -338,7 +381,7 @@ def run_gate(fast: bool = False, ledger_source: str = None,
         crit_cold_install(fast, echo=echo),
         crit_participant_loop(entries),
         crit_cross_machine(entries),
-        crit_independent_mirror(),
+        crit_independent_mirror(entries),
         crit_docs(entries),
         crit_sentry(),
         crit_governance(),
@@ -456,11 +499,10 @@ def _selftest() -> int:
                 "independent mirror active": MIRROR_GAP,
                 "docs verified": "clean docs"}
     checks.append(("every open gap is a named criterion with its honest "
-                   "closes_with (external reality, never simulated)",
-                   len(gap_names) >= 1
-                   and all(n in _gap_map for n in gap_names)
-                   and closes == sorted(_gap_map[n] for n in gap_names)
-                   and "independent mirror active" in gap_names))
+                   "closes_with (external reality, never simulated; an "
+                   "empty gap list is a legitimate era)",
+                   all(n in _gap_map for n in gap_names)
+                   and closes == sorted(_gap_map[n] for n in gap_names)))
     checks.append(("every non-gap mechanical criterion passes today",
                    all(c["status"] in ("PASS", "GAP", "SKIPPED", "HUMAN")
                        for c in report["criteria"])
@@ -521,6 +563,63 @@ def _selftest() -> int:
                    "fingerprint is the coordinator's)",
                    rehearsal_only["status"] == "GAP"
                    and rehearsal_only["closes_with"] == CROSS_MACHINE_GAP))
+
+    # [5b] MIRROR CRITERION FIXTURES: chain-derived, device-rule enforced.
+    # A chain with no attestation names the gap; a fixture attestation with
+    # a FOREIGN fingerprint and matching evidence passes; a
+    # coordinator-fingerprint attestation can never pass (anti-simulation);
+    # tampered evidence is refused by the sha.
+    base_no_mirror = [e for e in entries
+                     if not (isinstance(e.get("payload"), dict)
+                             and e["payload"].get("event")
+                             == "mirror_attestation_anchored")]
+    no_att = crit_independent_mirror(base_no_mirror)
+    foreign_fp = "sha256:" + "e" * 64
+    fix_bundle = {"schema": "mirror-attestation-bundle/0.1",
+                  "attestation": {"machine_fingerprint": foreign_fp}}
+    fix_sha = hashlib.sha256(json.dumps(
+        fix_bundle, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=True).encode("utf-8")).hexdigest()
+    anchor_pt = base_no_mirror[10]
+    fix_rec = {"index": len(base_no_mirror), "hash": "f" * 64,
+               "payload": {"event": "mirror_attestation_anchored",
+                           "status": "mirror-attested",
+                           "bundle_sha256": fix_sha,
+                           "participant_machine_fingerprint": foreign_fp,
+                           "mirror": {"tip_index": anchor_pt["index"],
+                                      "tip_hash": anchor_pt["hash"],
+                                      "entry_count":
+                                          anchor_pt["index"] + 1},
+                           "check_verdict": "IDENTICAL"}}
+    fix_loader = lambda sha: fix_bundle if sha == fix_sha else None
+    mirror_pass = crit_independent_mirror(base_no_mirror + [fix_rec],
+                                          bundle_loader=fix_loader)
+    coord_bundle = {"schema": "mirror-attestation-bundle/0.1",
+                    "attestation": {"machine_fingerprint": _coord_fp}}
+    coord_sha = hashlib.sha256(json.dumps(
+        coord_bundle, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=True).encode("utf-8")).hexdigest()
+    coord_rec = json.loads(json.dumps(fix_rec))
+    coord_rec["payload"]["bundle_sha256"] = coord_sha
+    coord_rec["payload"]["participant_machine_fingerprint"] = _coord_fp
+    mirror_coord = crit_independent_mirror(
+        base_no_mirror + [coord_rec],
+        bundle_loader=lambda sha: coord_bundle)
+    mirror_tampered = crit_independent_mirror(
+        base_no_mirror + [fix_rec],
+        bundle_loader=lambda sha: {"tampered": True})
+    checks.append(("mirror criterion: no attestation -> the named "
+                   "second-device gap",
+                   no_att["status"] == "GAP"
+                   and no_att["closes_with"] == MIRROR_GAP))
+    checks.append(("mirror criterion: foreign-fingerprint attestation with "
+                   "matching evidence -> PASS (chain-derived)",
+                   mirror_pass["status"] == "PASS"))
+    checks.append(("mirror criterion: a coordinator-device 'mirror' can "
+                   "never pass (the anti-simulation device rule)",
+                   mirror_coord["status"] == "GAP"))
+    checks.append(("mirror criterion: tampered evidence refused by sha",
+                   mirror_tampered["status"] == "GAP"))
 
     stray = sorted(set(os.listdir(_REPO_ROOT)) - root_before)
     checks.append(("no stray files in repo root", not stray))

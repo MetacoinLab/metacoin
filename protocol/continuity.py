@@ -659,6 +659,84 @@ def export_mirror(mirror_dir: str, base_dir: str = _REPO_ROOT) -> dict:
     return manifest
 
 
+MIRROR_ATTESTATION_SCHEMA = "mirror-attestation/0.1"
+MIRROR_ATTESTATION_BUNDLE_SCHEMA = "mirror-attestation-bundle/0.1"
+MIRROR_ATTESTATION_SCOPE = (
+    "SAME-OPERATOR second-device mirror: protects against coordinator-disk "
+    "loss and detects coordinator-side rewriting (a DIVERGED verdict from a "
+    "machine the coordinator's workflow does not touch). It is NOT "
+    "third-party archival — that remains open, named alongside the "
+    "unaffiliated-participant milestone.")
+
+
+def attest_mirror(mirror_dir: str, workdir: str, base_dir: str = _REPO_ROOT,
+                  out_path: str = None) -> tuple:
+    """Build and SIGN a mirror attestation on the mirror device itself.
+
+    Runs check_mirror first (IDENTICAL/BEHIND required — a diverged or
+    invalid mirror attests nothing), then signs the attested facts (the
+    mirror's chain point, its manifest hash, the check verdict, and THIS
+    machine's coarse fingerprint) with the next unused one-time key from
+    the participant keychain in `workdir` — the same keychain, the same
+    ledger-wide one-time discipline, and the same fingerprint source as a
+    participant bundle, so the coordinator can verify the attestation with
+    machinery it already trusts. Returns (bundle, bundle_sha256); writes
+    the bundle to `out_path` when given. The keychain file is persisted
+    with the used-index mark (stateful, like every signing path)."""
+    import demo.participant_kit as participant_kit
+    import protocol.verifier_cli as verifier_cli
+    check = check_mirror(mirror_dir, base_dir=base_dir)
+    if check["verdict"] not in ("IDENTICAL", "BEHIND"):
+        raise ValueError(
+            f"refusing to attest a mirror whose check verdict is "
+            f"{check['verdict']!r} ({check['detail']}) — only "
+            "IDENTICAL/BEHIND mirrors attest")
+    manifest_path = os.path.join(mirror_dir, MIRROR_MANIFEST_NAME)
+    manifest = _load_json(manifest_path)
+    kc_path = os.path.join(workdir, participant_kit.KEYCHAIN_FILE)
+    with open(kc_path, "r", encoding="utf-8") as f:
+        keychain = json.load(f)
+    snapshot = os.path.join(base_dir, "protocol", "ledger_published.json")
+    ledger_source = snapshot if os.path.exists(snapshot) else None
+    attestation = {
+        "schema": MIRROR_ATTESTATION_SCHEMA,
+        "event": "mirror_attestation",
+        "actor_id": keychain["actor_id"],
+        "handle": keychain["actor_id"],
+        "machine_fingerprint": verifier_cli.machine_fingerprint(),
+        "mirror": {
+            "tip_index": manifest.get("tip_index"),
+            "tip_hash": manifest.get("tip_hash"),
+            "entry_count": manifest.get("entry_count"),
+            "manifest_sha256": _sha256_file(manifest_path),
+            "file_count": len(manifest.get("files", [])),
+        },
+        "check": {"verdict": check["verdict"], "detail": check["detail"]},
+        "honest_scope": MIRROR_ATTESTATION_SCOPE,
+        "zero_value": True,
+        "no_token": True,
+        "attested_at": time.time(),
+    }
+    key_index = actor_identity.first_unused_index(keychain, ledger_source)
+    signature = actor_identity.sign(
+        keychain, key_index,
+        participant_kit.canonical_json(attestation).encode("utf-8"),
+        ledger_source=ledger_source)
+    with open(kc_path, "w", encoding="utf-8") as f:
+        json.dump(keychain, f, indent=2)  # persist the used-index mark
+    bundle = {
+        "schema": MIRROR_ATTESTATION_BUNDLE_SCHEMA,
+        "attestation": attestation,
+        "signature": signature,
+        "key_index": key_index,
+    }
+    sha = hashlib.sha256(
+        participant_kit.canonical_json(bundle).encode("utf-8")).hexdigest()
+    if out_path:
+        _write_json(out_path, bundle)
+    return bundle, sha
+
+
 def check_mirror(mirror_dir: str, base_dir: str = _REPO_ROOT) -> dict:
     """Compare a mirror against the CURRENT published state. Verdicts:
 
@@ -796,6 +874,11 @@ def main(argv=None) -> int:
     mode.add_argument("--export-mirror", metavar="DIR",
                       help="export the PUBLIC mirror set (snapshot + anchor + "
                            "evidence bundle) + manifest into DIR")
+    mode.add_argument("--attest-mirror", metavar="DIR",
+                      help="SIGN a mirror attestation for DIR (runs "
+                           "--check-mirror first; requires --workdir with "
+                           "the participant keychain; the SIGNED bundle is "
+                           "public, the keychain never leaves the device)")
     mode.add_argument("--check-mirror", metavar="DIR",
                       help="compare a mirror against current published state: "
                            "IDENTICAL / BEHIND (verified prefix) / DIVERGED "
@@ -804,6 +887,9 @@ def main(argv=None) -> int:
                       help="run the mechanical self-test (temp files only; "
                            "the real ledger is asserted byte-identical "
                            "before/after)")
+    parser.add_argument("--workdir", default=None,
+                        help="with --attest-mirror: the participant workdir "
+                             "holding the private keychain (stays local)")
     parser.add_argument("--out", default=MANIFEST_NAME,
                         help="with --inventory: manifest output path "
                              f"(default {MANIFEST_NAME})")
@@ -883,6 +969,32 @@ def main(argv=None) -> int:
               f"{manifest['tip_index']}, entry_count "
               f"{manifest['entry_count']}")
         print(f"recipe: {manifest['verification_recipe']}")
+        return 0
+
+    if args.attest_mirror:
+        if not args.workdir:
+            print("--attest-mirror requires --workdir (the participant "
+                  "workdir holding the PRIVATE keychain)")
+            return 2
+        out = (args.out if args.out != MANIFEST_NAME
+               else "mirror_attestation.json")
+        try:
+            bundle, sha = attest_mirror(args.attest_mirror, args.workdir,
+                                        out_path=out)
+        except (ValueError, OSError, KeyError) as exc:
+            print(f"attestation refused: {exc}")
+            return 2
+        a = bundle["attestation"]
+        print(f"mirror attestation SIGNED: {out}")
+        print(f"  canonical sha256: {sha}")
+        print(f"  attested chain point: tip_index {a['mirror']['tip_index']} "
+              f"({a['mirror']['entry_count']} entries), check verdict "
+              f"{a['check']['verdict']}")
+        print(f"  signer: {a['actor_id']} (one-time key index "
+              f"{bundle['key_index']}); fingerprint "
+              f"{a['machine_fingerprint'][:28]}..")
+        print("  scope: " + a["honest_scope"][:80] + "..")
+        print("  send THIS FILE to the coordinator; the keychain stays here.")
         return 0
 
     if args.check_mirror:

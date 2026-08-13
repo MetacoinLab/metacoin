@@ -3748,6 +3748,213 @@ def _copyfile(src, dst):
         g.write(data)
 
 
+# ============================================================================
+# MIRROR ATTESTATION — the second device's signed mirror evidence
+# ============================================================================
+_MIRROR_ATTESTATION_EVENT = "mirror_attestation_anchored"
+_MIRROR_ATTESTATION_STATUS = "mirror-attested"
+_MIRROR_BUNDLE_SCHEMA = "mirror-attestation-bundle/0.1"
+_MIRROR_ATTESTATION_SCHEMA = "mirror-attestation/0.1"
+
+
+def evaluate_mirror_attestation(bundle: dict, ledger: Ledger,
+                                echo=print) -> dict:
+    """Verify a SIGNED mirror attestation from a second device — no writes.
+
+    Six named checks, same discipline as the intake ladder: (1) schema and
+    no private material; (2) known actor, signature verifies under the
+    ACTIVE registered root; (3) one-time key index unused ledger-wide;
+    (4) the attested chain point is a verified PREFIX POINT of the live
+    chain and the mirror check verdict is IDENTICAL/BEHIND; (5) THE DEVICE
+    RULE — the signed fingerprint matches no coordinator machine on the
+    chain (fingerprint-decided, never declared); (6) the honest-scope
+    statement is present (a mirror attestation that does not say what it
+    cannot prove is refused). Returns {overall, checks, ...}."""
+    entries = ledger.read_all()
+    checks = []
+
+    def check(name, passed, evidence):
+        checks.append({"name": name, "passed": bool(passed),
+                       "evidence": evidence})
+        return bool(passed)
+
+    canonical = json.dumps(bundle, sort_keys=True,
+                           separators=(",", ":"), ensure_ascii=True)
+    bundle_sha = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    att = bundle.get("attestation") if isinstance(bundle, dict) else None
+    sig = bundle.get("signature") if isinstance(bundle, dict) else None
+    ok1 = (isinstance(bundle, dict)
+           and bundle.get("schema") == _MIRROR_BUNDLE_SCHEMA
+           and isinstance(att, dict)
+           and att.get("schema") == _MIRROR_ATTESTATION_SCHEMA
+           and att.get("event") == "mirror_attestation"
+           and isinstance(att.get("mirror"), dict)
+           and isinstance(att.get("check"), dict)
+           and isinstance(sig, dict)
+           and att.get("zero_value") is True and att.get("no_token") is True
+           and not _contains_private_material(bundle))
+    check("schema-and-no-private-material", ok1,
+          f"bundle schema {_MIRROR_BUNDLE_SCHEMA}; canonical sha256 "
+          f"{bundle_sha[:16]}.." if ok1 else "schema/private-material check "
+          "failed — see the bundle contract in protocol/continuity.py")
+    if not ok1:
+        return {"overall": "fail", "checks": checks,
+                "bundle_sha256": bundle_sha}
+
+    actor = att.get("actor_id")
+    root = actor_identity.active_root_asof(actor, entries)
+    sig_ok = False
+    if root is not None:
+        sig_ok, _r = actor_identity.verify_signature(
+            sig, root["merkle_root"],
+            json.dumps(att, sort_keys=True, separators=(",", ":"),
+                       ensure_ascii=True).encode("utf-8"))
+    ok2 = bool(root is not None and sig_ok
+               and sig.get("key_index") == bundle.get("key_index"))
+    check("actor-registered-and-signature-verifies", ok2,
+          f"actor '{actor}' active root {root['merkle_root'][:16]}.. "
+          f"(registered idx {root['ledger_index']}); Lamport-Merkle "
+          "signature verifies over the exact attestation bytes" if ok2 else
+          (f"actor '{actor}' has no ACTIVE registered root — a mirror "
+           "attestation is signed by an already-registered actor" if root
+           is None else "signature does NOT verify under the active root"))
+
+    used = {(u["actor_id"], u["key_index"])
+            for u in actor_identity.anchored_key_uses(entries)}
+    ok3 = (actor, bundle.get("key_index")) not in used
+    check("one-time-key-discipline", ok3,
+          f"key index {bundle.get('key_index')} of '{actor}' unused across "
+          f"{len(used)} anchored key use(s)" if ok3 else
+          f"key index {bundle.get('key_index')} was already consumed by an "
+          "anchored record — one-time means once, ledger-wide")
+
+    m = att["mirror"]
+    prefix_ok = _chain_prefix_point(entries, m.get("tip_index"),
+                                    m.get("tip_hash"))
+    verdict_ok = att["check"].get("verdict") in ("IDENTICAL", "BEHIND")
+    count_ok = (isinstance(m.get("entry_count"), int)
+                and m.get("entry_count") == (m.get("tip_index") or 0) + 1)
+    ok4 = bool(prefix_ok and verdict_ok and count_ok)
+    check("mirror-facts-rederive", ok4,
+          f"attested chain point idx {m.get('tip_index')} "
+          f"({m.get('entry_count')} entries) is a verified prefix point of "
+          f"the live chain; check verdict {att['check'].get('verdict')}"
+          if ok4 else
+          ("attested tip is NOT a verified prefix point of the live chain "
+           "(rewriting on one side, or a corrupted mirror)" if not prefix_ok
+           else f"mirror check verdict {att['check'].get('verdict')!r} does "
+           "not attest a healthy mirror"))
+
+    coord = _coordinator_machine_fingerprints(entries)
+    fp = att.get("machine_fingerprint")
+    ok5 = bool(isinstance(fp, str) and fp and coord and fp not in coord)
+    check("device-rule-fingerprint-foreign", ok5,
+          f"fingerprint {fp[:28]}.. matches no coordinator machine on the "
+          "chain — the second-device claim rests on the fingerprint, never "
+          "a declaration" if ok5 else
+          "the signed fingerprint matches a coordinator machine (or is "
+          "missing) — a coordinator-device mirror does not close the gap, "
+          "by the criterion's own anti-simulation rule")
+
+    ok6 = ("NOT" in str(att.get("honest_scope", ""))
+           and "third-party archival" in str(att.get("honest_scope", "")))
+    check("honest-scope-stated", ok6,
+          "the attestation states what it cannot prove (same-operator "
+          "device independence; NOT third-party archival)" if ok6 else
+          "honest_scope must state that the mirror is NOT third-party "
+          "archival — an attestation that overclaims is refused")
+
+    overall = "pass" if all(c["passed"] for c in checks) else "fail"
+    return {"overall": overall, "checks": checks, "bundle_sha256": bundle_sha,
+            "actor_id": actor,
+            "key_root_ledger_index": (root or {}).get("ledger_index"),
+            "machine_fingerprint": fp}
+
+
+def anchor_mirror_attestation(bundle: dict, verdict: dict,
+                              ledger: Ledger) -> dict:
+    """HUMAN-CONFIRMED anchoring of a passing mirror attestation (one write).
+
+    WHY A LEDGER RECORD (the justification, on the record): the release
+    gate's mirror criterion must re-derive from COMMITTED PUBLIC material —
+    chain + evidence bundle — in any fresh clone (CI, doc sandboxes, cold
+    installs), exactly like the cross-machine criterion. A gitignored
+    config on the coordinator's disk can never be that evidence. The record
+    carries the standard signature facts, so the one-time index is consumed
+    ledger-wide."""
+    if verdict.get("overall") != "pass":
+        raise ValueError("refusing to anchor a failing mirror attestation "
+                         "(no rejection record class exists for mirrors — "
+                         "a failed attestation is simply not evidence)")
+    att = bundle["attestation"]
+    entries = ledger.read_all()
+    reg_rel = None
+    for e in entries:
+        p = e.get("payload", {})
+        if (p.get("event") == "actor_key_registered"
+                and p.get("actor_id") == att["actor_id"]):
+            reg_rel = p.get("operator_relationship")
+    topology, note = _intake_labels(reg_rel, att.get("machine_fingerprint"),
+                                    _coordinator_machine_fingerprints(entries))
+    record = {
+        "event": _MIRROR_ATTESTATION_EVENT,
+        "record_schema": "mirror-attestation-record/0.1",
+        "stage": "R3-external",
+        "status": _MIRROR_ATTESTATION_STATUS,
+        "actor_id": att["actor_id"],
+        "handle": att.get("handle"),
+        "signed": True,
+        "signer_actor_id": att["actor_id"],
+        "key_index": bundle["key_index"],
+        "key_root_ledger_index": verdict["key_root_ledger_index"],
+        "participant_machine_fingerprint": att.get("machine_fingerprint"),
+        "topology": topology,
+        "operator_relationship": reg_rel,
+        "mirror": dict(att["mirror"]),
+        "check_verdict": att["check"].get("verdict"),
+        "bundle_sha256": verdict["bundle_sha256"],
+        "honest_scope": att.get("honest_scope"),
+        "limitation_note": note,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(record)
+    return {"ledger_entry": entry, "record": record}
+
+
+def _cmd_mirror_attestation(path: str, ledger_path: str,
+                            confirm: bool) -> int:
+    print(BANNER)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            bundle = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"cannot read attestation bundle: {exc}")
+        return 2
+    ledger = Ledger(ledger_path)
+    verdict = evaluate_mirror_attestation(bundle, ledger)
+    print(f"mirror attestation {path} (canonical sha256 "
+          f"{verdict['bundle_sha256'][:16]}..):")
+    for c in verdict["checks"]:
+        print(f"  [{'PASS' if c['passed'] else 'FAIL'}] {c['name']}")
+        print(f"         - {c['evidence']}")
+    print(f"overall: {verdict['overall'].upper()}")
+    if verdict["overall"] != "pass":
+        return 1
+    if not confirm:
+        print("confirm gate: NOT anchored — zero ledger writes (a human "
+              "passes --confirm to anchor the mirror-attested record)")
+        return 0
+    out = anchor_mirror_attestation(bundle, verdict, ledger)
+    e = out["ledger_entry"]
+    print(f"status: {out['record']['status']}")
+    print(f"anchored at ledger index: {e['index']} (path: {ledger.path})")
+    ok, msg = ledger.verify_chain()
+    print(f"chain verify: {'OK' if ok else 'FAILED'} — {msg}")
+    return 0 if ok else 1
+
+
 def _selftest() -> int:
     # Record whether a REAL ledger already exists BEFORE the self-test, so the stray-ledger
     # guard flags only a ledger this self-test ACCIDENTALLY creates — not a legitimate
@@ -5667,6 +5874,132 @@ def _selftest() -> int:
             str(v_ctrl["first_failed_rung"]),
         ))
 
+        # (I3d) MIRROR ATTESTATION: the second device's SIGNED mirror
+        # evidence passes the six named checks, anchors with the standard
+        # signature facts (key consumed ledger-wide), and every dishonest
+        # variant is refused at its named check.
+        kc_xm = json.load(open(os.path.join(xm_work,
+                                            participant_kit.KEYCHAIN_FILE),
+                               encoding="utf-8"))
+        xm_entries = led_x.read_all()
+        att_tip = xm_entries[-1]
+        good_att = {
+            "schema": _MIRROR_ATTESTATION_SCHEMA,
+            "event": "mirror_attestation",
+            "actor_id": "crossmachine-fixture",
+            "handle": "crossmachine-fixture",
+            "machine_fingerprint": "sha256:" + "e" * 64,
+            "mirror": {"tip_index": att_tip["index"],
+                       "tip_hash": att_tip["hash"],
+                       "entry_count": att_tip["index"] + 1,
+                       "manifest_sha256": "a" * 64, "file_count": 3},
+            "check": {"verdict": "IDENTICAL", "detail": "fixture mirror"},
+            "honest_scope": ("same-operator second device; NOT third-party "
+                            "archival"),
+            "zero_value": True, "no_token": True, "attested_at": 1.0,
+        }
+        att_idx = actor_identity.first_unused_index(kc_xm, xm_entries)
+        att_sig = actor_identity.sign(
+            kc_xm, att_idx,
+            participant_kit.canonical_json(good_att).encode("utf-8"))
+        att_bundle = {"schema": _MIRROR_BUNDLE_SCHEMA,
+                      "attestation": good_att, "signature": att_sig,
+                      "key_index": att_idx}
+        v_att = evaluate_mirror_attestation(att_bundle, led_x)
+        checks.append((
+            "MIRROR ATTESTATION PASSES (six named checks; device rule "
+            "fingerprint-decided)",
+            v_att["overall"] == "pass" and len(v_att["checks"]) == 6
+            and all(c["passed"] for c in v_att["checks"]),
+            f"overall={v_att['overall']}",
+        ))
+        n_before_att = len(led_x.read_all())
+        out_att = anchor_mirror_attestation(att_bundle, v_att, led_x)
+        att_e = out_att["ledger_entry"]
+        chain_ok_att, _ = led_x.verify_chain()
+        uses_att = actor_identity.anchored_key_uses(led_x.read_all())
+        checks.append((
+            "MIRROR ATTESTATION ANCHORS (one write; cross-machine topology; "
+            "signature facts consume the one-time index ledger-wide; "
+            "honest scope on the record)",
+            chain_ok_att and len(led_x.read_all()) == n_before_att + 1
+            and att_e["payload"]["status"] == _MIRROR_ATTESTATION_STATUS
+            and att_e["payload"]["topology"]
+            == _INTAKE_CROSS_MACHINE_TOPOLOGY
+            and any(u["actor_id"] == "crossmachine-fixture"
+                    and u["key_index"] == att_idx for u in uses_att)
+            and "third-party archival"
+            in att_e["payload"]["honest_scope"],
+            f"anchored idx {att_e['index']}",
+        ))
+
+        def _att_check_failed(bundle_variant, check_name):
+            v = evaluate_mirror_attestation(bundle_variant, led_x)
+            row = next((c for c in v["checks"]
+                        if c["name"] == check_name), None)
+            return (v["overall"] == "fail" and row is not None
+                    and row["passed"] is False)
+
+        b = _copy.deepcopy(att_bundle)
+        b["signature"]["revealed_secrets"][0] = "0" * 64
+        checks.append(("MIRROR: forged signature refused at its named check",
+                       _att_check_failed(
+                           b, "actor-registered-and-signature-verifies"),
+                       "forged"))
+        checks.append((
+            "MIRROR: replaying the anchored attestation refuses at "
+            "one-time-key-discipline",
+            _att_check_failed(att_bundle, "one-time-key-discipline"),
+            "replay refused",
+        ))
+        coord_att = _copy.deepcopy(good_att)
+        coord_att["machine_fingerprint"] = sorted(
+            _coordinator_machine_fingerprints(xm_entries))[0]
+        c_sig = actor_identity.sign(
+            kc_xm, att_idx,
+            participant_kit.canonical_json(coord_att).encode("utf-8"),
+            force_reuse=True)
+        coord_bundle = {"schema": _MIRROR_BUNDLE_SCHEMA,
+                        "attestation": coord_att, "signature": c_sig,
+                        "key_index": att_idx}
+        checks.append((
+            "MIRROR: a coordinator-device 'mirror' refuses at the device "
+            "rule (anti-simulation)",
+            _att_check_failed(coord_bundle,
+                              "device-rule-fingerprint-foreign"),
+            "device rule holds",
+        ))
+        div_att = _copy.deepcopy(good_att)
+        div_att["mirror"]["tip_hash"] = "9" * 64
+        d_sig = actor_identity.sign(
+            kc_xm, att_idx,
+            participant_kit.canonical_json(div_att).encode("utf-8"),
+            force_reuse=True)
+        div_bundle = {"schema": _MIRROR_BUNDLE_SCHEMA,
+                      "attestation": div_att, "signature": d_sig,
+                      "key_index": att_idx}
+        checks.append((
+            "MIRROR: a non-prefix (diverged/corrupt) chain point refuses at "
+            "mirror-facts-rederive",
+            _att_check_failed(div_bundle, "mirror-facts-rederive"),
+            "prefix rule holds",
+        ))
+        bare_att = _copy.deepcopy(good_att)
+        bare_att["honest_scope"] = "the best mirror ever"
+        s_sig = actor_identity.sign(
+            kc_xm, att_idx,
+            participant_kit.canonical_json(bare_att).encode("utf-8"),
+            force_reuse=True)
+        bare_bundle = {"schema": _MIRROR_BUNDLE_SCHEMA,
+                       "attestation": bare_att, "signature": s_sig,
+                       "key_index": att_idx}
+        checks.append((
+            "MIRROR: an overclaiming attestation (no honest scope) is "
+            "refused",
+            _att_check_failed(bare_bundle, "honest-scope-stated"),
+            "scope required",
+        ))
+
         # (I4) EVERY RUNG'S FAILURE FIXTURE — each named check refuses its own
         # way, and later rungs are marked skipped, never silently passed
         led_f = _fresh_intake_ledger("intake_fixtures.jsonl")
@@ -6797,6 +7130,12 @@ def main(argv=None) -> int:
              "bundle spam the ledger)",
     )
     mode.add_argument(
+        "--anchor-mirror-attestation", metavar="ATTESTATION_JSON",
+        help="verify a SIGNED second-device mirror attestation (six named "
+             "checks, zero writes); add --confirm to anchor the "
+             "mirror-attested record",
+    )
+    mode.add_argument(
         "--anchor-passport-catalog", metavar="PASSPORT_CATALOG_JSON",
         help="anchor a MetaWork passport catalog (metawork_passport.py --all); "
              "the coordinator rediscovers every actor and rebuilds every "
@@ -6880,6 +7219,9 @@ def main(argv=None) -> int:
         return _cmd_intake(args.intake, args.ledger, args.snapshot,
                            args.anchor_file, args.confirm, args.drill,
                            args.verdict_out)
+    if args.anchor_mirror_attestation is not None:
+        return _cmd_mirror_attestation(args.anchor_mirror_attestation,
+                                       args.ledger, args.confirm)
     if args.rotate_actor_key is not None:
         return _cmd_anchor_json(
             args.rotate_actor_key, args.ledger,

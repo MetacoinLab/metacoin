@@ -276,6 +276,33 @@ def section_mirrors(base_dir: str = _REPO_ROOT, mirror_dirs=None) -> dict:
             details.append(f"{d}: {v['verdict']} — {v['detail']}")
         else:
             findings.append(f"{d}: {v['verdict']} — {v['detail']}")
+    # INFORMATIONAL: anchored second-device attestation freshness. The
+    # release gate's evidence is the anchored record (chain-derived,
+    # ageless); how RECENTLY the second device re-attested is sweep
+    # information — stale is a nudge to re-attest, never a finding.
+    try:
+        entries = work_molecule._read_ledger(
+            os.path.join(base_dir, "protocol", "ledger_data.jsonl")
+            if os.path.exists(os.path.join(base_dir, "protocol",
+                                           "ledger_data.jsonl"))
+            else os.path.join(base_dir, "protocol", "ledger_published.json"))
+        att = [e for e in entries
+               if isinstance(e.get("payload"), dict)
+               and e["payload"].get("event") == "mirror_attestation_anchored"
+               and e["payload"].get("status") == "mirror-attested"]
+        if att:
+            newest = att[-1]
+            age_d = (time.time()
+                     - float(newest["payload"].get("anchored_at", 0))) / 86400
+            details.append(
+                f"second-device mirror attestation: idx {newest['index']}, "
+                f"attested {age_d:.0f} day(s) ago (informational freshness; "
+                "re-attest at the operator's cadence)")
+        else:
+            details.append("no anchored second-device mirror attestation "
+                           "yet (the release gate names this gap)")
+    except (OSError, ValueError, json.JSONDecodeError):
+        details.append("mirror-attestation freshness could not be read")
     return _section("mirrors", findings, details)
 
 

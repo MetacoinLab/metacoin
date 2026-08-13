@@ -1197,6 +1197,64 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
             # other rungs (schema/private/root/signature/label) are content
             # properties fully re-checked at intake time; v0's only anchored
             # rejection is the rung-4 tampered-bundle drill re-proved above
+
+        # MIRROR ATTESTATIONS re-derive by the same discipline: shipped
+        # evidence matches the anchored sha, the signature re-verifies
+        # as-of, the DEVICE RULE holds (signed fingerprint foreign to
+        # every coordinator machine), the attested chain point is a
+        # verified prefix of this chain, and the honest-scope statement
+        # (NOT third-party archival) is on the record.
+        mir_records = [(e["index"], e["payload"]) for e in entries
+                       if isinstance(e.get("payload"), dict)
+                       and e["payload"].get("event")
+                       == "mirror_attestation_anchored"
+                       and e["payload"].get("status") == "mirror-attested"]
+        coord_fps = set()
+        for e2 in entries:
+            p2 = e2.get("payload", {}) if isinstance(e2, dict) else {}
+            for k2 in ("machine_fingerprint", "verifier_machine_fingerprint"):
+                v2 = p2.get(k2)
+                if isinstance(v2, str) and v2:
+                    coord_fps.add(v2)
+        for idx, p in mir_records:
+            f = _load_evidence_json(
+                f"mirror_attestation_{str(p.get('bundle_sha256'))[:12]}.json")
+            if not isinstance(f, dict):
+                problems.append(f"idx {idx}: mirror evidence file missing")
+                continue
+            sha = hashlib.sha256(_canonical(f).encode("utf-8")).hexdigest()
+            if sha != p.get("bundle_sha256"):
+                problems.append(f"idx {idx}: mirror evidence sha256 mismatch")
+                continue
+            att = f.get("attestation", {})
+            sig = f.get("signature", {})
+            root = actor_identity.active_root_asof(p.get("actor_id"), entries,
+                                                   as_of_index=idx - 1)
+            sig_ok = False
+            if root is not None:
+                sig_ok, _sr = actor_identity.verify_signature(
+                    sig, root["merkle_root"],
+                    _canonical(att).encode("utf-8"))
+            if not (sig_ok and sig.get("key_index") == p.get("key_index")
+                    and root["ledger_index"]
+                    == p.get("key_root_ledger_index")):
+                problems.append(f"idx {idx}: mirror attestation signature "
+                                "does not re-verify as-of its root")
+            fp = att.get("machine_fingerprint")
+            if not (isinstance(fp, str) and fp
+                    and fp == p.get("participant_machine_fingerprint")
+                    and coord_fps and fp not in coord_fps):
+                problems.append(f"idx {idx}: mirror device rule fails "
+                                "(fingerprint vs record vs coordinator set)")
+            m = p.get("mirror", {})
+            ti, th = m.get("tip_index"), m.get("tip_hash")
+            if not (isinstance(ti, int) and 0 <= ti < len(entries)
+                    and entries[ti].get("hash") == th):
+                problems.append(f"idx {idx}: attested chain point is not a "
+                                "verified prefix of this chain")
+            if "third-party archival" not in str(p.get("honest_scope", "")):
+                problems.append(f"idx {idx}: mirror record missing the "
+                                "honest-scope statement")
         rows.append(("participant intake", FULL, not problems,
                      f"{len(pi_records)} participant-verified record(s): "
                      "bundle sha256 + as-of signature + prefix-bound tips + "
@@ -1205,6 +1263,9 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "stay refuted; '-claimed' + earned topology labels "
                      "(rehearsal / fingerprint-justified cross-machine) "
                      "verified"
+                     + (f"; {len(mir_records)} mirror attestation(s) "
+                        "re-derived (device rule + as-of signature + "
+                        "prefix + honest scope)" if mir_records else "")
                      if not problems else "; ".join(problems[:3])))
 
     all_ok = all(ok for _l, _m, ok, _d in rows)
