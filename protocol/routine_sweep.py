@@ -387,8 +387,13 @@ def _expected_evidence(entries) -> dict:
             want(f"rotation_cert_{p['new_root'][:12]}.json", idx,
                  "anchored rotation")
         if isinstance(p.get("bundle_sha256"), str):
-            want(f"participant_bundle_{p['bundle_sha256'][:12]}.json", idx,
-                 "participant intake record")
+            # each bundle-citing record class ships its own evidence name
+            if event == "mirror_attestation_anchored":
+                want(f"mirror_attestation_{p['bundle_sha256'][:12]}.json",
+                     idx, "mirror attestation record")
+            else:
+                want(f"participant_bundle_{p['bundle_sha256'][:12]}.json",
+                     idx, "participant intake record")
         if (event == "self_recompute_result"
                 and isinstance(p.get("task_id"), str)):
             want(f"sub_{p['task_id']}.json", idx, "self-recompute submission")
@@ -1111,17 +1116,17 @@ def _selftest() -> int:
                        and s_absent_priv["status"] == "skip"))
 
         # [8d] the release-readiness section is INFORMATIONAL by definition:
-        # a NOT-READY verdict (today's expected state, MIP-0005) emits
-        # details only — NEVER findings, never a sweep failure
+        # the gate's verdict — NOT-READY between releases, or the fast-mode
+        # zero-gap form once every gap has closed — emits details only,
+        # NEVER findings, never a sweep failure (the era's exact gap list
+        # is asserted by the current MIP's anchored blocks, not here)
         s_rel = section_release(_REPO_ROOT)
-        checks.append(("release section: NOT-READY is informational — "
-                       "never findings, never failure",
+        checks.append(("release section: the gate verdict is informational "
+                       "— never findings, never failure",
                        s_rel["findings"] == []
                        and s_rel["status"] == "pass"
-                       and any("INFORMATIONAL" in d and "NOT-READY" in d
-                               for d in s_rel["details"])
-                       and any("closes with" in d
-                               for d in s_rel["details"])))
+                       and any("INFORMATIONAL" in d for d in
+                               s_rel["details"])))
 
         # [8b] PUBLIC-CORPUS MODE: on a machine with no kit, no mirrors, and
         # no local keychains (CI, fresh clones), the coordinator-machine
