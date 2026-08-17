@@ -3601,19 +3601,54 @@
       },
       "prev_hash": "0f0e29e039113381d38075c88ded03e7c54278221953a2c52b431bf00ee9524d",
       "timestamp": 1786510154.6386967
+    },
+    {
+      "hash": "fd578fcde105aca65e99798fc7a0c4414c0ac7fa2d0166d8b70903fbeac1e2a0",
+      "index": 72,
+      "payload": {
+        "actor_id": "macbook-participant-01",
+        "anchored_at": 1786959537.3760056,
+        "bundle_sha256": "1da27ed01306d8c9d579c78c8142846e7e2d08736773a3d841caaa823c421626",
+        "check_verdict": "IDENTICAL",
+        "event": "mirror_attestation_anchored",
+        "handle": "macbook-participant-01",
+        "honest_scope": "SAME-OPERATOR second-device mirror: protects against coordinator-disk loss and detects coordinator-side rewriting (a DIVERGED verdict from a machine the coordinator's workflow does not touch). It is NOT third-party archival \u2014 that remains open, named alongside the unaffiliated-participant milestone.",
+        "key_index": 2,
+        "key_root_ledger_index": 69,
+        "limitation_note": "Participant intake v0: the six-rung validation ladder mechanically verified this bundle's signatures, hashes, and re-derivations; it CANNOT verify organizational independence \u2014 operator_relationship is the participant's SELF-DECLARATION, carried with a mandatory '-claimed' suffix; the claim is recorded, not endorsed (a '-claimed' value lowers no concentration measure by itself). This record exists only because a human confirmed a shown verdict: intake never auto-anchors, because an auto-anchoring intake would let a hostile bundle spam the ledger. Not consensus, not payment, not a token; research-stage. CROSS-MACHINE, SAME OPERATOR: this bundle's machine fingerprint matches no coordinator machine recorded on the chain \u2014 the participant pipeline is proven to work across machines and fingerprints. It does NOT add operator independence (the relationship is the operator's own declaration, and it honestly declares same-operator); the unaffiliated-participant milestone remains open.",
+        "mirror": {
+          "entry_count": 72,
+          "file_count": 46,
+          "manifest_sha256": "0260cd366872e66f08c6e2b4c7ee9becd73d5b9cc81d625447519b8310aa40d4",
+          "tip_hash": "00a9db5f75de423a04a760cb758559db648fecccd4ffdef4977ceefb95737dce",
+          "tip_index": 71
+        },
+        "no_token": true,
+        "operator_relationship": "same-operator-claimed",
+        "participant_machine_fingerprint": "sha256:44d9b96b2189fa5dcc53fe3575a1e52f2c845fb61bab2aa80e657e05430bd1f2",
+        "record_schema": "mirror-attestation-record/0.1",
+        "signed": true,
+        "signer_actor_id": "macbook-participant-01",
+        "stage": "R3-external",
+        "status": "mirror-attested",
+        "topology": "cross-machine-same-operator",
+        "zero_value": true
+      },
+      "prev_hash": "00a9db5f75de423a04a760cb758559db648fecccd4ffdef4977ceefb95737dce",
+      "timestamp": 1786959537.3764317
     }
   ],
   "snapshot_header": {
-    "entry_count": 72,
+    "entry_count": 73,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1786510160.6768475,
+    "snapshot_timestamp": 1786959543.914039,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "00a9db5f75de423a04a760cb758559db648fecccd4ffdef4977ceefb95737dce",
-    "tip_index": 71,
+    "tip_hash": "fd578fcde105aca65e99798fc7a0c4414c0ac7fa2d0166d8b70903fbeac1e2a0",
+    "tip_index": 72,
     "zero_value": true
   }
 }
