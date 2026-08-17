@@ -8,10 +8,10 @@
 > this document's declared as-of point**, so the tour stays verifiably
 > green as the chain grows and goes red only if it misstates its own era.
 
-<!--era-pin:entry_count=72 tip_hash_prefix=00a9db5f75de-->
-**Reviewed era:** ledger entry <!--era:entry_count-->72<!--/era--> (tip
-index <!--era:tip_index-->71<!--/era-->, hash
-`<!--era:tip_hash_prefix-->00a9db5f75de<!--/era-->…`, August 2026).
+<!--era-pin:entry_count=74 tip_hash_prefix=86c0a8f1e927-->
+**Reviewed era:** ledger entry <!--era:entry_count-->74<!--/era--> (tip
+index <!--era:tip_index-->73<!--/era-->, hash
+`<!--era:tip_hash_prefix-->86c0a8f1e927<!--/era-->…`, August 2026).
 
 **Design principle: this tour makes no claims.** It hands you the commands
 that let the repository make its own case — including its negative results.
@@ -165,45 +165,50 @@ never a re-proof.
 
 ## Minute 11-13 — the gates the project points at itself
 
-Ask the repository what stands between it and its next release; it answers
-mechanically, with named gaps it refuses to simulate away:
+Ask the repository what stands between it and its next release; it
+answers mechanically — and in this era the answer is: no named gaps
+remain, while the fast form of the question still refuses to claim
+READY (only the full gate, which runs the real cold install, can):
 
 ```verify-run
 $ python3 protocol/release_readiness.py --check --fast
-VERDICT: NOT-READY — 1 named gap(s) stand between here and the next release  (trimmed)
+VERDICT: NOT-READY — no gaps found, but fast mode skipped expensive checks — fast mode can never establish READY  (trimmed)
 ```
-<!--expect:VERDICT: NOT-READY-->
+<!--expect:no gaps found, but fast mode skipped expensive checks-->
 <!--expect:idx 70: participant fingerprint differs from every coordinator machine on the chain-->
-<!--expect:awaits the second device-->
+<!--expect:mirror attested by a non-coordinator device-->
 
-One gap fewer than the last reviewed era: a second physical machine ran
-the public verifier and its bundle passed the full intake ladder (idx
-69–70, topology `cross-machine-same-operator` — decided by the machine
-fingerprint, never the declaration). Same operator, second machine: the
-independence milestone is untouched, and the gate says exactly that.
+Both external-reality gaps closed the same honest way: a second
+physical machine ran the public verifier and its bundle passed the full
+intake ladder (idx 69–70), then the same device attested a verified
+public mirror with a SIGNED record (idx 72) — topology
+`cross-machine-same-operator` on every record, decided by the machine
+fingerprint, never the declaration. Same operator, second device: the
+independence milestone is untouched, the mirror is NOT third-party
+archival, and the records say both.
 
 Governance runs through the same discipline. Every proposal file has an
-anchored lifecycle state — <!--era:mip_decision_count-->6<!--/era-->
-decisions: four accepted MIPs frozen immutable-by-citation (the newest,
-MIP-0006, superseding MIP-0005's two-gap era assertion on exactly the
-trigger that MIP named), and the two ambitious June drafts honestly
-**retained as drafts**, because accepting them would have ratified
-capabilities (voting, attestation hardware, token economics) that do not
-exist:
+anchored lifecycle state — <!--era:mip_decision_count-->7<!--/era-->
+decisions: five accepted MIPs frozen immutable-by-citation (the newest,
+MIP-0007, superseding MIP-0006's one-gap era assertion on exactly the
+trigger that MIP named — the third exercised supersession), and the two
+ambitious June drafts honestly **retained as drafts**, because accepting
+them would have ratified capabilities (voting, attestation hardware,
+token economics) that do not exist:
 
 ```verify-run
 $ python3 -c "import json; es=json.load(open('protocol/ledger_published.json'))['entries']; rs=[e['payload'] for e in es if e['payload'].get('event')=='mip_decision_recorded']; print('anchored MIP decisions:', len(rs)); [print(' ', p['mip_id'], p['status']) for p in rs]"
-anchored MIP decisions: 6  (trimmed)
+anchored MIP decisions: 7  (trimmed)
 ```
-<!--expect:anchored MIP decisions: 6-->
-<!--expect:MIP-0006 mip-accepted-->
+<!--expect:anchored MIP decisions: 7-->
+<!--expect:MIP-0007 mip-accepted-->
 <!--expect:MIP-0002 mip-retained-as-draft-->
 
-**What a pass does NOT establish:** that NOT-READY is a temporary
-embarrassment — it is the expected state between releases, reported
-weekly by the sweep as information; and a recorded governance decision
-proves the process ran, not that the decision is wise (the review seat has
-one occupant, and every record says so).
+**What a pass does NOT establish:** a release — READY is necessary and
+never sufficient: coordinator approval stays a HUMAN criterion that no
+dashboard converts, and the default remains NO release; and a recorded
+governance decision proves the process ran, not that the decision is
+wise (the review seat has one occupant, and every record says so).
 
 ## Minute 13-15 — what none of this proves
 

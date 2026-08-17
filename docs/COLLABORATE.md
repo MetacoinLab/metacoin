@@ -94,18 +94,21 @@ and what the tour showed you.
 ---
 
 The honest state of the distance between this project and a shippable
-product is mechanical, public, and part of the pitch — the gaps below are
-precisely what partnership closes:
+product is mechanical and public — as of the MIP-0007 era every named
+release-gate gap is closed (the full gate reports READY; approval stays
+human and no release is implied), and what remains open is exactly what
+partnership closes:
 
 ```verify-run
 $ python3 protocol/release_readiness.py --check --fast
-VERDICT: NOT-READY — 1 named gap(s) stand between here and the next release  (trimmed)
+VERDICT: NOT-READY — no gaps found, but fast mode skipped expensive checks — fast mode can never establish READY  (trimmed)
 ```
-<!--expect:VERDICT: NOT-READY-->
-<!--expect:awaits the second device-->
+<!--expect:no gaps found, but fast mode skipped expensive checks-->
+<!--expect:mirror attested by a non-coordinator device-->
 
-(The cross-machine gap closed on 2026-08-11 — the first
-cross-machine-same-operator participation, anchored at idx 69–70 and
-ratified as the MIP-0006 era. Same operator, second machine: the
-unaffiliated-participant milestone remains open, and closing it is
-precisely the collaboration this document invites.)
+(Both external-reality gaps closed the same-operator way — the
+cross-machine participation at idx 69–70, the signed second-device
+mirror attestation at idx 72 — and the records say what that does NOT
+establish: independence. The unaffiliated-participant milestone and
+third-party archival remain open, and closing them is precisely the
+collaboration this document invites.)

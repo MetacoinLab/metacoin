@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->72<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->fd578fcde105<!--/chain-->…,
-> <!--chain:entry_count-->73<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->73<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->86c0a8f1e927<!--/chain-->…,
+> <!--chain:entry_count-->74<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->73<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->74<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -326,8 +326,16 @@ MIP-0005's blocks went red exactly as designed, and MIP-0006 (idx 71
 <!--idx:71=mip_decision_recorded-->) is the named successor — the four
 release rules carried forward verbatim, the era assertion moved to the
 one-gap state, the supersession mechanism exercised for real on its first
-trigger. The sweep reports the gate's verdict informationally: NOT-READY
-between releases is the expected state, never an alarm.
+trigger. Six days later the second and last gap closed the same way: the
+signed second-device mirror attestation (idx 72
+<!--idx:72=mirror_attestation_anchored-->) turned MIP-0006's blocks red,
+and MIP-0007 (idx 73 <!--idx:73=mip_decision_recorded-->) ratified the
+READY-mechanical era — the full gate reports READY, approval stays
+HUMAN and unconverted, the default stays NO release, and the two
+standing opens (third-party archival, unaffiliated participation) are
+named in the ratified document itself. Three supersessions, three real
+triggers. The sweep reports the gate's verdict informationally either
+way: the verdict between releases is expected state, never an alarm.
 
 The housekeeping walks (idx 61 <!--idx:61=mip_decision_recorded-->, idx 62
 <!--idx:62=mip_decision_recorded-->) gave every file in mip/ an anchored
@@ -391,7 +399,7 @@ era-aware, honest about which values belong to which era.
 across platforms — it is a property the canonical form must EARN, rule by
 rule, and the era machinery exists for the day another rule is needed.
 
-## The cross-machine layer — idx 69-71
+## The cross-machine layer — idx 69-73
 
 The era rule earned its keep immediately: the same macOS arm64 machine
 re-ran the public verifier under era-2 and produced a fully green bundle —
@@ -411,13 +419,34 @@ the release gate's cross-machine criterion (2 named gaps → 1) and
 triggered the governance supersession ratified at idx 71
 <!--idx:71=mip_decision_recorded-->.
 
+The same device then became the **standing mirror**: it built the public
+mirror set from its own clone, verified it IDENTICAL against the
+published chain, and SIGNED the attested facts — the mirror's chain
+point, its manifest hash, the check verdict, and its own fingerprint —
+with its next unused one-time key. The coordinator verified six named
+checks (schema/no-private-material; signature under the ACTIVE root;
+one-time-key discipline ledger-wide; the attested chain point a
+verified prefix of the live chain; the **device rule** — the signed
+fingerprint matches no coordinator machine; and the honest-scope
+statement, without which an attestation is mechanically refused) and
+anchored the record at idx 72 <!--idx:72=mirror_attestation_anchored-->.
+The gate's mirror criterion re-derives from that committed public
+evidence in any fresh clone — no coordinator-local config — and its
+freshness is the weekly sweep's informational job. That closed the last
+external-reality gap and triggered the third supersession, MIP-0007 at
+idx 73 <!--idx:73=mip_decision_recorded-->.
+
 **Proves:** the participant loop works end-to-end across real machines —
-reproduce, sign, bundle, validate, anchor — and the gate criterion derives
-from chain evidence, not assertion.
+reproduce, sign, bundle, validate, anchor — the public corpus survives
+coordinator-disk loss, coordinator-side rewriting is detectable by a
+device the coordinator's workflow does not touch, and both gate
+criteria derive from chain evidence, not assertion.
 **Deliberately does not:** add independence — the same operator controls
 both machines, the records say so, and a `-claimed` relationship can never
-lower measured concentration. The unaffiliated-participant milestone
-remains open, and every document still says so.
+lower measured concentration. The mirror is NOT third-party archival
+(the attestation itself must say so to be accepted). The
+unaffiliated-participant milestone remains open, and every document
+still says so.
 
 ## The six defeated-attack drills
 
