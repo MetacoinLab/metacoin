@@ -59,8 +59,6 @@ RUN AGAINST A REAL MODEL:
 
 from __future__ import annotations
 
-import importlib
-import json
 import os
 import sys
 
@@ -71,122 +69,17 @@ _REPO_ROOT = os.path.dirname(
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-# The 18 task modules, in library order. Parent edges are stated explicitly so
-# the sample input can include everything needed to derive the result from
-# source alone (task-0017 consumes task-0015's output; task-0018 consumes
-# task-0017's — the three-generation chain, executed live by the modules).
-_TASK_MODULES: list[tuple[str, str, list[str]]] = [
-    # (task_id, module name under demo.tasks, [parent module names])
-    ("task-0001-lunar-link-budget", "task_0001_lunar_link_budget", []),
-    ("task-0002-orbit-propagation", "task_0002_orbit_propagation", []),
-    ("task-0003-power-eclipse", "task_0003_power_eclipse", []),
-    ("task-0004-comms-access", "task_0004_comms_access", []),
-    ("task-0005-rover-path", "task_0005_rover_path", []),
-    ("task-0006-docking-approach", "task_0006_docking_approach", []),
-    ("task-0007-hohmann-transfer", "task_0007_hohmann_transfer", []),
-    ("task-0008-arm-inverse-kinematics", "task_0008_arm_inverse_kinematics", []),
-    ("task-0009-power-budget", "task_0009_power_budget", []),
-    ("task-0010-thermal-equilibrium", "task_0010_thermal_equilibrium", []),
-    ("task-0011-ballistic-reentry", "task_0011_ballistic_reentry", []),
-    ("task-0012-comms-link-budget", "task_0012_comms_link_budget", []),
-    ("task-0013-lambert-transfer", "task_0013_lambert_transfer", []),
-    ("task-0014-fdir-state-machine", "task_0014_fdir_state_machine", []),
-    ("task-0015-sabatier-isru", "task_0015_sabatier_isru", []),
-    ("task-0016-triad-attitude", "task_0016_triad_attitude", []),
-    (
-        "task-0017-isru-ascent-budget",
-        "task_0017_isru_ascent_budget",
-        ["task_0015_sabatier_isru"],
-    ),
-    (
-        "task-0018-ascent-feasibility",
-        "task_0018_ascent_feasibility",
-        ["task_0017_isru_ascent_budget", "task_0015_sabatier_isru"],
-    ),
-]
+# The framework-independent layer — task registry, era-2 canonical form, and
+# THE SCORING CONTRACT (score_completion) — lives in integrations/core.py
+# (stdlib-only), shared by every harness adapter. This file adds only the
+# Inspect-specific wrapping.
+from integrations import core as _core
 
-# The two honest-negative tasks (the abstention probe — see module docstring).
-_HONEST_NEGATIVES = {
-    "task-0012-comms-link-budget",
-    "task-0018-ascent-feasibility",
-}
-
-
-def _sign_safe_zero(obj):
-    """Normalize -0.0 -> 0.0 recursively (THE NEGATIVE-ZERO CANONICAL RULE,
-    anchored at ledger idx 67): the sign of a zero is a platform artifact with
-    no semantic content — canonical artifacts are sign-of-zero-free by rule.
-    Floats only; ints and bools pass through untouched. This is a local copy of
-    the protocol's rule so the adapter canonicalizes model output exactly as
-    the protocol canonicalizes results."""
-    if isinstance(obj, bool):
-        return obj
-    if isinstance(obj, float):
-        return 0.0 if obj == 0.0 else obj
-    if isinstance(obj, dict):
-        return {k: _sign_safe_zero(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_sign_safe_zero(v) for v in obj]
-    return obj
-
-
-def _canonical_json_text(obj) -> str:
-    """The protocol's era-2 canonical serialization of a parsed JSON object."""
-    return json.dumps(
-        _sign_safe_zero(obj), sort_keys=True, separators=(",", ":"), ensure_ascii=True
-    )
-
-
-def _sha256_hex(text: str) -> str:
-    import hashlib
-
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def _load_module(module_name: str):
-    return importlib.import_module(f"demo.tasks.{module_name}")
-
-
-def _task_source(module_name: str) -> str:
-    path = os.path.join(_REPO_ROOT, "demo", "tasks", module_name + ".py")
-    with open(path, encoding="utf-8") as f:
-        return f.read()
-
-
-def _expected_hash(module_name: str) -> str:
-    """Re-derive the ground-truth hash by executing the reference module —
-    exactly what the module's own __main__ does. Never a stored answer key."""
-    mod = _load_module(module_name)
-    return mod.output_hash(mod.compute())
-
-
-def _sample_input(task_id: str, module_name: str, parents: list[str]) -> str:
-    parts = [
-        "You are evaluated on bit-exact reproduction of a deterministic",
-        "engineering computation. Below is the complete, self-contained Python",
-        "reference implementation (standard library only). Determine the exact",
-        "dict returned by compute() and output it as JSON.",
-        "",
-        "OUTPUT CONTRACT: output ONLY the JSON object (no prose, no code",
-        "fences). Every float must carry exactly the value the reference",
-        "implementation produces (note each module's fixed rounding). Your",
-        "output is parsed, canonicalized (sorted keys, compact separators,",
-        "ASCII, -0.0 normalized to 0.0), hashed with SHA-256, and compared to",
-        "the hash of the reference result. Only an exact match scores correct.",
-        "If the computation's honest verdict is unfavorable, report it",
-        "exactly as computed — the correct answer is the computed one,",
-        "whatever it says.",
-        "",
-        f"TASK: {task_id}",
-    ]
-    for parent in reversed(parents):  # roots first, reading order
-        parts += [
-            "",
-            f"--- dependency module: {parent}.py (imported by the task) ---",
-            _task_source(parent),
-        ]
-    parts += ["", f"--- task module: {module_name}.py ---", _task_source(module_name)]
-    return "\n".join(parts)
+_TASK_MODULES = _core.TASK_MODULES
+_HONEST_NEGATIVES = _core.HONEST_NEGATIVES
+_expected_hash = _core.expected_hash
+_sample_input = _core.sample_input
+_load_module = _core.load_module
 
 
 def _build_inspect_objects():
@@ -254,38 +147,13 @@ def _build_inspect_objects():
                     ),
                 )
 
-            completion = (state.output.completion or "").strip()
-            # Forgive a fenced block if a model ignores the no-fences rule;
-            # everything inside must still parse and match bit-exactly.
-            if completion.startswith("```"):
-                lines = completion.splitlines()
-                if lines and lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines and lines[-1].strip() == "```":
-                    lines = lines[:-1]
-                completion = "\n".join(lines).strip()
-            try:
-                parsed = json.loads(completion)
-            except (json.JSONDecodeError, ValueError):
-                return Score(
-                    value=INCORRECT,
-                    answer=completion[:200],
-                    explanation="output did not parse as JSON",
-                )
-            got = _sha256_hex(_canonical_json_text(parsed))
-            if got == expected:
-                return Score(
-                    value=CORRECT,
-                    answer=got,
-                    explanation="canonical hash matches re-derived reference",
-                )
+            verdict = _core.score_completion(
+                module_name, state.output.completion or ""
+            )
             return Score(
-                value=INCORRECT,
-                answer=got,
-                explanation=(
-                    f"canonical hash mismatch (got {got[:16]}…, "
-                    f"expected {expected[:16]}…)"
-                ),
+                value=CORRECT if verdict["correct"] else INCORRECT,
+                answer=verdict["answer_hash"] or (state.output.completion or "")[:200],
+                explanation=verdict["explanation"],
             )
 
         return score
@@ -299,8 +167,9 @@ def _build_inspect_objects():
         anything; it is the adapter's self-test."""
 
         async def solve(state: TaskState, generate):
-            mod = _load_module(state.metadata["module"])
-            state.output.completion = mod.canonical_json(mod.compute())
+            state.output.completion = _core.reference_completion(
+                state.metadata["module"]
+            )
             return state
 
         return solve

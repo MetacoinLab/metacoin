@@ -67,6 +67,7 @@ packages = [
     # touches it (its smoke mode SKIPs cleanly when inspect-ai is absent).
     "integrations",
     "integrations.inspect",
+    "integrations.hal",
 ]
 
 [tool.setuptools.dynamic]

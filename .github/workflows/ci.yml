@@ -95,6 +95,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      # The stdlib-only integrations layer (shared scoring core + the HAL
+      # benchmark package) needs no third-party packages — its self-tests run
+      # BEFORE any pip install, proving that boundary on every build.
+      - name: Integrations core + HAL package self-tests (stdlib-only)
+        run: |
+          python3 integrations/core.py
+          python3 integrations/hal/metacoin_benchmark.py --selftest
+
       # If PyPI is unreachable the install fails without failing the build:
       # the smoke step below then prints SKIPPED and exits 0 (the adapter is
       # optional; its absence is never a failure of the protocol). A real
