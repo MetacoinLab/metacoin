@@ -35,6 +35,15 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+# The ONE third-party dependency in the repository, and it is opt-in: the
+# Inspect adapter (integrations/inspect/) targets UK AISI's inspect-ai
+# framework. The protocol never imports it; `pip install metacoin-protocol`
+# stays zero-dependency; `pip install metacoin-protocol[inspect]` adds the
+# adapter's requirement. This extra exists for the inspect_evals register,
+# whose contract requires the eval's repo to declare inspect_ai.
+inspect = ["inspect-ai"]
+
 [project.urls]
 Homepage = "https://github.com/MetacoinLab/metacoin"
 
@@ -47,7 +56,18 @@ metacoin = "metacoin_cli.main:main"
 # listing them explicitly packages them as-is. mip/ ships the same way (data
 # only): anchored MIP decisions pin the cited file's sha256, so a
 # pip-installed verifier needs the files to re-derive the governance layer.
-packages = ["metacoin_cli", "protocol", "demo", "demo.tasks", "mip"]
+packages = [
+    "metacoin_cli",
+    "protocol",
+    "demo",
+    "demo.tasks",
+    "mip",
+    # The Inspect adapter ships in the wheel but imports its third-party
+    # dependency lazily and only when used — a stdlib-only install never
+    # touches it (its smoke mode SKIPs cleanly when inspect-ai is absent).
+    "integrations",
+    "integrations.inspect",
+]
 
 [tool.setuptools.dynamic]
 version = { attr = "metacoin_cli.__version__" }

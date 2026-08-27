@@ -2,9 +2,15 @@
 #
 # Research-stage. Runs the standard-library self-tests on every push and pull
 # request to main: the demo suite (demo/run_all_selftests.sh) and the protocol
-# suite (protocol/run_protocol_selftests.sh). No dependencies are installed —
-# everything is pure Python 3 standard library, so there is intentionally no
-# pip step. A failure in EITHER suite fails the build.
+# suite (protocol/run_protocol_selftests.sh). In the selftests job no
+# dependencies are installed — the protocol is pure Python 3 standard library,
+# so that job intentionally has no pip step. A failure in EITHER suite fails
+# the build.
+#
+# A SEPARATE, optional job (inspect-adapter) exercises the Inspect integration
+# under integrations/inspect/ — the one place in the repo with a third-party
+# dependency (inspect-ai), deliberately outside the protocol's zero-dependency
+# boundary. The protocol jobs never install it and never import it.
 
 name: CI
 
@@ -48,6 +54,8 @@ jobs:
       # Guard: the protocol self-tests must use temp files only and never create the
       # default runtime ledger or a real signing key. Fail the build if a stray ledger
       # file OR any protocol secret key (protocol/*.secret) is left behind.
+      # (The inspect-adapter job below never runs in this job's environment, so this
+      # guard also re-proves the protocol suites need no third-party packages.)
       - name: Verify no stray ledger or key files
         if: always()
         run: |
@@ -67,3 +75,33 @@ jobs:
             echo "OK: no stray protocol/*.secret key files."
           fi
           exit $status
+
+  # OPTIONAL integration job: the Inspect adapter (integrations/inspect/).
+  # This is the ONLY CI job that installs a third-party package (inspect-ai),
+  # and it is deliberately separate from the selftests job so the protocol's
+  # zero-dependency claim stays tested exactly as stated. What this job can
+  # honestly exercise: the no-model smoke path — dataset build, reference
+  # solver, and the bit-exact re-derivation scorer agreeing 18/18 with the
+  # reference implementations (both honest negatives included). It does NOT
+  # evaluate any model (no API keys in CI, by design).
+  inspect-adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # If PyPI is unreachable the install fails without failing the build:
+      # the smoke step below then prints SKIPPED and exits 0 (the adapter is
+      # optional; its absence is never a failure of the protocol). A real
+      # smoke failure with inspect-ai installed DOES fail the build.
+      - name: Install inspect-ai (optional dependency)
+        continue-on-error: true
+        run: pip install inspect-ai
+
+      - name: Run adapter smoke (18/18 or SKIPPED)
+        run: python3 integrations/inspect/metacoin_tasks.py --smoke
