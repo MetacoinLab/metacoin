@@ -102,6 +102,8 @@ jobs:
         run: |
           python3 integrations/core.py
           python3 integrations/hal/metacoin_benchmark.py --selftest
+          python3 integrations/baselines/run_baseline.py --selftest
+          python3 integrations/baselines/run_baseline.py --estimate
 
       # If PyPI is unreachable the install fails without failing the build:
       # the smoke step below then prints SKIPPED and exits 0 (the adapter is

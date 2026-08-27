@@ -68,6 +68,7 @@ packages = [
     "integrations",
     "integrations.inspect",
     "integrations.hal",
+    "integrations.baselines",
 ]
 
 [tool.setuptools.dynamic]
