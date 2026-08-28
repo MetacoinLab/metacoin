@@ -188,3 +188,5 @@ macbook_mirror_attestation*.json
 # canonical facts live on-chain in the hash-era records)
 task8_mac*.json
 macbook_bundle*.json
+# the pulse working copy (protocol/pulse.py --generate); the anchored copy ships as protocol/evidence/pulse_<hash12>.json
+pulse.json
