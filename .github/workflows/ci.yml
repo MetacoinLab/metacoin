@@ -51,6 +51,14 @@ jobs:
         if: always()
         run: bash protocol/run_protocol_selftests.sh
 
+      # The task laws (MIP-0008 discipline, MIP-0009 contract): every registered
+      # task module is linted; modules the chain referenced before the law are
+      # grandfathered BY ERA (never by name) and skipped; bound modules must be
+      # clean. This is the task-addition gate — a new module fails here first.
+      - name: Task-law check (MIP-0008 / MIP-0009)
+        if: always()
+        run: python3 protocol/task_law_check.py --check
+
       # Guard: the protocol self-tests must use temp files only and never create the
       # default runtime ledger or a real signing key. Fail the build if a stray ledger
       # file OR any protocol secret key (protocol/*.secret) is left behind.

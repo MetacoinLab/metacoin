@@ -124,7 +124,7 @@ $ python3 -c "import sys; sys.path.insert(0,'.'); from protocol.verify_everythin
 
 The suites behind the report are runnable directly:
 `protocol/run_protocol_selftests.sh`
-(<!--chain:protocol_suite_count-->22<!--/chain--> self-tests) and
+(<!--chain:protocol_suite_count-->23<!--/chain--> self-tests) and
 `demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->27<!--/chain-->
 self-tests) — CI requires both green plus a fresh-clone full pass on every
 commit. The layer tools remain individually available (`audit.py --verify`,
