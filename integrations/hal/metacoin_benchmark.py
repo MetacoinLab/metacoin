@@ -1,6 +1,6 @@
 # Copyright (c) 2023-2026 MetaCoin-Lab.
 # Licensed under SML-1.0 — see LICENSE.md.
-"""metacoin_benchmark.py — HAL-format benchmark package v0: the 18-task
+"""metacoin_benchmark.py — HAL-format benchmark package v0: the task
 library in the Holistic Agent Leaderboard's documented benchmark contract.
 
 ============================== SCOPE / BOUNDARY ==============================
@@ -94,7 +94,7 @@ except ImportError:
 
 
 class MetacoinTasksBenchmark(_Base):
-    """The 18-task library as a HAL benchmark: prompt in, canonical JSON out,
+    """The task library as a HAL benchmark: prompt in, canonical JSON out,
     scored by bit-exact re-derivation (integrations/core.py holds the one
     scoring contract shared by every harness adapter)."""
 
@@ -187,18 +187,20 @@ def _selftest() -> int:
     ok = []
     bench = MetacoinTasksBenchmark()
 
-    # (a) dataset shape: 18 tasks, prompts present, ground truth declared.
+    # (a) dataset shape: the whole roster, prompts present, ground truth declared.
+    n_tasks = len(_core.TASK_MODULES)
+    n_neg = len(_core.HONEST_NEGATIVES)
     shape_ok = (
-        len(bench.benchmark) == 18
+        len(bench.benchmark) == n_tasks
         and all("prompt" in t and "answer" in t for t in bench.benchmark.values())
         and bench._ground_truth_keys == ["answer"]
         and bench.requires_sandbox is False
     )
-    print(f"--- (a) dataset shape: 18 tasks, contract fields: "
+    print(f"--- (a) dataset shape: {n_tasks} tasks, contract fields: "
           f"{'OK' if shape_ok else 'WRONG'} ---")
     ok.append(shape_ok)
 
-    # (b) reference submissions -> 18/18, both honest negatives correct.
+    # (b) reference submissions -> N/N, every honest negative correct.
     reference = {
         task_id: _core.reference_completion(module_name)
         for task_id, module_name, _ in _core.TASK_MODULES
@@ -206,10 +208,10 @@ def _selftest() -> int:
     metrics = bench.get_metrics(bench.evaluate_output(reference, run_id="selftest"))
     ref_ok = (
         metrics["accuracy"] == 1.0
-        and len(metrics["successful_tasks"]) == 18
+        and len(metrics["successful_tasks"]) == n_tasks
         and metrics["failed_tasks"] == []
-        and metrics["honest_negative_total"] == 2
-        and metrics["honest_negative_correct"] == 2
+        and metrics["honest_negative_total"] == n_neg
+        and metrics["honest_negative_correct"] == n_neg
     )
     print(
         f"--- (b) reference submissions: accuracy {metrics['accuracy']}, "

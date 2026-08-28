@@ -66,6 +66,8 @@ TASK_MODULES = {
     "task-0016": "demo.tasks.task_0016_triad_attitude",
     "task-0017": "demo.tasks.task_0017_isru_ascent_budget",
     "task-0018": "demo.tasks.task_0018_ascent_feasibility",
+    "task-0019": "demo.tasks.task_0019_sabatier_equilibrium_constant",
+    "task-0020": "demo.tasks.task_0020_sabatier_conversion_equilibrium",
 }
 
 # Honest note embedded in every submission (and visible in output).

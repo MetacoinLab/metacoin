@@ -130,12 +130,14 @@ K degC deg rad mrad arcsec arcmin dB dBi dBW dBm dBHz
 m_s km_s m_s2 km_s2 m3_s2 km3_s2 kg_s g_s mol kmol mol_s W_m2 kg_m3 g_cm3
 rpm pct percent ppm au AU ly bps kbps Mbps Gbps bit bits bytes B
 eV keV MeV sr lux lm cd T uT nT ohm S F H Sv Gy Bq
+J_mol kJ_mol J_mol_K kJ_mol_K
 """.split())
 # R4 — dimensionless kinds, accepted as a suffix or as the whole name.
 DIMENSIONLESS_SUFFIXES = frozenset("""
 count n num index idx id seed decimals steps iters iterations ratio fraction
 frac coefficient coef factor efficiency unit flag code rows cols cells order k
 generation epoch version mach cosine sine angle_ratio quality
+dimensionless unitless
 """.split())
 
 

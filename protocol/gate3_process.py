@@ -73,6 +73,8 @@ TASK_TAXONOMY = {
     "task-0014": "TX10", "task-0015": "TX07", "task-0016": "TX08",
     "task-0017": "TX01",
     "task-0018": "TX17",
+    "task-0019": "TX07",
+    "task-0020": "TX07",
 }
 TAXONOMY_ALLOWLIST = tuple(sorted(set(TASK_TAXONOMY.values())))
 

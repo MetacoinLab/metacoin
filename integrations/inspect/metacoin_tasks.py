@@ -1,6 +1,6 @@
 # Copyright (c) 2023-2026 MetaCoin-Lab.
 # Licensed under SML-1.0 — see LICENSE.md.
-"""metacoin_tasks.py — Inspect adapter v0: the 18-task library as a native
+"""metacoin_tasks.py — Inspect adapter v0: the task library as a native
 Inspect (inspect-ai) evaluation.
 
 ================================ SCOPE / BOUNDARY ================================
@@ -14,7 +14,7 @@ it never touches ledger files, keys, or anchoring machinery. Research-only; no
 token; not financial advice.
 ==================================================================================
 
-WHAT THE EVALUATION IS. Each of the 18 deterministic space-engineering task
+WHAT THE EVALUATION IS. Each of the deterministic space-engineering task
 modules in demo/tasks/ becomes one Inspect Sample: the sample input is the task's
 full source (plus parent sources for the two parented tasks), and the evaluated
 model must output the exact canonical-JSON result that the reference
@@ -47,7 +47,7 @@ manufacture success rather than admit "no".
 SMOKE MODE (no network, no LLM). `python3 metacoin_tasks.py --smoke` runs the
 full Inspect pipeline with a reference solver that executes the actual task
 modules instead of calling any model, under Inspect's offline mockllm backend.
-It must score 18/18 — proving the dataset, solver plumbing, and scorer agree
+It must score N/N (every roster task) — proving the dataset, solver plumbing, and scorer agree
 with the reference implementations end to end. If inspect-ai is not installed,
 smoke mode prints SKIPPED and exits 0 (the adapter is optional; its absence is
 never a failure of the protocol).
@@ -162,7 +162,7 @@ def _build_inspect_objects():
     def reference_solver():
         """No-model smoke solver: executes the actual reference module and
         writes its canonical JSON as the completion. Exists to prove the
-        pipeline (dataset -> solver -> scorer) scores 18/18 when fed ground
+        pipeline (dataset -> solver -> scorer) scores N/N when fed ground
         truth — with zero network and zero LLM. It is NOT an evaluation of
         anything; it is the adapter's self-test."""
 
@@ -187,7 +187,7 @@ def _build_inspect_objects():
     @task
     def metacoin_tasks_smoke():
         """Smoke variant: same dataset and scorer, reference solver instead of
-        a model. Must score 18/18; anything else is an adapter bug."""
+        a model. Must score N/N (every roster task); anything else is an adapter bug."""
         return Task(
             dataset=MemoryDataset(_samples()),
             solver=reference_solver(),
@@ -207,7 +207,7 @@ except ImportError:
 
 
 def _run_smoke() -> int:
-    """Run the no-model smoke evaluation and self-test the outcome: 18/18 or
+    """Run the no-model smoke evaluation and self-test the outcome: N/N or
     fail. Prints in the house self-test style; exits 0 on SKIP (inspect-ai
     absent) because the adapter is optional by design."""
     print("=== metacoin_tasks.py smoke (no network, no LLM) ===\n")
@@ -243,8 +243,9 @@ def _run_smoke() -> int:
         for s in (log.samples or [])
         if s.scores and any(sc.value == "C" for sc in s.scores.values())
     )
-    print(f"samples scored  : {correct}/{total} correct (expected 18/18)")
-    ok.append(total == 18 and correct == 18)
+    n_tasks = len(_core.TASK_MODULES)
+    print(f"samples scored  : {correct}/{total} correct (expected {n_tasks}/{n_tasks})")
+    ok.append(total == n_tasks and correct == n_tasks)
 
     negatives = [
         s.id
@@ -262,7 +263,7 @@ def _run_smoke() -> int:
     all_ok = all(ok)
     print(
         "\n=== smoke summary: "
-        + ("18/18 — PIPELINE AGREES WITH REFERENCE" if all_ok else "FAILURE — see above")
+        + (f"{n_tasks}/{n_tasks} — PIPELINE AGREES WITH REFERENCE" if all_ok else "FAILURE — see above")
         + " ==="
     )
     return 0 if all_ok else 1

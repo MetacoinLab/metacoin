@@ -50,6 +50,8 @@ import demo.tasks.task_0015_sabatier_isru as task_0015
 import demo.tasks.task_0016_triad_attitude as task_0016
 import demo.tasks.task_0017_isru_ascent_budget as task_0017
 import demo.tasks.task_0018_ascent_feasibility as task_0018
+import demo.tasks.task_0019_sabatier_equilibrium_constant as task_0019
+import demo.tasks.task_0020_sabatier_conversion_equilibrium as task_0020
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -236,6 +238,11 @@ if __name__ == "__main__":
     #   R20 task-0018 honest: earn 2, spend 1                 -> balance 17  (ascent feasibility earns —
     #                         the three-generation chain 0015 -> 0017 -> 0018; the verdict is an
     #                         honest feasible:false, and an honest negative VERIFIES)
+    #   R21 task-0019 honest: earn 2, spend 1                 -> balance 18  (CEA-pinned K_eq(T) earns —
+    #                         the first task born under MIP-0008/0009 law)
+    #   R22 task-0020 honest: earn 2, spend 1                 -> balance 19  (equilibrium conversion earns —
+    #                         parented on 0019 + 0015; the reference point is an honest
+    #                         conversion_acceptable:false, and an honest negative VERIFIES)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
@@ -257,6 +264,8 @@ if __name__ == "__main__":
         {"task": task_0016, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0017, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0018, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0019, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0020, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -284,11 +293,13 @@ if __name__ == "__main__":
         {"task_id": "task-0016-triad-attitude", "verify_passed": True},
         {"task_id": "task-0017-isru-ascent-budget", "verify_passed": True},
         {"task_id": "task-0018-ascent-feasibility", "verify_passed": True},
+        {"task_id": "task-0019-sabatier-equilibrium-constant", "verify_passed": True},
+        {"task_id": "task-0020-sabatier-conversion-equilibrium", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs all eighteen real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+    print("Runs all twenty real tasks: task-0001 (link budget), task-0002 (two-body orbit "
           "propagation), task-0003 (eclipse/power budget), task-0004 (comms access), "
           "task-0005 (rover path), task-0006 (docking approach), task-0007 (Hohmann transfer), "
           "task-0008 (arm inverse kinematics), task-0009 (power budget), "
@@ -298,7 +309,11 @@ if __name__ == "__main__":
           "task-0016 (TRIAD attitude), task-0017 (ISRU ascent budget — the "
           "first parented task, consuming task-0015's output), and "
           "task-0018 (ascent feasibility — the three-generation chain "
-          "0015 -> 0017 -> 0018, honestly infeasible at these constants).\n")
+          "0015 -> 0017 -> 0018, honestly infeasible at these constants), "
+          "task-0019 (CEA-pinned Sabatier K_eq(T) — the first task born under "
+          "MIP-0008/0009 law), and task-0020 (Sabatier equilibrium conversion, "
+          "parented on 0019 + 0015 — honestly below the chain's assumed 92% at "
+          "the 700 K reference point).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -335,12 +350,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 20,
-        "passed": 19,
+        "rounds": 22,
+        "passed": 21,
         "rejected": 1,
-        "total_earned": 38,
-        "total_spent": 21,
-        "final_balance": 17,
+        "total_earned": 42,
+        "total_spent": 23,
+        "final_balance": 19,
     }
     totals_ok = totals == expected
 

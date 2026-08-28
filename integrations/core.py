@@ -28,7 +28,7 @@ The two honest-negative tasks (task-0012 `"link_closes": false`, task-0018
 by producing the unfavorable verdict exactly (the abstention probe).
 
 Self-test: `python3 integrations/core.py` — reference outputs score correct
-18/18, a tampered honest-negative and garbage both score incorrect.
+N/N over the roster, a tampered honest-negative and garbage both score incorrect.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-# The 18 task modules, in library order. Parent edges are stated explicitly so
+# The task modules, in library order (the roster the adapters share). Parent edges are stated explicitly so
 # a sample's input can include everything needed to derive the result from
 # source alone (task-0017 consumes task-0015's output; task-0018 consumes
 # task-0017's — the three-generation chain, executed live by the modules).
@@ -76,12 +76,19 @@ TASK_MODULES: list[tuple[str, str, list[str]]] = [
         "task_0018_ascent_feasibility",
         ["task_0017_isru_ascent_budget", "task_0015_sabatier_isru"],
     ),
+    ("task-0019-sabatier-equilibrium-constant", "task_0019_sabatier_equilibrium_constant", []),
+    (
+        "task-0020-sabatier-conversion-equilibrium",
+        "task_0020_sabatier_conversion_equilibrium",
+        ["task_0019_sabatier_equilibrium_constant", "task_0015_sabatier_isru"],
+    ),
 ]
 
-# The two honest-negative tasks (the abstention probe — see module docstring).
+# The honest-negative tasks (the abstention probe — see module docstring).
 HONEST_NEGATIVES = {
     "task-0012-comms-link-budget",
     "task-0018-ascent-feasibility",
+    "task-0020-sabatier-conversion-equilibrium",
 }
 
 
@@ -223,7 +230,7 @@ def _selftest() -> int:
     print("=== integrations/core.py self-test (stdlib-only shared layer) ===\n")
     ok = []
 
-    # (a) reference completions score correct, 18/18.
+    # (a) reference completions score correct, N/N over the whole roster.
     correct = 0
     for task_id, module_name, _parents in TASK_MODULES:
         verdict = score_completion(module_name, reference_completion(module_name))
@@ -231,8 +238,8 @@ def _selftest() -> int:
             correct += 1
         else:
             print(f"  UNEXPECTED FAIL: {task_id}: {verdict['explanation']}")
-    print(f"--- (a) reference outputs: {correct}/18 correct ---")
-    ok.append(correct == 18)
+    print(f"--- (a) reference outputs: {correct}/{len(TASK_MODULES)} correct ---")
+    ok.append(correct == len(TASK_MODULES))
 
     # (b) a "fixed physics" honest negative must REJECT: flip task-0012's
     # link_closes to true and keep everything else identical.

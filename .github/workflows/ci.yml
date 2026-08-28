@@ -121,5 +121,5 @@ jobs:
         continue-on-error: true
         run: pip install inspect-ai
 
-      - name: Run adapter smoke (18/18 or SKIPPED)
+      - name: Run adapter smoke (every roster task or SKIPPED)
         run: python3 integrations/inspect/metacoin_tasks.py --smoke

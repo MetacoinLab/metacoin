@@ -52,7 +52,7 @@ The pasted run below is trimmed to the shape of the report; the full pass has
   report names that.
 - **tasks** — all <!--chain:recorded_task_count-->18<!--/chain--> recorded
   demo tasks re-run to their canonical output hashes. The registry holds
-  <!--chain:task_count-->18<!--/chain--> tasks in total; registry tasks not
+  <!--chain:task_count-->20<!--/chain--> tasks in total; registry tasks not
   yet on the ledger (new tasks join the corpus at the next milestone anchor
   batch) are counted and named by the report as registered-unanchored —
   expected evolution, never a failure and never silently skipped.
@@ -125,7 +125,7 @@ $ python3 -c "import sys; sys.path.insert(0,'.'); from protocol.verify_everythin
 The suites behind the report are runnable directly:
 `protocol/run_protocol_selftests.sh`
 (<!--chain:protocol_suite_count-->23<!--/chain--> self-tests) and
-`demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->27<!--/chain-->
+`demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->30<!--/chain-->
 self-tests) — CI requires both green plus a fresh-clone full pass on every
 commit. The layer tools remain individually available (`audit.py --verify`,
 `agent_verifier.py`, `challenge_response.py`, …) — the flagship adds no
