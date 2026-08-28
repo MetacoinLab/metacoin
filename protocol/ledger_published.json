@@ -4216,19 +4216,70 @@
       },
       "prev_hash": "2fd82d1d8aa943e912ec6b935d64cd5257f0286ff543992638875ebedf7dce38",
       "timestamp": 1787909574.4913528
+    },
+    {
+      "hash": "c79e972d149010d267ce81641897e46096e9dce1ca462a939b8c2a78327dea1b",
+      "index": 80,
+      "payload": {
+        "anchored_at": 1787911330.4395947,
+        "as_of_chain": {
+          "entries": 80,
+          "tip_hash": "9b5163bbc591cdd9460c167943f25cb6d3b25150954dcd395fbcf2f42e0c8b9b",
+          "tip_index": 79
+        },
+        "coordinator_reconfirmed": {
+          "chain_point": "prefix-bound at idx 79",
+          "gates_all_green": true,
+          "self_hash_recomputed": true
+        },
+        "event": "pulse_recorded",
+        "headline": {
+          "cold_install": "PASS",
+          "demo_suite": "30/30",
+          "doc_commands": 32,
+          "honest_negatives": 3,
+          "mip_decisions": 10,
+          "mirror_last_attested_idx": 72,
+          "protocol_suite": "24/24",
+          "registered_actors": 4,
+          "sweep_findings": 0,
+          "task_law": {
+            "bound": 2,
+            "grandfathered": 18,
+            "registered": 20,
+            "violations": 0
+          },
+          "tasks_recorded": 20,
+          "tasks_registered": 20,
+          "verify_everything_layers": 17
+        },
+        "limitation_note": "The pulse is a same-operator health snapshot: every number is derived from the chain and from real gate runs at the recorded commit, and the generator refuses to produce a pulse with any red gate \u2014 so an anchored pulse proves the stack was green at that chain point, not that the work is useful, independent, or safe; not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "pulse_hash": "2110eb093a58235dcb769171413b02f62e78386206016079260e21017363299d",
+        "pulse_schema": "pulse/0.1",
+        "refusal_rule": "a pulse that cannot be green honestly is not generated \u2014 the absence of a fresh pulse is itself the signal",
+        "repo_commit": "2ef57b010252d8a2dcd5af6f62c298770a762ec3",
+        "stage": "R-pulse",
+        "status": "pulse-confirmed",
+        "topology": "same-operator-coordinator-pulse",
+        "zero_value": true
+      },
+      "prev_hash": "9b5163bbc591cdd9460c167943f25cb6d3b25150954dcd395fbcf2f42e0c8b9b",
+      "timestamp": 1787911330.4400713
     }
   ],
   "snapshot_header": {
-    "entry_count": 80,
+    "entry_count": 81,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1787909574.5316784,
+    "snapshot_timestamp": 1787911330.484799,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "9b5163bbc591cdd9460c167943f25cb6d3b25150954dcd395fbcf2f42e0c8b9b",
-    "tip_index": 79,
+    "tip_hash": "c79e972d149010d267ce81641897e46096e9dce1ca462a939b8c2a78327dea1b",
+    "tip_index": 80,
     "zero_value": true
   }
 }

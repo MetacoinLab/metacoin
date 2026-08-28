@@ -7,8 +7,8 @@
 > with the chain point it describes and re-checked against live state, and
 > nothing here claims more than the anchored pulse record proves.
 >
-> Chain point: tip index <!--chain:tip_index-->79<!--/chain-->,
-> <!--chain:entry_count-->80<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->80<!--/chain-->,
+> <!--chain:entry_count-->81<!--/chain--> entries.
 
 ## What a pulse is
 
@@ -33,21 +33,21 @@ routine sweep: a clean sweep, then a pulse.
 
 | | |
 |---|---|
-| Anchored at ledger index | <!--chain:pulse_idx-->none<!--/chain--> (pulse <!--chain:pulse_count-->none<!--/chain--> of the series) |
-| Anchored on (UTC) | <!--chain:pulse_date-->none<!--/chain--> |
-| pulse_hash | `<!--chain:pulse_hash_prefix-->none<!--/chain-->…` |
-| Chain point it describes | <!--chain:pulse_entries-->none<!--/chain--> entries, tip index <!--chain:pulse_tip_index-->none<!--/chain--> (<!--chain:pulse_entries_since-->none<!--/chain--> entries since) |
-| Repository commit | `<!--chain:pulse_commit-->none<!--/chain-->` |
-| verify_everything | ALL LAYERS PASS — <!--chain:pulse_layers-->none<!--/chain--> layers |
-| Self-test suites (demo / protocol) | <!--chain:pulse_demo_suite-->none<!--/chain--> / <!--chain:pulse_protocol_suite-->none<!--/chain--> |
-| Task law (MIP-0008/0009) | <!--chain:pulse_task_law-->none<!--/chain--> |
-| Documentation suite | CLEAN — <!--chain:pulse_doc_commands-->none<!--/chain--> commands executed |
-| Cold install | <!--chain:pulse_cold_install-->none<!--/chain--> |
-| Routine sweep findings | <!--chain:pulse_sweep_findings-->none<!--/chain--> |
-| Recorded tasks (honest negatives) | <!--chain:pulse_tasks-->none<!--/chain--> (<!--chain:pulse_honest_negatives-->none<!--/chain-->) |
-| Anchored MIP decisions | <!--chain:pulse_mip_decisions-->none<!--/chain--> |
-| Registered actors | <!--chain:pulse_actors-->none<!--/chain--> (all the same operator — independence is measured, not claimed) |
-| Mirror last attested at idx | <!--chain:pulse_mirror_idx-->none<!--/chain--> |
+| Anchored at ledger index | <!--chain:pulse_idx-->80<!--/chain--> (pulse <!--chain:pulse_count-->1<!--/chain--> of the series) |
+| Anchored on (UTC) | <!--chain:pulse_date-->2026-08-28<!--/chain--> |
+| pulse_hash | `<!--chain:pulse_hash_prefix-->2110eb093a58<!--/chain-->…` |
+| Chain point it describes | <!--chain:pulse_entries-->80<!--/chain--> entries, tip index <!--chain:pulse_tip_index-->79<!--/chain--> (<!--chain:pulse_entries_since-->1<!--/chain--> entries since) |
+| Repository commit | `<!--chain:pulse_commit-->2ef57b01<!--/chain-->` |
+| verify_everything | ALL LAYERS PASS — <!--chain:pulse_layers-->17<!--/chain--> layers |
+| Self-test suites (demo / protocol) | <!--chain:pulse_demo_suite-->30/30<!--/chain--> / <!--chain:pulse_protocol_suite-->24/24<!--/chain--> |
+| Task law (MIP-0008/0009) | <!--chain:pulse_task_law-->18 grandfathered / 2 bound / 0 violations<!--/chain--> |
+| Documentation suite | CLEAN — <!--chain:pulse_doc_commands-->32<!--/chain--> commands executed |
+| Cold install | <!--chain:pulse_cold_install-->PASS<!--/chain--> |
+| Routine sweep findings | <!--chain:pulse_sweep_findings-->0<!--/chain--> |
+| Recorded tasks (honest negatives) | <!--chain:pulse_tasks-->20<!--/chain--> (<!--chain:pulse_honest_negatives-->3<!--/chain-->) |
+| Anchored MIP decisions | <!--chain:pulse_mip_decisions-->10<!--/chain--> |
+| Registered actors | <!--chain:pulse_actors-->4<!--/chain--> (all the same operator — independence is measured, not claimed) |
+| Mirror last attested at idx | <!--chain:pulse_mirror_idx-->72<!--/chain--> |
 
 Every value above is rendered from the latest `pulse_recorded` record on the
 chain by `protocol/doc_verify.py --render` and re-checked on every CI run.
