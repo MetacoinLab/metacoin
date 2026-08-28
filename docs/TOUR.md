@@ -8,10 +8,10 @@
 > this document's declared as-of point**, so the tour stays verifiably
 > green as the chain grows and goes red only if it misstates its own era.
 
-<!--era-pin:entry_count=76 tip_hash_prefix=a5a57536f8f3-->
-**Reviewed era:** ledger entry <!--era:entry_count-->76<!--/era--> (tip
-index <!--era:tip_index-->75<!--/era-->, hash
-`<!--era:tip_hash_prefix-->a5a57536f8f3<!--/era-->…`, August 2026).
+<!--era-pin:entry_count=80 tip_hash_prefix=9b5163bbc591-->
+**Reviewed era:** ledger entry <!--era:entry_count-->80<!--/era--> (tip
+index <!--era:tip_index-->79<!--/era-->, hash
+`<!--era:tip_hash_prefix-->9b5163bbc591<!--/era-->…`, August 2026).
 
 **Design principle: this tour makes no claims.** It hands you the commands
 that let the repository make its own case — including its negative results.
@@ -26,7 +26,7 @@ seconds — the fifteen minutes is yours, for reading what they print.
 ## Minute 0-3 — don't trust, reproduce: the flagship
 
 One command re-checks every layer of the anchored evidence stack — chain
-and tip anchor, all <!--era:recorded_task_count-->18<!--/era--> recorded
+and tip anchor, all <!--era:recorded_task_count-->20<!--/era--> recorded
 tasks, <!--era:catalog_anchor_count-->5<!--/era--> molecule-catalog
 generations, concentration, both economy generations, cuts, trust vectors,
 challenges, identity, treasury, governance, uptime emission, passports,
@@ -188,13 +188,19 @@ independence milestone is untouched, the mirror is NOT third-party
 archival, and the records say both.
 
 Governance runs through the same discipline. Every proposal file has an
-anchored lifecycle state — <!--era:mip_decision_count-->9<!--/era-->
-decisions: seven accepted MIPs frozen immutable-by-citation (the newest
-pair, MIP-0008 and MIP-0009 at idx 74-75
+anchored lifecycle state — <!--era:mip_decision_count-->10<!--/era-->
+decisions: eight accepted MIPs frozen immutable-by-citation (the newest,
+MIP-0010 at idx 76 <!--idx:76=mip_decision_recorded-->, is the successor
+that retired MIP-0009's "zero bound modules" assertion the day the first
+law-bound modules registered — task-0019 and task-0020, the CEA-pinned
+Sabatier equilibrium family, idx 77-78
+<!--idx:77=self_recompute_result--><!--idx:78=self_recompute_result-->,
+the second an honest conversion_acceptable:false; before it the pair
+MIP-0008 and MIP-0009 at idx 74-75
 <!--idx:74=mip_decision_recorded--><!--idx:75=mip_decision_recorded-->,
-are forward-only law for task code — the assertion/loop-bound/waiver/
-units discipline and the typed-port interface contract — binding modules
-by registration era and grandfathering the eighteen the chain referenced
+forward-only law for task code — the assertion/loop-bound/waiver/units
+discipline and the typed-port interface contract — binding modules by
+registration era and grandfathering the eighteen the chain referenced
 first; before them MIP-0007, superseding MIP-0006's one-gap era assertion
 on exactly the trigger that MIP named — the third exercised
 supersession), and the two ambitious June drafts honestly **retained as
@@ -203,12 +209,13 @@ drafts**, because accepting them would have ratified capabilities
 
 ```verify-run
 $ python3 -c "import json; es=json.load(open('protocol/ledger_published.json'))['entries']; rs=[e['payload'] for e in es if e['payload'].get('event')=='mip_decision_recorded']; print('anchored MIP decisions:', len(rs)); [print(' ', p['mip_id'], p['status']) for p in rs]"
-anchored MIP decisions: 9  (trimmed)
+anchored MIP decisions: 10  (trimmed)
 ```
-<!--expect:anchored MIP decisions: 9-->
+<!--expect:anchored MIP decisions: 10-->
 <!--expect:MIP-0007 mip-accepted-->
 <!--expect:MIP-0008 mip-accepted-->
 <!--expect:MIP-0009 mip-accepted-->
+<!--expect:MIP-0010 mip-accepted-->
 <!--expect:MIP-0002 mip-retained-as-draft-->
 
 **What a pass does NOT establish:** a release — READY is necessary and

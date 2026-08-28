@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->75<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->a5a57536f8f3<!--/chain-->…,
-> <!--chain:entry_count-->76<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->79<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->9b5163bbc591<!--/chain-->…,
+> <!--chain:entry_count-->80<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->76<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->80<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -24,7 +24,7 @@ The chain opens with genesis (idx 0 <!--idx:0=ledger_genesis-->) and the
 verification corpus for the first 13 deterministic demo tasks. (The registry
 now holds <!--chain:task_count-->20<!--/chain--> tasks and — since the idx
 48-52 milestone batch, per the cadence policy — all
-<!--chain:recorded_task_count-->18<!--/chain--> are recorded; between
+<!--chain:recorded_task_count-->20<!--/chain--> are recorded; between
 milestones, newly registered tasks stay registered-but-unanchored and every
 verifier reports them by name rather than absorbing them silently.)
 
@@ -40,7 +40,7 @@ verifier reports them by name rather than absorbing them silently.)
   adding *no cross-party independence*.
 
 **Proves:** deterministic reproducibility of all
-<!--chain:recorded_task_count-->18<!--/chain--> recorded task outputs on
+<!--chain:recorded_task_count-->20<!--/chain--> recorded task outputs on
 Linux and in CI on every push; cross-platform reproducibility is verified
 for the canonical task on four platforms, and — since the era-2
 negative-zero rule (idx 67 <!--idx:67=task_hash_era_recorded-->) —
@@ -236,6 +236,29 @@ the first cut whose interior itself contains a real edge, rebuilt and
 re-resolved inside — with task-0015's WMID on the boundary, referenced and
 never rebuilt: bounded verification across a multi-hop ancestry.
 
+The idx 77-79 batch opened the **CEA-pinned era** and the law's first real
+enforcement. task-0019 (Sabatier equilibrium constant, TX07) evaluates
+NASA CEA's 9-coefficient polynomials — pinned verbatim from the
+open-source nasa/cea v3.3.3 release (`demo/tasks/cea_thermo_pinned.py`
+carries the tag commit, the file sha256, and every block line byte-exact)
+— and proves itself four ways inside `compute()`: each species'
+polynomial reproduces the block's own Hf(298.15) field, the 1000 K
+interval join is continuous, the reaction enthalpy lands on the published
+−165 kJ/mol, and adjacent grid points satisfy Van't Hoff. task-0020
+consumes 0019's ln K rows AND task-0015's assumed 92 % single-pass
+conversion (both parent hashes recomputed live), solves the equilibrium
+extent by bounded bisection, and returns the library's third **honest
+negative**: at the 700 K / 1 bar reference point the equilibrium
+conversion is 0.8106 — `reference_conversion_acceptable: false`, the
+upstream chain's assumption is thermodynamically unattainable there
+(cooler, or at pressure). Both are the first modules the chain BINDS under
+MIP-0008/0009 (first anchored references at idx 77-78
+<!--idx:77=self_recompute_result--><!--idx:78=self_recompute_result-->,
+after the law index 74); `task_law_check` refused four violations in their
+drafts before passing them clean. The 20-task batch attestation is idx 79
+<!--idx:79=agent_verifier_attestation-->; the molecule catalogs are
+deliberately untouched — the next generation absorbs the pair per cadence.
+
 **Proves:** work can verifiably *consume* prior verified work — the provenance
 edge is enforced at execution time (parent-hash liveness), at construction
 time (a declared edge that cannot resolve fails the build loudly), and at
@@ -347,7 +370,14 @@ first anchored reference and the law's own index from the chain, skips
 the eighteen modules referenced before idx 74 (their bytes feed
 anchored hashes and stay frozen), and refuses each violation in a bound
 module by rule name — in CI and in the task-addition path, so the
-CEA/SPICE era is governed before it is written. The sweep reports the gate's verdict informationally either
+CEA/SPICE era is governed before it is written. It was — and the law's
+first day produced its first supersession: MIP-0009's verification block
+had asserted "bound modules: 0", a number the first bound registration
+was designed to change; MIP-0010 (idx 76 <!--idx:76=mip_decision_recorded-->)
+carries the contract forward verbatim by reference and retires only that
+assertion, replacing it with the forward-stable form (grandfathered
+eighteen, violations zero) — an authoring error in a frozen file corrected
+by the only honest route, a successor. The sweep reports the gate's verdict informationally either
 way: the verdict between releases is expected state, never an alarm.
 
 The housekeeping walks (idx 61 <!--idx:61=mip_decision_recorded-->, idx 62

@@ -6,8 +6,8 @@
 > against live state, every ledger index is checked to exist with the stated
 > event type, and nothing here claims more than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->75<!--/chain-->,
-> <!--chain:entry_count-->76<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->79<!--/chain-->,
+> <!--chain:entry_count-->80<!--/chain--> entries.
 
 This is the consolidated honesty page: every limitation stated anywhere in the
 corpus, in one place, with the measured numbers. Nothing here is an apology —
@@ -16,7 +16,7 @@ what its evidence *cannot* support, mechanically, before anyone asks.
 
 ## The same-operator status, measured
 
-Every one of the <!--chain:entry_count-->76<!--/chain--> ledger entries was
+Every one of the <!--chain:entry_count-->80<!--/chain--> ledger entries was
 produced by machines under one operator's control, and each record's
 `operator_relationship` field says so. The protocol measured this
 concentration itself and anchored the result at idx 18
