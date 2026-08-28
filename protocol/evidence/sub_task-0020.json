@@ -1,0 +1,20 @@
+{
+  "environment_summary": {
+    "machine": "aarch64",
+    "note": "coarse, non-identifying environment summary (no hostname/user/IP)",
+    "platform": "Linux-6.17.0-1008-nvidia-aarch64-with-glibc2.39",
+    "python_version": "3.12.3"
+  },
+  "event": "external_verifier_submission",
+  "honest_note": "same-machine-self-recompute (research-stage, zero-value). The SAME host generated and will evaluate this submission; a matching output_hash proves the computation is REPRODUCIBLE run-to-run on this machine. It is NOT cross-machine and NOT independent third-party verification \u2014 no separate party, machine, or platform is involved. A hash can be copied. Not consensus, not mainnet, not payment, not a token.",
+  "machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+  "no_token": true,
+  "output_hash": "755db37300b1f220748d10cc330c3286eb82ad7ec2d499029fca0954f4c26be3",
+  "repo_commit": "4ce1f36adadf450252f84e052fa38544b7c6189a",
+  "stage": "R3",
+  "task_id": "task-0020",
+  "timestamp": 1787909574.2189784,
+  "topology": "same-machine-self-recompute",
+  "verifier_id": "spark-local-same-operator",
+  "zero_value": true
+}
