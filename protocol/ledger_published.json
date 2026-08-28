@@ -3709,19 +3709,165 @@
       },
       "prev_hash": "fd578fcde105aca65e99798fc7a0c4414c0ac7fa2d0166d8b70903fbeac1e2a0",
       "timestamp": 1786959629.4515903
+    },
+    {
+      "hash": "541c174c4855db1800c5656cf69eebb50aece3553cf854605267d59199b17d13",
+      "index": 74,
+      "payload": {
+        "amendment_rule": "the anchored record pins the decided file's sha256: the committed MIP file is immutable-by-citation from this moment, a later edit breaks re-derivation loudly, and amendments are new MIPs",
+        "anchored_at": 1787907209.8798015,
+        "decision": "accepted",
+        "event": "mip_decision_recorded",
+        "file": "mip/MIP-0008-task-code-discipline.md",
+        "file_sha256": "ebd2285cceba16c19faa3f5747958bd4209d152fe7b62f8d544b8134ee98b7a1",
+        "limitation_note": "First-exercise MIP lifecycle under same-operator custody: the mechanical checks are real (required sections, valid status, ledger citations resolved against the chain, verification blocks executed, file sha256 pinned) and the decision is recorded on-chain \u2014 but the review seat has ONE occupant and says so. A recorded decision proves the PROCESS ran, not that the decision is wise; plural review and voting do not exist yet. Anchored MIP files are immutable-by-citation; amendments are new MIPs. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "mechanical_check": {
+          "checks": [
+            {
+              "detail": "MIP-0008 \u2014 Task-code discipline for the post-18 era: forward-only law, grandfathered by the chain",
+              "name": "identity",
+              "passed": true
+            },
+            {
+              "detail": "status 'Accepted'",
+              "name": "status-valid",
+              "passed": true
+            },
+            {
+              "detail": "all present",
+              "name": "required-sections",
+              "passed": true
+            },
+            {
+              "detail": "none (correct: immutable files must not embed live-recomputed numbers)",
+              "name": "no-chain-tokens",
+              "passed": true
+            },
+            {
+              "detail": "10 reference(s) resolve",
+              "name": "ledger-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "every cited MIP exists",
+              "name": "mip-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "2 verify-run block(s)",
+              "name": "verification-blocks-present",
+              "passed": true
+            },
+            {
+              "detail": "all clean",
+              "name": "verification-blocks-execute",
+              "passed": true
+            }
+          ],
+          "idx_references": 10,
+          "passed": true,
+          "verify_run_blocks": 2
+        },
+        "mip_id": "MIP-0008",
+        "mip_title": "Task-code discipline for the post-18 era: forward-only law, grandfathered by the chain",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "record_schema": "mip-record/0.1",
+        "review_seat": "same-operator-single-seat",
+        "seat_statement": "the review seat has one occupant and says so \u2014 plural review, voting, and anti-whale dampening (MIP-0001 \u00a77) do not exist at research stage; this record proves the process ran, not that the decision is wise",
+        "stage": "R-governance",
+        "status": "mip-accepted",
+        "topology": "same-operator-single-seat-review",
+        "zero_value": true
+      },
+      "prev_hash": "86c0a8f1e92772eee629e2a34739f51bf52de251e784d6f3f7ca0af4a7fb9d5b",
+      "timestamp": 1787907209.8803015
+    },
+    {
+      "hash": "a5a57536f8f361f6c25149255a28cf040904b5657a3c7286d5c2bb064a6d1a03",
+      "index": 75,
+      "payload": {
+        "amendment_rule": "the anchored record pins the decided file's sha256: the committed MIP file is immutable-by-citation from this moment, a later edit breaks re-derivation loudly, and amendments are new MIPs",
+        "anchored_at": 1787907210.092491,
+        "decision": "accepted",
+        "event": "mip_decision_recorded",
+        "file": "mip/MIP-0009-task-interface-contract.md",
+        "file_sha256": "10290428bb6fb73a047c83e9f09fa5cf156979de7a0f698071722089a06430d7",
+        "limitation_note": "First-exercise MIP lifecycle under same-operator custody: the mechanical checks are real (required sections, valid status, ledger citations resolved against the chain, verification blocks executed, file sha256 pinned) and the decision is recorded on-chain \u2014 but the review seat has ONE occupant and says so. A recorded decision proves the PROCESS ran, not that the decision is wise; plural review and voting do not exist yet. Anchored MIP files are immutable-by-citation; amendments are new MIPs. Not consensus, not mainnet, not payment, not a token; zero-value research-stage.",
+        "mechanical_check": {
+          "checks": [
+            {
+              "detail": "MIP-0009 \u2014 The task interface contract: the protocol's typed port, ratified as law",
+              "name": "identity",
+              "passed": true
+            },
+            {
+              "detail": "status 'Accepted'",
+              "name": "status-valid",
+              "passed": true
+            },
+            {
+              "detail": "all present",
+              "name": "required-sections",
+              "passed": true
+            },
+            {
+              "detail": "none (correct: immutable files must not embed live-recomputed numbers)",
+              "name": "no-chain-tokens",
+              "passed": true
+            },
+            {
+              "detail": "12 reference(s) resolve",
+              "name": "ledger-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "every cited MIP exists",
+              "name": "mip-citations-resolve",
+              "passed": true
+            },
+            {
+              "detail": "2 verify-run block(s)",
+              "name": "verification-blocks-present",
+              "passed": true
+            },
+            {
+              "detail": "all clean",
+              "name": "verification-blocks-execute",
+              "passed": true
+            }
+          ],
+          "idx_references": 12,
+          "passed": true,
+          "verify_run_blocks": 2
+        },
+        "mip_id": "MIP-0009",
+        "mip_title": "The task interface contract: the protocol's typed port, ratified as law",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "record_schema": "mip-record/0.1",
+        "review_seat": "same-operator-single-seat",
+        "seat_statement": "the review seat has one occupant and says so \u2014 plural review, voting, and anti-whale dampening (MIP-0001 \u00a77) do not exist at research stage; this record proves the process ran, not that the decision is wise",
+        "stage": "R-governance",
+        "status": "mip-accepted",
+        "topology": "same-operator-single-seat-review",
+        "zero_value": true
+      },
+      "prev_hash": "541c174c4855db1800c5656cf69eebb50aece3553cf854605267d59199b17d13",
+      "timestamp": 1787907210.093023
     }
   ],
   "snapshot_header": {
-    "entry_count": 74,
+    "entry_count": 76,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1786959629.503946,
+    "snapshot_timestamp": 1787907210.1330357,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "86c0a8f1e92772eee629e2a34739f51bf52de251e784d6f3f7ca0af4a7fb9d5b",
-    "tip_index": 73,
+    "tip_hash": "a5a57536f8f361f6c25149255a28cf040904b5657a3c7286d5c2bb064a6d1a03",
+    "tip_index": 75,
     "zero_value": true
   }
 }
