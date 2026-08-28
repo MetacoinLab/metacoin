@@ -797,7 +797,7 @@ def _selftest() -> int:
     checks.append((f"the real docs + MIPs check clean ({stats['docs']} docs, "
                    f"{stats['mips']} MIPs, {stats['tokens']} tokens, "
                    f"{stats['idx_refs']} idx refs, {stats['commands']} "
-                   "commands)", real_findings == [] and stats["docs"] == 6
+                   "commands)", real_findings == [] and stats["docs"] == len(DOC_FILES)
                    and stats["mips"] >= 3))
 
     # [10b] the real README checks clean under era-pin semantics (pinless
