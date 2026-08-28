@@ -8,10 +8,10 @@
 > this document's declared as-of point**, so the tour stays verifiably
 > green as the chain grows and goes red only if it misstates its own era.
 
-<!--era-pin:entry_count=74 tip_hash_prefix=86c0a8f1e927-->
-**Reviewed era:** ledger entry <!--era:entry_count-->74<!--/era--> (tip
-index <!--era:tip_index-->73<!--/era-->, hash
-`<!--era:tip_hash_prefix-->86c0a8f1e927<!--/era-->…`, August 2026).
+<!--era-pin:entry_count=76 tip_hash_prefix=a5a57536f8f3-->
+**Reviewed era:** ledger entry <!--era:entry_count-->76<!--/era--> (tip
+index <!--era:tip_index-->75<!--/era-->, hash
+`<!--era:tip_hash_prefix-->a5a57536f8f3<!--/era-->…`, August 2026).
 
 **Design principle: this tour makes no claims.** It hands you the commands
 that let the repository make its own case — including its negative results.
@@ -188,20 +188,27 @@ independence milestone is untouched, the mirror is NOT third-party
 archival, and the records say both.
 
 Governance runs through the same discipline. Every proposal file has an
-anchored lifecycle state — <!--era:mip_decision_count-->7<!--/era-->
-decisions: five accepted MIPs frozen immutable-by-citation (the newest,
-MIP-0007, superseding MIP-0006's one-gap era assertion on exactly the
-trigger that MIP named — the third exercised supersession), and the two
-ambitious June drafts honestly **retained as drafts**, because accepting
-them would have ratified capabilities (voting, attestation hardware,
-token economics) that do not exist:
+anchored lifecycle state — <!--era:mip_decision_count-->9<!--/era-->
+decisions: seven accepted MIPs frozen immutable-by-citation (the newest
+pair, MIP-0008 and MIP-0009 at idx 74-75
+<!--idx:74=mip_decision_recorded--><!--idx:75=mip_decision_recorded-->,
+are forward-only law for task code — the assertion/loop-bound/waiver/
+units discipline and the typed-port interface contract — binding modules
+by registration era and grandfathering the eighteen the chain referenced
+first; before them MIP-0007, superseding MIP-0006's one-gap era assertion
+on exactly the trigger that MIP named — the third exercised
+supersession), and the two ambitious June drafts honestly **retained as
+drafts**, because accepting them would have ratified capabilities
+(voting, attestation hardware, token economics) that do not exist:
 
 ```verify-run
 $ python3 -c "import json; es=json.load(open('protocol/ledger_published.json'))['entries']; rs=[e['payload'] for e in es if e['payload'].get('event')=='mip_decision_recorded']; print('anchored MIP decisions:', len(rs)); [print(' ', p['mip_id'], p['status']) for p in rs]"
-anchored MIP decisions: 7  (trimmed)
+anchored MIP decisions: 9  (trimmed)
 ```
-<!--expect:anchored MIP decisions: 7-->
+<!--expect:anchored MIP decisions: 9-->
 <!--expect:MIP-0007 mip-accepted-->
+<!--expect:MIP-0008 mip-accepted-->
+<!--expect:MIP-0009 mip-accepted-->
 <!--expect:MIP-0002 mip-retained-as-draft-->
 
 **What a pass does NOT establish:** a release — READY is necessary and

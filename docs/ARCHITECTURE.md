@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->73<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->86c0a8f1e927<!--/chain-->…,
-> <!--chain:entry_count-->74<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->75<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->a5a57536f8f3<!--/chain-->…,
+> <!--chain:entry_count-->76<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->74<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->76<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -334,7 +334,20 @@ READY-mechanical era — the full gate reports READY, approval stays
 HUMAN and unconverted, the default stays NO release, and the two
 standing opens (third-party archival, unaffiliated participation) are
 named in the ratified document itself. Three supersessions, three real
-triggers. The sweep reports the gate's verdict informationally either
+triggers. The path then carried its first *forward-only law*: MIP-0008
+(idx 74 <!--idx:74=mip_decision_recorded-->) makes the task-code
+discipline binding — two messaged assertions in `compute()`, every loop
+bound stated, recursion only under a recorded waiver, units in field
+names — and MIP-0009 (idx 75 <!--idx:75=mip_decision_recorded-->)
+ratifies the task interface contract as the protocol's typed port
+(four-key result, era-2 canonical rule, six-decimal boundary, sha256
+output hash, five registration points). Both bind by **registration
+era, never by name**: `protocol/task_law_check.py` reads each task's
+first anchored reference and the law's own index from the chain, skips
+the eighteen modules referenced before idx 74 (their bytes feed
+anchored hashes and stay frozen), and refuses each violation in a bound
+module by rule name — in CI and in the task-addition path, so the
+CEA/SPICE era is governed before it is written. The sweep reports the gate's verdict informationally either
 way: the verdict between releases is expected state, never an alarm.
 
 The housekeeping walks (idx 61 <!--idx:61=mip_decision_recorded-->, idx 62
