@@ -98,7 +98,7 @@ DOCS_DIR = os.path.join(_REPO_ROOT, "docs")
 # Fixed processing order: multi-step walkthrough state (participate init -> run
 # -> bundle) must execute in the order a reader would.
 DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
-             "TRUST-MODEL.md", "TOUR.md", "COLLABORATE.md")
+             "TRUST-MODEL.md", "TOUR.md", "COLLABORATE.md", "PULSE.md")
 # TOUR.md is ERA-PINNED like the README (era tokens, no chain tokens):
 # --render never touches it, and --check verifies its tagged numbers at
 # its own declared as-of point via the same check_readme machinery.
@@ -239,6 +239,53 @@ def compute_tokens(repo_root=_REPO_ROOT, entries=None):
         "aci_pair_count": str(aci["pair_count"]),
         "passport_actor_count": str(len(passports["entries"])),
         "assumed_power_w": f"{metering['assumed_cpu_power_w']}",
+        **_pulse_tokens(entries),
+    }
+
+
+def _pulse_tokens(entries):
+    """Tokens read from the LATEST anchored pulse record (chain-derived,
+    deterministic): the numbers docs/PULSE.md renders. 'none' before the
+    first pulse exists."""
+    recs = [e for e in entries if isinstance(e.get("payload"), dict)
+            and e["payload"].get("event") == "pulse_recorded"
+            and e["payload"].get("status") == "pulse-confirmed"]
+    keys = ("pulse_idx", "pulse_hash_prefix", "pulse_date", "pulse_entries",
+            "pulse_tip_index", "pulse_commit", "pulse_layers", "pulse_demo_suite",
+            "pulse_protocol_suite", "pulse_task_law", "pulse_doc_commands",
+            "pulse_sweep_findings", "pulse_cold_install", "pulse_tasks",
+            "pulse_honest_negatives", "pulse_mip_decisions", "pulse_actors",
+            "pulse_mirror_idx", "pulse_entries_since", "pulse_count")
+    if not recs:
+        return {k: "none" for k in keys}
+    e = recs[-1]
+    p = e["payload"]
+    h = p.get("headline", {})
+    tl = h.get("task_law", {})
+    import datetime as _dt
+    date = _dt.datetime.utcfromtimestamp(p.get("anchored_at", 0)).strftime("%Y-%m-%d")
+    return {
+        "pulse_idx": str(e["index"]),
+        "pulse_hash_prefix": str(p.get("pulse_hash", ""))[:12],
+        "pulse_date": date,
+        "pulse_entries": str(p.get("as_of_chain", {}).get("entries", "")),
+        "pulse_tip_index": str(p.get("as_of_chain", {}).get("tip_index", "")),
+        "pulse_commit": str(p.get("repo_commit", ""))[:8],
+        "pulse_layers": str(h.get("verify_everything_layers", "")),
+        "pulse_demo_suite": str(h.get("demo_suite", "")),
+        "pulse_protocol_suite": str(h.get("protocol_suite", "")),
+        "pulse_task_law": (f"{tl.get('grandfathered')} grandfathered / "
+                           f"{tl.get('bound')} bound / {tl.get('violations')} violations"),
+        "pulse_doc_commands": str(h.get("doc_commands", "")),
+        "pulse_sweep_findings": str(h.get("sweep_findings", "")),
+        "pulse_cold_install": str(h.get("cold_install", "")),
+        "pulse_tasks": str(h.get("tasks_recorded", "")),
+        "pulse_honest_negatives": str(h.get("honest_negatives", "")),
+        "pulse_mip_decisions": str(h.get("mip_decisions", "")),
+        "pulse_actors": str(h.get("registered_actors", "")),
+        "pulse_mirror_idx": str(h.get("mirror_last_attested_idx", "")),
+        "pulse_entries_since": str(len(entries) - 1 - int(p.get("as_of_chain", {}).get("tip_index", 0))),
+        "pulse_count": str(len(recs)),
     }
 
 

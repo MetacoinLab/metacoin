@@ -209,6 +209,16 @@ TV_LIMITATION_NOTE = (
 # --- MetaWork passport catalog (per-actor histories, never a leaderboard) ----------------
 _PASSPORT_EVENT = "passport_catalog_anchored"
 _PASSPORT_STATUS = "passport-catalog-confirmed"
+_PULSE_EVENT = "pulse_recorded"
+_PULSE_STATUS = "pulse-confirmed"
+PULSE_LIMITATION_NOTE = (
+    "The pulse is a same-operator health snapshot: every number is derived "
+    "from the chain and from real gate runs at the recorded commit, and the "
+    "generator refuses to produce a pulse with any red gate — so an anchored "
+    "pulse proves the stack was green at that chain point, not that the work "
+    "is useful, independent, or safe; not consensus, not payment, not a "
+    "token; research-stage."
+)
 
 NO_LEADERBOARD_AFFIRMATION = ("no rank, score, rating, leaderboard, or "
                               "percentile exists anywhere, by mechanical rule")
@@ -2657,6 +2667,56 @@ def anchor_passport_catalog(catalog: dict, ledger: Ledger) -> dict:
         },
         "operator_relationship": "same-operator",
         "limitation_note": PASSPORT_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+def anchor_pulse(doc: dict, ledger: Ledger) -> dict:
+    """Validate + RE-DERIVE + anchor a pulse (protocol/pulse.py). Returns
+    {evaluation, ledger_entry}. The coordinator recomputes the self-hash,
+    re-applies the refusal rule to every gate field, and binds the pulse's
+    chain point to a real prefix of THIS ledger; any failure -> 'rejected',
+    NOT anchored. The record carries the hash + headline numbers only
+    (scanner-invisible: no task ids)."""
+    import protocol.pulse as pulse_mod
+    from protocol.work_molecule import _read_ledger
+    ok, reasons = pulse_mod.validate_pulse(doc)
+    entries = _read_ledger(ledger.path) if os.path.exists(ledger.path) else []
+    if ok:
+        bound, why = pulse_mod.chain_point_binds(doc, entries)
+        if not bound:
+            ok, reasons = False, [why]
+    if not ok:
+        evaluation = {
+            "event": _PULSE_EVENT, "stage": "R-pulse",
+            "topology": "same-operator-coordinator-pulse",
+            "status": "rejected", "reason": "; ".join(reasons),
+            "anchored": False, "zero_value": True, "no_token": True,
+            "limitation_note": PULSE_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+    evaluation = {
+        "event": _PULSE_EVENT, "stage": "R-pulse",
+        "topology": "same-operator-coordinator-pulse",
+        "status": _PULSE_STATUS,
+        "pulse_schema": doc["schema"],
+        "pulse_hash": doc["pulse_hash"],
+        "as_of_chain": dict(doc["chain"]),
+        "repo_commit": doc["repo"]["commit"],
+        "headline": pulse_mod.headline(doc),
+        "coordinator_reconfirmed": {
+            "self_hash_recomputed": True,
+            "gates_all_green": True,
+            "chain_point": why,
+        },
+        "refusal_rule": pulse_mod.REFUSAL_RULE,
+        "operator_relationship": "same-operator",
+        "limitation_note": PULSE_LIMITATION_NOTE,
         "zero_value": True,
         "no_token": True,
         "anchored_at": time.time(),
@@ -6967,7 +7027,8 @@ def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
                 "as_of_ledger_index", "k_values_computed", "profile",
                 "unknown_flag_count", "s2_consistency",
                 "first_failure_reason", "missed_slot_statement",
-                "two_flow_separation"):
+                "two_flow_separation", "pulse_hash", "headline",
+                "as_of_chain", "repo_commit"):
         if key in ev:
             print(f"  {key}: {ev[key]}")
     if "bounded_failure" in ev:
@@ -7136,6 +7197,12 @@ def main(argv=None) -> int:
              "mirror-attested record",
     )
     mode.add_argument(
+        "--anchor-pulse", metavar="PULSE_JSON",
+        help="anchor a pulse (protocol/pulse.py --generate): the coordinator "
+             "recomputes the self-hash, re-applies the refusal rule, binds the "
+             "chain point, and anchors pulse_recorded — WRITES NOTHING without "
+             "--confirm (the human gate)")
+    mode.add_argument(
         "--anchor-passport-catalog", metavar="PASSPORT_CATALOG_JSON",
         help="anchor a MetaWork passport catalog (metawork_passport.py --all); "
              "the coordinator rediscovers every actor and rebuilds every "
@@ -7247,6 +7314,24 @@ def main(argv=None) -> int:
     if args.anchor_passport_catalog is not None:
         return _cmd_anchor_json(args.anchor_passport_catalog, args.ledger,
                                 anchor_passport_catalog, _PASSPORT_STATUS)
+    if args.anchor_pulse is not None:
+        if not args.confirm:
+            import protocol.pulse as pulse_mod
+            print(BANNER)
+            try:
+                with open(args.anchor_pulse, encoding="utf-8") as f:
+                    doc = json.load(f)
+                ok, reasons = pulse_mod.validate_pulse(doc)
+            except (OSError, json.JSONDecodeError) as exc:
+                ok, reasons = False, [str(exc)]
+            print("dry run — would " + ("anchor pulse_recorded for pulse "
+                  f"{doc['pulse_hash'][:12]} (headline: "
+                  f"{json.dumps(pulse_mod.headline(doc), sort_keys=True)})"
+                  if ok else f"REJECT: {'; '.join(reasons)}"))
+            print("anchored: NO — nothing written (re-run with --confirm)")
+            return 0 if ok else 1
+        return _cmd_anchor_json(args.anchor_pulse, args.ledger,
+                                anchor_pulse, _PULSE_STATUS)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 

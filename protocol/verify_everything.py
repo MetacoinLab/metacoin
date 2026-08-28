@@ -938,6 +938,40 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      f"scan){evolved_note}"
                      if not problems else "; ".join(problems[:3])))
 
+    # --- layer 11c: the pulse record (both modes; cheap) ---------------------------
+    # Every anchored pulse re-derives from its shipped evidence file: the
+    # self-hash recomputes, the file's hash equals the record's, the refusal
+    # rule holds on the file's gate fields, the headline numbers match the
+    # record, and the pulse's chain point is a real prefix of this ledger.
+    import protocol.pulse as pulse_mod
+    pulses = [(e["index"], e["payload"]) for e in entries
+              if isinstance(e.get("payload"), dict)
+              and e["payload"].get("event") == "pulse_recorded"
+              and e["payload"].get("status") == "pulse-confirmed"]
+    if not pulses:
+        rows.append(("pulse", FULL, True, "no pulse anchored on the chain yet"))
+    else:
+        problems = []
+        for idx, p in pulses:
+            f = _load_evidence_json(f"pulse_{str(p.get('pulse_hash'))[:12]}.json")
+            if not isinstance(f, dict):
+                problems.append(f"idx {idx}: pulse evidence file missing")
+                continue
+            ok, reasons = pulse_mod.validate_pulse(f)
+            bound, why = pulse_mod.chain_point_binds(f, entries)
+            if not ok or not bound:
+                problems.append(f"idx {idx}: " + "; ".join(reasons + ([] if bound else [why])))
+            elif f["pulse_hash"] != p.get("pulse_hash"):
+                problems.append(f"idx {idx}: evidence hash != anchored pulse_hash")
+            elif pulse_mod.headline(f) != p.get("headline"):
+                problems.append(f"idx {idx}: headline numbers differ from the record")
+        rows.append(("pulse", FULL, not problems,
+                     f"{len(pulses)} anchored pulse(s) re-derive: self-hash recomputes, "
+                     "gates green on the file, headline matches the record, chain "
+                     "point prefix-bound (latest idx "
+                     f"{pulses[-1][0]}, {len(entries) - 1 - pulses[-1][1]['as_of_chain']['tip_index']} "
+                     "entries since)" if not problems else "; ".join(problems[:3])))
+
     # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------
     # Root integrity via the identity layer's registrations; every anchored
     # epoch's heartbeat signatures re-verified from the shipped evidence copy

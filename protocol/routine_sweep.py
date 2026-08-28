@@ -52,6 +52,11 @@ in order:
                    (every doc command executed, every number chain-checked,
                    every idx reference resolved; named skip if docs/ absent)
 
+THE WEEKLY PULSE (rides this habit): after a CLEAN sweep, generate and
+anchor the pulse — `python3 protocol/pulse.py --generate` (refuses on any red
+gate) then `python3 protocol/external_verifier.py --anchor-pulse pulse.json
+--confirm` (the --confirm stays human), ship the file to protocol/evidence/,
+re-export snapshot + anchor, re-render docs. See docs/PULSE.md.
 ZERO LEDGER WRITES: the sweep only reads. The self-test asserts the real
 ledger byte-identical before/after (the continuity idiom).
 
@@ -114,7 +119,8 @@ DEFAULT_MIRROR_DIRS = ("mirror_export",)
 # Recognized SELF-HASH fields (the anti-circularity pattern: the field is the
 # sha256 of the canonical document with the field itself excluded).
 _SELF_HASH_FIELDS = ("report_hash", "catalog_hash", "certificate_hash",
-                     "epoch_hash", "economy_log_hash", "bundle_hash")
+                     "epoch_hash", "economy_log_hash", "bundle_hash",
+                     "pulse_hash")
 # Document fields whose values anchored records cite directly.
 _CITED_FIELDS = ("challenge_id", "output_hash", "new_root", "prev_root")
 # The two planned-drill demonstration inputs, cited by their anchored events
@@ -397,6 +403,9 @@ def _expected_evidence(entries) -> dict:
         if (event == "self_recompute_result"
                 and isinstance(p.get("task_id"), str)):
             want(f"sub_{p['task_id']}.json", idx, "self-recompute submission")
+        if (event == "pulse_recorded" and p.get("status") == "pulse-confirmed"
+                and isinstance(p.get("pulse_hash"), str)):
+            want(f"pulse_{p['pulse_hash'][:12]}.json", idx, "anchored pulse")
         if (event == "external_verification_result"
                 and p.get("task_id") in work_molecule._CATALOG_SUBMISSIONS):
             want(work_molecule._CATALOG_SUBMISSIONS[p["task_id"]], idx,
@@ -896,6 +905,10 @@ def print_report(report: dict):
         for f in s["findings"]:
             print(f"  FINDING: {f}")
     print(f"\nVERDICT: {report['verdict']}")
+    if report["finding_count"] == 0:
+        print("next (weekly): python3 protocol/pulse.py --generate && "
+              "python3 protocol/external_verifier.py --anchor-pulse pulse.json "
+              "--confirm   (the pulse rides a clean sweep; --confirm stays human)")
 
 
 def main(argv=None) -> int:

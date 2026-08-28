@@ -41,6 +41,7 @@ TESTS=(
     "doc_verify.py --selftest"
     "mip_process.py --selftest"
     "task_law_check.py --selftest"
+    "pulse.py --selftest"
     "release_readiness.py --selftest"
     "../metacoin_cli/selftest.py"
 )

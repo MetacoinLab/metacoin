@@ -245,3 +245,7 @@ result. The participant path for that is built and rehearsed end-to-end —
 including the rejection path — and documented in
 [`docs/PARTICIPATE.md`](PARTICIPATE.md). These documents will say so until
 it happens.
+
+**Is this thing still alive?** Check the pulse — a weekly, hashed,
+anchored health snapshot that is only ever generated when every gate is
+green: [`docs/PULSE.md`](PULSE.md), or `python3 protocol/pulse.py --status`.
