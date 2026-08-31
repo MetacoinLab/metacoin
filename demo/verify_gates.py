@@ -56,6 +56,7 @@ import demo.tasks.task_0017_isru_ascent_budget as task_0017
 import demo.tasks.task_0018_ascent_feasibility as task_0018
 import demo.tasks.task_0019_sabatier_equilibrium_constant as task_0019
 import demo.tasks.task_0020_sabatier_conversion_equilibrium as task_0020
+import demo.tasks.task_0021_conversion_corrected_ascent as task_0021
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -83,6 +84,7 @@ _TASK_REGISTRY = {
     "task-0018-ascent-feasibility": task_0018,
     "task-0019-sabatier-equilibrium-constant": task_0019,
     "task-0020-sabatier-conversion-equilibrium": task_0020,
+    "task-0021-conversion-corrected-ascent": task_0021,
 }
 
 

@@ -82,6 +82,12 @@ TASK_MODULES: list[tuple[str, str, list[str]]] = [
         "task_0020_sabatier_conversion_equilibrium",
         ["task_0019_sabatier_equilibrium_constant", "task_0015_sabatier_isru"],
     ),
+    (
+        "task-0021-conversion-corrected-ascent",
+        "task_0021_conversion_corrected_ascent",
+        ["task_0020_sabatier_conversion_equilibrium",
+         "task_0017_isru_ascent_budget", "task_0018_ascent_feasibility"],
+    ),
 ]
 
 # The honest-negative tasks (the abstention probe — see module docstring).
@@ -89,6 +95,7 @@ HONEST_NEGATIVES = {
     "task-0012-comms-link-budget",
     "task-0018-ascent-feasibility",
     "task-0020-sabatier-conversion-equilibrium",
+    "task-0021-conversion-corrected-ascent",
 }
 
 

@@ -38,6 +38,7 @@ TESTS=(
     "tasks/cea_thermo_pinned.py"
     "tasks/task_0019_sabatier_equilibrium_constant.py"
     "tasks/task_0020_sabatier_conversion_equilibrium.py"
+    "tasks/task_0021_conversion_corrected_ascent.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"
