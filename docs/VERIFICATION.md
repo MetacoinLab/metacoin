@@ -7,8 +7,8 @@
 > chain point it describes and re-checked against live state, and nothing here
 > claims more than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->91<!--/chain-->,
-> <!--chain:entry_count-->92<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->92<!--/chain-->,
+> <!--chain:entry_count-->93<!--/chain--> entries.
 
 `metacoin verify` (the zero-install form is
 `python3 metacoin_cli/main.py verify`) is the flagship: one command that
@@ -47,7 +47,7 @@ The pasted run below is trimmed to the shape of the report; the full pass has
 
 - **chain+anchor** — the hash chain is intact from genesis
   <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->… to tip
-  <!--chain:tip_hash_prefix-->8bfe198d7aa1<!--/chain-->…, and the committed tip anchor
+  <!--chain:tip_hash_prefix-->f4d4ce368fab<!--/chain-->…, and the committed tip anchor
   matches. In a fresh clone the published snapshot is the source, and the
   report names that.
 - **tasks** — all <!--chain:recorded_task_count-->29<!--/chain--> recorded
@@ -124,7 +124,7 @@ $ python3 -c "import sys; sys.path.insert(0,'.'); from protocol.verify_everythin
 
 The suites behind the report are runnable directly:
 `protocol/run_protocol_selftests.sh`
-(<!--chain:protocol_suite_count-->25<!--/chain--> self-tests) and
+(<!--chain:protocol_suite_count-->26<!--/chain--> self-tests) and
 `demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->39<!--/chain-->
 self-tests) — CI requires both green plus a fresh-clone full pass on every
 commit. The layer tools remain individually available (`audit.py --verify`,

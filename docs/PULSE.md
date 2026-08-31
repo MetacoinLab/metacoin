@@ -7,8 +7,8 @@
 > with the chain point it describes and re-checked against live state, and
 > nothing here claims more than the anchored pulse record proves.
 >
-> Chain point: tip index <!--chain:tip_index-->91<!--/chain-->,
-> <!--chain:entry_count-->92<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->92<!--/chain-->,
+> <!--chain:entry_count-->93<!--/chain--> entries.
 
 ## What a pulse is
 
@@ -36,7 +36,7 @@ routine sweep: a clean sweep, then a pulse.
 | Anchored at ledger index | <!--chain:pulse_idx-->80<!--/chain--> (pulse <!--chain:pulse_count-->1<!--/chain--> of the series) |
 | Anchored on (UTC) | <!--chain:pulse_date-->2026-08-28<!--/chain--> |
 | pulse_hash | `<!--chain:pulse_hash_prefix-->2110eb093a58<!--/chain-->…` |
-| Chain point it describes | <!--chain:pulse_entries-->80<!--/chain--> entries, tip index <!--chain:pulse_tip_index-->79<!--/chain--> (<!--chain:pulse_entries_since-->12<!--/chain--> entries since) |
+| Chain point it describes | <!--chain:pulse_entries-->80<!--/chain--> entries, tip index <!--chain:pulse_tip_index-->79<!--/chain--> (<!--chain:pulse_entries_since-->13<!--/chain--> entries since) |
 | Repository commit | `<!--chain:pulse_commit-->2ef57b01<!--/chain-->` |
 | verify_everything | ALL LAYERS PASS — <!--chain:pulse_layers-->17<!--/chain--> layers |
 | Self-test suites (demo / protocol) | <!--chain:pulse_demo_suite-->30/30<!--/chain--> / <!--chain:pulse_protocol_suite-->24/24<!--/chain--> |

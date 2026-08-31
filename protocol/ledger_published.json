@@ -4587,19 +4587,61 @@
       },
       "prev_hash": "48a0c116c873cfa307e7ae9af43dfa01ed89ebac64aff7d19554ea8a282c1972",
       "timestamp": 1788161812.5930178
+    },
+    {
+      "hash": "f4d4ce368fab67dee8877472483ee9b3023d173c70b7d3c76418d148a33fec87",
+      "index": 92,
+      "payload": {
+        "anchored_at": 1788163154.9018154,
+        "baseline_verdict_hash": "6ec878e27ff052c7fb4dbff8e310748971cd6e87424e64e5c041c2d4694ce1eb",
+        "coordinator_reconfirmed": {
+          "baseline_reproved_bit_exact": true,
+          "rederivation_bit_exact": true,
+          "self_hash_recomputed": true
+        },
+        "envelope_hash": "2d2c7cc0ee98f258fbf87fedff699421afe5a03a41454fc83aeab89637f1f12b",
+        "envelope_schema": "mission_envelope/0.1",
+        "event": "mission_envelope_recorded",
+        "headline": {
+          "duration_floor_yr_over_areal_density": 178.748531,
+          "isru_multiple_of_demonstrated": 18717009.419467,
+          "label": "engineered scenario: the parameter set under which the claim becomes feasible \u2014 not a claim about present capability",
+          "lever_flips": {
+            "acceptable_horizon": true,
+            "film_areal_density": false,
+            "isru_production_rate": false,
+            "launch_throughput": true
+          },
+          "minimal_driver_count": 4,
+          "per_shot_multiple_of_demonstrated": 129.211125,
+          "throughput_multiple": 3.743402
+        },
+        "label": "engineered scenario: the parameter set under which the claim becomes feasible \u2014 not a claim about present capability",
+        "limitation_note": "The mission envelope is an ENGINEERED SCENARIO derived from the anchored baseline verdict's own flip structure: it states the parameter multiples under which the verdict would flip, each pinned to a present-day demonstrated comparator \u2014 it is NOT a claim about present capability (the verbatim label rides the record and validation refuses its absence), the baseline verdict stands untouched (re-proved bit-exact before assembly), and the dust variant is stated to have no envelope at all; not consensus, not payment, not a token; research-stage.",
+        "mission_id": "mission-0002-l1-sunshade-lunar-mass-driver",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "refusal_rule": "an envelope derives FROM the anchored baseline, never re-tunes it \u2014 generation refuses unless the baseline verdict and every node task re-derive their anchored hashes bit-exact",
+        "stage": "R-envelope",
+        "status": "mission-envelope-confirmed",
+        "topology": "same-operator-coordinator-mission-envelope",
+        "zero_value": true
+      },
+      "prev_hash": "8bfe198d7aa144620ceb3cb5e18bd509df7107ab581b0c95df2d74650f2cb69e",
+      "timestamp": 1788163154.9023623
     }
   ],
   "snapshot_header": {
-    "entry_count": 92,
+    "entry_count": 93,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1788161821.5157945,
+    "snapshot_timestamp": 1788163154.9636388,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "8bfe198d7aa144620ceb3cb5e18bd509df7107ab581b0c95df2d74650f2cb69e",
-    "tip_index": 91,
+    "tip_hash": "f4d4ce368fab67dee8877472483ee9b3023d173c70b7d3c76418d148a33fec87",
+    "tip_index": 92,
     "zero_value": true
   }
 }
