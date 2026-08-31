@@ -2753,7 +2753,7 @@ def anchor_mission_verdict(doc: dict, ledger: Ledger) -> dict:
     if ok:
         entries = _read_ledger(ledger.path) if os.path.exists(ledger.path) else []
         try:
-            fresh = mission_chain.rederive(entries)
+            fresh = mission_chain.rederive(entries, doc.get("mission_id"))
             rederived_exact = (mission_chain.canonical_json(fresh)
                               == mission_chain.canonical_json(doc))
             if not rederived_exact:
@@ -2781,6 +2781,10 @@ def anchor_mission_verdict(doc: dict, ledger: Ledger) -> dict:
         "mission_feasible": doc["mission_feasible"],
         "verdict_hash": doc["verdict_hash"],
         "headline": mission_chain.headline(doc),
+        # 0.2-schema missions carry the claim under verification on the
+        # record itself (verbatim quote + author + date; scanner-invisible)
+        **({"claim_source": doc["claim_source"]}
+           if "claim_source" in doc else {}),
         "coordinator_reconfirmed": {
             "self_hash_recomputed": True,
             "every_node_rerun": True,

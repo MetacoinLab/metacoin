@@ -989,12 +989,14 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      "no mission verdict anchored on the chain yet"))
     else:
         problems = []
-        fresh_doc = None
+        fresh_docs = {}
         if full:
-            try:
-                fresh_doc = mission_chain.rederive(entries)
-            except ValueError as exc:
-                problems.append(f"re-derivation refused: {str(exc)[:160]}")
+            for mid in {p.get("mission_id") for _i, p in missions}:
+                try:
+                    fresh_docs[mid] = mission_chain.rederive(entries, mid)
+                except ValueError as exc:
+                    problems.append(f"{mid}: re-derivation refused: "
+                                    f"{str(exc)[:160]}")
         for idx, p in missions:
             f = _load_evidence_json(
                 f"mission_verdict_{str(p.get('verdict_hash'))[:12]}.json")
@@ -1002,6 +1004,7 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                 problems.append(f"idx {idx}: mission evidence file missing")
                 continue
             ok, reasons = mission_chain.validate_verdict(f)
+            fresh_doc = fresh_docs.get(p.get("mission_id"))
             if not ok:
                 problems.append(f"idx {idx}: " + "; ".join(reasons))
             elif f["verdict_hash"] != p.get("verdict_hash"):

@@ -174,6 +174,10 @@ EDGES = (
                       "verdict"},
 )
 
+NAMED_GAP = ("no anchored Earth->Mars transfer or launch-window "
+             "task exists yet — the DAG stops at the Mars surface "
+             "and says so")
+
 # Orbit/transfer tasks in the library that are NOT nodes, with the honest
 # reason: their anchored constants are Earth-centered, and wiring them to a
 # Mars surface mission would be narrative glue, refused by rule. The named
@@ -235,6 +239,173 @@ FLIP_CONDITIONS = {
             "deliberately omits)",
         ],
         "source": "task-0012 inputs (closed-form dB budget)"},
+}
+
+
+# ----------------------------------------------------------------------------
+# MISSION-0002: "L1 sunshade via lunar mass driver" — the protocol's first
+# CIVILIZATION-SCALE CLAIM DECOMPOSITION. A public, unverified feasibility
+# assertion (recorded verbatim in the pinned-sources claim block) is
+# decomposed into anchored tasks and judged by what they compute. Schema
+# mission_verdict/0.2: the record class gains claim-under-verification
+# provenance (claim_source) and an explicit not_modeled list.
+# ----------------------------------------------------------------------------
+MISSION_ID_0002 = "mission-0002-l1-sunshade-lunar-mass-driver"
+MISSION_SCHEMA_0002 = "mission_verdict/0.2"
+
+NODES_0002 = (
+    {"task": "task-0022", "role": "upstream",
+     "title": "Required insolation reduction from the pinned forcing "
+              "target (TX14)"},
+    {"task": "task-0023", "role": "upstream",
+     "title": "Sub-L1 shade equilibrium and occulting area (TX17)"},
+    {"task": "task-0024", "role": "upstream",
+     "title": "Shade mass budget (TX12)"},
+    {"task": "task-0025", "role": "upstream",
+     "title": "Regolith feedstock, extraction energy, lunar power (TX07)"},
+    {"task": "task-0026", "role": "upstream",
+     "title": "Mass-driver launch energetics and throughput (TX01)"},
+    {"task": "task-0027", "role": "constraining",
+     "verdict_field": "deployable_within_horizon",
+     "title": "Deployment timeline vs a climate-relevant horizon (TX01)"},
+    {"task": "task-0028", "role": "constraining",
+     "verdict_field": "dust_shade_persists",
+     "title": "L1 dust-cloud persistence — the claim's 'temporary shade' "
+              "aside (TX17)"},
+    {"task": "task-0029", "role": "constraining",
+     "verdict_field": "gyr_claim_within_ceiling",
+     "title": "Longevity horizon vs the claimed billion years (TX14)"},
+)
+
+EDGES_0002 = (
+    {"src": "task-0022", "dst": "task-0023", "type": "feeds",
+     "justification": "task-0023 consumes task-0022's published required "
+                      "fraction, parent recomputed live and hash-asserted"},
+    {"src": "task-0023", "dst": "task-0024", "type": "feeds",
+     "justification": "task-0024 consumes task-0023's published area and "
+                      "areal density, hash-asserted"},
+    {"src": "task-0024", "dst": "task-0025", "type": "feeds",
+     "justification": "task-0025 consumes task-0024's published film mass "
+                      "as the aluminum to be won from regolith, "
+                      "hash-asserted"},
+    {"src": "task-0024", "dst": "task-0026", "type": "feeds",
+     "justification": "task-0026 consumes task-0024's published total mass "
+                      "as the tonnage to be launched, hash-asserted"},
+    {"src": "task-0026", "dst": "task-0027", "type": "feeds",
+     "justification": "task-0027 consumes task-0026's published deployment "
+                      "duration, hash-asserted"},
+    {"src": "task-0022", "dst": "task-0029", "type": "feeds",
+     "justification": "task-0029 consumes task-0022's published offset "
+                      "target as the fraction the shade must hold, "
+                      "hash-asserted"},
+    {"src": "task-0027", "dst": MISSION_SINK, "type": "constrains",
+     "justification": "the shade must deploy within a climate-relevant "
+                      "horizon at the claim's stated launch architecture"},
+    {"src": "task-0028", "dst": MISSION_SINK, "type": "constrains",
+     "justification": "the claim's dust variant must persist usefully to "
+                      "count as a shade at all"},
+    {"src": "task-0029", "dst": MISSION_SINK, "type": "constrains",
+     "justification": "the claimed billion-year horizon must survive solar "
+                      "brightening within the stated occlusion ceiling"},
+    {"src": "task-0025", "dst": MISSION_SINK, "type": "informs",
+     "justification": "the GW-class lunar power and hundred-megatonne "
+                      "feedstock scale shape the flip analysis without "
+                      "gating the verdict"},
+)
+
+EXCLUDED_NODES_0002 = (
+    {"task": "task-0013", "reason": "the Lambert solver is Earth-centered "
+                                    "(Curtis 5.2) — not a Moon-to-sub-L1 "
+                                    "transfer; task-0026 instead carries a "
+                                    "stated 0.5 km/s insertion allowance, "
+                                    "named as such"},
+    {"task": "task-0002", "reason": "two-body propagation about Earth — no "
+                                    "physical edge to shade station-keeping "
+                                    "at an unstable libration point (a "
+                                    "named non-modeled gap)"},
+)
+
+NAMED_GAP_0002 = ("no anchored Moon-to-sub-L1 trajectory task exists "
+                  "(task-0026's transfer is a stated allowance), and no "
+                  "station-keeping/controls task exists — the not_modeled "
+                  "list carries the full honesty")
+
+NOT_MODELED_0002 = (
+    "station-keeping and attitude control at an unstable equilibrium — the "
+    "deployed shade needs continuous control authority (the e-folding time "
+    "task-0028 derives applies to anything uncontrolled there)",
+    "thermal balance, film degradation, and replacement logistics over the "
+    "horizon",
+    "radiation and micrometeoroid damage to a ~30 g/m2 film",
+    "transfer-trajectory fidelity beyond the stated 0.5 km/s insertion "
+    "allowance",
+    "climate-system response beyond global-mean energy balance (regional "
+    "effects, feedbacks, efficacy)",
+    "governance, liability, and unilateral-deployment questions — outside "
+    "physics entirely",
+)
+
+FLIP_CONDITIONS_0002 = {
+    "task-0027": {
+        "parameter_classes": [
+            "driver count (task-0026 driver_count — the ~3.75x overrun "
+            "flips with ~4 parallel drivers at the stated shot and cadence)",
+            "cadence and shot mass (task-0026 cadence_shots_per_hr, "
+            "shot_mass_kg — the overrun factor divides through their "
+            "product)",
+            "film areal density (task-0023 "
+            "shade_areal_density_kg_per_m2 — a thinner film scales the "
+            "whole launched mass down linearly)",
+            "the offset target itself (task-0022's pinned reference ERF — "
+            "a smaller target shrinks area, mass, and years together)",
+        ],
+        "source": "task-0026 inputs + the upstream 0023/0022 constants"},
+    "task-0028": {
+        "parameter_classes": [
+            "no passive parameter flips it: the ~23-day e-folding is the "
+            "geometry of L1 itself (grain size only tunes the radiation-"
+            "pressure eviction on top)",
+            "continuous replenishment faster than the e-folding, or active "
+            "station-keeping — which is no longer dust but the controlled "
+            "shade the main chain already prices",
+        ],
+        "source": "task-0028's own structure: the instability is geometry, "
+                  "not a tunable constant"},
+    # task-0029's verdict is TRUE, so no flip entry appears in the record
+    # (the builder lists flips for FAILED nodes only); its near-boundary
+    # sensitivity is carried by its own figures (verdict_flip_ceiling).
+}
+
+
+def _claim_source():
+    """The claim-under-verification block, from the pinned-sources module
+    (single source of truth; imported lazily so the protocol package does
+    not import demo modules at module load)."""
+    from demo.tasks import pinned_sunshade_sources as src
+    return dict(src.CLAIM_PROVENANCE)
+
+
+MISSIONS = {
+    MISSION_ID: {
+        "schema": MISSION_SCHEMA,
+        "nodes": NODES,
+        "edges": EDGES,
+        "excluded": EXCLUDED_NODES,
+        "named_gap": NAMED_GAP,
+        "flips": FLIP_CONDITIONS,
+        "claim_source": None,
+        "not_modeled": None,
+    },
+    MISSION_ID_0002: {
+        "schema": MISSION_SCHEMA_0002,
+        "nodes": NODES_0002,
+        "edges": EDGES_0002,
+        "excluded": EXCLUDED_NODES_0002,
+        "named_gap": NAMED_GAP_0002,
+        "flips": FLIP_CONDITIONS_0002,
+        "claim_source": _claim_source,
+        "not_modeled": NOT_MODELED_0002,
+    },
 }
 
 
@@ -373,6 +544,47 @@ def node_figures(task: str, result: dict) -> dict:
     if task == "task-0012":
         return {"ebn0_db": s["ebn0_db"],
                 "link_margin_db": s["link_margin_db"]}
+    if task == "task-0022":
+        return {"reference_required_fraction":
+                    s["reference_required_fraction"],
+                "doubled_co2_required_fraction":
+                    s["doubled_co2_required_fraction"]}
+    if task == "task-0023":
+        return {"required_area_km2": s["required_area_km2"],
+                "shade_distance_from_earth_km":
+                    s["shade_distance_from_earth_km"],
+                "occulting_efficiency_fraction":
+                    s["occulting_efficiency_fraction"]}
+    if task == "task-0024":
+        return {"total_shade_mass_million_t": s["total_shade_mass_million_t"],
+                "unit_sails_count": s["unit_sails_count"]}
+    if task == "task-0025":
+        return {"regolith_processed_million_t":
+                    s["regolith_processed_million_t"],
+                "sustained_power_MW": s["sustained_power_MW"],
+                "pv_area_km2": s["pv_area_km2"]}
+    if task == "task-0026":
+        return {"escape_velocity_km_s": s["escape_velocity_km_s"],
+                "throughput_t_per_yr": s["throughput_t_per_yr"],
+                "deployment_duration_yr": s["deployment_duration_yr"],
+                "sustained_power_MW": s["sustained_power_MW"]}
+    if task == "task-0027":
+        return {"deployment_duration_yr":
+                    result["results"][0]["deployment_duration_yr"],
+                "acceptable_horizon_yr":
+                    result["results"][0]["acceptable_horizon_yr"],
+                "overrun_factor_ratio": s["overrun_factor_ratio"]}
+    if task == "task-0028":
+        return {"efold_time_days": s["efold_time_days"],
+                "tenfold_spread_days": s["tenfold_spread_days"],
+                "beta_at_1um_ratio": s["beta_at_1um_ratio"]}
+    if task == "task-0029":
+        return {"ceiling_horizon_Gyr": s["ceiling_horizon_Gyr"],
+                "margin_Gyr": s["margin_Gyr"],
+                "shade_growth_factor_at_claim_ratio":
+                    s["shade_growth_factor_at_claim_ratio"],
+                "verdict_flip_ceiling_fraction":
+                    s["verdict_flip_ceiling_fraction"]}
     return {}
 
 
@@ -406,6 +618,27 @@ def bottleneck_entry(task: str, result: dict) -> dict:
                 "shortfall_db": round(-s["link_margin_db"], 6),
                 "statement": f"link margin {s['link_margin_db']} dB — the "
                              "X-band budget does not close at Mars-class range"}
+    if task == "task-0027":
+        return {"quantity": "deployment_shortfall_yr",
+                "shortfall_yr": s["shortfall_yr"],
+                "overrun_factor_ratio": s["overrun_factor_ratio"],
+                "statement": f"{result['results'][0]['deployment_duration_yr']}"
+                             " yr to deploy at the claim's stated cadence vs "
+                             f"a {result['results'][0]['acceptable_horizon_yr']}"
+                             " yr climate-relevant horizon — "
+                             f"{s['overrun_factor_ratio']}x over"}
+    if task == "task-0028":
+        return {"quantity": "dust_persistence_shortfall_yr",
+                "shortfall_yr": s["shortfall_yr"],
+                "statement": f"a dust cloud at L1 ten-folds its spread in "
+                             f"{s['tenfold_spread_days']} days (derived "
+                             f"e-folding {s['efold_time_days']} days) vs a "
+                             "one-year minimum useful persistence"}
+    if task == "task-0029":
+        return {"quantity": "longevity_margin_Gyr",
+                "shortfall_Gyr": round(max(0.0, -s["margin_Gyr"]), 6),
+                "statement": f"ceiling horizon {s['ceiling_horizon_Gyr']} Gyr "
+                             "vs the claimed 1 Gyr"}
     # a node this table does not know still gets an honest generic entry
     # (fixture chains exercise this; every real mission-0001 node is specific)
     return {"quantity": "constraining_verdict_false",
@@ -417,11 +650,19 @@ def bottleneck_entry(task: str, result: dict) -> dict:
 # ----------------------------------------------------------------------------
 def build_mission_verdict(node_results: dict, node_hashes: dict,
                           anchored_refs: dict, declared_parents: dict,
-                          nodes=NODES, edges=EDGES) -> dict:
+                          nodes=NODES, edges=EDGES,
+                          mission_id=MISSION_ID, schema=MISSION_SCHEMA,
+                          excluded=EXCLUDED_NODES, flips=FLIP_CONDITIONS,
+                          named_gap=NAMED_GAP, claim_source=None,
+                          not_modeled=None) -> dict:
     """The deterministic document. `node_results`/`node_hashes` are live
     recomputes; `anchored_refs` = {task: {ledger_index, output_hash}} with the
     hash already translated to the current era. The honest negatives FLOW
-    THROUGH; only drift and mistyping refuse."""
+    THROUGH; only drift and mistyping refuse. Defaults reproduce
+    mission-0001 byte-identically; a 0.2-schema mission adds claim_source
+    (the public assertion under verification, verbatim with date) and
+    not_modeled (the named gaps) — absent keys are omitted, never
+    null-padded."""
     findings = dag_findings(nodes, edges, declared_parents)
     for n in nodes:
         t = n["task"]
@@ -447,7 +688,7 @@ def build_mission_verdict(node_results: dict, node_hashes: dict,
 
     node_verdicts = {}
     bottlenecks = []
-    flips = {}
+    flip_map = {}
     for n in nodes:
         t = n["task"]
         result = node_results[t]
@@ -457,15 +698,15 @@ def build_mission_verdict(node_results: dict, node_hashes: dict,
                             "figures": node_figures(t, result)}
         if verdict is False:
             bottlenecks.append({"task": t, **bottleneck_entry(t, result)})
-            if t in FLIP_CONDITIONS:
-                flips[t] = FLIP_CONDITIONS[t]
+            if t in flips:
+                flip_map[t] = flips[t]
     constraining = [node_verdicts[n["task"]]["verdict"] for n in nodes
                     if n["role"] == "constraining"]
     mission_feasible = all(constraining)
 
     doc = {
-        "schema": MISSION_SCHEMA,
-        "mission_id": MISSION_ID,
+        "schema": schema,
+        "mission_id": mission_id,
         "mission_feasible": mission_feasible,
         "constraining_nodes_count": len(constraining),
         "failed_constraining_nodes_count": sum(1 for v in constraining
@@ -485,14 +726,12 @@ def build_mission_verdict(node_results: dict, node_hashes: dict,
             "edges": [dict(e) for e in edges],
             "edge_types": list(EDGE_TYPES),
             "sink": MISSION_SINK,
-            "excluded_nodes": [dict(x) for x in EXCLUDED_NODES],
-            "named_gap": "no anchored Earth->Mars transfer or launch-window "
-                         "task exists yet — the DAG stops at the Mars surface "
-                         "and says so",
+            "excluded_nodes": [dict(x) for x in excluded],
+            "named_gap": named_gap,
         },
         "node_verdicts": node_verdicts,
         "bottlenecks": bottlenecks,
-        "what_would_flip_it": flips,
+        "what_would_flip_it": flip_map,
         "verdict_rule": "mission_feasible = AND over the constraining nodes' "
                         "verdict fields; honest negatives flow through",
         "refusal_rule": REFUSAL_RULE,
@@ -508,6 +747,12 @@ def build_mission_verdict(node_results: dict, node_hashes: dict,
         "zero_value": True,
         "no_token": True,
     }
+    # 0.2-schema missions carry claim-under-verification provenance and the
+    # named non-modeled gaps; absent keys are omitted, never null-padded.
+    if claim_source is not None:
+        doc["claim_source"] = dict(claim_source)
+    if not_modeled is not None:
+        doc["not_modeled"] = list(not_modeled)
     doc["verdict_hash"] = verdict_hash(doc)
     return doc
 
@@ -515,10 +760,11 @@ def build_mission_verdict(node_results: dict, node_hashes: dict,
 def headline(doc: dict) -> dict:
     """The numbers the anchoring record carries on-chain (scanner-invisible:
     no task_id / task_ids keys anywhere at payload top level)."""
-    shortfalls = {b["quantity"]: b.get("shortfall_m_s",
-                                      b.get("shortfall_fraction",
-                                            b.get("shortfall_db")))
-                  for b in doc["bottlenecks"]}
+    shortfalls = {}
+    for b in doc["bottlenecks"]:
+        value = next((b[k] for k in sorted(b)
+                      if k.startswith("shortfall_")), None)
+        shortfalls[b["quantity"]] = value
     return {
         "mission_feasible": doc["mission_feasible"],
         "nodes": len(doc["dag"]["nodes"]),
@@ -530,10 +776,22 @@ def headline(doc: dict) -> dict:
 
 
 def validate_verdict(doc) -> tuple:
-    """(ok, reasons): shape, self-hash, and the AND bound to the fields."""
+    """(ok, reasons): shape, self-hash, and the AND bound to the fields.
+    Schema 0.1 is the idx-82 class; 0.2 adds required claim-under-
+    verification provenance (claim_source) and the not_modeled list."""
     reasons = []
-    if not isinstance(doc, dict) or doc.get("schema") != MISSION_SCHEMA:
-        return (False, ["not a mission_verdict/0.1 document"])
+    if not isinstance(doc, dict) or doc.get("schema") not in (
+            MISSION_SCHEMA, MISSION_SCHEMA_0002):
+        return (False, ["not a mission_verdict/0.1 or /0.2 document"])
+    if doc.get("schema") == MISSION_SCHEMA_0002:
+        cs = doc.get("claim_source")
+        if not (isinstance(cs, dict) and cs.get("quoted")
+                and cs.get("date") and cs.get("author")):
+            reasons.append("0.2 schema requires claim_source with quoted "
+                           "text, author, and date")
+        if not (isinstance(doc.get("not_modeled"), list)
+                and doc["not_modeled"]):
+            reasons.append("0.2 schema requires a non-empty not_modeled list")
     for key in ("mission_id", "mission_feasible", "dag", "node_verdicts",
                 "bottlenecks", "what_would_flip_it", "verdict_hash"):
         if key not in doc:
@@ -571,12 +829,17 @@ def _first_task_record(entries, short_id):
     return (None, None)
 
 
-def rederive(entries) -> dict:
-    """Re-run every node task, rebuild the DAG, recompute the verdict — the
-    whole document from scratch. Raises ValueError under the refusal rule."""
+def rederive(entries, mission_id: str = MISSION_ID) -> dict:
+    """Re-run every node task of the named mission, rebuild its DAG,
+    recompute the verdict — the whole document from scratch. Raises
+    ValueError under the refusal rule (unknown missions included)."""
+    if mission_id not in MISSIONS:
+        raise ValueError(f"REFUSED ({REFUSAL_RULE}): unknown mission "
+                         f"{mission_id!r} — defined: {sorted(MISSIONS)}")
+    m = MISSIONS[mission_id]
     era_map = verifier_cli.load_hash_era_map(entries)
     node_results, node_hashes, anchored, parents = {}, {}, {}, {}
-    for n in NODES:
+    for n in m["nodes"]:
         t = n["task"]
         module = verifier_cli.load_task(t)
         result = module.compute()
@@ -588,12 +851,19 @@ def rederive(entries) -> dict:
             anchored[t] = {"ledger_index": idx,
                            "output_hash": verifier_cli.era_expected_hash(
                                t, recorded, era_map)}
-    return build_mission_verdict(node_results, node_hashes, anchored, parents)
+    claim = m["claim_source"]
+    return build_mission_verdict(
+        node_results, node_hashes, anchored, parents,
+        nodes=m["nodes"], edges=m["edges"], mission_id=mission_id,
+        schema=m["schema"], excluded=m["excluded"], flips=m["flips"],
+        named_gap=m["named_gap"],
+        claim_source=claim() if callable(claim) else claim,
+        not_modeled=m["not_modeled"])
 
 
-def generate(echo=print) -> dict:
+def generate(mission_id: str = MISSION_ID, echo=print) -> dict:
     entries = _read_ledger(resolve_ledger_path())
-    doc = rederive(entries)
+    doc = rederive(entries, mission_id)
     echo(f"mission verdict derived: {doc['mission_id']}")
     echo(f"mission_feasible: {doc['mission_feasible']} "
          f"({doc['failed_constraining_nodes_count']} of "
@@ -604,53 +874,61 @@ def generate(echo=print) -> dict:
 # ----------------------------------------------------------------------------
 # status of the latest anchored verdict (the docs' verify block)
 # ----------------------------------------------------------------------------
-def latest_verdict_record(entries):
-    recs = [e for e in entries
-            if e.get("payload", {}).get("event") == MISSION_EVENT
-            and e["payload"].get("status") == MISSION_STATUS]
-    return recs[-1] if recs else None
+def latest_verdict_records(entries):
+    """The latest anchored record PER MISSION, in mission-id order."""
+    latest = {}
+    for e in entries:
+        p = e.get("payload", {})
+        if (p.get("event") == MISSION_EVENT
+                and p.get("status") == MISSION_STATUS):
+            latest[p.get("mission_id")] = e
+    return [latest[k] for k in sorted(latest)]
 
 
 def status(entries=None, echo=print) -> int:
     entries = (entries if entries is not None
                else _read_ledger(resolve_ledger_path()))
-    rec = latest_verdict_record(entries)
-    if rec is None:
+    recs = latest_verdict_records(entries)
+    if not recs:
         echo("MISSION STATUS: OK — no mission verdict anchored on the chain "
              "yet (named; the first verdict follows the mission chain's nodes)")
         return 0
-    p = rec["payload"]
-    path = find_evidence_file(f"mission_verdict_{p['verdict_hash'][:12]}.json")
-    if path is None:
-        echo(f"MISSION STATUS: BROKEN — idx {rec['index']} cites verdict "
-             f"{p['verdict_hash'][:12]} but no evidence file ships")
-        return 1
-    with open(path, encoding="utf-8") as f:
-        doc = json.load(f)
-    ok, reasons = validate_verdict(doc)
-    try:
-        fresh = rederive(entries)
-        exact = canonical_json(fresh) == canonical_json(doc)
-    except ValueError as exc:
-        fresh, exact = None, False
-        reasons.append(str(exc)[:160])
-    if (ok and exact and doc["verdict_hash"] == p["verdict_hash"]
-            and headline(doc) == p.get("headline")):
-        echo(f"MISSION STATUS: OK — idx {rec['index']} re-derives BIT-EXACT: "
-             f"every node re-run, DAG rebuilt, verdict_hash "
-             f"{p['verdict_hash'][:12]} recomputed; mission_feasible "
-             f"{doc['mission_feasible']} "
-             f"({doc['failed_constraining_nodes_count']}/"
-             f"{doc['constraining_nodes_count']} constraining nodes fail — "
-             "the honest mission-level negative)")
-        return 0
-    echo("MISSION STATUS: BROKEN — " + "; ".join(
-        reasons + ([] if exact else ["re-derivation is not bit-exact"])
-        + ([] if doc.get("verdict_hash") == p.get("verdict_hash")
-           else ["file hash != record hash"])
-        + ([] if headline(doc) == p.get("headline")
-           else ["headline mismatch"])))
-    return 1
+    failures = 0
+    for rec in recs:
+        p = rec["payload"]
+        path = find_evidence_file(
+            f"mission_verdict_{p['verdict_hash'][:12]}.json")
+        if path is None:
+            echo(f"MISSION STATUS: BROKEN — idx {rec['index']} cites verdict "
+                 f"{p['verdict_hash'][:12]} but no evidence file ships")
+            failures += 1
+            continue
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+        ok, reasons = validate_verdict(doc)
+        try:
+            fresh = rederive(entries, p.get("mission_id"))
+            exact = canonical_json(fresh) == canonical_json(doc)
+        except ValueError as exc:
+            fresh, exact = None, False
+            reasons.append(str(exc)[:160])
+        if (ok and exact and doc["verdict_hash"] == p["verdict_hash"]
+                and headline(doc) == p.get("headline")):
+            echo(f"MISSION STATUS: OK — {p.get('mission_id')} idx "
+                 f"{rec['index']} re-derives BIT-EXACT: every node re-run, "
+                 f"DAG rebuilt, verdict_hash {p['verdict_hash'][:12]} "
+                 f"recomputed; mission_feasible {doc['mission_feasible']} "
+                 f"({doc['failed_constraining_nodes_count']}/"
+                 f"{doc['constraining_nodes_count']} constraining nodes fail)")
+        else:
+            failures += 1
+            echo(f"MISSION STATUS: BROKEN — {p.get('mission_id')}: " + "; ".join(
+                reasons + ([] if exact else ["re-derivation is not bit-exact"])
+                + ([] if doc.get("verdict_hash") == p.get("verdict_hash")
+                   else ["file hash != record hash"])
+                + ([] if headline(doc) == p.get("headline")
+                   else ["headline mismatch"])))
+    return 1 if failures else 0
 
 
 # ----------------------------------------------------------------------------
@@ -773,14 +1051,43 @@ def _selftest() -> int:
                    headline(doc)["failed_constraining"] == 1
                    and "task_id" not in json.dumps(headline(doc))
                    and "task_ids" not in json.dumps(headline(doc))))
-    # the REAL mission definition type-checks against the REAL modules'
+    # EVERY real mission definition type-checks against the REAL modules'
     # PARENT_TASKS declarations (imports only — no compute() run here)
-    real_parents = {n["task"]: list(getattr(verifier_cli.load_task(n["task"]),
-                                            "PARENT_TASKS", []))
-                    for n in NODES}
-    checks.append(("the real mission-0001 DAG type-checks against the real "
-                   "PARENT_TASKS declarations",
-                   dag_findings(NODES, EDGES, real_parents) == []))
+    for mid, m in sorted(MISSIONS.items()):
+        real_parents = {n["task"]: list(getattr(
+            verifier_cli.load_task(n["task"]), "PARENT_TASKS", []))
+            for n in m["nodes"]}
+        checks.append((f"the real {mid[:12]} DAG type-checks against the "
+                       "real PARENT_TASKS declarations",
+                       dag_findings(m["nodes"], m["edges"], real_parents) == []))
+    # 0.2-schema fixtures: claim_source + not_modeled carried and required
+    doc02 = build_mission_verdict(
+        results, hashes, anchored, parents, nodes=nodes, edges=edges,
+        mission_id="mission-9002-fixture", schema=MISSION_SCHEMA_0002,
+        excluded=(), flips={}, named_gap="fixture gap",
+        claim_source={"author": "a public poster", "date": "2026-08-30",
+                      "quoted": "a fixture assertion", "tier": "public-assertion"},
+        not_modeled=["a fixture gap"])
+    checks.append(("a 0.2 verdict carries claim_source + not_modeled and "
+                   "validates", validate_verdict(doc02)[0]
+                   and doc02["claim_source"]["quoted"] == "a fixture assertion"
+                   and doc02["not_modeled"] == ["a fixture gap"]))
+    bad02 = build_mission_verdict(
+        results, hashes, anchored, parents, nodes=nodes, edges=edges,
+        mission_id="mission-9002-fixture", schema=MISSION_SCHEMA_0002,
+        excluded=(), flips={}, named_gap="fixture gap")
+    checks.append(("a 0.2 verdict WITHOUT claim provenance fails validation "
+                   "(claim-under-verification is required by the schema)",
+                   not validate_verdict(bad02)[0]))
+    checks.append(("a 0.1 verdict never carries claim_source (absent keys "
+                   "omitted — the idx-82 bytes cannot move)",
+                   "claim_source" not in doc and "not_modeled" not in doc))
+    try:
+        rederive([], "mission-9999-unknown")
+        refused = False
+    except ValueError as exc:
+        refused = "unknown mission" in str(exc)
+    checks.append(("rederive refuses an unknown mission by name", refused))
     out = []
     checks.append(("status names 'no verdict yet' as OK on a chain without "
                    "one", status([{"index": 0, "payload": {"event": "x"}}],
@@ -815,12 +1122,16 @@ def main(argv=None) -> int:
                       help="does the latest anchored verdict re-derive "
                            "bit-exact from the chain?")
     mode.add_argument("--selftest", action="store_true")
+    parser.add_argument("--mission", default=MISSION_ID,
+                        choices=sorted(MISSIONS),
+                        help="which mission to generate/verify "
+                             f"(default {MISSION_ID})")
     parser.add_argument("--out",
                         default=os.path.join(_REPO_ROOT, "mission_verdict.json"))
     args = parser.parse_args(argv)
     if args.generate:
         try:
-            doc = generate()
+            doc = generate(args.mission)
         except ValueError as exc:
             print(str(exc))
             print("mission verdict: NOT generated (nothing written)")
@@ -837,7 +1148,8 @@ def main(argv=None) -> int:
         ok, reasons = validate_verdict(given)
         print("file validates: " + ("yes" if ok else "; ".join(reasons)))
         try:
-            fresh = rederive(_read_ledger(resolve_ledger_path()))
+            fresh = rederive(_read_ledger(resolve_ledger_path()),
+                             given.get("mission_id", args.mission))
         except ValueError as exc:
             print(str(exc))
             print("MISSION VERIFY: FAILED — the chain cannot re-derive a "
