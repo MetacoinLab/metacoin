@@ -1,10 +1,14 @@
-# HAL benchmark package — the 18-task library in HAL's benchmark contract
+# HAL benchmark package — the <!--chain:task_count-->21<!--/chain-->-task library in HAL's benchmark contract
 
 Research-stage. This directory packages the MetaCoin task library in the
 benchmark format of Princeton's
 [Holistic Agent Leaderboard](https://hal.cs.princeton.edu/) (HAL) —
 specifically as a candidate for the reliability line of work behind their
 [Reliability Dashboard](https://hal.cs.princeton.edu/reliability).
+This README is in the doc-verify scan set: its chain-number tokens and
+verify-run block are mechanically verified by protocol/doc_verify.py
+on every CI run, so its numbers cannot silently drift from the
+registry.
 
 ## What this is — and what it awaits
 
@@ -26,8 +30,9 @@ harness turns out to require. **Nothing has been submitted.**
 
 - `benchmark_name = "metacoin_tasks"`; `requires_sandbox = False`; a
   dataset dict `task_id → {"prompt", "answer", "files", "metadata"}` for
-  all 18 tasks (prompts carry the complete reference source, dependency
-  modules included for the two parented tasks).
+  all <!--chain:task_count-->21<!--/chain--> tasks (prompts carry the
+  complete reference source, dependency
+  modules included for the parented tasks).
 - `_ground_truth_keys = ["answer"]` — their anti-leakage convention
   (ground truth stripped before tasks reach the agent). Scoring ignores
   the stored answer anyway: `evaluate_output` re-derives by executing the
@@ -49,10 +54,14 @@ The class subclasses HAL's real `BaseBenchmark` when hal-harness is
 importable and an identically-shaped stand-in otherwise, so everything here
 is testable today, standard library only:
 
-```bash
-python3 integrations/hal/metacoin_benchmark.py --selftest
-# 18/18 on reference submissions; tampered/garbage/missing all rejected
+```verify-run
+$ python3 integrations/hal/metacoin_benchmark.py --selftest
+--- (a) dataset shape: 21 tasks, contract fields: OK ---  (trimmed; 21/21
+on reference submissions; tampered/garbage/missing all rejected)
 ```
+<!--expect:dataset shape: 21 tasks-->
+<!--expect:negatives 4/4: OK-->
+<!--expect:ALL CASES BEHAVED CORRECTLY-->
 
 ## Why this suits a reliability harness
 
@@ -63,8 +72,11 @@ python3 integrations/hal/metacoin_benchmark.py --selftest
 - **A scored abstention probe.** HAL's reliability methodology measures
   post-hoc confidence (risk–coverage), and its paper poses — but does not
   yet measure — "selective operation: can the system recognize when it
-  should defer, abstain, or escalate?". Two tasks here (task-0012
-  `"link_closes": false`; task-0018 `"feasible": false`) make the
+  should defer, abstain, or escalate?".
+  <!--chain:honest_negative_count-->4<!--/chain--> tasks here (task-0012
+  `"link_closes": false`; task-0018 `"feasible": false`; task-0020
+  `"reference_conversion_acceptable": false`; task-0021
+  `"feasible_at_equilibrium_conversion": false`) make the
   unfavorable verdict the scored-correct behavior under the identical
   bit-exact rule: an agent passes only by honestly reporting "no".
   `get_metrics` surfaces this subset separately.
@@ -81,7 +93,8 @@ Single-shot prompt-in/JSON-out tasks: trajectory-consistency and
 fault-injection metrics have little to grip unless run with tool-using
 agents that compute their answers. These are first-order illustrative
 engineering computations with stated simplifications, verified for
-exactness — a probe set, not a general-capability benchmark, and 18 tasks
+exactness — a probe set, not a general-capability benchmark, and
+<!--chain:task_count-->21<!--/chain--> tasks
 means wide per-metric confidence intervals under repeated-run protocols.
 
 ---

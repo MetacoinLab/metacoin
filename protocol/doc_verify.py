@@ -98,11 +98,28 @@ DOCS_DIR = os.path.join(_REPO_ROOT, "docs")
 # Fixed processing order: multi-step walkthrough state (participate init -> run
 # -> bundle) must execute in the order a reader would.
 DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
-             "TRUST-MODEL.md", "TOUR.md", "COLLABORATE.md", "PULSE.md")
+             "TRUST-MODEL.md", "TOUR.md", "COLLABORATE.md", "PULSE.md",
+             # Integration READMEs joined the scan set 2026-08-31 after a
+             # link audit caught them still claiming "the 18-task library" —
+             # public-facing numeric claims may not live outside the
+             # anti-rot machine. Entries carrying a "/" are repo-relative.
+             "integrations/inspect/README.md",
+             "integrations/hal/README.md",
+             "integrations/baselines/README.md")
 # TOUR.md is ERA-PINNED like the README (era tokens, no chain tokens):
 # --render never touches it, and --check verifies its tagged numbers at
 # its own declared as-of point via the same check_readme machinery.
 TOUR_PATH = os.path.join(DOCS_DIR, "TOUR.md")
+
+
+def _doc_path(docs_dir, name):
+    """Resolve a DOC_FILES entry: plain basenames live in docs_dir;
+    entries with a "/" are repo-relative, resolved against docs_dir's
+    PARENT — so the self-test's fixture docs_dir simply reports them
+    'missing from' (a finding its fixtures filter), never executes them."""
+    if "/" in name:
+        return os.path.join(os.path.dirname(docs_dir), name)
+    return os.path.join(docs_dir, name)
 
 # MIP documents (mip/MIP-*.md) join the scan set: their typed idx references
 # are resolved and their verify-run blocks executed exactly like the docs'.
@@ -230,6 +247,12 @@ def compute_tokens(repo_root=_REPO_ROOT, entries=None):
         "catalog_anchor_count": str(sum(
             1 for e in entries if e.get("payload", {}).get("event")
             == "work_molecule_catalog_anchored")),
+        # honest-negative roster size (integrations/core.py HONEST_NEGATIVES —
+        # the abstention-probe subset the integration READMEs cite); local
+        # import: integrations/ ships in the repo but not in the wheel
+        "honest_negative_count": str(len(__import__(
+            "integrations.core", fromlist=["HONEST_NEGATIVES"]
+        ).HONEST_NEGATIVES)),
         "protocol_suite_count": str(_count_runner_tests(
             os.path.join(repo_root, "protocol", "run_protocol_selftests.sh"))),
         "demo_suite_count": str(_count_runner_tests(
@@ -486,7 +509,7 @@ def check_docs(docs_dir=DOCS_DIR, repo_root=_REPO_ROOT, execute=True,
 
     doc_blocks = []
     for name in DOC_FILES:
-        path = os.path.join(docs_dir, name)
+        path = _doc_path(docs_dir, name)
         if not os.path.exists(path):
             findings.append(f"{name}: missing from {docs_dir}")
             continue
@@ -561,7 +584,7 @@ def render_docs(docs_dir=DOCS_DIR, repo_root=_REPO_ROOT, echo=print):
     tokens = compute_tokens(repo_root)
     changed = 0
     for name in DOC_FILES:
-        path = os.path.join(docs_dir, name)
+        path = _doc_path(docs_dir, name)
         if not os.path.exists(path):
             continue
         with open(path) as f:

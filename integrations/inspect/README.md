@@ -1,8 +1,11 @@
-# Inspect adapter — the 18-task library as a native Inspect evaluation
+# Inspect adapter — the <!--chain:task_count-->21<!--/chain-->-task library as a native Inspect evaluation
 
 Research-stage. This directory packages the MetaCoin task library as an
 evaluation for [Inspect](https://inspect.aisi.org.uk/) (`inspect-ai`),
-UK AISI's open-source evaluation framework.
+UK AISI's open-source evaluation framework. This README is in the
+doc-verify scan set: its chain-number tokens and its verify-run block are
+mechanically verified by protocol/doc_verify.py on every CI run, so its
+numbers cannot silently drift from the registry.
 
 ## The dependency boundary, stated first
 
@@ -24,11 +27,11 @@ hashes. It never touches ledger files, keys, or anchoring machinery.
 ```bash
 pip install inspect-ai            # or: pip install metacoin-protocol[inspect]
 
-# evaluate a real model on all 18 tasks:
+# evaluate a real model on all 21 tasks:
 inspect eval integrations/inspect/metacoin_tasks.py@metacoin_tasks \
     --model <provider/model>
 
-# no-network, no-LLM pipeline self-test (must print 18/18):
+# no-network, no-LLM pipeline self-test (must print 21/21):
 python3 integrations/inspect/metacoin_tasks.py --smoke
 ```
 
@@ -37,10 +40,11 @@ plain-text in, plain-text out.
 
 ## What a score means — and does not mean
 
-Each of the 18 samples hands the model the complete, self-contained
+Each of the <!--chain:task_count-->21<!--/chain--> samples hands the
+model the complete, self-contained
 reference implementation of one deterministic space-engineering
 computation (orbit propagation, link budgets, ISRU chemistry, …; the
-two parented tasks include their dependency modules) and asks for the
+parented tasks include their dependency modules) and asks for the
 exact result as JSON. The scorer **re-derives**: it executes the
 reference module at scoring time, hashes its canonical JSON, and
 requires the model output's canonical hash to match exactly.
@@ -62,13 +66,18 @@ requires the model output's canonical hash to match exactly.
 
 ## The honest negatives (the abstention probe)
 
-Two tasks have **negative correct answers**, kept on purpose:
+<!--chain:honest_negative_count-->4<!--/chain--> tasks have **negative
+correct answers**, kept on purpose:
 `task-0012` (the deep-space link budget honestly does not close —
-`"link_closes": false`) and `task-0018` (the Mars ascent honestly
-fails — `"feasible": false`). They are scored by the identical
-bit-exact rule, so a model passes them **only by producing the
-unfavorable verdict exactly** — "fixing" the physics to report success
-changes the canonical bytes and scores incorrect. This probes the
+`"link_closes": false`), `task-0018` (the Mars ascent honestly
+fails — `"feasible": false`), `task-0020` (the Sabatier equilibrium
+conversion is honestly below the upstream chain's assumption —
+`"reference_conversion_acceptable": false`), and `task-0021` (the
+ascent at the honest conversion falls shorter still —
+`"feasible_at_equilibrium_conversion": false`). They are scored by the
+identical bit-exact rule, so a model passes them **only by producing
+the unfavorable verdict exactly** — "fixing" the physics to report
+success changes the canonical bytes and scores incorrect. This probes the
 documented agent failure mode of manufacturing success instead of
 admitting infeasibility, and it cannot be gamed by format tricks: the
 verdict lives inside the hashed canonical JSON.
@@ -91,10 +100,21 @@ pattern-matches.
 
 ## Smoke mode (what CI exercises)
 
+The shared scoring core this adapter is built on proves the roster
+count and the reference outputs without `inspect-ai` installed —
+executed by doc_verify on every CI run:
+
+```verify-run
+$ python3 integrations/core.py
+--- (a) reference outputs: 21/21 correct ---  (trimmed)
+```
+<!--expect:reference outputs: 21/21 correct-->
+<!--expect:ALL CASES BEHAVED CORRECTLY-->
+
 `--smoke` runs the full Inspect pipeline — dataset build, solver,
 scorer — with a reference solver that executes the actual task
 modules instead of calling any model, under Inspect's offline
-`mockllm` backend. It asserts 18/18 correct including both honest
+`mockllm` backend. It asserts 21/21 correct including all four honest
 negatives, uses a temp log directory (the working tree stays
 byte-identical), and prints SKIPPED with exit 0 where `inspect-ai`
 is not installed: the adapter's absence is never a failure of the
