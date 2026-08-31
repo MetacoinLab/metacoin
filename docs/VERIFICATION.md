@@ -7,8 +7,8 @@
 > chain point it describes and re-checked against live state, and nothing here
 > claims more than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->80<!--/chain-->,
-> <!--chain:entry_count-->81<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->82<!--/chain-->,
+> <!--chain:entry_count-->83<!--/chain--> entries.
 
 `metacoin verify` (the zero-install form is
 `python3 metacoin_cli/main.py verify`) is the flagship: one command that
@@ -47,12 +47,12 @@ The pasted run below is trimmed to the shape of the report; the full pass has
 
 - **chain+anchor** — the hash chain is intact from genesis
   <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->… to tip
-  <!--chain:tip_hash_prefix-->c79e972d1490<!--/chain-->…, and the committed tip anchor
+  <!--chain:tip_hash_prefix-->44b0c594c85b<!--/chain-->…, and the committed tip anchor
   matches. In a fresh clone the published snapshot is the source, and the
   report names that.
-- **tasks** — all <!--chain:recorded_task_count-->20<!--/chain--> recorded
+- **tasks** — all <!--chain:recorded_task_count-->21<!--/chain--> recorded
   demo tasks re-run to their canonical output hashes. The registry holds
-  <!--chain:task_count-->20<!--/chain--> tasks in total; registry tasks not
+  <!--chain:task_count-->21<!--/chain--> tasks in total; registry tasks not
   yet on the ledger (new tasks join the corpus at the next milestone anchor
   batch) are counted and named by the report as registered-unanchored —
   expected evolution, never a failure and never silently skipped.
@@ -124,8 +124,8 @@ $ python3 -c "import sys; sys.path.insert(0,'.'); from protocol.verify_everythin
 
 The suites behind the report are runnable directly:
 `protocol/run_protocol_selftests.sh`
-(<!--chain:protocol_suite_count-->24<!--/chain--> self-tests) and
-`demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->30<!--/chain-->
+(<!--chain:protocol_suite_count-->25<!--/chain--> self-tests) and
+`demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->31<!--/chain-->
 self-tests) — CI requires both green plus a fresh-clone full pass on every
 commit. The layer tools remain individually available (`audit.py --verify`,
 `agent_verifier.py`, `challenge_response.py`, …) — the flagship adds no

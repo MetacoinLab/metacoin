@@ -4267,19 +4267,85 @@
       },
       "prev_hash": "9b5163bbc591cdd9460c167943f25cb6d3b25150954dcd395fbcf2f42e0c8b9b",
       "timestamp": 1787911330.4400713
+    },
+    {
+      "hash": "9615178fc1991f98383e6410a2d65991dc67bcac6d7d1ff153f8a95ed084affe",
+      "index": 81,
+      "payload": {
+        "anchored": true,
+        "evaluated_at": 1788149341.677045,
+        "event": "self_recompute_result",
+        "limitation_note": "SAME-MACHINE self-recompute (research-stage, zero-value). The coordinator generated and re-evaluated this submission on the SAME host; a matching output_hash proves the result is REPRODUCIBLE run-to-run on this machine. This is NOT cross-machine and NOT independent third-party verification \u2014 no separate party, machine, or platform is involved, so it adds no cross-party independence (it is a stronger sibling of the deterministic re-run check). A hash can be copied. Not consensus, not mainnet, not payment, not a token.",
+        "local_output_hash": "ec3a3acb7d0bf7dfbca5e9251035a32d2dbec3cc1995c6f47cf9fd13ebdaaf11",
+        "match": true,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R3",
+        "status": "locally-verified",
+        "submitted_output_hash": "ec3a3acb7d0bf7dfbca5e9251035a32d2dbec3cc1995c6f47cf9fd13ebdaaf11",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0021",
+        "topology": "same-machine-self-recompute",
+        "verifier_id": "spark-local-same-operator",
+        "verifier_machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+        "verifier_repo_commit": "6b77077e2f335009e0b6787d5859ed3ce18e1671",
+        "zero_value": true
+      },
+      "prev_hash": "c79e972d149010d267ce81641897e46096e9dce1ca462a939b8c2a78327dea1b",
+      "timestamp": 1788149341.6775827
+    },
+    {
+      "hash": "44b0c594c85b80689cd4c2cd82df678015b969264b8c010627f74a63b70ed519",
+      "index": 82,
+      "payload": {
+        "anchored_at": 1788149351.6006017,
+        "coordinator_reconfirmed": {
+          "every_node_rerun": true,
+          "rederivation_bit_exact": true,
+          "self_hash_recomputed": true
+        },
+        "event": "mission_verdict_recorded",
+        "headline": {
+          "bottleneck_shortfalls": {
+            "ascent_shortfall_m_s": 2489.44234,
+            "conversion_shortfall_fraction": 0.109433,
+            "corrected_ascent_shortfall_m_s": 2689.155436,
+            "link_shortfall_db": 1.635481
+          },
+          "constraining": 4,
+          "edges": 12,
+          "failed_constraining": 4,
+          "mission_feasible": false,
+          "nodes": 7
+        },
+        "limitation_note": "The mission verdict is a same-operator composition of anchored tasks: the coordinator re-runs every node, rebuilds the typed DAG, and compares the whole document bit-exact before anchoring \u2014 so an anchored verdict proves the mission conclusion re-derives deterministically from the anchored task record, not that the mission is real, the constants are flight-grade, or the work is useful; the headline is an honest mission-level FALSE; not consensus, not payment, not a token; research-stage.",
+        "mission_feasible": false,
+        "mission_id": "mission-0001-mars-isru-refuel-ascent",
+        "mission_schema": "mission_verdict/0.1",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "refusal_rule": "a mission-level FALSE is a deliverable; a drifted node is not \u2014 generation refuses unless every node re-derives its anchored hash and the DAG type-checks",
+        "stage": "R-mission",
+        "status": "mission-verdict-confirmed",
+        "topology": "same-operator-coordinator-mission-verdict",
+        "verdict_hash": "7196d1edf8695b5954c69e6852b7192d31d6b3da8b79f2860556b5c91f9dd3f8",
+        "zero_value": true
+      },
+      "prev_hash": "9615178fc1991f98383e6410a2d65991dc67bcac6d7d1ff153f8a95ed084affe",
+      "timestamp": 1788149351.601116
     }
   ],
   "snapshot_header": {
-    "entry_count": 81,
+    "entry_count": 83,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1787911330.484799,
+    "snapshot_timestamp": 1788149360.1739187,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "c79e972d149010d267ce81641897e46096e9dce1ca462a939b8c2a78327dea1b",
-    "tip_index": 80,
+    "tip_hash": "44b0c594c85b80689cd4c2cd82df678015b969264b8c010627f74a63b70ed519",
+    "tip_index": 82,
     "zero_value": true
   }
 }

@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->80<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->c79e972d1490<!--/chain-->…,
-> <!--chain:entry_count-->81<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->82<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->44b0c594c85b<!--/chain-->…,
+> <!--chain:entry_count-->83<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->81<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->83<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.
@@ -22,9 +22,9 @@ says, for each layer, what it proves and what it deliberately does not.
 
 The chain opens with genesis (idx 0 <!--idx:0=ledger_genesis-->) and the
 verification corpus for the first 13 deterministic demo tasks. (The registry
-now holds <!--chain:task_count-->20<!--/chain--> tasks and — since the idx
+now holds <!--chain:task_count-->21<!--/chain--> tasks and — since the idx
 48-52 milestone batch, per the cadence policy — all
-<!--chain:recorded_task_count-->20<!--/chain--> are recorded; between
+<!--chain:recorded_task_count-->21<!--/chain--> are recorded; between
 milestones, newly registered tasks stay registered-but-unanchored and every
 verifier reports them by name rather than absorbing them silently.)
 
@@ -40,7 +40,7 @@ verifier reports them by name rather than absorbing them silently.)
   adding *no cross-party independence*.
 
 **Proves:** deterministic reproducibility of all
-<!--chain:recorded_task_count-->20<!--/chain--> recorded task outputs on
+<!--chain:recorded_task_count-->21<!--/chain--> recorded task outputs on
 Linux and in CI on every push; cross-platform reproducibility is verified
 for the canonical task on four platforms, and — since the era-2
 negative-zero rule (idx 67 <!--idx:67=task_hash_era_recorded-->) —

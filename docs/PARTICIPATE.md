@@ -8,9 +8,9 @@
 > nothing here claims more than `metacoin verify` proves.
 >
 > Chain point of every output in this file: tip index
-> <!--chain:tip_index-->80<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->c79e972d1490<!--/chain-->…,
-> <!--chain:entry_count-->81<!--/chain--> entries.
+> <!--chain:tip_index-->82<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->44b0c594c85b<!--/chain-->…,
+> <!--chain:entry_count-->83<!--/chain--> entries.
 
 This is the stranger's path from nothing to a submitted, coordinator-validated
 verification bundle. It is honest about what each step proves: everything you
@@ -187,7 +187,7 @@ supports "this party submitted a result that re-derives", not execution
 proof), or that the work has value (zero-value research stage, no token).
 
 That is the standing honesty of this project: every one of the
-<!--chain:entry_count-->81<!--/chain--> entries so far is same-operator, and
+<!--chain:entry_count-->83<!--/chain--> entries so far is same-operator, and
 each record says so. The anchored concentration baseline quantifies it —
 pairwise ACI <!--chain:aci_pairwise-->0.99365<!--/chain--> across
 <!--chain:aci_path_count-->28<!--/chain--> verification paths (measured at
