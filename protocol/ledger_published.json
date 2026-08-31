@@ -4629,19 +4629,43 @@
       },
       "prev_hash": "8bfe198d7aa144620ceb3cb5e18bd509df7107ab581b0c95df2d74650f2cb69e",
       "timestamp": 1788163154.9023623
+    },
+    {
+      "hash": "709a4001c3b77dd4a71e41ab0e047cae580b6a8ed449ea34bb8437047de38dd8",
+      "index": 93,
+      "payload": {
+        "cause": "the recorded claim_source.quoted was a paraphrase-faithful composite of the post thread as reported (its own note said so); the primary source is now verified: the post text above is verbatim, with its URL and timestamp. The composite's 'temporary dust shade' phrase is NOT in the cited post \u2014 it came from the surrounding thread as reported; the chain's dust-persistence analysis stands as the analysis of that thread variant, so labeled",
+        "claim_source_time": "3:32 PM Aug 30, 2026",
+        "claim_source_url": "https://x.com/elonmusk/status/2093965014889566230",
+        "correct_value": "And that is, of course, how it will be done.\n\nSentient satellites, launched into Earth-Sun Lagrange points by mass drivers on the Moon, can solve global warming for ~1B years.",
+        "corrected_field": "claim_source.quoted",
+        "corrects_ledger_index": 91,
+        "erroneous_value": "AI satellites that adjust solar power reaching Earth, launched by mass driver from the Moon to Earth-Sun L1, would be able to control Earth's temperature ... could prevent runaway warming ... for the next billion years or so ... you could launch lunar dust as a temporary shade",
+        "event": "anchored_record_correction",
+        "interpretation_note": "the claim names Earth-Sun Lagrange points; the chain models L1, the only such point that occults the Sun as seen from Earth; the verdict is a verdict on that reading",
+        "limitation_note": "APPEND-ONLY CORRECTION: the erroneous record stays on-chain verbatim \u2014 history is never rewritten; this record supersedes exactly one cited field. An error anchored is corrected by appending the correction, the same rule as every provenance-debt reduction. Not consensus, not payment, not a token; zero-value research-stage.",
+        "no_token": true,
+        "stage": "R-provenance",
+        "status": "correction-appended",
+        "topology": "append-only-correction",
+        "verification": "the idx-91 verdict document is UNTOUCHED and still re-derives bit-exact (verify_everything layer 11d re-checked at correction time); this record supersedes exactly the cited field and adds source-URL, timestamp, and interpretation provenance",
+        "zero_value": true
+      },
+      "prev_hash": "f4d4ce368fab67dee8877472483ee9b3023d173c70b7d3c76418d148a33fec87",
+      "timestamp": 1788166237.1632917
     }
   ],
   "snapshot_header": {
-    "entry_count": 93,
+    "entry_count": 94,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1788163154.9636388,
+    "snapshot_timestamp": 1788166237.1916935,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "f4d4ce368fab67dee8877472483ee9b3023d173c70b7d3c76418d148a33fec87",
-    "tip_index": 92,
+    "tip_hash": "709a4001c3b77dd4a71e41ab0e047cae580b6a8ed449ea34bb8437047de38dd8",
+    "tip_index": 93,
     "zero_value": true
   }
 }
