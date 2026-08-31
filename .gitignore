@@ -190,3 +190,5 @@ task8_mac*.json
 macbook_bundle*.json
 # the pulse working copy (protocol/pulse.py --generate); the anchored copy ships as protocol/evidence/pulse_<hash12>.json
 pulse.json
+# the mission-verdict working copy (protocol/mission_chain.py --generate); the anchored copy ships as protocol/evidence/mission_verdict_<hash12>.json
+mission_verdict.json

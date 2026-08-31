@@ -220,6 +220,19 @@ PULSE_LIMITATION_NOTE = (
     "token; research-stage."
 )
 
+_MISSION_EVENT = "mission_verdict_recorded"
+_MISSION_STATUS = "mission-verdict-confirmed"
+MISSION_LIMITATION_NOTE = (
+    "The mission verdict is a same-operator composition of anchored tasks: "
+    "the coordinator re-runs every node, rebuilds the typed DAG, and compares "
+    "the whole document bit-exact before anchoring — so an anchored verdict "
+    "proves the mission conclusion re-derives deterministically from the "
+    "anchored task record, not that the mission is real, the constants are "
+    "flight-grade, or the work is useful; the headline is an honest "
+    "mission-level FALSE; not consensus, not payment, not a token; "
+    "research-stage."
+)
+
 NO_LEADERBOARD_AFFIRMATION = ("no rank, score, rating, leaderboard, or "
                               "percentile exists anywhere, by mechanical rule")
 UWW_TRANSPARENCY_STATEMENT = (
@@ -2717,6 +2730,65 @@ def anchor_pulse(doc: dict, ledger: Ledger) -> dict:
         "refusal_rule": pulse_mod.REFUSAL_RULE,
         "operator_relationship": "same-operator",
         "limitation_note": PULSE_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+def anchor_mission_verdict(doc: dict, ledger: Ledger) -> dict:
+    """Validate + FULLY RE-DERIVE + anchor a mission verdict
+    (protocol/mission_chain.py). Returns {evaluation, ledger_entry}. The
+    coordinator re-runs every node task, rebuilds the typed DAG, recomputes
+    the whole document from THIS ledger, and compares bit-exact — never trusts
+    the file; any failure -> 'rejected', NOT anchored. The record carries the
+    verdict hash + quantified headline only (scanner-invisible: no top-level
+    task_id/task_ids keys, so frozen molecule catalogs never see it)."""
+    import protocol.mission_chain as mission_chain
+    from protocol.work_molecule import _read_ledger
+    ok, reasons = mission_chain.validate_verdict(doc)
+    rederived_exact = False
+    if ok:
+        entries = _read_ledger(ledger.path) if os.path.exists(ledger.path) else []
+        try:
+            fresh = mission_chain.rederive(entries)
+            rederived_exact = (mission_chain.canonical_json(fresh)
+                              == mission_chain.canonical_json(doc))
+            if not rederived_exact:
+                reasons = ["re-derivation from this ledger is not bit-exact "
+                           "(every node re-run, DAG rebuilt)"]
+                ok = False
+        except ValueError as exc:
+            ok, reasons = False, [str(exc)[:200]]
+    if not ok:
+        evaluation = {
+            "event": _MISSION_EVENT, "stage": "R-mission",
+            "topology": "same-operator-coordinator-mission-verdict",
+            "status": "rejected", "reason": "; ".join(reasons),
+            "anchored": False, "zero_value": True, "no_token": True,
+            "limitation_note": MISSION_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+    evaluation = {
+        "event": _MISSION_EVENT, "stage": "R-mission",
+        "topology": "same-operator-coordinator-mission-verdict",
+        "status": _MISSION_STATUS,
+        "mission_schema": doc["schema"],
+        "mission_id": doc["mission_id"],
+        "mission_feasible": doc["mission_feasible"],
+        "verdict_hash": doc["verdict_hash"],
+        "headline": mission_chain.headline(doc),
+        "coordinator_reconfirmed": {
+            "self_hash_recomputed": True,
+            "every_node_rerun": True,
+            "rederivation_bit_exact": rederived_exact,
+        },
+        "refusal_rule": mission_chain.REFUSAL_RULE,
+        "operator_relationship": "same-operator",
+        "limitation_note": MISSION_LIMITATION_NOTE,
         "zero_value": True,
         "no_token": True,
         "anchored_at": time.time(),
@@ -7028,7 +7100,8 @@ def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
                 "unknown_flag_count", "s2_consistency",
                 "first_failure_reason", "missed_slot_statement",
                 "two_flow_separation", "pulse_hash", "headline",
-                "as_of_chain", "repo_commit"):
+                "as_of_chain", "repo_commit",
+                "mission_id", "mission_feasible", "verdict_hash"):
         if key in ev:
             print(f"  {key}: {ev[key]}")
     if "bounded_failure" in ev:
@@ -7203,6 +7276,12 @@ def main(argv=None) -> int:
              "chain point, and anchors pulse_recorded — WRITES NOTHING without "
              "--confirm (the human gate)")
     mode.add_argument(
+        "--anchor-mission-verdict", metavar="MISSION_VERDICT_JSON",
+        help="anchor a mission verdict (protocol/mission_chain.py --generate): "
+             "the coordinator re-runs every node task, rebuilds the typed DAG, "
+             "and compares the whole document bit-exact against this chain — "
+             "WRITES NOTHING without --confirm (the human gate)")
+    mode.add_argument(
         "--anchor-passport-catalog", metavar="PASSPORT_CATALOG_JSON",
         help="anchor a MetaWork passport catalog (metawork_passport.py --all); "
              "the coordinator rediscovers every actor and rebuilds every "
@@ -7332,6 +7411,25 @@ def main(argv=None) -> int:
             return 0 if ok else 1
         return _cmd_anchor_json(args.anchor_pulse, args.ledger,
                                 anchor_pulse, _PULSE_STATUS)
+    if args.anchor_mission_verdict is not None:
+        if not args.confirm:
+            import protocol.mission_chain as mission_chain
+            print(BANNER)
+            try:
+                with open(args.anchor_mission_verdict, encoding="utf-8") as f:
+                    doc = json.load(f)
+                ok, reasons = mission_chain.validate_verdict(doc)
+            except (OSError, json.JSONDecodeError) as exc:
+                ok, reasons = False, [str(exc)]
+            print("dry run — would " + ("anchor mission_verdict_recorded for "
+                  f"verdict {doc['verdict_hash'][:12]} (mission_feasible: "
+                  f"{doc['mission_feasible']}; headline: "
+                  f"{json.dumps(mission_chain.headline(doc), sort_keys=True)})"
+                  if ok else f"REJECT: {'; '.join(reasons)}"))
+            print("anchored: NO — nothing written (re-run with --confirm)")
+            return 0 if ok else 1
+        return _cmd_anchor_json(args.anchor_mission_verdict, args.ledger,
+                                anchor_mission_verdict, _MISSION_STATUS)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 

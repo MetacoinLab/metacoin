@@ -972,6 +972,61 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                      f"{pulses[-1][0]}, {len(entries) - 1 - pulses[-1][1]['as_of_chain']['tip_index']} "
                      "entries since)" if not problems else "; ".join(problems[:3])))
 
+    # --- layer 11d: the mission verdict (the mission-level chain) ------------------
+    # Every anchored mission verdict is re-derived FROM SCRATCH in --full:
+    # every node task re-run, the typed DAG rebuilt, the whole document
+    # recomputed and compared bit-exact against the shipped evidence file and
+    # the anchored record — or the layer fails. The headline it re-proves is
+    # an honest mission-level FALSE (the negatives flow through; only drift
+    # refuses). --quick checks the self-hash and the anchored-hash match.
+    import protocol.mission_chain as mission_chain
+    missions = [(e["index"], e["payload"]) for e in entries
+                if isinstance(e.get("payload"), dict)
+                and e["payload"].get("event") == "mission_verdict_recorded"
+                and e["payload"].get("status") == "mission-verdict-confirmed"]
+    if not missions:
+        rows.append(("mission verdict", FULL, True,
+                     "no mission verdict anchored on the chain yet"))
+    else:
+        problems = []
+        fresh_doc = None
+        if full:
+            try:
+                fresh_doc = mission_chain.rederive(entries)
+            except ValueError as exc:
+                problems.append(f"re-derivation refused: {str(exc)[:160]}")
+        for idx, p in missions:
+            f = _load_evidence_json(
+                f"mission_verdict_{str(p.get('verdict_hash'))[:12]}.json")
+            if not isinstance(f, dict):
+                problems.append(f"idx {idx}: mission evidence file missing")
+                continue
+            ok, reasons = mission_chain.validate_verdict(f)
+            if not ok:
+                problems.append(f"idx {idx}: " + "; ".join(reasons))
+            elif f["verdict_hash"] != p.get("verdict_hash"):
+                problems.append(f"idx {idx}: evidence hash != anchored "
+                                "verdict_hash")
+            elif mission_chain.headline(f) != p.get("headline"):
+                problems.append(f"idx {idx}: headline numbers differ from "
+                                "the record")
+            elif full and fresh_doc is not None and (
+                    mission_chain.canonical_json(fresh_doc)
+                    != mission_chain.canonical_json(f)):
+                problems.append(f"idx {idx}: re-derived document is not "
+                                "bit-exact against the evidence file")
+        last = missions[-1][1]
+        rows.append(("mission verdict", FULL if full else ANCHORED,
+                     not problems,
+                     (f"{len(missions)} anchored mission verdict(s) "
+                      + ("re-derive BIT-EXACT (every node re-run, DAG "
+                         "rebuilt)" if full else "hash-match their anchors "
+                         "(no re-run)")
+                      + f"; latest: {last.get('mission_id')} "
+                      f"mission_feasible={last.get('mission_feasible')} — "
+                      "the honest mission-level negative")
+                     if not problems else "; ".join(problems[:3])))
+
     # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------
     # Root integrity via the identity layer's registrations; every anchored
     # epoch's heartbeat signatures re-verified from the shipped evidence copy
