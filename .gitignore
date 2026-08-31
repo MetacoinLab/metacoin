@@ -192,3 +192,5 @@ macbook_bundle*.json
 pulse.json
 # the mission-verdict working copy (protocol/mission_chain.py --generate); the anchored copy ships as protocol/evidence/mission_verdict_<hash12>.json
 mission_verdict.json
+# the mission-envelope working copy (protocol/mission_envelope.py --generate); the anchored copy ships as protocol/evidence/mission_envelope_<hash12>.json
+mission_envelope.json

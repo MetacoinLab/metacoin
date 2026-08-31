@@ -1030,6 +1030,59 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                       "the honest mission-level negative")
                      if not problems else "; ".join(problems[:3])))
 
+    # --- layer 11e: the mission envelope (engineered scenarios) --------------------
+    # Every anchored envelope re-derives BIT-EXACT in --full (baseline
+    # verdict re-proved, bounded searches re-run); the verbatim
+    # engineered-scenario label and the dust-variant refusal are validated
+    # on the shipped file — an envelope may never read as a capability
+    # claim. --quick checks self-hash and anchored-hash match.
+    import protocol.mission_envelope as mission_envelope
+    envelopes = [(e["index"], e["payload"]) for e in entries
+                 if isinstance(e.get("payload"), dict)
+                 and e["payload"].get("event") == "mission_envelope_recorded"
+                 and e["payload"].get("status") == "mission-envelope-confirmed"]
+    if not envelopes:
+        rows.append(("mission envelope", FULL, True,
+                     "no mission envelope anchored on the chain yet"))
+    else:
+        problems = []
+        fresh_env = None
+        if full:
+            try:
+                fresh_env = mission_envelope.rederive(entries)
+            except ValueError as exc:
+                problems.append(f"re-derivation refused: {str(exc)[:160]}")
+        for idx, p in envelopes:
+            f = _load_evidence_json(
+                f"mission_envelope_{str(p.get('envelope_hash'))[:12]}.json")
+            if not isinstance(f, dict):
+                problems.append(f"idx {idx}: envelope evidence file missing")
+                continue
+            ok, reasons = mission_envelope.validate_envelope(f)
+            if not ok:
+                problems.append(f"idx {idx}: " + "; ".join(reasons))
+            elif f["envelope_hash"] != p.get("envelope_hash"):
+                problems.append(f"idx {idx}: evidence hash != anchored "
+                                "envelope_hash")
+            elif p.get("label") != mission_envelope.LABEL:
+                problems.append(f"idx {idx}: the anchored record's label "
+                                "is not the verbatim engineered-scenario "
+                                "label")
+            elif full and fresh_env is not None and (
+                    mission_envelope.canonical_json(fresh_env)
+                    != mission_envelope.canonical_json(f)):
+                problems.append(f"idx {idx}: re-derived envelope is not "
+                                "bit-exact against the evidence file")
+        rows.append(("mission envelope", FULL if full else ANCHORED,
+                     not problems,
+                     (f"{len(envelopes)} anchored envelope(s) "
+                      + ("re-derive BIT-EXACT (baseline re-proved, "
+                         "searches re-run)" if full
+                         else "hash-match their anchors (no re-run)")
+                      + "; the engineered-scenario label and the "
+                      "dust-variant refusal verified on the record")
+                     if not problems else "; ".join(problems[:3])))
+
     # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------
     # Root integrity via the identity layer's registrations; every anchored
     # epoch's heartbeat signatures re-verified from the shipped evidence copy

@@ -43,6 +43,7 @@ TESTS=(
     "task_law_check.py --selftest"
     "pulse.py --selftest"
     "mission_chain.py --selftest"
+    "mission_envelope.py --selftest"
     "release_readiness.py --selftest"
     "../metacoin_cli/selftest.py"
 )

@@ -233,6 +233,20 @@ MISSION_LIMITATION_NOTE = (
     "research-stage."
 )
 
+_ENVELOPE_EVENT = "mission_envelope_recorded"
+_ENVELOPE_STATUS = "mission-envelope-confirmed"
+ENVELOPE_LIMITATION_NOTE = (
+    "The mission envelope is an ENGINEERED SCENARIO derived from the "
+    "anchored baseline verdict's own flip structure: it states the "
+    "parameter multiples under which the verdict would flip, each pinned "
+    "to a present-day demonstrated comparator — it is NOT a claim about "
+    "present capability (the verbatim label rides the record and "
+    "validation refuses its absence), the baseline verdict stands "
+    "untouched (re-proved bit-exact before assembly), and the dust "
+    "variant is stated to have no envelope at all; not consensus, not "
+    "payment, not a token; research-stage."
+)
+
 NO_LEADERBOARD_AFFIRMATION = ("no rank, score, rating, leaderboard, or "
                               "percentile exists anywhere, by mechanical rule")
 UWW_TRANSPARENCY_STATEMENT = (
@@ -2793,6 +2807,63 @@ def anchor_mission_verdict(doc: dict, ledger: Ledger) -> dict:
         "refusal_rule": mission_chain.REFUSAL_RULE,
         "operator_relationship": "same-operator",
         "limitation_note": MISSION_LIMITATION_NOTE,
+        "zero_value": True,
+        "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+def anchor_mission_envelope(doc: dict, ledger: Ledger) -> dict:
+    """Validate + FULLY RE-DERIVE + anchor a mission envelope
+    (protocol/mission_envelope.py). The coordinator re-proves the baseline
+    verdict, re-runs the bounded searches, and compares the whole document
+    bit-exact — never trusts the file; any failure -> 'rejected', NOT
+    anchored. The record carries the hash, the verbatim label, and the
+    lever headline (scanner-invisible)."""
+    import protocol.mission_envelope as mission_envelope
+    from protocol.work_molecule import _read_ledger
+    ok, reasons = mission_envelope.validate_envelope(doc)
+    if ok:
+        entries = _read_ledger(ledger.path) if os.path.exists(ledger.path) else []
+        try:
+            fresh = mission_envelope.rederive(entries)
+            if (mission_envelope.canonical_json(fresh)
+                    != mission_envelope.canonical_json(doc)):
+                ok, reasons = False, ["re-derivation from this ledger is "
+                                      "not bit-exact (baseline re-proved, "
+                                      "searches re-run)"]
+        except ValueError as exc:
+            ok, reasons = False, [str(exc)[:200]]
+    if not ok:
+        evaluation = {
+            "event": _ENVELOPE_EVENT, "stage": "R-envelope",
+            "topology": "same-operator-coordinator-mission-envelope",
+            "status": "rejected", "reason": "; ".join(reasons),
+            "anchored": False, "zero_value": True, "no_token": True,
+            "limitation_note": ENVELOPE_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+    evaluation = {
+        "event": _ENVELOPE_EVENT, "stage": "R-envelope",
+        "topology": "same-operator-coordinator-mission-envelope",
+        "status": _ENVELOPE_STATUS,
+        "envelope_schema": doc["schema"],
+        "mission_id": doc["mission_id"],
+        "envelope_hash": doc["envelope_hash"],
+        "baseline_verdict_hash": doc["baseline"]["verdict_hash"],
+        "label": doc["label"],
+        "headline": mission_envelope.headline(doc),
+        "coordinator_reconfirmed": {
+            "self_hash_recomputed": True,
+            "baseline_reproved_bit_exact": True,
+            "rederivation_bit_exact": True,
+        },
+        "refusal_rule": mission_envelope.REFUSAL_RULE,
+        "operator_relationship": "same-operator",
+        "limitation_note": ENVELOPE_LIMITATION_NOTE,
         "zero_value": True,
         "no_token": True,
         "anchored_at": time.time(),
@@ -7105,7 +7176,8 @@ def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
                 "first_failure_reason", "missed_slot_statement",
                 "two_flow_separation", "pulse_hash", "headline",
                 "as_of_chain", "repo_commit",
-                "mission_id", "mission_feasible", "verdict_hash"):
+                "mission_id", "mission_feasible", "verdict_hash",
+                "envelope_hash", "label", "baseline_verdict_hash"):
         if key in ev:
             print(f"  {key}: {ev[key]}")
     if "bounded_failure" in ev:
@@ -7286,6 +7358,12 @@ def main(argv=None) -> int:
              "and compares the whole document bit-exact against this chain — "
              "WRITES NOTHING without --confirm (the human gate)")
     mode.add_argument(
+        "--anchor-mission-envelope", metavar="MISSION_ENVELOPE_JSON",
+        help="anchor a mission feasibility envelope "
+             "(protocol/mission_envelope.py --generate): the coordinator "
+             "re-proves the baseline verdict and re-derives the envelope "
+             "bit-exact — WRITES NOTHING without --confirm (the human gate)")
+    mode.add_argument(
         "--anchor-passport-catalog", metavar="PASSPORT_CATALOG_JSON",
         help="anchor a MetaWork passport catalog (metawork_passport.py --all); "
              "the coordinator rediscovers every actor and rebuilds every "
@@ -7434,6 +7512,24 @@ def main(argv=None) -> int:
             return 0 if ok else 1
         return _cmd_anchor_json(args.anchor_mission_verdict, args.ledger,
                                 anchor_mission_verdict, _MISSION_STATUS)
+    if args.anchor_mission_envelope is not None:
+        if not args.confirm:
+            import protocol.mission_envelope as mission_envelope
+            print(BANNER)
+            try:
+                with open(args.anchor_mission_envelope, encoding="utf-8") as f:
+                    doc = json.load(f)
+                ok, reasons = mission_envelope.validate_envelope(doc)
+            except (OSError, json.JSONDecodeError) as exc:
+                ok, reasons = False, [str(exc)]
+            print("dry run — would " + ("anchor mission_envelope_recorded "
+                  f"for envelope {doc['envelope_hash'][:12]} (label: "
+                  f"{doc['label']!r})" if ok
+                  else f"REJECT: {'; '.join(reasons)}"))
+            print("anchored: NO — nothing written (re-run with --confirm)")
+            return 0 if ok else 1
+        return _cmd_anchor_json(args.anchor_mission_envelope, args.ledger,
+                                anchor_mission_envelope, _ENVELOPE_STATUS)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 
