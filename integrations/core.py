@@ -88,6 +88,29 @@ TASK_MODULES: list[tuple[str, str, list[str]]] = [
         ["task_0020_sabatier_conversion_equilibrium",
          "task_0017_isru_ascent_budget", "task_0018_ascent_feasibility"],
     ),
+    ("task-0022-insolation-offset-requirement",
+     "task_0022_insolation_offset_requirement", []),
+    ("task-0023-sub-l1-shade-geometry", "task_0023_sub_l1_shade_geometry",
+     ["task_0022_insolation_offset_requirement"]),
+    ("task-0024-shade-mass-budget", "task_0024_shade_mass_budget",
+     ["task_0023_sub_l1_shade_geometry",
+      "task_0022_insolation_offset_requirement"]),
+    ("task-0025-regolith-feedstock-energy",
+     "task_0025_regolith_feedstock_energy",
+     ["task_0024_shade_mass_budget", "task_0023_sub_l1_shade_geometry",
+      "task_0022_insolation_offset_requirement"]),
+    ("task-0026-mass-driver-energetics", "task_0026_mass_driver_energetics",
+     ["task_0024_shade_mass_budget", "task_0023_sub_l1_shade_geometry",
+      "task_0022_insolation_offset_requirement"]),
+    ("task-0027-deployment-timeline-verdict",
+     "task_0027_deployment_timeline_verdict",
+     ["task_0026_mass_driver_energetics", "task_0024_shade_mass_budget",
+      "task_0023_sub_l1_shade_geometry",
+      "task_0022_insolation_offset_requirement"]),
+    ("task-0028-l1-dust-persistence", "task_0028_l1_dust_persistence", []),
+    ("task-0029-shade-longevity-horizon",
+     "task_0029_shade_longevity_horizon",
+     ["task_0022_insolation_offset_requirement"]),
 ]
 
 # The honest-negative tasks (the abstention probe — see module docstring).
@@ -96,6 +119,8 @@ HONEST_NEGATIVES = {
     "task-0018-ascent-feasibility",
     "task-0020-sabatier-conversion-equilibrium",
     "task-0021-conversion-corrected-ascent",
+    "task-0027-deployment-timeline-verdict",
+    "task-0028-l1-dust-persistence",
 }
 
 

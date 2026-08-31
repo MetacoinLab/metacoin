@@ -57,6 +57,14 @@ import demo.tasks.task_0018_ascent_feasibility as task_0018
 import demo.tasks.task_0019_sabatier_equilibrium_constant as task_0019
 import demo.tasks.task_0020_sabatier_conversion_equilibrium as task_0020
 import demo.tasks.task_0021_conversion_corrected_ascent as task_0021
+import demo.tasks.task_0022_insolation_offset_requirement as task_0022
+import demo.tasks.task_0023_sub_l1_shade_geometry as task_0023
+import demo.tasks.task_0024_shade_mass_budget as task_0024
+import demo.tasks.task_0025_regolith_feedstock_energy as task_0025
+import demo.tasks.task_0026_mass_driver_energetics as task_0026
+import demo.tasks.task_0027_deployment_timeline_verdict as task_0027
+import demo.tasks.task_0028_l1_dust_persistence as task_0028
+import demo.tasks.task_0029_shade_longevity_horizon as task_0029
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -85,6 +93,14 @@ _TASK_REGISTRY = {
     "task-0019-sabatier-equilibrium-constant": task_0019,
     "task-0020-sabatier-conversion-equilibrium": task_0020,
     "task-0021-conversion-corrected-ascent": task_0021,
+    "task-0022-insolation-offset-requirement": task_0022,
+    "task-0023-sub-l1-shade-geometry": task_0023,
+    "task-0024-shade-mass-budget": task_0024,
+    "task-0025-regolith-feedstock-energy": task_0025,
+    "task-0026-mass-driver-energetics": task_0026,
+    "task-0027-deployment-timeline-verdict": task_0027,
+    "task-0028-l1-dust-persistence": task_0028,
+    "task-0029-shade-longevity-horizon": task_0029,
 }
 
 

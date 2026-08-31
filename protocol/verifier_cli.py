@@ -69,6 +69,14 @@ TASK_MODULES = {
     "task-0019": "demo.tasks.task_0019_sabatier_equilibrium_constant",
     "task-0020": "demo.tasks.task_0020_sabatier_conversion_equilibrium",
     "task-0021": "demo.tasks.task_0021_conversion_corrected_ascent",
+    "task-0022": "demo.tasks.task_0022_insolation_offset_requirement",
+    "task-0023": "demo.tasks.task_0023_sub_l1_shade_geometry",
+    "task-0024": "demo.tasks.task_0024_shade_mass_budget",
+    "task-0025": "demo.tasks.task_0025_regolith_feedstock_energy",
+    "task-0026": "demo.tasks.task_0026_mass_driver_energetics",
+    "task-0027": "demo.tasks.task_0027_deployment_timeline_verdict",
+    "task-0028": "demo.tasks.task_0028_l1_dust_persistence",
+    "task-0029": "demo.tasks.task_0029_shade_longevity_horizon",
 }
 
 # Honest note embedded in every submission (and visible in output).

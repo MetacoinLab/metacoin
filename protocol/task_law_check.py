@@ -124,7 +124,7 @@ _WAIVER_KEYS = ("rule", "function", "bound", "justification", "approved_by")
 # underscore). Compound units use underscores for "per" (m_s, m_s2, km3_s2)
 # and digits for powers, exactly the house style the 18 modules already use.
 UNIT_SUFFIXES = frozenset("""
-m km cm mm um nm m2 km2 m3 km3 s ms us ns min h hr day days yr
+m km cm mm um nm m2 km2 m3 km3 s ms us ns min h hr day days yr Gyr
 kg g mg t N kN Pa kPa MPa bar J kJ MJ W kW MW Wh kWh A mA V mV Hz kHz MHz GHz
 K degC deg rad mrad arcsec arcmin dB dBi dBW dBm dBHz
 m_s km_s m_s2 km_s2 m3_s2 km3_s2 kg_s g_s mol kmol mol_s W_m2 kg_m3 g_cm3

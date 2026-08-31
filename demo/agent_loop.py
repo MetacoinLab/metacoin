@@ -53,6 +53,14 @@ import demo.tasks.task_0018_ascent_feasibility as task_0018
 import demo.tasks.task_0019_sabatier_equilibrium_constant as task_0019
 import demo.tasks.task_0020_sabatier_conversion_equilibrium as task_0020
 import demo.tasks.task_0021_conversion_corrected_ascent as task_0021
+import demo.tasks.task_0022_insolation_offset_requirement as task_0022
+import demo.tasks.task_0023_sub_l1_shade_geometry as task_0023
+import demo.tasks.task_0024_shade_mass_budget as task_0024
+import demo.tasks.task_0025_regolith_feedstock_energy as task_0025
+import demo.tasks.task_0026_mass_driver_energetics as task_0026
+import demo.tasks.task_0027_deployment_timeline_verdict as task_0027
+import demo.tasks.task_0028_l1_dust_persistence as task_0028
+import demo.tasks.task_0029_shade_longevity_horizon as task_0029
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -247,6 +255,11 @@ if __name__ == "__main__":
     #   R23 task-0021 honest: earn 2, spend 1                 -> balance 20  (conversion-corrected ascent
     #                         earns — parented on 0020 + 0017 + 0018, the bridge where the mission
     #                         chain's branches meet; the compounded honest negative VERIFIES)
+    #   R24-R31 task-0022..task-0029 honest: earn 2, spend 1 each -> balance 28  (the mission-0002
+    #                         sunshade family: requirement -> geometry -> mass -> feedstock ->
+    #                         mass-driver -> timeline verdict (honest negative) -> dust persistence
+    #                         (honest negative) -> longevity horizon (conditional yes) — every
+    #                         parent edge executed live, honest negatives VERIFY)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
@@ -271,6 +284,14 @@ if __name__ == "__main__":
         {"task": task_0019, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0020, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0021, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0022, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0023, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0024, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0025, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0026, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0027, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0028, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0029, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -301,11 +322,19 @@ if __name__ == "__main__":
         {"task_id": "task-0019-sabatier-equilibrium-constant", "verify_passed": True},
         {"task_id": "task-0020-sabatier-conversion-equilibrium", "verify_passed": True},
         {"task_id": "task-0021-conversion-corrected-ascent", "verify_passed": True},
+        {"task_id": "task-0022-insolation-offset-requirement", "verify_passed": True},
+        {"task_id": "task-0023-sub-l1-shade-geometry", "verify_passed": True},
+        {"task_id": "task-0024-shade-mass-budget", "verify_passed": True},
+        {"task_id": "task-0025-regolith-feedstock-energy", "verify_passed": True},
+        {"task_id": "task-0026-mass-driver-energetics", "verify_passed": True},
+        {"task_id": "task-0027-deployment-timeline-verdict", "verify_passed": True},
+        {"task_id": "task-0028-l1-dust-persistence", "verify_passed": True},
+        {"task_id": "task-0029-shade-longevity-horizon", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs all twenty-one real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+    print("Runs all twenty-nine real tasks: task-0001 (link budget), task-0002 (two-body orbit "
           "propagation), task-0003 (eclipse/power budget), task-0004 (comms access), "
           "task-0005 (rover path), task-0006 (docking approach), task-0007 (Hohmann transfer), "
           "task-0008 (arm inverse kinematics), task-0009 (power budget), "
@@ -321,7 +350,13 @@ if __name__ == "__main__":
           "parented on 0019 + 0015 — honestly below the chain's assumed 92% at "
           "the 700 K reference point), and task-0021 (conversion-corrected "
           "ascent — parented on 0020 + 0017 + 0018, the honest ascent budget "
-          "at the equilibrium conversion; the shortfall honestly grows).\n")
+          "at the equilibrium conversion; the shortfall honestly grows), and "
+          "the mission-0002 sunshade family task-0022 through task-0029 "
+          "(insolation-offset requirement, sub-L1 geometry, shade mass, "
+          "regolith feedstock, mass-driver energetics, the timeline verdict "
+          "and dust-persistence honest negatives, and the longevity "
+          "horizon's conditional yes — every constant pinned with "
+          "provenance).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -358,12 +393,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 23,
-        "passed": 22,
+        "rounds": 31,
+        "passed": 30,
         "rejected": 1,
-        "total_earned": 44,
-        "total_spent": 24,
-        "final_balance": 20,
+        "total_earned": 60,
+        "total_spent": 32,
+        "final_balance": 28,
     }
     totals_ok = totals == expected
 
