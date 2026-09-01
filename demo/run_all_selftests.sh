@@ -47,6 +47,8 @@ TESTS=(
     "tasks/task_0027_deployment_timeline_verdict.py"
     "tasks/task_0028_l1_dust_persistence.py"
     "tasks/task_0029_shade_longevity_horizon.py"
+    "tasks/task_0030_utc_tdb_conversion.py"
+    "tasks/task_0031_earth_mars_window.py"
     "verify_gates.py"
     "test_meta_faucet.py"
     "x402_spend_stub.py"

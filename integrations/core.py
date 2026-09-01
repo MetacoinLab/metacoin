@@ -111,6 +111,9 @@ TASK_MODULES: list[tuple[str, str, list[str]]] = [
     ("task-0029-shade-longevity-horizon",
      "task_0029_shade_longevity_horizon",
      ["task_0022_insolation_offset_requirement"]),
+    ("task-0030-utc-tdb-conversion", "task_0030_utc_tdb_conversion", []),
+    ("task-0031-earth-mars-window", "task_0031_earth_mars_window",
+     ["task_0030_utc_tdb_conversion"]),
 ]
 
 # The honest-negative tasks (the abstention probe — see module docstring).

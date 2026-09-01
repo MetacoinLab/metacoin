@@ -1,4 +1,4 @@
-# HAL benchmark package — the <!--chain:task_count-->29<!--/chain-->-task library in HAL's benchmark contract
+# HAL benchmark package — the <!--chain:task_count-->31<!--/chain-->-task library in HAL's benchmark contract
 
 Research-stage. This directory packages the MetaCoin task library in the
 benchmark format of Princeton's
@@ -30,7 +30,7 @@ harness turns out to require. **Nothing has been submitted.**
 
 - `benchmark_name = "metacoin_tasks"`; `requires_sandbox = False`; a
   dataset dict `task_id → {"prompt", "answer", "files", "metadata"}` for
-  all <!--chain:task_count-->29<!--/chain--> tasks (prompts carry the
+  all <!--chain:task_count-->31<!--/chain--> tasks (prompts carry the
   complete reference source, dependency
   modules included for the parented tasks).
 - `_ground_truth_keys = ["answer"]` — their anti-leakage convention
@@ -56,10 +56,10 @@ is testable today, standard library only:
 
 ```verify-run
 $ python3 integrations/hal/metacoin_benchmark.py --selftest
---- (a) dataset shape: 29 tasks, contract fields: OK ---  (trimmed; 29/29
+--- (a) dataset shape: 31 tasks, contract fields: OK ---  (trimmed; 31/31
 on reference submissions; tampered/garbage/missing all rejected)
 ```
-<!--expect:dataset shape: 29 tasks-->
+<!--expect:dataset shape: 31 tasks-->
 <!--expect:negatives 6/6: OK-->
 <!--expect:ALL CASES BEHAVED CORRECTLY-->
 
@@ -96,7 +96,7 @@ fault-injection metrics have little to grip unless run with tool-using
 agents that compute their answers. These are first-order illustrative
 engineering computations with stated simplifications, verified for
 exactness — a probe set, not a general-capability benchmark, and
-<!--chain:task_count-->29<!--/chain--> tasks
+<!--chain:task_count-->31<!--/chain--> tasks
 means wide per-metric confidence intervals under repeated-run protocols.
 
 ---

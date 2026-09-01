@@ -77,6 +77,8 @@ TASK_MODULES = {
     "task-0027": "demo.tasks.task_0027_deployment_timeline_verdict",
     "task-0028": "demo.tasks.task_0028_l1_dust_persistence",
     "task-0029": "demo.tasks.task_0029_shade_longevity_horizon",
+    "task-0030": "demo.tasks.task_0030_utc_tdb_conversion",
+    "task-0031": "demo.tasks.task_0031_earth_mars_window",
 }
 
 # Honest note embedded in every submission (and visible in output).

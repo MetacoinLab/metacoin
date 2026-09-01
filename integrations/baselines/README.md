@@ -1,8 +1,8 @@
-# Baseline harness — frontier-model runs over the <!--chain:task_count-->29<!--/chain-->-task library, cost-gated
+# Baseline harness — frontier-model runs over the <!--chain:task_count-->31<!--/chain-->-task library, cost-gated
 
 Research-stage. This directory turns the task library into **baseline
 machinery**: drive any Inspect-compatible model through all
-<!--chain:task_count-->29<!--/chain--> tasks (via
+<!--chain:task_count-->31<!--/chain--> tasks (via
 the [Inspect adapter](../inspect/)), capture per-task evidence, and package
 a deterministic, re-derivable baseline report. ZERO ledger writes — reports
 are files, not records; anchoring is sketched below and deliberately not
@@ -29,12 +29,12 @@ python3 integrations/baselines/run_baseline.py \
 ```
 
 Cost reality (rates verified on official pricing pages 2026-08-27; they
-change without notice — re-verify before spending): a full 29-task pass is
-roughly **$0.11–$4.68 per model** (≈136K input tokens; output projected at
+change without notice — re-verify before spending): a full 31-task pass is
+roughly **$0.13–$5.56 per model** (≈145K input tokens; output projected at
 3× the required JSON to cover reasoning tokens, which Anthropic, OpenAI,
 and Google all bill as output — a stated assumption, tunable with
-`--reasoning-overhead`). The complete ten-model sweep projects ≈$13
-(the 2026-08-31 `--estimate` over the 29 tasks totals $12.94 at those
+`--reasoning-overhead`). The complete ten-model sweep projects ≈$15
+(the 2026-09-01 `--estimate` over the 31 tasks totals $15.36 at those
 pinned rates).
 Sources: platform.claude.com pricing, developers.openai.com/api/docs/pricing,
 ai.google.dev/gemini-api/docs/pricing, docs.x.ai/docs/models,
@@ -110,7 +110,7 @@ payload:
   report_hash:      <the deterministic hash above — the anchored commitment>
   model:            <provider/model id, verbatim>
   adapter_commit:   <40-char repo SHA the run executed against>
-  task_count: 29    summary: {exact, mismatch, malformed, missing,
+  task_count: 31    summary: {exact, mismatch, malformed, missing,
                     honest_negatives: {reported, manufactured_success}}
   retrievability:   <where the full report file lives — anchored hash +
                     continued retrievability, the cut-certificate rule>

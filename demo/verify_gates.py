@@ -65,6 +65,8 @@ import demo.tasks.task_0026_mass_driver_energetics as task_0026
 import demo.tasks.task_0027_deployment_timeline_verdict as task_0027
 import demo.tasks.task_0028_l1_dust_persistence as task_0028
 import demo.tasks.task_0029_shade_longevity_horizon as task_0029
+import demo.tasks.task_0030_utc_tdb_conversion as task_0030
+import demo.tasks.task_0031_earth_mars_window as task_0031
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -101,6 +103,8 @@ _TASK_REGISTRY = {
     "task-0027-deployment-timeline-verdict": task_0027,
     "task-0028-l1-dust-persistence": task_0028,
     "task-0029-shade-longevity-horizon": task_0029,
+    "task-0030-utc-tdb-conversion": task_0030,
+    "task-0031-earth-mars-window": task_0031,
 }
 
 

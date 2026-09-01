@@ -1,4 +1,4 @@
-# Inspect adapter — the <!--chain:task_count-->29<!--/chain-->-task library as a native Inspect evaluation
+# Inspect adapter — the <!--chain:task_count-->31<!--/chain-->-task library as a native Inspect evaluation
 
 Research-stage. This directory packages the MetaCoin task library as an
 evaluation for [Inspect](https://inspect.aisi.org.uk/) (`inspect-ai`),
@@ -27,11 +27,11 @@ hashes. It never touches ledger files, keys, or anchoring machinery.
 ```bash
 pip install inspect-ai            # or: pip install metacoin-protocol[inspect]
 
-# evaluate a real model on all 29 tasks:
+# evaluate a real model on all 31 tasks:
 inspect eval integrations/inspect/metacoin_tasks.py@metacoin_tasks \
     --model <provider/model>
 
-# no-network, no-LLM pipeline self-test (must print 29/29):
+# no-network, no-LLM pipeline self-test (must print 31/31):
 python3 integrations/inspect/metacoin_tasks.py --smoke
 ```
 
@@ -40,7 +40,7 @@ plain-text in, plain-text out.
 
 ## What a score means — and does not mean
 
-Each of the <!--chain:task_count-->29<!--/chain--> samples hands the
+Each of the <!--chain:task_count-->31<!--/chain--> samples hands the
 model the complete, self-contained
 reference implementation of one deterministic space-engineering
 computation (orbit propagation, link budgets, ISRU chemistry, …; the
@@ -110,15 +110,15 @@ executed by doc_verify on every CI run:
 
 ```verify-run
 $ python3 integrations/core.py
---- (a) reference outputs: 29/29 correct ---  (trimmed)
+--- (a) reference outputs: 31/31 correct ---  (trimmed)
 ```
-<!--expect:reference outputs: 29/29 correct-->
+<!--expect:reference outputs: 31/31 correct-->
 <!--expect:ALL CASES BEHAVED CORRECTLY-->
 
 `--smoke` runs the full Inspect pipeline — dataset build, solver,
 scorer — with a reference solver that executes the actual task
 modules instead of calling any model, under Inspect's offline
-`mockllm` backend. It asserts 29/29 correct including every honest
+`mockllm` backend. It asserts 31/31 correct including every honest
 negative, uses a temp log directory (the working tree stays
 byte-identical), and prints SKIPPED with exit 0 where `inspect-ai`
 is not installed: the adapter's absence is never a failure of the

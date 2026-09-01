@@ -61,6 +61,8 @@ import demo.tasks.task_0026_mass_driver_energetics as task_0026
 import demo.tasks.task_0027_deployment_timeline_verdict as task_0027
 import demo.tasks.task_0028_l1_dust_persistence as task_0028
 import demo.tasks.task_0029_shade_longevity_horizon as task_0029
+import demo.tasks.task_0030_utc_tdb_conversion as task_0030
+import demo.tasks.task_0031_earth_mars_window as task_0031
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -292,6 +294,8 @@ if __name__ == "__main__":
         {"task": task_0027, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0028, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0029, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0030, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0031, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -330,11 +334,13 @@ if __name__ == "__main__":
         {"task_id": "task-0027-deployment-timeline-verdict", "verify_passed": True},
         {"task_id": "task-0028-l1-dust-persistence", "verify_passed": True},
         {"task_id": "task-0029-shade-longevity-horizon", "verify_passed": True},
+        {"task_id": "task-0030-utc-tdb-conversion", "verify_passed": True},
+        {"task_id": "task-0031-earth-mars-window", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
     print("Research-only. Test-META is a zero-value placeholder; compute is simulated.")
-    print("Runs all twenty-nine real tasks: task-0001 (link budget), task-0002 (two-body orbit "
+    print("Runs all thirty-one real tasks: task-0001 (link budget), task-0002 (two-body orbit "
           "propagation), task-0003 (eclipse/power budget), task-0004 (comms access), "
           "task-0005 (rover path), task-0006 (docking approach), task-0007 (Hohmann transfer), "
           "task-0008 (arm inverse kinematics), task-0009 (power budget), "
@@ -356,7 +362,10 @@ if __name__ == "__main__":
           "regolith feedstock, mass-driver energetics, the timeline verdict "
           "and dust-persistence honest negatives, and the longevity "
           "horizon's conditional yes — every constant pinned with "
-          "provenance).\n")
+          "provenance), plus the SPICE beachhead task-0030/0031 (UTC-TDB "
+          "conversion from the pinned leapseconds kernel; the Earth-Mars "
+          "window over pinned DE440s states — the 2028 window honestly "
+          "closes, 86 of 90 grid instances honestly do not).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -393,12 +402,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 31,
-        "passed": 30,
+        "rounds": 33,
+        "passed": 32,
         "rejected": 1,
-        "total_earned": 60,
-        "total_spent": 32,
-        "final_balance": 28,
+        "total_earned": 64,
+        "total_spent": 34,
+        "final_balance": 30,
     }
     totals_ok = totals == expected
 
