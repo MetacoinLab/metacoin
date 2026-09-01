@@ -377,6 +377,62 @@ FLIP_CONDITIONS_0002 = {
 }
 
 
+# ----------------------------------------------------------------------------
+# MISSION-0001-V2: the Mars chain re-issued with the named gap CLOSED. The
+# idx-82 record stands untouched and is cited as superseded-by-extension;
+# this DAG begins at the Earth-Mars transfer window (task-0030 -> task-0031,
+# pinned DE440s ephemeris) and proceeds into the anchored surface chain.
+# Schema mission_verdict/0.3: adds a REQUIRED `extends` lineage block (built
+# from the chain at derivation time) and a required not_modeled list;
+# claim_source stays optional (this mission decomposes no public claim).
+# ----------------------------------------------------------------------------
+MISSION_ID_0001V2 = "mission-0001-v2-mars-isru-refuel-ascent"
+MISSION_SCHEMA_0001V2 = "mission_verdict/0.3"
+
+NODES_0001V2 = (
+    {"task": "task-0030", "role": "upstream",
+     "title": "UTC-TDB time-system conversion from the pinned leapseconds "
+              "kernel (TX17)"},
+    {"task": "task-0031", "role": "constraining",
+     "verdict_field": "window_within_budget",
+     "title": "Earth-Mars transfer window over pinned DE440s states (TX17)"},
+) + NODES
+
+EDGES_0001V2 = (
+    {"src": "task-0030", "dst": "task-0031", "type": "feeds",
+     "justification": "task-0031 consumes task-0030's published ET epochs "
+                      "(the pinned states were evaluated at exactly those "
+                      "values), parent recomputed live and hash-asserted"},
+    {"src": "task-0031", "dst": MISSION_SINK, "type": "constrains",
+     "justification": "the mission must have a transfer window that closes "
+                      "within the stated v-infinity budget"},
+) + EDGES
+
+NAMED_GAP_0001V2 = ("the v1 gap (no anchored Earth->Mars transfer node) is "
+                    "CLOSED by task-0030/0031; the remaining named gap: no "
+                    "anchored node between arrival v-infinity and the "
+                    "surface chain (EDL/capture) — see not_modeled")
+
+NOT_MODELED_0001V2 = (
+    "Earth launch to escape and Mars EDL/capture — the transfer metric is "
+    "summed hyperbolic excess between heliocentric arcs, and no anchored "
+    "node yet connects arrival v-infinity to the surface ISRU chain",
+    "plane-change and deep-space-maneuver refinements beyond ballistic "
+    "two-body Lambert arcs on the pinned 10x10 epoch grid",
+    "the surface chain's own stated idealizations (each task's docstring "
+    "carries them)",
+)
+
+FLIP_CONDITIONS_0001V2 = dict(FLIP_CONDITIONS)
+FLIP_CONDITIONS_0001V2["task-0031"] = {
+    "parameter_classes": [
+        "the stated v-infinity budget (task-0031 total_vinf_budget_km_s)",
+        "the epoch grid span (a finer or wider pinned grid refines the "
+        "best window)",
+    ],
+    "source": "task-0031 inputs"}
+
+
 def _claim_source():
     """The claim-under-verification block, from the pinned-sources module
     (single source of truth; imported lazily so the protocol package does
@@ -405,6 +461,17 @@ MISSIONS = {
         "flips": FLIP_CONDITIONS_0002,
         "claim_source": _claim_source,
         "not_modeled": NOT_MODELED_0002,
+    },
+    MISSION_ID_0001V2: {
+        "schema": MISSION_SCHEMA_0001V2,
+        "nodes": NODES_0001V2,
+        "edges": EDGES_0001V2,
+        "excluded": EXCLUDED_NODES,      # the Earth-centered trio, unchanged
+        "named_gap": NAMED_GAP_0001V2,
+        "flips": FLIP_CONDITIONS_0001V2,
+        "claim_source": None,
+        "not_modeled": NOT_MODELED_0001V2,
+        "extends_mission_id": MISSION_ID,
     },
 }
 
@@ -578,6 +645,16 @@ def node_figures(task: str, result: dict) -> dict:
         return {"efold_time_days": s["efold_time_days"],
                 "tenfold_spread_days": s["tenfold_spread_days"],
                 "beta_at_1um_ratio": s["beta_at_1um_ratio"]}
+    if task == "task-0030":
+        return {"epochs_converted_count": s["epochs_converted_count"],
+                "j2000_et_minus_utc_s": s["j2000_et_minus_utc_s"]}
+    if task == "task-0031":
+        return {"best_total_vinf_km_s": s["best_total_vinf_km_s"],
+                "best_departure_label": s["best_departure_label"],
+                "best_arrival_label": s["best_arrival_label"],
+                "best_tof_days": s["best_tof_days"],
+                "within_budget_count": s["within_budget_count"],
+                "beyond_budget_count": s["beyond_budget_count"]}
     if task == "task-0029":
         return {"ceiling_horizon_Gyr": s["ceiling_horizon_Gyr"],
                 "margin_Gyr": s["margin_Gyr"],
@@ -639,6 +716,12 @@ def bottleneck_entry(task: str, result: dict) -> dict:
                 "shortfall_Gyr": round(max(0.0, -s["margin_Gyr"]), 6),
                 "statement": f"ceiling horizon {s['ceiling_horizon_Gyr']} Gyr "
                              "vs the claimed 1 Gyr"}
+    if task == "task-0031":
+        return {"quantity": "transfer_window_shortfall_km_s",
+                "shortfall_km_s": round(max(0.0, s["best_total_vinf_km_s"]
+                                            - 6.5), 6),
+                "statement": f"best window {s['best_total_vinf_km_s']} km/s "
+                             "vs the stated budget"}
     # a node this table does not know still gets an honest generic entry
     # (fixture chains exercise this; every real mission-0001 node is specific)
     return {"quantity": "constraining_verdict_false",
@@ -654,7 +737,7 @@ def build_mission_verdict(node_results: dict, node_hashes: dict,
                           mission_id=MISSION_ID, schema=MISSION_SCHEMA,
                           excluded=EXCLUDED_NODES, flips=FLIP_CONDITIONS,
                           named_gap=NAMED_GAP, claim_source=None,
-                          not_modeled=None) -> dict:
+                          not_modeled=None, extends=None) -> dict:
     """The deterministic document. `node_results`/`node_hashes` are live
     recomputes; `anchored_refs` = {task: {ledger_index, output_hash}} with the
     hash already translated to the current era. The honest negatives FLOW
@@ -753,6 +836,8 @@ def build_mission_verdict(node_results: dict, node_hashes: dict,
         doc["claim_source"] = dict(claim_source)
     if not_modeled is not None:
         doc["not_modeled"] = list(not_modeled)
+    if extends is not None:
+        doc["extends"] = dict(extends)
     doc["verdict_hash"] = verdict_hash(doc)
     return doc
 
@@ -781,8 +866,19 @@ def validate_verdict(doc) -> tuple:
     verification provenance (claim_source) and the not_modeled list."""
     reasons = []
     if not isinstance(doc, dict) or doc.get("schema") not in (
-            MISSION_SCHEMA, MISSION_SCHEMA_0002):
-        return (False, ["not a mission_verdict/0.1 or /0.2 document"])
+            MISSION_SCHEMA, MISSION_SCHEMA_0002, MISSION_SCHEMA_0001V2):
+        return (False, ["not a mission_verdict/0.1, /0.2, or /0.3 document"])
+    if doc.get("schema") == MISSION_SCHEMA_0001V2:
+        ext = doc.get("extends")
+        if not (isinstance(ext, dict) and ext.get("mission_id")
+                and isinstance(ext.get("anchored_ledger_index"), int)
+                and ext.get("verdict_hash") and ext.get("what_changed")
+                and ext.get("relation") == "superseded-by-extension"):
+            reasons.append("0.3 schema requires an extends block naming the "
+                           "superseded-by-extension record")
+        if not (isinstance(doc.get("not_modeled"), list)
+                and doc["not_modeled"]):
+            reasons.append("0.3 schema requires a non-empty not_modeled list")
     if doc.get("schema") == MISSION_SCHEMA_0002:
         cs = doc.get("claim_source")
         if not (isinstance(cs, dict) and cs.get("quoted")
@@ -852,13 +948,40 @@ def rederive(entries, mission_id: str = MISSION_ID) -> dict:
                            "output_hash": verifier_cli.era_expected_hash(
                                t, recorded, era_map)}
     claim = m["claim_source"]
+    extends = None
+    ext_id = m.get("extends_mission_id")
+    if ext_id is not None:
+        ext_rec = None
+        for e in entries:
+            p = e.get("payload", {})
+            if (p.get("event") == MISSION_EVENT
+                    and p.get("status") == MISSION_STATUS
+                    and p.get("mission_id") == ext_id):
+                ext_rec = e
+        if ext_rec is None:
+            raise ValueError(f"REFUSED ({REFUSAL_RULE}): {mission_id} "
+                             f"extends {ext_id}, which has no anchored "
+                             "verdict on this chain")
+        extends = {
+            "mission_id": ext_id,
+            "anchored_ledger_index": ext_rec["index"],
+            "verdict_hash": ext_rec["payload"]["verdict_hash"],
+            "relation": "superseded-by-extension",
+            "what_changed": "the named gap is closed: the DAG now begins "
+                            "at the Earth-Mars transfer window "
+                            "(task-0030 -> task-0031, pinned DE440s "
+                            "ephemeris) and proceeds into the surface "
+                            "chain unchanged; the superseded record "
+                            "stays on-chain verbatim and still "
+                            "re-derives bit-exact",
+        }
     return build_mission_verdict(
         node_results, node_hashes, anchored, parents,
         nodes=m["nodes"], edges=m["edges"], mission_id=mission_id,
         schema=m["schema"], excluded=m["excluded"], flips=m["flips"],
         named_gap=m["named_gap"],
         claim_source=claim() if callable(claim) else claim,
-        not_modeled=m["not_modeled"])
+        not_modeled=m["not_modeled"], extends=extends)
 
 
 def generate(mission_id: str = MISSION_ID, echo=print) -> dict:
