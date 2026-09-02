@@ -109,13 +109,14 @@ from demo.x402_spend_stub import buy_compute
 SCHEMA_VERSION = "economy-log/0.1"
 STATE_SCHEMA_VERSION = "economy-state/0.1"
 
-SIMULATED_DAYS = 30          # deterministic day INDICES 0..29 — never wall-clock time
-INITIAL_FAUCET_GRANT = 0     # BY DESIGN — the faucet has no verification-free credit
+from protocol.parameter_table import get as _param
+SIMULATED_DAYS = _param("economy.simulated_days")   # day INDICES 0..29 — never wall-clock
+INITIAL_FAUCET_GRANT = _param("economy.initial_faucet_grant_test_meta")  # BY DESIGN: no verification-free credit
                              # path, so the economy starts at zero (see docstring)
-DAILY_EARN = 2               # mirrors agent_loop's standard round (dispense=2)
-DAILY_COMPUTE_SPEND = 1      # mirrors agent_loop's standard round (spend=1)
+DAILY_EARN = _param("economy.daily_earn_test_meta")  # mirrors agent_loop (dispense=2)
+DAILY_COMPUTE_SPEND = _param("economy.daily_compute_spend_test_meta")  # mirrors agent_loop (spend=1)
 TAMPER_DRILL_DAY = 17        # 0-indexed simulated day of the PLANNED tamper drill
-ROUND_DECIMALS = 6           # applied to every numeric that enters the log (all
+ROUND_DECIMALS = _param("economy.round_decimals")  # every numeric entering the log (all
                              # current economy quantities are integer Test-META)
 
 AGENT_ADDRESS = "economy-sim-agent"

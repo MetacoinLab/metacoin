@@ -14,8 +14,8 @@ Nothing on this screen proves anything. The proof lives one directory up:
 `python3 protocol/verify_everything.py --full` re-derives every anchored
 claim from a fresh clone, and `docs/TOUR.md` walks it in 15 minutes. This
 console DISPLAYS the same record the verifier proves — the
-<!--chain:entry_count-->100<!--/chain-->-entry anchored audit log
-(tip <!--chain:tip_index-->99<!--/chain-->) — because an append-only
+<!--chain:entry_count-->101<!--/chain-->-entry anchored audit log
+(tip <!--chain:tip_index-->100<!--/chain-->) — because an append-only
 cryptographic log and a mission-ops timeline are, structurally, the same
 object, and seeing the record the way an operations room would see it is
 the fastest honest demonstration this protocol has. Read-only, no live

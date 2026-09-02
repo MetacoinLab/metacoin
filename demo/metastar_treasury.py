@@ -60,9 +60,10 @@ import demo.economy_demo as economy_demo
 import protocol.work_molecule as work_molecule  # source-agnostic ledger reading
 
 SCHEMA_VERSION = "treasury-ledger/0.1"
-FEE_RATE = 0.10
-PER_BOUNTY_CAP = 1.0
-CATEGORY_BUDGETS = {"reproducible-space-task": 2.0}
+from protocol.parameter_table import get as _param
+FEE_RATE = _param("treasury.fee_rate")
+PER_BOUNTY_CAP = _param("treasury.per_bounty_cap_test_meta")
+CATEGORY_BUDGETS = _param("treasury.category_budgets_test_meta")
 DEFAULT_STATE_PATH = os.path.join(_REPO_ROOT, "treasury_state.json")
 DEFAULT_LEDGER_PATH = os.path.join(_REPO_ROOT, "protocol", "ledger_data.jsonl")
 

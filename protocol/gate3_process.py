@@ -60,7 +60,8 @@ _PROTO_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_LEDGER_PATH = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
 
 SCHEMA_VERSION = "gate3-process/0.1"
-WINDOW_ENTRIES = 2  # simulated challenge window, measured in ledger ENTRIES
+from protocol.parameter_table import get as _param
+WINDOW_ENTRIES = _param("gate3.challenge_window_entries")  # ledger ENTRIES
 COUNCIL_SEAT = "same-operator-single-seat"
 
 # NASA Technology Taxonomy tags as documented in the task docstrings (task-0001

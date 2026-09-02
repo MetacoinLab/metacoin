@@ -73,7 +73,8 @@ MACHINE_NOTE = (
 )
 
 # Schema version for forward compatibility.
-ATTESTATION_VERSION = 1
+from protocol.parameter_table import get as _param
+ATTESTATION_VERSION = _param("attest.attestation_version")
 
 
 def _sign_safe_zero(obj):

@@ -63,9 +63,10 @@ import protocol.actor_identity as actor_identity
 import protocol.work_molecule as work_molecule  # source-agnostic ledger reading
 
 SCHEMA_VERSION = "uptime-emission/0.1"
-SLOT_COUNT = 10
-PER_SLOT_EMISSION = 0.5
-EPOCH_CAP = 5.0
+from protocol.parameter_table import get as _param
+SLOT_COUNT = _param("flow1.slot_count")
+PER_SLOT_EMISSION = _param("flow1.per_slot_emission_test_meta")
+EPOCH_CAP = _param("flow1.epoch_cap_test_meta")
 MISSED_SLOT_DRILL = 6  # 0-indexed: the planned missed-slot (honest-zero) drill
 ACTOR_ID = "spark-uptime-node"
 DEFAULT_LEDGER_PATH = os.path.join(_REPO_ROOT, "protocol", "ledger_data.jsonl")

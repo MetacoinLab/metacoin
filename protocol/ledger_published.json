@@ -4838,19 +4838,55 @@
       },
       "prev_hash": "491b3e056ea831d93bd66a1913f48563f59a29494cb5bf1460ab50fe006e1c73",
       "timestamp": 1788314184.1943452
+    },
+    {
+      "hash": "f324349448121704071adcdcf9f34eed7731698b8b07053e0f3e9a88961ecd62",
+      "index": 100,
+      "payload": {
+        "anchored_at": 1788323076.060022,
+        "coordinator_reconfirmed": {
+          "owner_module_drift_findings": 0,
+          "rederivation_bit_exact": true
+        },
+        "era_rule": "records at ledger index >= this record's index are table-governed; earlier records are pre-table era whose constants equal v1 by construction",
+        "event": "parameter_table_recorded",
+        "governance_counts": {
+          "anchored-config": 6,
+          "chain-decided-era": 1,
+          "frozen-generation": 5,
+          "mip:MIP-0008": 1,
+          "mip:MIP-0009": 1,
+          "table-version": 18
+        },
+        "governance_note": "v1 is value-preserving (no behavior change; no anchored hash moves). A future value change is a NEW anchored table version \u2014 via a new MIP where the parameter is mip-pinned, via a successor config record where anchored-config, and via this record class otherwise, per the sampler-era / mission-verdict / pulse precedent.",
+        "limitation_note": "The parameter table is a same-operator configuration snapshot: the coordinator rebuilds the table from the live code and compares the canonical hash bit-exact before anchoring \u2014 so an anchored table proves which constants the protocol runs with and makes any later silent edit a named verification failure, not that the values are correct, optimal, or independently reviewed; v1 is value-preserving (no behavior change); not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "parameter_count": 32,
+        "refusal_rule": "a live constant that differs from the anchored table at the current era is DRIFT and refuses by parameter name \u2014 a value change is a new anchored table version, never a silent edit",
+        "schema": "parameter-table/0.1",
+        "stage": "R-parameter-table",
+        "status": "parameter-table-confirmed",
+        "table_hash": "a0ab01229be84de8bc2fa90bc85aa205f5295fb805131d249b86a50f0a767007",
+        "table_version": 1,
+        "topology": "same-operator-coordinator-parameter-table",
+        "zero_value": true
+      },
+      "prev_hash": "650b3943e02367fbea563879a85c874cde4b188906a3a287c15e9da9095c7d46",
+      "timestamp": 1788323076.0606408
     }
   ],
   "snapshot_header": {
-    "entry_count": 100,
+    "entry_count": 101,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1788314184.2717178,
+    "snapshot_timestamp": 1788323244.9201422,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "650b3943e02367fbea563879a85c874cde4b188906a3a287c15e9da9095c7d46",
-    "tip_index": 99,
+    "tip_hash": "f324349448121704071adcdcf9f34eed7731698b8b07053e0f3e9a88961ecd62",
+    "tip_index": 100,
     "zero_value": true
   }
 }

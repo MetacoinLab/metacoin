@@ -185,7 +185,8 @@ CATALOG_LIMITATION_NOTE = (
 # hashes, stated on the record itself.
 _METERING_EVENT = "metering_evidence_anchored"
 _METERING_CONFIRMED_STATUS = "metering-evidence-confirmed"
-_METERING_SANITY_MAX_WALL_S = 60.0  # any task re-metering slower than this is implausible
+from protocol.parameter_table import get as _param
+_METERING_SANITY_MAX_WALL_S = _param("metering.sanity_max_wall_s")  # implausibility bound
 
 # --- trust-vector-catalog anchoring (an EIGHTH record type) ------------------------------
 # The Trust Vector catalog lists the tv_hash of every task's six-component evidence
@@ -235,6 +236,19 @@ MISSION_LIMITATION_NOTE = (
 
 _ENVELOPE_EVENT = "mission_envelope_recorded"
 _ENVELOPE_STATUS = "mission-envelope-confirmed"
+
+_PARAM_TABLE_EVENT = "parameter_table_recorded"
+_PARAM_TABLE_STATUS = "parameter-table-confirmed"
+PARAM_TABLE_LIMITATION_NOTE = (
+    "The parameter table is a same-operator configuration snapshot: the "
+    "coordinator rebuilds the table from the live code and compares the "
+    "canonical hash bit-exact before anchoring — so an anchored table "
+    "proves which constants the protocol runs with and makes any later "
+    "silent edit a named verification failure, not that the values are "
+    "correct, optimal, or independently reviewed; v1 is value-preserving "
+    "(no behavior change); not consensus, not payment, not a token; "
+    "research-stage."
+)
 ENVELOPE_LIMITATION_NOTE = (
     "The mission envelope is an ENGINEERED SCENARIO derived from the "
     "anchored baseline verdict's own flip structure: it states the "
@@ -2866,6 +2880,54 @@ def anchor_mission_envelope(doc: dict, ledger: Ledger) -> dict:
         "limitation_note": ENVELOPE_LIMITATION_NOTE,
         "zero_value": True,
         "no_token": True,
+        "anchored_at": time.time(),
+    }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+def anchor_parameter_table(doc: dict, ledger: Ledger) -> dict:
+    """Validate + FULLY RE-DERIVE + anchor the protocol parameter table
+    (protocol/parameter_table.py). The coordinator rebuilds the table from
+    the LIVE code, compares the canonical document bit-exact against the
+    submitted file, and asserts zero drift between the table and every
+    owner module's effective constant — any failure -> 'rejected', NOT
+    anchored. Scanner-invisible payload (no top-level task ids)."""
+    import protocol.parameter_table as parameter_table
+    ok, reasons = parameter_table.validate_table(doc)
+    if ok:
+        fresh = parameter_table.build_table_doc()
+        if parameter_table.canonical_json(fresh) != \
+                parameter_table.canonical_json(doc):
+            ok = False
+            reasons = ["re-derivation from the live code is not bit-exact "
+                       "against the submitted table"]
+        else:
+            drift = parameter_table.drift_findings(fresh)
+            if drift:
+                ok = False
+                reasons = drift[:3]
+    if not ok:
+        evaluation = {
+            "event": _PARAM_TABLE_EVENT, "stage": "R-parameter-table",
+            "topology": "same-operator-coordinator-parameter-table",
+            "status": "rejected", "reason": "; ".join(reasons),
+            "anchored": False, "zero_value": True, "no_token": True,
+            "limitation_note": PARAM_TABLE_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+    payload = parameter_table.build_payload()
+    evaluation = {
+        **payload,
+        "stage": "R-parameter-table",
+        "topology": "same-operator-coordinator-parameter-table",
+        "coordinator_reconfirmed": {
+            "rederivation_bit_exact": True,
+            "owner_module_drift_findings": 0,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": PARAM_TABLE_LIMITATION_NOTE,
         "anchored_at": time.time(),
     }
     entry = ledger.append(evaluation)
@@ -7177,7 +7239,9 @@ def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
                 "two_flow_separation", "pulse_hash", "headline",
                 "as_of_chain", "repo_commit",
                 "mission_id", "mission_feasible", "verdict_hash",
-                "envelope_hash", "label", "baseline_verdict_hash"):
+                "envelope_hash", "label", "baseline_verdict_hash",
+                "table_version", "table_hash", "parameter_count",
+                "governance_counts"):
         if key in ev:
             print(f"  {key}: {ev[key]}")
     if "bounded_failure" in ev:
@@ -7364,6 +7428,13 @@ def main(argv=None) -> int:
              "re-proves the baseline verdict and re-derives the envelope "
              "bit-exact — WRITES NOTHING without --confirm (the human gate)")
     mode.add_argument(
+        "--anchor-parameter-table", metavar="PARAMETER_TABLE_JSON",
+        help="anchor the protocol parameter table "
+             "(protocol/parameter_table.py --generate): the coordinator "
+             "rebuilds the table from the live code, compares bit-exact, "
+             "and asserts zero owner-module drift — WRITES NOTHING without "
+             "--confirm (the human gate)")
+    mode.add_argument(
         "--anchor-passport-catalog", metavar="PASSPORT_CATALOG_JSON",
         help="anchor a MetaWork passport catalog (metawork_passport.py --all); "
              "the coordinator rediscovers every actor and rebuilds every "
@@ -7530,6 +7601,25 @@ def main(argv=None) -> int:
             return 0 if ok else 1
         return _cmd_anchor_json(args.anchor_mission_envelope, args.ledger,
                                 anchor_mission_envelope, _ENVELOPE_STATUS)
+    if args.anchor_parameter_table is not None:
+        if not args.confirm:
+            import protocol.parameter_table as parameter_table
+            print(BANNER)
+            try:
+                with open(args.anchor_parameter_table, encoding="utf-8") as f:
+                    doc = json.load(f)
+                ok, reasons = parameter_table.validate_table(doc)
+            except (OSError, json.JSONDecodeError) as exc:
+                ok, reasons = False, [str(exc)]
+            print("dry run — would " + ("anchor parameter_table_recorded "
+                  f"for table v{doc.get('table_version')} (hash "
+                  f"{parameter_table.table_hash(doc)[:12]}, "
+                  f"{len(doc.get('parameters', []))} parameters)" if ok
+                  else f"REJECT: {'; '.join(reasons)}"))
+            print("anchored: NO — nothing written (re-run with --confirm)")
+            return 0 if ok else 1
+        return _cmd_anchor_json(args.anchor_parameter_table, args.ledger,
+                                anchor_parameter_table, _PARAM_TABLE_STATUS)
     # No command -> run the self-test (temp ledger only; never touches the real ledger).
     return _selftest()
 

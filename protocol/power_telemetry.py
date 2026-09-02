@@ -100,7 +100,8 @@ DEFAULT_CHARACTERIZATION_PATH = os.path.join(_REPO_ROOT, "power_characterization
 
 # The anchored metering assumption this probe tries to upgrade (trust_vector.py's
 # metering report, anchored at ledger idx-20). Read here for the comparison only.
-ASSUMED_CPU_POWER_W = 15.0
+from protocol.parameter_table import get as _param
+ASSUMED_CPU_POWER_W = _param("power.assumed_cpu_power_w")
 METERING_REPORT_BASENAME = "metering_report.json"
 
 # Discovery-stage load-response screen: short by design (it is a usability gate, not
@@ -108,14 +109,14 @@ METERING_REPORT_BASENAME = "metering_report.json"
 # core moves its reading by more than the noise band AND more than an absolute floor
 # (a single modern core under sustained full load draws well over this; a sensor
 # that cannot see 0.5 W of CPU work cannot ground our energy estimates).
-SCREEN_SAMPLES = 10
-SCREEN_INTERVAL_S = 0.4
-LOAD_RESPONSE_FLOOR_W = 0.5
-NOISE_SD_MULTIPLIER = 3.0
+SCREEN_SAMPLES = _param("power.screen_samples")
+SCREEN_INTERVAL_S = _param("power.screen_interval_s")
+LOAD_RESPONSE_FLOOR_W = _param("power.load_response_floor_w")
+NOISE_SD_MULTIPLIER = _param("power.noise_sd_multiplier")
 
 # Characterization sampling: >= 30 samples over >= 15 s per phase (docstring step ii).
-CHAR_SAMPLES = 30
-CHAR_INTERVAL_S = 0.5
+CHAR_SAMPLES = _param("power.char_samples")
+CHAR_INTERVAL_S = _param("power.char_interval_s")
 
 # The honest nothing-found finding, verbatim in inventory verdicts and skip messages.
 DEBT_OPEN_VERDICT = ("telemetry debt remains open on this host: no readable power "

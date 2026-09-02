@@ -19,8 +19,15 @@ Standard library only.
 """
 
 # Simulated, deterministic conversion: 1 zero-value Test-META buys 1 imaginary compute
-# unit. This is illustrative only and has no real-world meaning.
-COMPUTE_UNITS_PER_TEST_META = 1
+# unit. This is illustrative only and has no real-world meaning. The value lives in the
+# anchored parameter table (repo root on sys.path first for direct script runs).
+import os as _os
+import sys as _sys
+_REPO_ROOT = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+if _REPO_ROOT not in _sys.path:
+    _sys.path.insert(0, _REPO_ROOT)
+from protocol.parameter_table import get as _param
+COMPUTE_UNITS_PER_TEST_META = _param("economy.compute_units_per_test_meta")
 
 
 def buy_compute(faucet, address: str, cost: int) -> dict:

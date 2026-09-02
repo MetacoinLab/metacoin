@@ -73,6 +73,9 @@ DEFAULT_LEDGER_PATH = os.path.join(_PROTO_DIR, "ledger_data.jsonl")
 
 SCHEMA_VERSION = "challenge-response/0.1"
 
+from protocol.parameter_table import get as _param
+NONCE_BYTES = _param("challenge.nonce_bytes")
+
 _HEX = set("0123456789abcdef")
 
 _CHALLENGE_KEYS = ("schema", "challenge_id", "task_id", "nonce", "issued_for",
@@ -151,7 +154,7 @@ def issue_challenge(task_id: str, verifier_id: str,
     challenge = {
         "schema": SCHEMA_VERSION,
         "task_id": short,
-        "nonce": secrets.token_hex(32),  # 32 random bytes -> 64 hex chars
+        "nonce": secrets.token_hex(NONCE_BYTES),  # anchored parameter table
         "issued_for": verifier_id,
         "ledger_tip_at_issue": {"index": tip["index"], "hash": tip["hash"]},
     }

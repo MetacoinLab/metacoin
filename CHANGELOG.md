@@ -8,6 +8,22 @@
 > ledger (integrations, generators, gate runs) is listed under the tip it
 > accompanied. Newest first. Research-stage; zero-value; no token.
 
+## idx 100 — the anchored parameter table (cFE Table Services adoption)
+
+Every behavior-changing protocol constant — thresholds, epoch sizes, fee
+parameters, rounding precision, the assumed power figure, sampler
+version, gate timeouts — now lives in ONE canonical table
+(`protocol/parameter_table.py`, 32 parameters), whose era-2 hash is
+anchored at idx 100 <!--idx:100=parameter_table_recorded-->. Owner
+modules read their constants from the table; the new `parameter table`
+verification layer asserts every effective constant equals the anchored
+table and refuses BY NAME on drift, so changing any constant is a new
+anchored table version — a governance event (a new MIP where the value
+is MIP-pinned, a successor config record where anchored-config, this
+record class otherwise). Table v1 is value-preserving: no behavior
+changed and no anchored hash moved, asserted by the full battery. The
+table era is chain-decided at the anchor index (the sampler-era rule).
+
 ## At tip idx 99 — repo work with no ledger writes
 
 - **README generators**: `protocol/mission_graph_svg.py` (the mission DAG,

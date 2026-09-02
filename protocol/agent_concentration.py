@@ -164,7 +164,8 @@ KORDER_WEIGHTS_VERSION = "aci-korder-weights/0.1-uniform"
 # v0 refused here ("a sampled estimate without variance analysis would be
 # fabricated precision"); v0.2 delivers the variance analysis — sampled mode
 # with the finite-population-corrected standard error — instead of a refusal.
-ENUM_LIMIT = 200_000
+from protocol.parameter_table import get as _param
+ENUM_LIMIT = _param("concentration.enum_limit")
 # THE SEEDED-SAMPLING META-RECORD (the Trick Monte-Carlo discipline): from
 # this version on, every sampled row anchors {seed, sample_size m,
 # population_size M, sampler_version} so a verifier can repeat the draw
@@ -179,7 +180,7 @@ ENUM_LIMIT = 200_000
 # anchored sampler. Rows WITHOUT the field belong to the pre-version era
 # (the idx-57 epoch family) and validate against their era, stated —
 # the same by-era mechanics as the hash-era and task-law transitions.
-SAMPLER_VERSION = "aci-sampler/1.0"
+SAMPLER_VERSION = _param("concentration.sampler_version")
 
 # THE ERA BOUNDARY, chain-decided: observations AT OR AFTER this ledger
 # index (the chain tip when the discipline shipped, 2026-09-01) carry
@@ -188,7 +189,7 @@ SAMPLER_VERSION = "aci-sampler/1.0"
 # the anchored idx-57 family and MIP-0004's frozen verify-run blocks
 # byte-stable. Anchored records additionally declare their own era by field
 # presence (record_has_sampler_version), which the verify layer prefers.
-SAMPLER_ERA_FROM_LEDGER_INDEX = 96
+SAMPLER_ERA_FROM_LEDGER_INDEX = _param("concentration.sampler_era_from_ledger_index")
 
 
 def _sampler_era_for(as_of_index) -> bool:
@@ -196,7 +197,7 @@ def _sampler_era_for(as_of_index) -> bool:
             or as_of_index >= SAMPLER_ERA_FROM_LEDGER_INDEX)
 
 # Declared default sample size for sampled mode (part of the seed commitment).
-DEFAULT_SAMPLE_SIZE = 20_000
+DEFAULT_SAMPLE_SIZE = _param("concentration.default_sample_size")
 
 BLINDSPOT_STATEMENT = (
     "This is ONE candidate S_k construction (ancestry-witness: per-dimension "
@@ -266,7 +267,7 @@ INTERPRETATION = (
 # report builders above are byte-locked — this block only READS their output.
 # ---------------------------------------------------------------------------
 EPOCH_SCHEMA_VERSION = "aci-epoch-observation/0.1"
-EPOCH_KMAX = 6  # matches the sweep's current-profile idiom (exact where
+EPOCH_KMAX = _param("concentration.epoch_kmax")  # matches the sweep's current-profile idiom (exact where
                 # enumerable at the current population, sampled with CI above)
 
 EPOCH_INTERPRETATION = (

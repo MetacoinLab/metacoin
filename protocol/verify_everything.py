@@ -1114,6 +1114,48 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                       "dust-variant refusal verified on the record")
                      if not problems else "; ".join(problems[:3])))
 
+    # --- layer 11f: the anchored parameter table (cFE Table Services) ---------------
+    # Every behavior-changing protocol constant lives in ONE anchored table
+    # (protocol/parameter_table.py). This layer re-derives the live table,
+    # compares its canonical hash against the anchored record, and asserts
+    # every owner module's EFFECTIVE constant equals the table — refusing BY
+    # NAME on any drifted constant. Historic (pre-table-era) records are
+    # governed by the era rule: v1 is the value-preserving snapshot.
+    import protocol.parameter_table as parameter_table
+    pt_records = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event")
+                  == parameter_table.PARAM_TABLE_EVENT
+                  and e["payload"].get("status")
+                  == parameter_table.PARAM_TABLE_STATUS]
+    if not pt_records:
+        if len(entries) > parameter_table.PARAM_TABLE_ERA_FROM_LEDGER_INDEX:
+            rows.append(("parameter table", FULL, False,
+                         "the chain has entered the table era but no "
+                         "parameter_table_recorded exists — record missing"))
+        else:
+            rows.append(("parameter table", FULL, True,
+                         "pre-table era: constants equal table v1 by "
+                         "construction (value-preserving snapshot)"))
+    else:
+        problems = []
+        try:
+            out = parameter_table.rederive(entries)
+            problems.extend(out["findings"])
+            latest = pt_records[-1][1]
+            if out["payload"]["table_hash"] != latest.get("table_hash"):
+                problems.append("re-derivation bound to a different record "
+                                "than the latest anchored table")
+        except ValueError as exc:
+            problems.append(str(exc)[:200])
+        rows.append(("parameter table", FULL, not problems,
+                     (f"{len(pt_records)} anchored table record(s): live "
+                      "table re-derives to the anchored hash and every "
+                      f"owner module's effective constant "
+                      f"({pt_records[-1][1].get('parameter_count')} "
+                      "parameters) equals the table; era rule verified")
+                     if not problems else "; ".join(problems[:3])))
+
     # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------
     # Root integrity via the identity layer's registrations; every anchored
     # epoch's heartbeat signatures re-verified from the shipped evidence copy

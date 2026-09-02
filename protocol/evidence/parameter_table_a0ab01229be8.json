@@ -1,0 +1,236 @@
+{
+ "schema": "parameter-table/0.1",
+ "table_version": 1,
+ "value_preserving_note": "v1 collects every constant at its pre-table value \u2014 no anchored hash may move; asserted by the full battery",
+ "refusal_rule": "a live constant that differs from the anchored table at the current era is DRIFT and refuses by parameter name \u2014 a value change is a new anchored table version, never a silent edit",
+ "parameters": [
+  {
+   "name": "attest.attestation_version",
+   "value": 1,
+   "owner_module": "protocol.attest",
+   "owner_attribute": "ATTESTATION_VERSION",
+   "governance": "table-version"
+  },
+  {
+   "name": "challenge.nonce_bytes",
+   "value": 32,
+   "owner_module": "protocol.challenge_response",
+   "owner_attribute": "NONCE_BYTES",
+   "governance": "table-version"
+  },
+  {
+   "name": "concentration.default_sample_size",
+   "value": 20000,
+   "owner_module": "protocol.agent_concentration",
+   "owner_attribute": "DEFAULT_SAMPLE_SIZE",
+   "governance": "table-version"
+  },
+  {
+   "name": "concentration.enum_limit",
+   "value": 200000,
+   "owner_module": "protocol.agent_concentration",
+   "owner_attribute": "ENUM_LIMIT",
+   "governance": "table-version"
+  },
+  {
+   "name": "concentration.epoch_kmax",
+   "value": 6,
+   "owner_module": "protocol.agent_concentration",
+   "owner_attribute": "EPOCH_KMAX",
+   "governance": "table-version"
+  },
+  {
+   "name": "concentration.sampler_era_from_ledger_index",
+   "value": 96,
+   "owner_module": "protocol.agent_concentration",
+   "owner_attribute": "SAMPLER_ERA_FROM_LEDGER_INDEX",
+   "governance": "chain-decided-era"
+  },
+  {
+   "name": "concentration.sampler_version",
+   "value": "aci-sampler/1.0",
+   "owner_module": "protocol.agent_concentration",
+   "owner_attribute": "SAMPLER_VERSION",
+   "governance": "table-version"
+  },
+  {
+   "name": "docs.command_timeout_s",
+   "value": 900,
+   "owner_module": "protocol.doc_verify",
+   "owner_attribute": "COMMAND_TIMEOUT_S",
+   "governance": "table-version"
+  },
+  {
+   "name": "economy.compute_units_per_test_meta",
+   "value": 1,
+   "owner_module": "demo.x402_spend_stub",
+   "owner_attribute": "COMPUTE_UNITS_PER_TEST_META",
+   "governance": "table-version"
+  },
+  {
+   "name": "economy.daily_compute_spend_test_meta",
+   "value": 1,
+   "owner_module": "demo.economy_demo",
+   "owner_attribute": "DAILY_COMPUTE_SPEND",
+   "governance": "frozen-generation"
+  },
+  {
+   "name": "economy.daily_earn_test_meta",
+   "value": 2,
+   "owner_module": "demo.economy_demo",
+   "owner_attribute": "DAILY_EARN",
+   "governance": "frozen-generation"
+  },
+  {
+   "name": "economy.initial_faucet_grant_test_meta",
+   "value": 0,
+   "owner_module": "demo.economy_demo",
+   "owner_attribute": "INITIAL_FAUCET_GRANT",
+   "governance": "frozen-generation"
+  },
+  {
+   "name": "economy.round_decimals",
+   "value": 6,
+   "owner_module": "demo.economy_demo",
+   "owner_attribute": "ROUND_DECIMALS",
+   "governance": "frozen-generation"
+  },
+  {
+   "name": "economy.simulated_days",
+   "value": 30,
+   "owner_module": "demo.economy_demo",
+   "owner_attribute": "SIMULATED_DAYS",
+   "governance": "frozen-generation"
+  },
+  {
+   "name": "flow1.epoch_cap_test_meta",
+   "value": 5.0,
+   "owner_module": "demo.flow1_uptime",
+   "owner_attribute": "EPOCH_CAP",
+   "governance": "anchored-config"
+  },
+  {
+   "name": "flow1.per_slot_emission_test_meta",
+   "value": 0.5,
+   "owner_module": "demo.flow1_uptime",
+   "owner_attribute": "PER_SLOT_EMISSION",
+   "governance": "anchored-config"
+  },
+  {
+   "name": "flow1.slot_count",
+   "value": 10,
+   "owner_module": "demo.flow1_uptime",
+   "owner_attribute": "SLOT_COUNT",
+   "governance": "anchored-config"
+  },
+  {
+   "name": "gate3.challenge_window_entries",
+   "value": 2,
+   "owner_module": "protocol.gate3_process",
+   "owner_attribute": "WINDOW_ENTRIES",
+   "governance": "table-version"
+  },
+  {
+   "name": "metering.sanity_max_wall_s",
+   "value": 60.0,
+   "owner_module": "protocol.external_verifier",
+   "owner_attribute": "_METERING_SANITY_MAX_WALL_S",
+   "governance": "table-version"
+  },
+  {
+   "name": "power.assumed_cpu_power_w",
+   "value": 15.0,
+   "owner_module": "protocol.power_telemetry",
+   "owner_attribute": "ASSUMED_CPU_POWER_W",
+   "governance": "table-version"
+  },
+  {
+   "name": "power.char_interval_s",
+   "value": 0.5,
+   "owner_module": "protocol.power_telemetry",
+   "owner_attribute": "CHAR_INTERVAL_S",
+   "governance": "table-version"
+  },
+  {
+   "name": "power.char_samples",
+   "value": 30,
+   "owner_module": "protocol.power_telemetry",
+   "owner_attribute": "CHAR_SAMPLES",
+   "governance": "table-version"
+  },
+  {
+   "name": "power.load_response_floor_w",
+   "value": 0.5,
+   "owner_module": "protocol.power_telemetry",
+   "owner_attribute": "LOAD_RESPONSE_FLOOR_W",
+   "governance": "table-version"
+  },
+  {
+   "name": "power.noise_sd_multiplier",
+   "value": 3.0,
+   "owner_module": "protocol.power_telemetry",
+   "owner_attribute": "NOISE_SD_MULTIPLIER",
+   "governance": "table-version"
+  },
+  {
+   "name": "power.screen_interval_s",
+   "value": 0.4,
+   "owner_module": "protocol.power_telemetry",
+   "owner_attribute": "SCREEN_INTERVAL_S",
+   "governance": "table-version"
+  },
+  {
+   "name": "power.screen_samples",
+   "value": 10,
+   "owner_module": "protocol.power_telemetry",
+   "owner_attribute": "SCREEN_SAMPLES",
+   "governance": "table-version"
+  },
+  {
+   "name": "release_gate.cold_install_timeout_s",
+   "value": 1800,
+   "owner_module": "protocol.release_readiness",
+   "owner_attribute": "COLD_INSTALL_TIMEOUT_S",
+   "governance": "table-version"
+  },
+  {
+   "name": "task_law.min_asserts",
+   "value": 2,
+   "owner_module": "protocol.task_law_check",
+   "owner_attribute": "MIN_ASSERTS",
+   "governance": "mip:MIP-0008"
+  },
+  {
+   "name": "task_law.round_decimals",
+   "value": 6,
+   "owner_module": "protocol.task_law_check",
+   "owner_attribute": "ROUND_DECIMALS",
+   "governance": "mip:MIP-0009"
+  },
+  {
+   "name": "treasury.category_budgets_test_meta",
+   "value": {
+    "reproducible-space-task": 2.0
+   },
+   "owner_module": "demo.metastar_treasury",
+   "owner_attribute": "CATEGORY_BUDGETS",
+   "governance": "anchored-config"
+  },
+  {
+   "name": "treasury.fee_rate",
+   "value": 0.1,
+   "owner_module": "demo.metastar_treasury",
+   "owner_attribute": "FEE_RATE",
+   "governance": "anchored-config"
+  },
+  {
+   "name": "treasury.per_bounty_cap_test_meta",
+   "value": 1.0,
+   "owner_module": "demo.metastar_treasury",
+   "owner_attribute": "PER_BOUNTY_CAP",
+   "governance": "anchored-config"
+  }
+ ],
+ "zero_value": true,
+ "no_token": true
+}

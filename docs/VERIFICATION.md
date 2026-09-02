@@ -7,8 +7,8 @@
 > chain point it describes and re-checked against live state, and nothing here
 > claims more than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->99<!--/chain-->,
-> <!--chain:entry_count-->100<!--/chain--> entries.
+> Chain point: tip index <!--chain:tip_index-->100<!--/chain-->,
+> <!--chain:entry_count-->101<!--/chain--> entries.
 
 `metacoin verify` (the zero-install form is
 `python3 metacoin_cli/main.py verify`) is the flagship: one command that
@@ -43,11 +43,11 @@ timing claim, and an anchored acceptance.
 ## The layer-by-layer report
 
 The pasted run below is trimmed to the shape of the report; the full pass has
-15 layer lines. What each checks:
+20 layer lines. What each checks:
 
 - **chain+anchor** — the hash chain is intact from genesis
   <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->… to tip
-  <!--chain:tip_hash_prefix-->650b3943e023<!--/chain-->…, and the committed tip anchor
+  <!--chain:tip_hash_prefix-->f32434944812<!--/chain-->…, and the committed tip anchor
   matches. In a fresh clone the published snapshot is the source, and the
   report names that.
 - **tasks** — all <!--chain:recorded_task_count-->33<!--/chain--> recorded
@@ -67,6 +67,15 @@ The pasted run below is trimmed to the shape of the report; the full pass has
 - **economy / treasury+gate3 / flow1 emission** — the closed-loop economy
   log, the treasury conservation arithmetic (including the clawback drill),
   and the signed-heartbeat epoch all replay.
+- **mission verdicts / mission envelope** — every anchored mission-level
+  verdict re-derives bit-exact (every node re-run, the typed DAG rebuilt),
+  and the envelope's engineered-scenario label and dust-variant refusal are
+  verified on the record.
+- **parameter table** — the live protocol constants re-derive to the
+  anchored parameter table's canonical hash, and every owner module's
+  effective constant equals the table — a silently edited constant is a
+  named failure (protocol/parameter_table.py; the table era is
+  chain-decided at the anchor index).
 - **metering** — the CLAIM-CHECK layer described above.
 - **cut certificate / trust vectors / passports** — the derived artifacts
   rebuild generation-locked; the no-leaderboard rule is scanned live.
@@ -124,7 +133,7 @@ $ python3 -c "import sys; sys.path.insert(0,'.'); from protocol.verify_everythin
 
 The suites behind the report are runnable directly:
 `protocol/run_protocol_selftests.sh`
-(<!--chain:protocol_suite_count-->27<!--/chain--> self-tests) and
+(<!--chain:protocol_suite_count-->28<!--/chain--> self-tests) and
 `demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->43<!--/chain-->
 self-tests) — CI requires both green plus a fresh-clone full pass on every
 commit. The layer tools remain individually available (`audit.py --verify`,

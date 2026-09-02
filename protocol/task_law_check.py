@@ -108,8 +108,9 @@ from protocol.work_molecule import _payload_references_task, _read_ledger
 
 LAW_MIP_ID = "MIP-0008"
 CONTRACT_MIP_ID = "MIP-0009"
-ROUND_DECIMALS = 6
-MIN_ASSERTS = 2
+from protocol.parameter_table import get as _param
+ROUND_DECIMALS = _param("task_law.round_decimals")
+MIN_ASSERTS = _param("task_law.min_asserts")
 REQUIRED_RESULT_KEYS = ("task_id", "inputs", "results", "summary")
 _MIP_DIR = os.path.join(_REPO_ROOT, "mip")
 

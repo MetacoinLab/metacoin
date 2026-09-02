@@ -46,7 +46,7 @@ The diagram is **generated, not drawn**: `python3 protocol/mission_graph_svg.py`
 ```bash
 pip install git+https://github.com/MetacoinLab/metacoin   # or: clone and use python3 directly
 
-metacoin verify                                  # re-derive all 19 layers (~minutes); zero judgment, hashes only
+metacoin verify                                  # re-derive all 20 layers (~minutes); zero judgment, hashes only
 python3 protocol/mission_graph_svg.py --selftest # the diagram above, proven deterministic
 metacoin participate                             # the six-rung participant path
 ```
@@ -57,7 +57,7 @@ A probe subset of the task library is published as a Hugging Face dataset: [meta
 
 ## By the numbers
 
-<p align="center"><img src="assets/status_board.svg" alt="Status board: 100 anchored entries, 33 reproducible tasks, 7 honest negatives, 4 mission verdicts all FALSE, 10 MIP decisions, 19 verify layers, 70 self-tests, 44,066 Python lines, 7 drills defeated, 5 catalog generations — tip 650b3943e023, release gate READY, approval human"></p>
+<p align="center"><img src="assets/status_board.svg" alt="Status board: 100 anchored entries, 33 reproducible tasks, 7 honest negatives, 4 mission verdicts all FALSE, 10 MIP decisions, 20 verify layers, 71 self-tests, 44,066 Python lines, 7 drills defeated, 5 catalog generations — tip 650b3943e023, release gate READY, approval human"></p>
 
 The board is generated, not drawn: `python3 protocol/status_board_svg.py` renders it from the same sources `doc_verify` checks, and its self-test asserts tile-by-tile that the board equals those values — the table below carries the same numbers as verifiable text. Chain-derived cells are era tokens, mechanically re-checked against the pinned chain point on every CI run; repo-derived cells are stated as measured at the pin commit.
 
@@ -68,8 +68,8 @@ The board is generated, not drawn: `python3 protocol/status_board_svg.py` render
 | Honest negatives among them | 7 |
 | Mission-level verdicts | <!--era:mission_verdict_count-->4<!--/era--> (every one FALSE, quantified) |
 | Anchored MIP decisions | <!--era:mip_decision_count-->10<!--/era--> (3 by declared supersession — amendments are new MIPs) |
-| Full-verification layers | 19 (`metacoin verify`) |
-| Self-test suites | 43 demo + 27 protocol |
+| Full-verification layers | 20 (`metacoin verify`) |
+| Self-test suites | 43 demo + 28 protocol |
 | Python in `protocol/` + `demo/` + the CLI, zero runtime dependencies | 44,066 lines |
 | Defeated attack drills on-chain | <!--era:drill_entry_count-->7<!--/era--> drill-labeled entries (replays, forged rotation, forged heartbeat, tampered intake, wrongful grant clawed back) |
 | Work-molecule catalog generations | <!--era:catalog_anchor_count-->5<!--/era--> (every generation still verifies byte-for-byte) |

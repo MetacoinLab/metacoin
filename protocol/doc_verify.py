@@ -195,7 +195,8 @@ _FENCE_RE = re.compile(r"^```verify-run\n\$ (.+?)\n(.*?)^```\n((?:<!--expect:.*?
                        re.S | re.M)
 _EXPECT_RE = re.compile(r"<!--expect:(.*?)-->")
 
-COMMAND_TIMEOUT_S = 900
+from protocol.parameter_table import get as _param_table_get
+COMMAND_TIMEOUT_S = _param_table_get("docs.command_timeout_s")
 
 
 # ----------------------------------------------------------------------------

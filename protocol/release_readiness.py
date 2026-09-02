@@ -72,6 +72,9 @@ from protocol.work_molecule import _read_ledger, find_evidence_file
 
 SCHEMA_VERSION = "release-readiness/0.1"
 
+from protocol.parameter_table import get as _param
+COLD_INSTALL_TIMEOUT_S = _param("release_gate.cold_install_timeout_s")
+
 CROSS_MACHINE_GAP = "awaits a second machine or an external participant"
 MIRROR_GAP = "awaits the second device"
 
@@ -120,7 +123,8 @@ def crit_cold_install(fast: bool, echo=print) -> dict:
              "(takes a few minutes)...")
         r = subprocess.run(
             [os.path.join(venv_dir, "bin", "metacoin"), "verify", "--quiet"],
-            cwd=empty, capture_output=True, text=True, timeout=1800)
+            cwd=empty, capture_output=True, text=True,
+            timeout=COLD_INSTALL_TIMEOUT_S)
         ok = r.returncode == 0 and "ALL LAYERS PASS" in (r.stdout + r.stderr)
         return _c("cold-install acceptance", "PASS" if ok else "GAP",
                   "fresh venv, empty dir, no repo -> ALL LAYERS PASS from "
