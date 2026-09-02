@@ -57,7 +57,9 @@ A probe subset of the task library is published as a Hugging Face dataset: [meta
 
 ## By the numbers
 
-Chain-derived cells are era tokens, mechanically re-checked against the pinned chain point on every CI run; repo-derived cells are stated as measured at the pin commit.
+<p align="center"><img src="assets/status_board.svg" alt="Status board: 100 anchored entries, 33 reproducible tasks, 7 honest negatives, 4 mission verdicts all FALSE, 10 MIP decisions, 19 verify layers, 70 self-tests, 44,066 Python lines, 7 drills defeated, 5 catalog generations — tip 650b3943e023, release gate READY, approval human"></p>
+
+The board is generated, not drawn: `python3 protocol/status_board_svg.py` renders it from the same sources `doc_verify` checks, and its self-test asserts tile-by-tile that the board equals those values — the table below carries the same numbers as verifiable text. Chain-derived cells are era tokens, mechanically re-checked against the pinned chain point on every CI run; repo-derived cells are stated as measured at the pin commit.
 
 | Fact | Value |
 |---|---|
