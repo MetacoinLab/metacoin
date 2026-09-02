@@ -433,6 +433,71 @@ FLIP_CONDITIONS_0001V2["task-0031"] = {
     "source": "task-0031 inputs"}
 
 
+# ----------------------------------------------------------------------------
+# MISSION-0001-V3: the full path on-chain — Earth transfer -> capture/entry
+# interface -> EDL -> surface ISRU -> ascent. Extends v2 append-only (the
+# idx-96 record stays verbatim and still re-derives); schema 0.3's extends
+# lineage now points at v2.
+# ----------------------------------------------------------------------------
+MISSION_ID_0001V3 = "mission-0001-v3-mars-isru-refuel-ascent"
+
+NODES_0001V3 = NODES_0001V2[:2] + (
+    {"task": "task-0033", "role": "upstream",
+     "title": "Mars capture / entry-interface state from the transfer "
+              "window (TX09)"},
+    {"task": "task-0034", "role": "constraining",
+     "verdict_field": "reference_class_decelerates",
+     "title": "Ballistic EDL deceleration budget across published "
+              "coefficient classes (TX09)"},
+) + NODES_0001V2[2:]
+
+EDGES_0001V3 = (
+    {"src": "task-0031", "dst": "task-0033", "type": "feeds",
+     "justification": "task-0033 consumes task-0031's published arrival "
+                      "v-infinity, parent recomputed live and hash-asserted"},
+    {"src": "task-0033", "dst": "task-0034", "type": "feeds",
+     "justification": "task-0034 consumes task-0033's published entry-"
+                      "interface speed, hash-asserted"},
+    {"src": "task-0034", "dst": MISSION_SINK, "type": "constrains",
+     "justification": "the mission-relevant lander class must decelerate "
+                      "to the parachute gate within published limits"},
+) + EDGES_0001V2
+
+NAMED_GAP_0001V3 = ("the v2 gap (no node between arrival v-infinity and "
+                    "the surface) is CLOSED by task-0033/0034; the "
+                    "remaining named gap: no Earth-launch-to-escape node, "
+                    "and no landed-mass bridge between the EDL class "
+                    "verdict and the surface chain's fixed feed masses")
+
+NOT_MODELED_0001V3 = (
+    "Earth launch to escape (the transfer metric starts at hyperbolic "
+    "excess)",
+    "lifting/guided entry and supersonic retropropulsion — the remedies "
+    "the EDL verdict's honest negative points at (MSL flew the former; "
+    "neither is modeled)",
+    "aeroshell sizing and thermal protection (the ballistic-coefficient "
+    "classes are published points, not a designed vehicle)",
+    "a landed-mass bridge from the EDL class verdict to the surface "
+    "chain's fixed feed masses",
+    "plane-change and deep-space-maneuver refinements beyond ballistic "
+    "two-body Lambert arcs",
+    "the surface chain's own stated idealizations (each task's docstring "
+    "carries them)",
+)
+
+FLIP_CONDITIONS_0001V3 = dict(FLIP_CONDITIONS_0001V2)
+FLIP_CONDITIONS_0001V3["task-0034"] = {
+    "parameter_classes": [
+        "ballistic coefficient (a larger aeroshell per landed tonne — "
+        "the Viking-class row passes on the same anchored entry state)",
+        "entry mode: lifting/guided entry or supersonic retropropulsion "
+        "(the published remedies; not modeled, named in not_modeled)",
+        "the deploy gate itself (a chute qualified beyond the DGB "
+        "Mach-2.1 class)",
+    ],
+    "source": "task-0034's own grid and its cited literature"}
+
+
 def _claim_source():
     """The claim-under-verification block, from the pinned-sources module
     (single source of truth; imported lazily so the protocol package does
@@ -472,6 +537,17 @@ MISSIONS = {
         "claim_source": None,
         "not_modeled": NOT_MODELED_0001V2,
         "extends_mission_id": MISSION_ID,
+    },
+    MISSION_ID_0001V3: {
+        "schema": MISSION_SCHEMA_0001V2,   # the 0.3 extends schema
+        "nodes": NODES_0001V3,
+        "edges": EDGES_0001V3,
+        "excluded": EXCLUDED_NODES,
+        "named_gap": NAMED_GAP_0001V3,
+        "flips": FLIP_CONDITIONS_0001V3,
+        "claim_source": None,
+        "not_modeled": NOT_MODELED_0001V3,
+        "extends_mission_id": MISSION_ID_0001V2,
     },
 }
 
@@ -655,6 +731,19 @@ def node_figures(task: str, result: dict) -> dict:
                 "best_tof_days": s["best_tof_days"],
                 "within_budget_count": s["within_budget_count"],
                 "beyond_budget_count": s["beyond_budget_count"]}
+    if task == "task-0033":
+        return {"entry_interface_speed_km_s": s["entry_interface_speed_km_s"],
+                "capture_dv_km_s": s["capture_dv_km_s"],
+                "arrival_vinf_km_s": s["arrival_vinf_km_s"]}
+    if task == "task-0034":
+        return {"viking_class_deploy_mach_ratio":
+                    s["viking_class_deploy_mach_ratio"],
+                "msl_class_deploy_mach_ratio":
+                    s["msl_class_deploy_mach_ratio"],
+                "heavy_class_deploy_mach_ratio":
+                    s["heavy_class_deploy_mach_ratio"],
+                "classes_within_limits_count":
+                    s["classes_within_limits_count"]}
     if task == "task-0029":
         return {"ceiling_horizon_Gyr": s["ceiling_horizon_Gyr"],
                 "margin_Gyr": s["margin_Gyr"],
@@ -716,6 +805,14 @@ def bottleneck_entry(task: str, result: dict) -> dict:
                 "shortfall_Gyr": round(max(0.0, -s["margin_Gyr"]), 6),
                 "statement": f"ceiling horizon {s['ceiling_horizon_Gyr']} Gyr "
                              "vs the claimed 1 Gyr"}
+    if task == "task-0034":
+        return {"quantity": "edl_deploy_mach_excess_ratio",
+                "shortfall_ratio": s["reference_deploy_mach_excess_ratio"],
+                "statement": "the mission-relevant heavy-lander class "
+                             f"reaches the chute gate at Mach "
+                             f"{s['heavy_class_deploy_mach_ratio']} vs the "
+                             "DGB ceiling — ballistic entry cannot land "
+                             "the class the surface chain needs"}
     if task == "task-0031":
         return {"quantity": "transfer_window_shortfall_km_s",
                 "shortfall_km_s": round(max(0.0, s["best_total_vinf_km_s"]
