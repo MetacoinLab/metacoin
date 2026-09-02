@@ -7,8 +7,8 @@
 > with the chain point it describes and re-checked against live state, and
 > every ledger index cited is resolved against the chain.
 >
-> Chain point: tip index <!--chain:tip_index-->100<!--/chain-->,
-> <!--chain:entry_count-->101<!--/chain--> entries;
+> Chain point: tip index <!--chain:tip_index-->107<!--/chain-->,
+> <!--chain:entry_count-->108<!--/chain--> entries;
 > <!--chain:task_count-->39<!--/chain--> registered tasks,
 > <!--chain:honest_negative_count-->9<!--/chain--> honest negatives.
 
@@ -127,7 +127,17 @@ same-machine self-recompute record per task, then a batch agent-verifier
 attestation re-deriving every recorded hash — exactly as every physics
 batch before them. The record indices are listed in
 [`../CHANGELOG.md`](../CHANGELOG.md) under the family's idx range.
-<!--transfer-anchor-refs-->
+Self-recompute records: task-0035 at idx 101
+<!--idx:101=self_recompute_result-->, task-0036 at idx 102
+<!--idx:102=self_recompute_result-->, task-0037 at idx 103
+<!--idx:103=self_recompute_result-->, task-0038 at idx 104
+<!--idx:104=self_recompute_result-->, task-0039 at idx 105
+<!--idx:105=self_recompute_result-->, task-0040 at idx 106
+<!--idx:106=self_recompute_result-->; the batch attestation at idx 107
+<!--idx:107=agent_verifier_attestation--> re-derived every recorded task
+hash on the chain, the six new ones included. Recorded on the chain:
+<!--chain:recorded_task_count-->39<!--/chain--> of
+<!--chain:task_count-->39<!--/chain--> registered tasks.
 
 ---
 

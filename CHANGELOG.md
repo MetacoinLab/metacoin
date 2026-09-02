@@ -8,6 +8,25 @@
 > ledger (integrations, generators, gate runs) is listed under the tip it
 > accompanied. Newest first. Research-stage; zero-value; no token.
 
+## idx 101–107 — the software/data-engineering transfer family
+
+Six tasks of the kind coding and data agents actually face — schema
+migration consistency, API-contract satisfiability, dependency
+resolution, configuration audit, pipeline reconciliation, test-coverage
+gap — built under the same law and scored by the same bit-exact rule as
+the physics library, with two honest negatives (task-0035
+`migration_valid: false`, task-0040 `coverage_target_met: false`).
+Self-recompute records at idx 101–106
+<!--idx:101=self_recompute_result--><!--idx:106=self_recompute_result-->,
+the batch attestation at idx 107 <!--idx:107=agent_verifier_attestation-->.
+The claim they support, and the ones they do not, are stated in
+[docs/TRANSFER.md](docs/TRANSFER.md): the abstention probe transfers to
+deterministic software/data tasks — the baseline mock's manufactured
+success on task-0040 is caught by the identical detector that catches it
+on task-0012 — and nothing here is open-ended. The Inspect adapter gained
+a `family` parameter so the family runs alone; the honest-negative roster
+is nine. Molecule catalogs untouched per cadence; README era-pinned.
+
 ## idx 100 — the anchored parameter table (cFE Table Services adoption)
 
 Every behavior-changing protocol constant — thresholds, epoch sizes, fee
