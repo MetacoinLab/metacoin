@@ -181,6 +181,20 @@ ENUM_LIMIT = 200_000
 # the same by-era mechanics as the hash-era and task-law transitions.
 SAMPLER_VERSION = "aci-sampler/1.0"
 
+# THE ERA BOUNDARY, chain-decided: observations AT OR AFTER this ledger
+# index (the chain tip when the discipline shipped, 2026-09-01) carry
+# sampler_version by default; a rebuild at an earlier as-of point is
+# PRE-VERSION era and rebuilds era-faithfully — which is exactly what keeps
+# the anchored idx-57 family and MIP-0004's frozen verify-run blocks
+# byte-stable. Anchored records additionally declare their own era by field
+# presence (record_has_sampler_version), which the verify layer prefers.
+SAMPLER_ERA_FROM_LEDGER_INDEX = 96
+
+
+def _sampler_era_for(as_of_index) -> bool:
+    return (as_of_index is None
+            or as_of_index >= SAMPLER_ERA_FROM_LEDGER_INDEX)
+
 # Declared default sample size for sampled mode (part of the seed commitment).
 DEFAULT_SAMPLE_SIZE = 20_000
 
@@ -666,7 +680,7 @@ def compute_korder_report(paths: list, k_max: int = 4,
                           sample_size: int = DEFAULT_SAMPLE_SIZE,
                           force_sample: bool = False,
                           seed_salt=None,
-                          include_sampler_version: bool = True) -> dict:
+                          include_sampler_version=None) -> dict:
     """The higher-order concentration report over a path list. Pure function
     of its inputs; deterministic, no timestamps; two runs byte-identical.
 
@@ -699,6 +713,8 @@ def compute_korder_report(paths: list, k_max: int = 4,
             continue
         count = math.comb(n, k)
         if count > ENUM_LIMIT or force_sample:
+            if include_sampler_version is None:
+                include_sampler_version = _sampler_era_for(as_of_ledger_index)
             row = sampled_aci_k(paths, k, sample_size=sample_size,
                                 include_sampler_version=include_sampler_version,
                                 seed_salt=seed_salt)
@@ -1035,7 +1051,7 @@ def _prior_concentration_records(ledger_path: str, as_of_index):
 def build_epoch_observation(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH,
                             as_of_index: int = None, k_max: int = EPOCH_KMAX,
                             sample_size: int = DEFAULT_SAMPLE_SIZE,
-                            include_sampler_version: bool = True) -> dict:
+                            include_sampler_version=None) -> dict:
     """One longitudinal epoch observation at a fixed as-of chain point.
 
     Reuses the pairwise and k-order machinery VERBATIM (exact enumeration
