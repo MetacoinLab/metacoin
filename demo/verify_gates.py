@@ -69,6 +69,12 @@ import demo.tasks.task_0030_utc_tdb_conversion as task_0030
 import demo.tasks.task_0031_earth_mars_window as task_0031
 import demo.tasks.task_0033_mars_capture_entry_interface as task_0033
 import demo.tasks.task_0034_edl_deceleration_budget as task_0034
+import demo.tasks.task_0035_schema_migration_consistency as task_0035
+import demo.tasks.task_0036_api_contract_satisfiability as task_0036
+import demo.tasks.task_0037_dependency_resolution as task_0037
+import demo.tasks.task_0038_config_consistency_audit as task_0038
+import demo.tasks.task_0039_data_pipeline_reconciliation as task_0039
+import demo.tasks.task_0040_test_coverage_gap as task_0040
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -109,6 +115,12 @@ _TASK_REGISTRY = {
     "task-0031-earth-mars-window": task_0031,
     "task-0033-mars-capture-entry-interface": task_0033,
     "task-0034-edl-deceleration-budget": task_0034,
+    "task-0035-schema-migration-consistency": task_0035,
+    "task-0036-api-contract-satisfiability": task_0036,
+    "task-0037-dependency-resolution": task_0037,
+    "task-0038-config-consistency-audit": task_0038,
+    "task-0039-data-pipeline-reconciliation": task_0039,
+    "task-0040-test-coverage-gap": task_0040,
 }
 
 

@@ -65,6 +65,12 @@ import demo.tasks.task_0030_utc_tdb_conversion as task_0030
 import demo.tasks.task_0031_earth_mars_window as task_0031
 import demo.tasks.task_0033_mars_capture_entry_interface as task_0033
 import demo.tasks.task_0034_edl_deceleration_budget as task_0034
+import demo.tasks.task_0035_schema_migration_consistency as task_0035
+import demo.tasks.task_0036_api_contract_satisfiability as task_0036
+import demo.tasks.task_0037_dependency_resolution as task_0037
+import demo.tasks.task_0038_config_consistency_audit as task_0038
+import demo.tasks.task_0039_data_pipeline_reconciliation as task_0039
+import demo.tasks.task_0040_test_coverage_gap as task_0040
 from demo.verify_gates import verify
 import demo.test_meta_faucet as faucet
 from demo.x402_spend_stub import buy_compute
@@ -264,6 +270,11 @@ if __name__ == "__main__":
     #                         mass-driver -> timeline verdict (honest negative) -> dust persistence
     #                         (honest negative) -> longevity horizon (conditional yes) — every
     #                         parent edge executed live, honest negatives VERIFY)
+    #   R32-R35 task-0030/0031/0033/0034 honest: earn 2, spend 1 each -> balance 32  (the SPICE and
+    #                         EDL beachheads; 0034's heavy-lander honest negative VERIFIES)
+    #   R36-R41 task-0035..task-0040 honest: earn 2, spend 1 each -> balance 38  (the software/data
+    #                         transfer family: two honest negatives — 0035 migration_valid:false,
+    #                         0040 coverage_target_met:false — VERIFY by the identical rule)
     scenario = [
         {"task": task_0001, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0002, "tamper": False, "dispense": 2, "spend": 3},
@@ -300,6 +311,12 @@ if __name__ == "__main__":
         {"task": task_0031, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0033, "tamper": False, "dispense": 2, "spend": 1},
         {"task": task_0034, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0035, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0036, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0037, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0038, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0039, "tamper": False, "dispense": 2, "spend": 1},
+        {"task": task_0040, "tamper": False, "dispense": 2, "spend": 1},
     ]
 
     # Independent ground truth for the PER-ROUND assertions: the task that must run each
@@ -342,6 +359,12 @@ if __name__ == "__main__":
         {"task_id": "task-0031-earth-mars-window", "verify_passed": True},
         {"task_id": "task-0033-mars-capture-entry-interface", "verify_passed": True},
         {"task_id": "task-0034-edl-deceleration-budget", "verify_passed": True},
+        {"task_id": "task-0035-schema-migration-consistency", "verify_passed": True},
+        {"task_id": "task-0036-api-contract-satisfiability", "verify_passed": True},
+        {"task_id": "task-0037-dependency-resolution", "verify_passed": True},
+        {"task_id": "task-0038-config-consistency-audit", "verify_passed": True},
+        {"task_id": "task-0039-data-pipeline-reconciliation", "verify_passed": True},
+        {"task_id": "task-0040-test-coverage-gap", "verify_passed": True},
     ]
 
     print("=== agent_loop.py — Phase 1 demo (assign -> run -> prove -> verify -> dispense -> spend) ===")
@@ -374,7 +397,14 @@ if __name__ == "__main__":
           "closes, 86 of 90 grid instances honestly do not), and the EDL beachhead "
           "task-0033/0034 (arrival-to-entry-interface energetics; the "
           "ballistic deceleration budget whose heavy-lander class honestly "
-          "cannot reach the parachute gate).\n")
+          "cannot reach the parachute gate), and the software/data-engineering "
+          "transfer family task-0035 through task-0040 (schema migration whose "
+          "uniqueness invariant honestly cannot survive, contract "
+          "satisfiability with a proved-empty instance, a lockfile solve with "
+          "a minimal conflict core, a config audit and a ledger reconciliation "
+          "whose detectors prove themselves on planted faults first, and a "
+          "coverage gap honestly below target — the abstention design on "
+          "non-physics work, verified by the identical rule).\n")
 
     totals, summaries = run_loop(scenario, AGENT)
 
@@ -411,12 +441,12 @@ if __name__ == "__main__":
 
     # (2) AGGREGATE assertion — kept exactly as before.
     expected = {
-        "rounds": 35,
-        "passed": 34,
+        "rounds": 41,
+        "passed": 40,
         "rejected": 1,
-        "total_earned": 68,
-        "total_spent": 36,
-        "final_balance": 32,
+        "total_earned": 80,
+        "total_spent": 42,
+        "final_balance": 38,
     }
     totals_ok = totals == expected
 

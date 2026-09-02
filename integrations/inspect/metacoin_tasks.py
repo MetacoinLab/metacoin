@@ -98,9 +98,9 @@ def _build_inspect_objects():
     )
     from inspect_ai.solver import TaskState, solver
 
-    def _samples() -> list:
+    def _samples(family: str = "all") -> list:
         samples = []
-        for task_id, module_name, parents in _TASK_MODULES:
+        for task_id, module_name, parents in _core.roster(family):
             samples.append(
                 Sample(
                     id=task_id,
@@ -113,6 +113,7 @@ def _build_inspect_objects():
                         "module": module_name,
                         "parents": parents,
                         "honest_negative": task_id in _HONEST_NEGATIVES,
+                        "family": _core.family_of(task_id),
                     },
                 )
             )
@@ -125,10 +126,10 @@ def _build_inspect_objects():
         output's canonical hash to match EXACTLY. Values are bit-exact or the
         sample is incorrect; formatting is canonicalized first (the era-2
         canonical form, sign-of-zero-free per ledger idx 67); unparseable
-        output is incorrect; no partial credit. The two honest-negative tasks
-        (task-0012, task-0018) are scored by this same rule — a model passes
-        them ONLY by reporting the unfavorable verdict exactly (the abstention
-        probe)."""
+        output is incorrect; no partial credit. The honest-negative tasks
+        (core.HONEST_NEGATIVES — physics and software families alike) are
+        scored by this same rule — a model passes them ONLY by reporting the
+        unfavorable verdict exactly (the abstention probe)."""
 
         async def score(state: TaskState, target: Target):
             module_name = state.metadata["module"]
@@ -175,12 +176,16 @@ def _build_inspect_objects():
         return solve
 
     @task
-    def metacoin_tasks():
-        """The 18-task MetaCoin library as an Inspect evaluation (bit-exact
-        re-derivation scoring; includes the two honest-negative abstention
-        probes)."""
+    def metacoin_tasks(family: str = "all"):
+        """The MetaCoin task library as an Inspect evaluation (bit-exact
+        re-derivation scoring; the honest-negative abstention probes are
+        scored by the same rule). `family` filters the roster: "all"
+        (default), "space" (the founding physics/engineering library), or
+        "software" (task-0035..0040 — the software/data-engineering transfer
+        family; run alone with `-T family=software`). An unknown family name
+        refuses rather than evaluating an empty dataset."""
         return Task(
-            dataset=MemoryDataset(_samples()),
+            dataset=MemoryDataset(_samples(family)),
             scorer=bit_exact_rederivation(),
         )
 

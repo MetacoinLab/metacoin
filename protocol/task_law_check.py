@@ -124,7 +124,12 @@ _WAIVER_KEYS = ("rule", "function", "bound", "justification", "approved_by")
 # R4 — unit suffixes accepted at the END of a field name (after the last
 # underscore). Compound units use underscores for "per" (m_s, m_s2, km3_s2)
 # and digits for powers, exactly the house style the 18 modules already use.
+# Vocabulary amendments (MIP-0010 pattern — the vocabulary grows by
+# review-enforced amendment; precedent: Gyr 2026-08-31): 'cents' added
+# 2026-09-02 for the software/data task family's synthetic-currency
+# integer amounts (task-0039).
 UNIT_SUFFIXES = frozenset("""
+cents
 m km cm mm um nm m2 km2 m3 km3 s ms us ns min h hr day days yr Gyr
 kg g mg t N kN Pa kPa MPa bar J kJ MJ W kW MW Wh kWh A mA V mV Hz kHz MHz GHz
 K degC deg rad mrad arcsec arcmin dB dBi dBW dBm dBHz

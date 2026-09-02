@@ -99,6 +99,9 @@ DOCS_DIR = os.path.join(_REPO_ROOT, "docs")
 # -> bundle) must execute in the order a reader would.
 DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
              "TRUST-MODEL.md", "TOUR.md", "COLLABORATE.md", "PULSE.md",
+             # The software/data transfer family's evidence doc (joined
+             # with the task-0035..0040 batch).
+             "TRANSFER.md",
              # Integration READMEs joined the scan set 2026-08-31 after a
              # link audit caught them still claiming "the 18-task library" —
              # public-facing numeric claims may not live outside the

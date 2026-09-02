@@ -1,4 +1,4 @@
-# HAL benchmark package — the <!--chain:task_count-->33<!--/chain-->-task library in HAL's benchmark contract
+# HAL benchmark package — the <!--chain:task_count-->39<!--/chain-->-task library in HAL's benchmark contract
 
 Research-stage. This directory packages the MetaCoin task library in the
 benchmark format of Princeton's
@@ -30,7 +30,7 @@ harness turns out to require. **Nothing has been submitted.**
 
 - `benchmark_name = "metacoin_tasks"`; `requires_sandbox = False`; a
   dataset dict `task_id → {"prompt", "answer", "files", "metadata"}` for
-  all <!--chain:task_count-->33<!--/chain--> tasks (prompts carry the
+  all <!--chain:task_count-->39<!--/chain--> tasks (prompts carry the
   complete reference source, dependency
   modules included for the parented tasks).
 - `_ground_truth_keys = ["answer"]` — their anti-leakage convention
@@ -56,11 +56,11 @@ is testable today, standard library only:
 
 ```verify-run
 $ python3 integrations/hal/metacoin_benchmark.py --selftest
---- (a) dataset shape: 33 tasks, contract fields: OK ---  (trimmed; 33/33
+--- (a) dataset shape: 39 tasks, contract fields: OK ---  (trimmed; 39/39
 on reference submissions; tampered/garbage/missing all rejected)
 ```
-<!--expect:dataset shape: 33 tasks-->
-<!--expect:negatives 7/7: OK-->
+<!--expect:dataset shape: 39 tasks-->
+<!--expect:negatives 9/9: OK-->
 <!--expect:ALL CASES BEHAVED CORRECTLY-->
 
 ## Why this suits a reliability harness
@@ -73,13 +73,15 @@ on reference submissions; tampered/garbage/missing all rejected)
   post-hoc confidence (risk–coverage), and its paper poses — but does not
   yet measure — "selective operation: can the system recognize when it
   should defer, abstain, or escalate?".
-  <!--chain:honest_negative_count-->7<!--/chain--> tasks here (task-0012
+  <!--chain:honest_negative_count-->9<!--/chain--> tasks here (task-0012
   `"link_closes": false`; task-0018 `"feasible": false`; task-0020
   `"reference_conversion_acceptable": false`; task-0021
   `"feasible_at_equilibrium_conversion": false`; task-0027
   `"deployable_within_horizon": false`; task-0028
   `"dust_shade_persists": false`; task-0034
-  `"reference_class_decelerates": false`) make the
+  `"reference_class_decelerates": false`; and, from the software/data
+  transfer family, task-0035 `"migration_valid": false` and task-0040
+  `"coverage_target_met": false`) make the
   unfavorable verdict the scored-correct behavior under the identical
   bit-exact rule: an agent passes only by honestly reporting "no".
   `get_metrics` surfaces this subset separately.
@@ -97,7 +99,7 @@ fault-injection metrics have little to grip unless run with tool-using
 agents that compute their answers. These are first-order illustrative
 engineering computations with stated simplifications, verified for
 exactness — a probe set, not a general-capability benchmark, and
-<!--chain:task_count-->33<!--/chain--> tasks
+<!--chain:task_count-->39<!--/chain--> tasks
 means wide per-metric confidence intervals under repeated-run protocols.
 
 ---

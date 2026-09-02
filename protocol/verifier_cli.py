@@ -81,6 +81,12 @@ TASK_MODULES = {
     "task-0031": "demo.tasks.task_0031_earth_mars_window",
     "task-0033": "demo.tasks.task_0033_mars_capture_entry_interface",
     "task-0034": "demo.tasks.task_0034_edl_deceleration_budget",
+    "task-0035": "demo.tasks.task_0035_schema_migration_consistency",
+    "task-0036": "demo.tasks.task_0036_api_contract_satisfiability",
+    "task-0037": "demo.tasks.task_0037_dependency_resolution",
+    "task-0038": "demo.tasks.task_0038_config_consistency_audit",
+    "task-0039": "demo.tasks.task_0039_data_pipeline_reconciliation",
+    "task-0040": "demo.tasks.task_0040_test_coverage_gap",
 }
 
 # Honest note embedded in every submission (and visible in output).

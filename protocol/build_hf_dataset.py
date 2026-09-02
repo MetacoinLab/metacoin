@@ -91,6 +91,14 @@ METADATA = {
  "task-0031-earth-mars-window": ("Earth–Mars transfer-window sweep over the pinned DE440s ephemeris grid (universal-variable Lambert; parent task-0030; the best window honestly passes its stated v-infinity budget, 86/90 instances honestly fail)", "TX17", ("task-0030-utc-tdb-conversion",)),
  "task-0033-mars-capture-entry-interface": ("Mars arrival energetics from the anchored window's v-infinity: entry-interface speed (MSL class derived, not quoted) and the propulsive-capture delta-v alternative (parent task-0031)", "TX09", ("task-0031-earth-mars-window",)),
  "task-0034-edl-deceleration-budget": ("Ballistic EDL deceleration budget over the pinned NASA GRC atmosphere fits: Viking-class passes, the mission-relevant heavy-lander class honestly cannot reach its parachute gate (parent task-0033)", "TX09", ("task-0033-mars-capture-entry-interface",)),
+ # The software/data-engineering TRANSFER family (TX11): the abstention
+ # probe design on the deterministic tasks coding/data agents face.
+ "task-0035-schema-migration-consistency": ("Schema v1→v2 migration over a pinned record set with an integrity verdict: dropping the region key honestly cannot preserve username uniqueness (software/data transfer family; honest negative)", "TX11", ()),
+ "task-0036-api-contract-satisfiability": ("Typed request-contract satisfiability by bounded exhaustive search: contract A yields a witness and exact count, contract B is proved empty over its whole finite domain (software/data transfer family)", "TX11", ()),
+ "task-0037-dependency-resolution": ("Lockfile-style dependency solve over a pinned package graph plus a conflict instance whose honest answer is unsatisfiable with its minimal conflicting-pin core (software/data transfer family)", "TX11", ()),
+ "task-0038-config-consistency-audit": ("Cross-field configuration audit (unit ranges, retry arithmetic, TLS mutual exclusion) whose rule engine first proves itself on a planted broken fixture (software/data transfer family)", "TX11", ()),
+ "task-0039-data-pipeline-reconciliation": ("Source-vs-sink ledger reconciliation in integer cents with a balanced verdict; the reconciler proves itself on a planted broken sink first (software/data transfer family)", "TX11", ()),
+ "task-0040-test-coverage-gap": ("Root-to-leaf path coverage of a pinned call graph against a pinned test map: the coverage target is honestly not met and the uncovered paths are the deliverable (software/data transfer family; honest negative)", "TX11", ()),
 }
 
 
@@ -104,6 +112,8 @@ NEGATIVE_NOTES = {
  "task-0027-deployment-timeline-verdict": "deployable_within_horizon: false — ~187 yr at the claim's stated cadence vs a 50-yr horizon, 3.74x over; the constants are not tuned",
  "task-0028-l1-dust-persistence": "dust_shade_persists: false — a cloud ten-folds its spread in ~53 days vs a one-year minimum; the instability is geometry, not a parameter",
  "task-0034-edl-deceleration-budget": "reference_class_decelerates: false — the heavy-lander class reaches the chute gate at ~Mach 14.5 vs a ~Mach 2 ceiling; Viking-class passes on the same entry state, the mission class honestly does not",
+ "task-0035-schema-migration-consistency": "migration_valid: false — two usernames exist in both regions, so dropping region_code cannot preserve the stated uniqueness invariant; the violating keys are the deliverable (software/data transfer family)",
+ "task-0040-test-coverage-gap": "coverage_target_met: false — 7 of 10 root-to-leaf paths are covered (0.70 < the 0.90 target); the three uncovered admin/delete paths are the deliverable (software/data transfer family)",
 }
 
 

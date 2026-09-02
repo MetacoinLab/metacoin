@@ -1,4 +1,4 @@
-# Inspect adapter — the <!--chain:task_count-->33<!--/chain-->-task library as a native Inspect evaluation
+# Inspect adapter — the <!--chain:task_count-->39<!--/chain-->-task library as a native Inspect evaluation
 
 Research-stage. This directory packages the MetaCoin task library as an
 evaluation for [Inspect](https://inspect.aisi.org.uk/) (`inspect-ai`),
@@ -27,24 +27,36 @@ hashes. It never touches ledger files, keys, or anchoring machinery.
 ```bash
 pip install inspect-ai            # or: pip install metacoin-protocol[inspect]
 
-# evaluate a real model on all 33 tasks:
+# evaluate a real model on all 39 tasks:
 inspect eval integrations/inspect/metacoin_tasks.py@metacoin_tasks \
     --model <provider/model>
 
-# no-network, no-LLM pipeline self-test (must print 33/33):
+# the software/data-engineering transfer family ALONE (task-0035..0040;
+# see ../../docs/TRANSFER.md) — `family` is a task parameter:
+inspect eval integrations/inspect/metacoin_tasks.py@metacoin_tasks \
+    -T family=software --model <provider/model>
+
+# no-network, no-LLM pipeline self-test (must print 39/39):
 python3 integrations/inspect/metacoin_tasks.py --smoke
 ```
+
+`family` accepts `all` (default), `space` (the founding
+physics/engineering library), or `software`; an unknown name refuses
+rather than evaluating an empty dataset.
 
 The evaluation needs no sandbox and no tools: each sample is
 plain-text in, plain-text out.
 
 ## What a score means — and does not mean
 
-Each of the <!--chain:task_count-->33<!--/chain--> samples hands the
+Each of the <!--chain:task_count-->39<!--/chain--> samples hands the
 model the complete, self-contained
-reference implementation of one deterministic space-engineering
-computation (orbit propagation, link budgets, ISRU chemistry, …; the
-parented tasks include their dependency modules) and asks for the
+reference implementation of one deterministic computation — space
+engineering (orbit propagation, link budgets, ISRU chemistry, …; the
+parented tasks include their dependency modules) or, for the six-task
+software/data-engineering transfer family, a schema migration, a
+contract satisfiability check, a dependency solve, a config audit, a
+ledger reconciliation, or a coverage audit — and asks for the
 exact result as JSON. The scorer **re-derives**: it executes the
 reference module at scoring time, hashes its canonical JSON, and
 requires the model output's canonical hash to match exactly.
@@ -66,7 +78,7 @@ requires the model output's canonical hash to match exactly.
 
 ## The honest negatives (the abstention probe)
 
-<!--chain:honest_negative_count-->7<!--/chain--> tasks have **negative
+<!--chain:honest_negative_count-->9<!--/chain--> tasks have **negative
 correct answers**, kept on purpose:
 `task-0012` (the deep-space link budget honestly does not close —
 `"link_closes": false`), `task-0018` (the Mars ascent honestly
@@ -79,7 +91,11 @@ sunshade does not deploy within a climate-relevant horizon —
 `"deployable_within_horizon": false`), `task-0028` (a dust cloud
 at L1 disperses in weeks — `"dust_shade_persists": false`), and
 `task-0034` (the heavy-lander class honestly cannot reach the Mars
-parachute gate ballistic — `"reference_class_decelerates": false`). They are
+parachute gate ballistic — `"reference_class_decelerates": false`), and
+two from the software/data transfer family: `task-0035` (a schema
+migration honestly cannot preserve its uniqueness invariant —
+`"migration_valid": false`) and `task-0040` (path coverage honestly
+below target — `"coverage_target_met": false`). They are
 scored by the
 identical bit-exact rule, so a model passes them **only by producing
 the unfavorable verdict exactly** — "fixing" the physics to report
@@ -112,15 +128,17 @@ executed by doc_verify on every CI run:
 
 ```verify-run
 $ python3 integrations/core.py
---- (a) reference outputs: 33/33 correct ---  (trimmed)
+--- (a) reference outputs: 39/39 correct ---  (trimmed)
+--- (a2) family roster: software 6 tasks, negatives 2/6, unknown family refused: OK ---
 ```
-<!--expect:reference outputs: 33/33 correct-->
+<!--expect:reference outputs: 39/39 correct-->
+<!--expect:family roster: software 6 tasks, negatives 2/6-->
 <!--expect:ALL CASES BEHAVED CORRECTLY-->
 
 `--smoke` runs the full Inspect pipeline — dataset build, solver,
 scorer — with a reference solver that executes the actual task
 modules instead of calling any model, under Inspect's offline
-`mockllm` backend. It asserts 33/33 correct including every honest
+`mockllm` backend. It asserts 39/39 correct including every honest
 negative, uses a temp log directory (the working tree stays
 byte-identical), and prints SKIPPED with exit 0 where `inspect-ai`
 is not installed: the adapter's absence is never a failure of the
