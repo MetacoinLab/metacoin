@@ -375,22 +375,53 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
         ep_note = "no anchored epoch observation yet"
         if epochs:
             ep_bad = []
+            seeded_rows = 0
+            pre_era_rows = 0
             for ei, ep in epochs:
                 k_max_ep = max(
                     list(ep.get("k_values_computed", []))
                     + list(ep.get("k_values_sampled", []))
                     + list(ep.get("k_values_refused", []))
                     or [agent_concentration.EPOCH_KMAX])
+                # ERA-AWARE rebuild: records whose sampled rows carry
+                # sampler_version (the seeded-sampling era) rebuild with it;
+                # pre-version records (the idx-57 family) rebuild era-
+                # faithfully and validate against their era, stated.
+                versioned = agent_concentration.record_has_sampler_version(ep)
                 rebuilt = agent_concentration.build_epoch_observation(
                     ledger_path=source,
                     as_of_index=ep.get("as_of_ledger_index"),
-                    k_max=k_max_ep)
+                    k_max=k_max_ep,
+                    include_sampler_version=versioned)
                 if rebuilt["report_hash"] != ep.get("report_hash"):
                     ep_bad.append(f"idx-{ei}")
+                    continue
+                # THE SEEDED-ERA CHECK, per sampled row: seed commitment +
+                # anchored-seed re-run bit-exact (era-faithful for pre-
+                # version rows) — the Trick MC discipline, verified.
+                ep_paths = agent_concentration.build_paths(
+                    ledger_path=source,
+                    as_of_index=ep.get("as_of_ledger_index"))
+                for r in ep.get("profile", []):
+                    if r.get("mode") != "sampled":
+                        continue
+                    row_ok, row_why = agent_concentration.verify_sampled_row(
+                        r, ep_paths)
+                    if not row_ok:
+                        ep_bad.append(f"idx-{ei} k={r.get('k')}: "
+                                      + "; ".join(row_why)[:120])
+                    elif "sampler_version" in r:
+                        seeded_rows += 1
+                    else:
+                        pre_era_rows += 1
             ok = ok and not ep_bad
             ep_note = (f"{len(epochs)} epoch observation(s) fully rebuilt "
                        "(citations + deltas re-derived) == anchored "
                        + ", ".join(f"idx-{ei}" for ei, _p in epochs)
+                       + f"; sampled rows re-drawn from their anchored "
+                       f"seeds bit-exact ({seeded_rows} seeded-era, "
+                       f"{pre_era_rows} pre-version era — validated "
+                       "against their era)"
                        if not ep_bad else f"epoch rebuild mismatch: {ep_bad}")
         rows.append(("concentration", FULL, ok,
                      f"ACI re-measured (generation-locked): hash == anchored "

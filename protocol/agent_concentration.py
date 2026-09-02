@@ -165,6 +165,22 @@ KORDER_WEIGHTS_VERSION = "aci-korder-weights/0.1-uniform"
 # fabricated precision"); v0.2 delivers the variance analysis — sampled mode
 # with the finite-population-corrected standard error — instead of a refusal.
 ENUM_LIMIT = 200_000
+# THE SEEDED-SAMPLING META-RECORD (the Trick Monte-Carlo discipline): from
+# this version on, every sampled row anchors {seed, sample_size m,
+# population_size M, sampler_version} so a verifier can repeat the draw
+# under exactly the same conditions — adapting the public NASA Trick
+# Simulation Environment documentation's Monte-Carlo practice of keeping
+# "a record of the generated distributions, allowing repeated execution
+# under exactly the same conditions" (public docs, cited by title; no NASA
+# affiliation or endorsement). The version string names the ALGORITHM
+# identity (sha256-counter PRNG + rejection/partial-Fisher-Yates subset
+# draw + FPC standard error); any change to that algorithm must bump it,
+# because the anchored seed only re-derives the anchored rows under the
+# anchored sampler. Rows WITHOUT the field belong to the pre-version era
+# (the idx-57 epoch family) and validate against their era, stated —
+# the same by-era mechanics as the hash-era and task-law transitions.
+SAMPLER_VERSION = "aci-sampler/1.0"
+
 # Declared default sample size for sampled mode (part of the seed commitment).
 DEFAULT_SAMPLE_SIZE = 20_000
 
@@ -535,7 +551,7 @@ def _sample_subset_indices(n: int, k: int, m: int, rng: _DetPRNG) -> list:
 
 
 def sampled_aci_k(paths: list, k: int, sample_size: int = DEFAULT_SAMPLE_SIZE,
-                  seed_salt=None) -> dict:
+                  seed_salt=None, include_sampler_version: bool = True) -> dict:
     """One sampled profile row: SRS of k-subsets without replacement, sample
     mean of S_k as the estimator, and the finite-population-corrected standard
     error SE = sqrt((1 - m/M) * s^2 / m). The row ALWAYS carries its interval
@@ -578,6 +594,8 @@ def sampled_aci_k(paths: list, k: int, sample_size: int = DEFAULT_SAMPLE_SIZE,
         row["ci_note"] = ("normal-approximation interval clipped to the ACI "
                           "domain [0,1]; the reported standard_error is "
                           "unclipped")
+    if include_sampler_version:
+        row["sampler_version"] = SAMPLER_VERSION
     if seed_salt is not None:
         row["seed_salt"] = seed_salt
     # BY CONSTRUCTION: no bare sampled point number, ever.
@@ -585,11 +603,70 @@ def sampled_aci_k(paths: list, k: int, sample_size: int = DEFAULT_SAMPLE_SIZE,
     return row
 
 
+def record_has_sampler_version(payload_or_report: dict) -> bool:
+    """Era detector: True when any sampled profile row carries
+    sampler_version (the seeded-sampling era, 2026-09-01 onward). Records
+    whose sampled rows lack it are PRE-VERSION era and validate against
+    their era — by-field-presence, the same append-only mechanics as the
+    hash-era map (idx 67) and the task-law grandfathering (idx 74)."""
+    profile = payload_or_report.get("profile") or []
+    return any(r.get("mode") == "sampled" and "sampler_version" in r
+               for r in profile)
+
+
+def verify_sampled_row(row: dict, paths: list):
+    """The seeded-era verification of ONE anchored sampled row: (ok, reasons).
+
+    Three checks, each named on failure:
+      1. COMMITMENT — the anchored seed equals
+         sha256(canonical path-set | k | m [| salt]): the sample could not
+         have been re-rolled;
+      2. ANCHORED-SEED RE-RUN — the sampler re-run FROM THE ANCHORED SEED
+         (taken off the record, not re-derived) reproduces estimate,
+         standard_error, ci95, sample_size, and population_size bit-exact
+         ("repeated execution under exactly the same conditions");
+      3. VERSION — a row carrying sampler_version must name the current
+         SAMPLER_VERSION (a mismatch means the algorithm moved and the row
+         needs its own era mapping — refused loudly, never silently
+         re-derived); a row WITHOUT the field is pre-version era, and the
+         re-run is performed era-faithfully (no version field injected).
+    """
+    reasons = []
+    k = row["k"]
+    declared_m = row["sample_size"]
+    expected_seed = sampling_seed(paths, k, declared_m,
+                                  row.get("seed_salt"))
+    if row.get("seed") != expected_seed:
+        reasons.append(f"seed commitment violated at k={k}: anchored "
+                       f"{str(row.get('seed'))[:12]} != committed "
+                       f"{expected_seed[:12]}")
+    versioned = "sampler_version" in row
+    if versioned and row["sampler_version"] != SAMPLER_VERSION:
+        reasons.append(f"sampler-version mismatch at k={k}: row "
+                       f"{row['sampler_version']!r} vs current "
+                       f"{SAMPLER_VERSION!r} — an era mapping is required "
+                       "before this row can be re-verified")
+    if not reasons:
+        rerun = sampled_aci_k(paths, k, sample_size=declared_m,
+                              seed_salt=row.get("seed_salt"),
+                              include_sampler_version=versioned)
+        # override nothing: the re-run derives the same committed seed, so
+        # comparing the full rows IS the anchored-seed re-execution check
+        for field in ("estimate", "standard_error", "ci95", "sample_size",
+                      "population_size", "seed"):
+            if rerun.get(field) != row.get(field):
+                reasons.append(f"anchored-seed re-run diverged at k={k} "
+                               f"field {field!r}: {rerun.get(field)} vs "
+                               f"anchored {row.get(field)}")
+    return (not reasons, reasons)
+
+
 def compute_korder_report(paths: list, k_max: int = 4,
                           as_of_ledger_index: int = None,
                           sample_size: int = DEFAULT_SAMPLE_SIZE,
                           force_sample: bool = False,
-                          seed_salt=None) -> dict:
+                          seed_salt=None,
+                          include_sampler_version: bool = True) -> dict:
     """The higher-order concentration report over a path list. Pure function
     of its inputs; deterministic, no timestamps; two runs byte-identical.
 
@@ -623,6 +700,7 @@ def compute_korder_report(paths: list, k_max: int = 4,
         count = math.comb(n, k)
         if count > ENUM_LIMIT or force_sample:
             row = sampled_aci_k(paths, k, sample_size=sample_size,
+                                include_sampler_version=include_sampler_version,
                                 seed_salt=seed_salt)
             profile.append(row)
             sampled.append(k)
@@ -956,7 +1034,8 @@ def _prior_concentration_records(ledger_path: str, as_of_index):
 
 def build_epoch_observation(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH,
                             as_of_index: int = None, k_max: int = EPOCH_KMAX,
-                            sample_size: int = DEFAULT_SAMPLE_SIZE) -> dict:
+                            sample_size: int = DEFAULT_SAMPLE_SIZE,
+                            include_sampler_version: bool = True) -> dict:
     """One longitudinal epoch observation at a fixed as-of chain point.
 
     Reuses the pairwise and k-order machinery VERBATIM (exact enumeration
@@ -976,7 +1055,8 @@ def build_epoch_observation(ledger_path: str = work_molecule.DEFAULT_LEDGER_PATH
     pair_rep = compute_report(paths)
     ko = compute_korder_report(paths, k_max=k_max,
                                as_of_ledger_index=as_of_index,
-                               sample_size=sample_size)
+                               sample_size=sample_size,
+                               include_sampler_version=include_sampler_version)
 
     pairwise_baseline, korder_baseline, epoch_obs = (
         _prior_concentration_records(ledger_path, as_of_index))
@@ -1607,6 +1687,49 @@ def _selftest() -> int:
                    == canonical_json(mixed)
                    and sampled_aci_k(het_pop, 3, 100, seed_salt=1)["seed"]
                    != sampled_aci_k(het_pop, 3, 100, seed_salt=2)["seed"]))
+
+    # (v7) THE SEEDED-SAMPLING META-RECORD (the Trick MC discipline):
+    # every new sampled row anchors seed + m + M + sampler_version, and the
+    # seeded-era verification re-draws from the ANCHORED seed bit-exact.
+    seeded_row = sampled_aci_k(het_pop, 3, 100)
+    checks.append(("new sampled rows anchor {seed, m, M, sampler_version}",
+                   seeded_row.get("sampler_version") == SAMPLER_VERSION
+                   and all(f in seeded_row for f in
+                           ("seed", "sample_size", "population_size"))))
+    ok_v, why_v = verify_sampled_row(seeded_row, het_pop)
+    checks.append(("a genuine anchored row re-verifies from its anchored "
+                   "seed (identical rows bit-exact)", ok_v and not why_v))
+    # WRONG-SEED FIXTURE: a tampered seed must FAIL loudly, by name
+    wrong_seed = dict(seeded_row)
+    wrong_seed["seed"] = "f" * 64
+    ok_w, why_w = verify_sampled_row(wrong_seed, het_pop)
+    checks.append(("WRONG-SEED fixture FAILS loudly (seed commitment "
+                   "violated, named)",
+                   not ok_w and any("seed commitment violated" in r
+                                    for r in why_w)))
+    # a moved sampler must be refused, never silently re-derived
+    wrong_ver = dict(seeded_row)
+    wrong_ver["sampler_version"] = "aci-sampler/0.9-fixture"
+    ok_ver, why_ver = verify_sampled_row(wrong_ver, het_pop)
+    checks.append(("a sampler-version mismatch is refused by name (era "
+                   "mapping required, no silent re-derivation)",
+                   not ok_ver and any("sampler-version mismatch" in r
+                                      for r in why_ver)))
+    # PRE-VERSION ERA: a row without the field (the idx-57 family) verifies
+    # era-faithfully — the re-run injects no version field
+    pre_era_row = sampled_aci_k(het_pop, 3, 100,
+                                include_sampler_version=False)
+    ok_pre, why_pre = verify_sampled_row(pre_era_row, het_pop)
+    checks.append(("a pre-version-era row (no sampler_version) verifies "
+                   "against its era, era-faithfully",
+                   ok_pre and "sampler_version" not in pre_era_row))
+    # a tampered ESTIMATE under the correct seed also fails, by field name
+    wrong_est = dict(seeded_row)
+    wrong_est["estimate"] = seeded_row["estimate"] + 1e-3
+    ok_e, why_e = verify_sampled_row(wrong_est, het_pop)
+    checks.append(("a tampered estimate under the correct seed fails the "
+                   "anchored-seed re-run, field named",
+                   not ok_e and any("field 'estimate'" in r for r in why_e)))
 
     # (f) real-ledger report (READ-ONLY) when the runtime ledger exists locally:
     # deterministic across two full rebuilds, and the same-operator baseline holds.
