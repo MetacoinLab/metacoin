@@ -17,7 +17,7 @@ MetaCoin is a research-stage verification protocol that anchors machine work to 
 </p>
 
 <!--era-pin:entry_count=100 tip_hash_prefix=650b3943e023-->
-> **Protocol state as of ledger entry <!--era:entry_count-->100<!--/era--> (tip index <!--era:tip_index-->99<!--/era-->, hash `<!--era:tip_hash_prefix-->650b3943e023<!--/era-->…`, September 2026).** Every tagged number in this README hangs off that declared chain point, and `protocol/doc_verify.py` re-checks each one against the chain at that point on every CI run. The README moves in deliberate monthly batches; the chain and [`docs/`](docs/) carry the live numbers.
+> **Protocol state as of ledger entry <!--era:entry_count-->100<!--/era--> (tip index <!--era:tip_index-->99<!--/era-->, hash `<!--era:tip_hash_prefix-->650b3943e023<!--/era-->…`).** Every tagged number in this README hangs off that declared chain point, and `protocol/doc_verify.py` re-checks each one against the chain at that point on every CI run. This README is pinned to ledger entry <!--era:entry_count-->100<!--/era-->; the chain and [`docs/`](docs/) carry live state.
 
 ---
 
@@ -53,7 +53,7 @@ metacoin participate                             # the six-rung participant path
 
 The full verification corpus ships inside the package — a pip-installed `metacoin` verifies from an empty directory, and a CI cold-install test enforces it. The 15-minute guided walk is [`docs/TOUR.md`](docs/TOUR.md).
 
-A probe subset of the task library is published as a Hugging Face dataset: [metacoin-lab/metacoin-tasks](https://huggingface.co/datasets/metacoin-lab/metacoin-tasks) — **29 tasks as published 2026-09-01, currently behind the repository's 33**; the dataset refreshes on the monthly batch cadence, and its `verify_tasks.py` re-derives every published hash against the anchored record.
+A probe subset of the task library is published as a Hugging Face dataset: [metacoin-lab/metacoin-tasks](https://huggingface.co/datasets/metacoin-lab/metacoin-tasks) — **29 tasks as published 2026-09-01, currently behind the repository's 33**; the published set refreshes as the anchored library grows, and its `verify_tasks.py` re-derives every published hash against the anchored record.
 
 ## By the numbers
 
@@ -77,16 +77,23 @@ The board is generated, not drawn: `python3 protocol/status_board_svg.py` render
 | Independent mirror attestation | idx 72 <!--idx:72=mirror_attestation_anchored--> (non-coordinator device, fingerprint-decided) |
 | Latest anchored pulse | idx 80 <!--idx:80=pulse_recorded--> (full-battery green, on the record) |
 
-## What shipped this month (August → September 2026)
+## Milestones on the chain
 
-- **Canonical-form era transition + first anchored self-correction** (idx 63–68): cross-machine re-derivation exposed negative zeros; era-2 canonicalization adopted chain-wide, append-only.
-- **Cross-machine participation + independent mirror** (idx 69–73): a second machine registered, verified, and attested the chain from outside the coordinator's fingerprint set.
-- **Task law** (idx 74–76): MIP-0008/0009/0010 — assertion, loop-bound, unit-vocabulary, and canonical-interface rules that bind every new task module; 18 grandfathered / 15 bound / 0 violations at the pin.
-- **Three physics beachheads**: NASA-CEA-anchored combustion checks, a pinned DE440s ephemeris with a pure-stdlib SPK reader (tasks 0030–0031, idx 94–95), and an EDL deceleration budget (tasks 0033–0034, idx 97–98) that found its honest negative rather than tuning past it.
-- **The first anchored pulse** (idx 80): a signed, re-derivable "the whole stack was green here" record.
-- **Four mission verdicts** (idx 82, 91, 96, 99) + the feasibility envelope (idx 92) + the claim-source correction (idx 93).
-- **Integrations**: [Inspect](integrations/inspect/), [HAL](integrations/hal/), [model baselines](integrations/baselines/), and an [Open MCT trust-ledger console](integrations/openmct/) — a viewer, not a verifier, and its README says so first.
-- **Release gate, mechanical era**: the gate reports READY only when every mechanical criterion passes; approval stays human, and the gate prints verbatim — *"DEFAULT IS NO RELEASE: a release proceeds only from READY plus recorded coordinator approval (MIP-0005)."*
+Ordered by ledger index — the chain is the timeline. The fuller record lives in [`CHANGELOG.md`](CHANGELOG.md), keyed the same way.
+
+| Idx range | Milestone | What it establishes |
+|---|---|---|
+| idx 0–16 | Genesis and the first task era | hash-chained ledger, external verification, batch agent attestation |
+| idx 17–27 | Provenance, concentration, trust | molecule catalogs, the anchored ACI baseline, cut certificates, trust vectors with no combined score |
+| idx 28–47 | Identity, two-flow, intake | Lamport identity with rotation, treasury + Gate-3 clawback, heartbeat emission, six-rung intake — attack drills defeated on-record |
+| idx 48–66 | Second task era and catalog generations | 17-task re-derivations, the concentration epoch series, <!--era:catalog_anchor_count-->5<!--/era--> catalog generations all still verifiable, MIP governance opens |
+| idx 67–68 | Canonical-form era transition + first self-correction | a second machine's negative-zero finding fixed chain-wide, append-only; era-1 hashes still verify |
+| idx 69–73 | Cross-machine era + independent mirror | participation and mirror attestation from outside the coordinator's fingerprint set |
+| idx 74–76 | Task law | MIP-0008/0009/0010 bind every new task module (assertions, bounded loops, unit vocabulary, canonical interface) |
+| idx 80 | The first anchored pulse | a re-derivable "the whole stack was green here" record |
+| idx 82, idx 96, idx 99 | Mars mission verdicts v1→v3 | FALSE with five quantified bottlenecks; each extension supersedes on-chain while the superseded verdict still re-derives |
+| idx 83–93 | The civilization-scale claim | 8 pinned-constant tasks, verdict FALSE, the feasibility envelope, the append-only citation correction |
+| idx 94–98 | SPICE + EDL beachheads | a pinned DE440s ephemeris read by a stdlib Chebyshev reader; an EDL budget that finds its honest negative |
 
 ## What this is not
 
@@ -99,6 +106,7 @@ The board is generated, not drawn: `python3 protocol/status_board_svg.py` render
 - [`docs/VERIFICATION.md`](docs/VERIFICATION.md) · [`docs/TRUST-MODEL.md`](docs/TRUST-MODEL.md) — what a green run proves, and what it deliberately does not
 - [`docs/PARTICIPATE.md`](docs/PARTICIPATE.md) · [`docs/COLLABORATE.md`](docs/COLLABORATE.md) — the six-rung intake path
 - [`docs/PULSE.md`](docs/PULSE.md) — the anchored heartbeat
+- [`CHANGELOG.md`](CHANGELOG.md) — the ledger-native change record, keyed by idx range
 - [`integrations/`](integrations/) — Inspect · HAL · baselines · Open MCT console
 - [Hugging Face dataset](https://huggingface.co/datasets/metacoin-lab/metacoin-tasks) — the published probe set
 - [`WHITEPAPER.md`](WHITEPAPER.md) · [`TOKENOMICS.md`](TOKENOMICS.md) · [`mip/`](mip/) — the design documents (`[SPEC]`, not deployment) and every governance decision

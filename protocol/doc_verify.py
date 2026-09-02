@@ -106,7 +106,10 @@ DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
              "integrations/inspect/README.md",
              "integrations/hal/README.md",
              "integrations/baselines/README.md",
-             "integrations/openmct/README.md")
+             "integrations/openmct/README.md",
+             # The ledger-native changelog: keyed by idx range, typed idx
+             # references only (no chain tokens — past ranges never rot).
+             "./CHANGELOG.md")
 # TOUR.md is ERA-PINNED like the README (era tokens, no chain tokens):
 # --render never touches it, and --check verifies its tagged numbers at
 # its own declared as-of point via the same check_readme machinery.
