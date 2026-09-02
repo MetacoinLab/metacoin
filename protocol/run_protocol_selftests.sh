@@ -44,6 +44,7 @@ TESTS=(
     "pulse.py --selftest"
     "mission_chain.py --selftest"
     "mission_envelope.py --selftest"
+    "mission_graph_svg.py --selftest"
     "release_readiness.py --selftest"
     "../metacoin_cli/selftest.py"
 )

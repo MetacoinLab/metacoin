@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="976" height="318" viewBox="0 0 976 318" font-family="monospace" font-size="11">
+<title>mission-0001-v3-mars-isru-refuel-ascent — anchored mission verdict DAG (verdict_hash a080855e54ad)</title>
+<text x="24" y="20" font-size="13" fill="#233">mission-0001-v3-mars-isru-refuel-ascent — mission_feasible: FALSE (5/6 constraining nodes fail) · anchored verdict a080855e54ad</text>
+<text x="24" y="34" font-size="10" fill="#567">solid = feeds (hash-enforced at execution) · dashed = constrains/informs (typed) · red = honest FALSE · green = TRUE · slate = upstream</text>
+<line x1="382" y1="68" x2="404" y2="68" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="572" y1="68" x2="594" y2="68" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="762" y1="68" x2="784" y2="164" stroke="#9aa7b3" stroke-width="1.4" stroke-dasharray="6,4"/>
+<line x1="192" y1="68" x2="214" y2="68" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="382" y1="68" x2="784" y2="164" stroke="#9aa7b3" stroke-width="1.4" stroke-dasharray="6,4"/>
+<line x1="192" y1="132" x2="214" y2="132" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="382" y1="132" x2="404" y2="132" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="192" y1="196" x2="214" y2="196" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="192" y1="132" x2="214" y2="196" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="382" y1="196" x2="594" y2="132" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="382" y1="132" x2="594" y2="132" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="572" y1="132" x2="594" y2="132" stroke="#9aa7b3" stroke-width="1.4"/>
+<line x1="382" y1="196" x2="784" y2="164" stroke="#9aa7b3" stroke-width="1.4" stroke-dasharray="6,4"/>
+<line x1="572" y1="132" x2="784" y2="164" stroke="#9aa7b3" stroke-width="1.4" stroke-dasharray="6,4"/>
+<line x1="762" y1="132" x2="784" y2="164" stroke="#9aa7b3" stroke-width="1.4" stroke-dasharray="6,4"/>
+<line x1="192" y1="260" x2="784" y2="164" stroke="#9aa7b3" stroke-width="1.4" stroke-dasharray="6,4"/>
+<line x1="382" y1="132" x2="784" y2="164" stroke="#9aa7b3" stroke-width="1.4" stroke-dasharray="6,4"/>
+<g data-node="mission-0001"><rect x="784" y="142" width="168" height="44" rx="6" fill="#7f0f0f"/><text x="792" y="160" fill="#ffffff">mission verdict</text><text x="792" y="176" fill="#e6edf3" font-size="10">FALSE</text></g>
+<g data-node="task-0012"><rect x="24" y="238" width="168" height="44" rx="6" fill="#b71c1c"/><text x="32" y="256" fill="#ffffff">task-0012</text><text x="32" y="272" fill="#e6edf3" font-size="10">FALSE — honest no</text></g>
+<g data-node="task-0015"><rect x="24" y="110" width="168" height="44" rx="6" fill="#5c6f82"/><text x="32" y="128" fill="#ffffff">task-0015</text><text x="32" y="144" fill="#e6edf3" font-size="10">upstream</text></g>
+<g data-node="task-0017"><rect x="214" y="110" width="168" height="44" rx="6" fill="#5c6f82"/><text x="222" y="128" fill="#ffffff">task-0017</text><text x="222" y="144" fill="#e6edf3" font-size="10">upstream</text></g>
+<g data-node="task-0018"><rect x="404" y="110" width="168" height="44" rx="6" fill="#b71c1c"/><text x="412" y="128" fill="#ffffff">task-0018</text><text x="412" y="144" fill="#e6edf3" font-size="10">FALSE — honest no</text></g>
+<g data-node="task-0019"><rect x="24" y="174" width="168" height="44" rx="6" fill="#5c6f82"/><text x="32" y="192" fill="#ffffff">task-0019</text><text x="32" y="208" fill="#e6edf3" font-size="10">upstream</text></g>
+<g data-node="task-0020"><rect x="214" y="174" width="168" height="44" rx="6" fill="#b71c1c"/><text x="222" y="192" fill="#ffffff">task-0020</text><text x="222" y="208" fill="#e6edf3" font-size="10">FALSE — honest no</text></g>
+<g data-node="task-0021"><rect x="594" y="110" width="168" height="44" rx="6" fill="#b71c1c"/><text x="602" y="128" fill="#ffffff">task-0021</text><text x="602" y="144" fill="#e6edf3" font-size="10">FALSE — honest no</text></g>
+<g data-node="task-0030"><rect x="24" y="46" width="168" height="44" rx="6" fill="#5c6f82"/><text x="32" y="64" fill="#ffffff">task-0030</text><text x="32" y="80" fill="#e6edf3" font-size="10">upstream</text></g>
+<g data-node="task-0031"><rect x="214" y="46" width="168" height="44" rx="6" fill="#2e7d32"/><text x="222" y="64" fill="#ffffff">task-0031</text><text x="222" y="80" fill="#e6edf3" font-size="10">TRUE</text></g>
+<g data-node="task-0033"><rect x="404" y="46" width="168" height="44" rx="6" fill="#5c6f82"/><text x="412" y="64" fill="#ffffff">task-0033</text><text x="412" y="80" fill="#e6edf3" font-size="10">upstream</text></g>
+<g data-node="task-0034"><rect x="594" y="46" width="168" height="44" rx="6" fill="#b71c1c"/><text x="602" y="64" fill="#ffffff">task-0034</text><text x="602" y="80" fill="#e6edf3" font-size="10">FALSE — honest no</text></g>
+</svg>

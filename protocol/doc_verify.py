@@ -342,6 +342,10 @@ def compute_era_tokens(entries, pin_count):
         "mip_decision_count": str(sum(
             1 for p in payloads
             if p.get("event") == "mip_decision_recorded")),
+        "mission_verdict_count": str(sum(
+            1 for p in payloads
+            if p.get("event") == "mission_verdict_recorded"
+            and p.get("status") == "mission-verdict-confirmed")),
         "epoch_path_count": str(epoch.get("path_count", "")),
         "epoch_pairwise_aci": (f"{round(epoch['pairwise_aci'], 6)}"
                                if "pairwise_aci" in epoch else ""),
