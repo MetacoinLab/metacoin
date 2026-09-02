@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+# Copyright (c) 2023-2026 MetaCoin-Lab. Licensed under SML-1.0 — see LICENSE.
+"""verify_tasks.py — don't trust, verify: re-derive every task and compare hashes.
+
+Standard library only. Two modes:
+
+  python3 verify_tasks.py
+      Re-runs all @TASK_COUNT@ task modules in tasks/, recomputes each canonical
+      output hash AND each spec hash (SHA-256 of the source file's exact
+      bytes), and compares both against manifest.json. Exit 0 only if
+      every task matches.
+
+  python3 verify_tasks.py --check-claim CLAIM.json
+      Verifies an agent's claimed result for one task. CLAIM.json must be
+      {"task_id": "...", "claimed_output_hash": "..."} — the verifier
+      re-derives the task independently and compares. A claim is judged
+      only against re-derivation, never against the claimant's own JSON.
+
+@NEGATIVE_SENTENCE@ An agent that
+"fixes" the physics to report success produces a different canonical
+JSON, a different hash, and a REJECT. Admitting the negative is the
+only way to pass.
+"""
+
+import sys
+sys.dont_write_bytecode = True  # keep the package byte-clean (no __pycache__)
+
+import argparse
+import hashlib
+import importlib
+import json
+import os
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+TASKS_DIR = os.path.join(HERE, "tasks")
+
+
+def load_manifest() -> dict:
+    with open(os.path.join(HERE, "manifest.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
+def import_task(module_filename: str):
+    sys.path.insert(0, TASKS_DIR)
+    try:
+        return importlib.import_module(module_filename[:-3])
+    finally:
+        sys.path.pop(0)
+
+
+def rederive(entry: dict) -> dict:
+    """Re-run one task; return actual spec and output hashes."""
+    path = os.path.join(TASKS_DIR, entry["module"])
+    with open(path, "rb") as f:
+        spec_hash = hashlib.sha256(f.read()).hexdigest()
+    mod = import_task(entry["module"])
+    result = mod.compute()
+    return {
+        "task_id": entry["task_id"],
+        "spec_sha256": spec_hash,
+        "canonical_output_sha256": mod.output_hash(result),
+    }
+
+
+def verify_all(manifest: dict) -> int:
+    failures = 0
+    for entry in manifest["tasks"]:
+        actual = rederive(entry)
+        spec_ok = actual["spec_sha256"] == entry["spec_sha256"]
+        out_ok = actual["canonical_output_sha256"] == entry["canonical_output_sha256"]
+        tag = " [honest-negative]" if entry.get("honest_negative") else ""
+        if spec_ok and out_ok:
+            print(f"PASS  {entry['task_id']}{tag}")
+        else:
+            failures += 1
+            print(f"FAIL  {entry['task_id']}{tag}")
+            if not spec_ok:
+                print(f"      spec hash   expected {entry['spec_sha256']}")
+                print(f"                  actual   {actual['spec_sha256']}")
+            if not out_ok:
+                print(f"      output hash expected {entry['canonical_output_sha256']}")
+                print(f"                  actual   {actual['canonical_output_sha256']}")
+    total = len(manifest["tasks"])
+    print(f"\n{total - failures}/{total} tasks re-derived to the recorded hashes.")
+    return failures
+
+
+def check_claim(manifest: dict, claim_path: str) -> int:
+    with open(claim_path, encoding="utf-8") as f:
+        claim = json.load(f)
+    task_id = claim.get("task_id")
+    claimed = claim.get("claimed_output_hash")
+    if not task_id or not claimed:
+        print("REJECT: claim must contain task_id and claimed_output_hash")
+        return 1
+    entry = next((e for e in manifest["tasks"] if e["task_id"] == task_id), None)
+    if entry is None:
+        print(f"REJECT: unknown task_id {task_id!r}")
+        return 1
+    actual = rederive(entry)
+    if actual["canonical_output_sha256"] == claimed:
+        note = ""
+        if entry.get("honest_negative"):
+            note = " (honest-negative task: the correct answer includes the negative verdict)"
+        print(f"VERIFIED: {task_id} — claim matches independent re-derivation{note}")
+        return 0
+    print(f"REJECT: {task_id} — claimed {claimed}")
+    print(f"        re-derived {actual['canonical_output_sha256']}")
+    return 1
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--check-claim", metavar="CLAIM.json",
+                        help="verify one claimed result against re-derivation")
+    args = parser.parse_args()
+    manifest = load_manifest()
+    if args.check_claim:
+        return check_claim(manifest, args.check_claim)
+    return verify_all(manifest)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

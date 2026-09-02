@@ -200,3 +200,8 @@ mission_envelope.json
 integrations/openmct/data/
 integrations/openmct/node_modules/
 integrations/openmct/package-lock.json
+
+# the Hugging Face dataset package (protocol/build_hf_dataset.py --out) is a
+# DERIVED artifact — rebuilt deterministically from the registry + ledger and
+# published by the hf-sync workflow; never committed here.
+datasets/

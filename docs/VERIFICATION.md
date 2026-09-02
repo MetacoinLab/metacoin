@@ -130,3 +130,17 @@ self-tests) — CI requires both green plus a fresh-clone full pass on every
 commit. The layer tools remain individually available (`audit.py --verify`,
 `agent_verifier.py`, `challenge_response.py`, …) — the flagship adds no
 authority of its own; it only orchestrates verifiers that each stand alone.
+
+## The published dataset mirror
+
+A probe subset of the task library is published as the Hugging Face
+dataset `metacoin-lab/metacoin-tasks`. That package is generated and
+synced automatically from this repository: `protocol/build_hf_dataset.py`
+(standard library only, self-tested) rebuilds it deterministically from
+the live task registry with every canonical output hash asserted against
+the anchored ledger record — a drifted module refuses the build — and the
+`hf-sync` workflow uploads it only when the task count or a task hash
+actually changed, with the source commit named in the Hub commit message.
+The check on any download is the package's own `verify_tasks.py`, which
+must re-derive every published task to the recorded hashes (N/N) with no
+network and no trust in this repository's claims.
