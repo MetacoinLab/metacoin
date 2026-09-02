@@ -67,6 +67,8 @@ import demo.tasks.task_0028_l1_dust_persistence as task_0028
 import demo.tasks.task_0029_shade_longevity_horizon as task_0029
 import demo.tasks.task_0030_utc_tdb_conversion as task_0030
 import demo.tasks.task_0031_earth_mars_window as task_0031
+import demo.tasks.task_0033_mars_capture_entry_interface as task_0033
+import demo.tasks.task_0034_edl_deceleration_budget as task_0034
 
 # Default task when a caller assumes a single task (keeps prior behavior unchanged).
 _DEFAULT_TASK = task_0001
@@ -105,6 +107,8 @@ _TASK_REGISTRY = {
     "task-0029-shade-longevity-horizon": task_0029,
     "task-0030-utc-tdb-conversion": task_0030,
     "task-0031-earth-mars-window": task_0031,
+    "task-0033-mars-capture-entry-interface": task_0033,
+    "task-0034-edl-deceleration-budget": task_0034,
 }
 
 

@@ -114,6 +114,13 @@ TASK_MODULES: list[tuple[str, str, list[str]]] = [
     ("task-0030-utc-tdb-conversion", "task_0030_utc_tdb_conversion", []),
     ("task-0031-earth-mars-window", "task_0031_earth_mars_window",
      ["task_0030_utc_tdb_conversion"]),
+    ("task-0033-mars-capture-entry-interface",
+     "task_0033_mars_capture_entry_interface",
+     ["task_0031_earth_mars_window", "task_0030_utc_tdb_conversion"]),
+    ("task-0034-edl-deceleration-budget",
+     "task_0034_edl_deceleration_budget",
+     ["task_0033_mars_capture_entry_interface",
+      "task_0031_earth_mars_window", "task_0030_utc_tdb_conversion"]),
 ]
 
 # The honest-negative tasks (the abstention probe — see module docstring).
@@ -124,6 +131,7 @@ HONEST_NEGATIVES = {
     "task-0021-conversion-corrected-ascent",
     "task-0027-deployment-timeline-verdict",
     "task-0028-l1-dust-persistence",
+    "task-0034-edl-deceleration-budget",
 }
 
 

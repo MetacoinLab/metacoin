@@ -79,6 +79,8 @@ TASK_MODULES = {
     "task-0029": "demo.tasks.task_0029_shade_longevity_horizon",
     "task-0030": "demo.tasks.task_0030_utc_tdb_conversion",
     "task-0031": "demo.tasks.task_0031_earth_mars_window",
+    "task-0033": "demo.tasks.task_0033_mars_capture_entry_interface",
+    "task-0034": "demo.tasks.task_0034_edl_deceleration_budget",
 }
 
 # Honest note embedded in every submission (and visible in output).
