@@ -4745,19 +4745,112 @@
       },
       "prev_hash": "0bbc9ab3eb0bafeeb714426796c00233dcc852f57f5e37eaf670887b430c9281",
       "timestamp": 1788256193.833472
+    },
+    {
+      "hash": "3ee2692318245f619546c9fec1b73be618b218ef374a563549a355d28b697c83",
+      "index": 97,
+      "payload": {
+        "anchored": true,
+        "evaluated_at": 1788314183.816282,
+        "event": "self_recompute_result",
+        "limitation_note": "SAME-MACHINE self-recompute (research-stage, zero-value). The coordinator generated and re-evaluated this submission on the SAME host; a matching output_hash proves the result is REPRODUCIBLE run-to-run on this machine. This is NOT cross-machine and NOT independent third-party verification \u2014 no separate party, machine, or platform is involved, so it adds no cross-party independence (it is a stronger sibling of the deterministic re-run check). A hash can be copied. Not consensus, not mainnet, not payment, not a token.",
+        "local_output_hash": "1c9d584b0c890edb302aa845412e473a0eeadd35622cbd94f8c3459cfb219dea",
+        "match": true,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R3",
+        "status": "locally-verified",
+        "submitted_output_hash": "1c9d584b0c890edb302aa845412e473a0eeadd35622cbd94f8c3459cfb219dea",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0033",
+        "topology": "same-machine-self-recompute",
+        "verifier_id": "spark-local-same-operator",
+        "verifier_machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+        "verifier_repo_commit": "a2db54a34908277f34df544ce82ae7e4bb68eef3",
+        "zero_value": true
+      },
+      "prev_hash": "ae126922563fdcf376162e42fd351889e084298c3fdd4d64a13e3d968b7de506",
+      "timestamp": 1788314183.8168766
+    },
+    {
+      "hash": "491b3e056ea831d93bd66a1913f48563f59a29494cb5bf1460ab50fe006e1c73",
+      "index": 98,
+      "payload": {
+        "anchored": true,
+        "evaluated_at": 1788314183.980028,
+        "event": "self_recompute_result",
+        "limitation_note": "SAME-MACHINE self-recompute (research-stage, zero-value). The coordinator generated and re-evaluated this submission on the SAME host; a matching output_hash proves the result is REPRODUCIBLE run-to-run on this machine. This is NOT cross-machine and NOT independent third-party verification \u2014 no separate party, machine, or platform is involved, so it adds no cross-party independence (it is a stronger sibling of the deterministic re-run check). A hash can be copied. Not consensus, not mainnet, not payment, not a token.",
+        "local_output_hash": "7859133d547d17f77d1205fb39490dfadd50ec22677e407422a6820707383f9d",
+        "match": true,
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "stage": "R3",
+        "status": "locally-verified",
+        "submitted_output_hash": "7859133d547d17f77d1205fb39490dfadd50ec22677e407422a6820707383f9d",
+        "task_class": "illustrative-demo",
+        "task_id": "task-0034",
+        "topology": "same-machine-self-recompute",
+        "verifier_id": "spark-local-same-operator",
+        "verifier_machine_fingerprint": "sha256:7f69b5346d96aa13db17bad37fa650c3a2f0e2f762128193fc8f8d1207957005",
+        "verifier_repo_commit": "a2db54a34908277f34df544ce82ae7e4bb68eef3",
+        "zero_value": true
+      },
+      "prev_hash": "3ee2692318245f619546c9fec1b73be618b218ef374a563549a355d28b697c83",
+      "timestamp": 1788314183.9806092
+    },
+    {
+      "hash": "650b3943e02367fbea563879a85c874cde4b188906a3a287c15e9da9095c7d46",
+      "index": 99,
+      "payload": {
+        "anchored_at": 1788314184.1937628,
+        "coordinator_reconfirmed": {
+          "every_node_rerun": true,
+          "rederivation_bit_exact": true,
+          "self_hash_recomputed": true
+        },
+        "event": "mission_verdict_recorded",
+        "headline": {
+          "bottleneck_shortfalls": {
+            "ascent_shortfall_m_s": 2489.44234,
+            "conversion_shortfall_fraction": 0.109433,
+            "corrected_ascent_shortfall_m_s": 2689.155436,
+            "edl_deploy_mach_excess_ratio": 12.381183,
+            "link_shortfall_db": 1.635481
+          },
+          "constraining": 6,
+          "edges": 17,
+          "failed_constraining": 5,
+          "mission_feasible": false,
+          "nodes": 11
+        },
+        "limitation_note": "The mission verdict is a same-operator composition of anchored tasks: the coordinator re-runs every node, rebuilds the typed DAG, and compares the whole document bit-exact before anchoring \u2014 so an anchored verdict proves the mission conclusion re-derives deterministically from the anchored task record, not that the mission is real, the constants are flight-grade, or the work is useful; the headline is an honest mission-level FALSE; not consensus, not payment, not a token; research-stage.",
+        "mission_feasible": false,
+        "mission_id": "mission-0001-v3-mars-isru-refuel-ascent",
+        "mission_schema": "mission_verdict/0.3",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "refusal_rule": "a mission-level FALSE is a deliverable; a drifted node is not \u2014 generation refuses unless every node re-derives its anchored hash and the DAG type-checks",
+        "stage": "R-mission",
+        "status": "mission-verdict-confirmed",
+        "topology": "same-operator-coordinator-mission-verdict",
+        "verdict_hash": "a080855e54add734811e260161783f81c1f55f1d66fac10beba4483af540bd63",
+        "zero_value": true
+      },
+      "prev_hash": "491b3e056ea831d93bd66a1913f48563f59a29494cb5bf1460ab50fe006e1c73",
+      "timestamp": 1788314184.1943452
     }
   ],
   "snapshot_header": {
-    "entry_count": 97,
+    "entry_count": 100,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1788256193.8820183,
+    "snapshot_timestamp": 1788314184.2717178,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "ae126922563fdcf376162e42fd351889e084298c3fdd4d64a13e3d968b7de506",
-    "tip_index": 96,
+    "tip_hash": "650b3943e02367fbea563879a85c874cde4b188906a3a287c15e9da9095c7d46",
+    "tip_index": 99,
     "zero_value": true
   }
 }
