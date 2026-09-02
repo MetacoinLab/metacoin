@@ -1,0 +1,14 @@
+{
+  "name": "metacoin-trust-ledger-console",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Research-stage viewer: the MetaCoin anchored audit log on an Open MCT mission-control screen. A viewer, not a verifier. No token; zero value.",
+  "license": "SEE LICENSE IN ../../LICENSE.md",
+  "scripts": {
+    "generate": "python3 generate_view_data.py",
+    "serve": "python3 -m http.server 8081"
+  },
+  "dependencies": {
+    "openmct": "4.3.1"
+  }
+}

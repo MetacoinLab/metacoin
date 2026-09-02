@@ -1,0 +1,31 @@
+<!doctype html>
+<!-- Copyright (c) 2023-2026 MetaCoin-Lab. Licensed under SML-1.0.
+     The trust-ledger console: the anchored audit log on a mission-control
+     screen. A VIEWER, not a verifier (run protocol/verify_everything.py
+     --full for the proof). Open MCT (c) NASA, Apache-2.0, loaded from the
+     pinned npm package; no NASA affiliation or endorsement. -->
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>MetaCoin Trust-Ledger Console (research-stage, zero-value)</title>
+    <script src="node_modules/openmct/dist/openmct.js"></script>
+</head>
+<body>
+    <script src="plugin.js"></script>
+    <script>
+        openmct.setAssetPath('node_modules/openmct/dist');
+        openmct.install(openmct.plugins.LocalStorage());
+        openmct.install(openmct.plugins.MyItems());
+        openmct.install(openmct.plugins.UTCTimeSystem());
+        openmct.install(openmct.plugins.Espresso());
+        openmct.install(TrustLedgerPlugin('data/trust_ledger.json'));
+        fetch('data/trust_ledger.json').then(r => r.json()).then((d) => {
+            openmct.time.timeSystem('utc', {
+                start: d.time_bounds.start,
+                end: d.time_bounds.end
+            });
+            openmct.start();
+        });
+    </script>
+</body>
+</html>

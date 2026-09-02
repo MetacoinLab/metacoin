@@ -112,6 +112,18 @@ jobs:
           python3 integrations/hal/metacoin_benchmark.py --selftest
           python3 integrations/baselines/run_baseline.py --selftest
           python3 integrations/baselines/run_baseline.py --estimate
+          python3 integrations/openmct/generate_view_data.py --selftest
+
+      # The trust-ledger console (integrations/openmct/): npm-installs the
+      # pinned Open MCT release and syntax-checks the plugin — a network
+      # failure never fails the build (the console is optional, like the
+      # inspect adapter); a real generator/plugin defect DOES fail above.
+      - name: Trust-ledger console npm build (optional dependency)
+        continue-on-error: true
+        run: |
+          node --check integrations/openmct/plugin.js
+          python3 integrations/openmct/generate_view_data.py
+          npm install --prefix integrations/openmct --no-audit --no-fund
 
       # If PyPI is unreachable the install fails without failing the build:
       # the smoke step below then prints SKIPPED and exits 0 (the adapter is

@@ -105,7 +105,8 @@ DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
              # anti-rot machine. Entries carrying a "/" are repo-relative.
              "integrations/inspect/README.md",
              "integrations/hal/README.md",
-             "integrations/baselines/README.md")
+             "integrations/baselines/README.md",
+             "integrations/openmct/README.md")
 # TOUR.md is ERA-PINNED like the README (era tokens, no chain tokens):
 # --render never touches it, and --check verifies its tagged numbers at
 # its own declared as-of point via the same check_readme machinery.
