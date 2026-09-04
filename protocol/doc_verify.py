@@ -425,6 +425,77 @@ def check_readme(readme_path=README_PATH, entries=None):
 
 
 # ----------------------------------------------------------------------------
+# Identity freeze: the README header may carry ONLY the operator-owned
+# strings in protocol/identity_text.py, byte-for-byte (markup stripped).
+# ----------------------------------------------------------------------------
+_MARKUP_RE = re.compile(r"</?(?:strong|em|b|i|p)>|\*\*|\*")
+_HEADER_END = "<!--era-pin:"
+
+
+def _normalize_identity(text):
+    return " ".join(_MARKUP_RE.sub("", text).split())
+
+
+def check_identity(readme_path=README_PATH, hero_path=None):
+    """The README header (everything above the era-pin marker) is checked
+    against the frozen identity strings: every <strong>, <em>, and blockquote
+    in it must equal one of the constants after markup is stripped, the
+    DEFINITION must be present, and the embedded hero banner's text nodes
+    must all be frozen strings (with TAGLINE, MOTTO, LINEAGE present). Any
+    drift is a finding BY NAME. Returns (findings, stats)."""
+    from protocol import identity_text as T
+    findings, stats = [], {"header_strings": 0, "hero_nodes": 0}
+    if not os.path.exists(readme_path):
+        return ([f"README missing: {readme_path}"], stats)
+    with open(readme_path, encoding="utf-8") as f:
+        text = f.read()
+    name = os.path.basename(readme_path)
+    header = text.split(_HEADER_END, 1)[0]
+    found = []
+    for m in re.finditer(r"<strong>(.*?)</strong>|<em>(.*?)</em>", header, re.S):
+        found.append(m.group(1) if m.group(1) is not None else m.group(2))
+    for m in re.finditer(r"<blockquote[^>]*>(.*?)</blockquote>", header, re.S):
+        found.append(m.group(1))
+    md_quote = [ln[2:] for ln in header.splitlines() if ln.startswith("> ")]
+    if md_quote:
+        found.extend(md_quote)
+    seen = set()
+    for raw in found:
+        norm = _normalize_identity(raw)
+        if not norm:
+            continue
+        stats["header_strings"] += 1
+        # a bold phrase inside DEFINITION is not a string of its own
+        if norm in T.FROZEN or norm in T.DEFINITION_BOLD:
+            seen.add(norm)
+        else:
+            findings.append(f"{name}: header text is not a frozen identity "
+                            f"string (protocol/identity_text.py): {norm[:80]!r}")
+    if T.DEFINITION not in seen:
+        findings.append(f"{name}: header does not carry DEFINITION verbatim")
+    hero_rel = "assets/hero.svg"
+    if hero_rel not in header:
+        findings.append(f"{name}: header does not embed {hero_rel}")
+    hero_path = hero_path or os.path.join(os.path.dirname(readme_path), hero_rel)
+    if os.path.exists(hero_path):
+        from protocol.hero_svg import text_nodes
+        with open(hero_path, encoding="utf-8") as f:
+            nodes = text_nodes(f.read())
+        stats["hero_nodes"] = len(nodes)
+        for n in nodes:
+            if n not in T.FROZEN:
+                findings.append(f"{name}: {hero_rel} carries a text node that "
+                                f"is not a frozen identity string: {n[:80]!r}")
+        for want, label in ((T.TAGLINE, "TAGLINE"), (T.MOTTO, "MOTTO"),
+                            (T.LINEAGE, "LINEAGE")):
+            if want not in nodes:
+                findings.append(f"{name}: {hero_rel} does not carry {label}")
+    else:
+        findings.append(f"{name}: {hero_rel} is missing")
+    return (findings, stats)
+
+
+# ----------------------------------------------------------------------------
 # --check
 # ----------------------------------------------------------------------------
 def _check_tokens(text, doc_name, tokens, findings):
@@ -849,6 +920,29 @@ def _selftest() -> int:
                    f"tokens)",
                    rn_findings == [] and t_stats["pinned"]))
 
+    # [10c] IDENTITY FREEZE: the real README header + hero carry only the
+    # operator-owned strings; a one-word drift in the header is red BY NAME.
+    from protocol import identity_text as _T
+    id_findings, id_stats = check_identity()
+    for f in id_findings:
+        print(f"    FINDING: {f}")
+    checks.append(("identity freeze: README header + hero text equal "
+                   f"protocol/identity_text.py ({id_stats['header_strings']} "
+                   f"header strings, {id_stats['hero_nodes']} hero nodes)",
+                   id_findings == [] and id_stats["hero_nodes"] >= 3))
+    with tempfile.TemporaryDirectory() as tmp_id:
+        drift = os.path.join(tmp_id, "README.md")
+        with open(README_PATH, encoding="utf-8") as f:
+            body = f.read()
+        with open(drift, "w", encoding="utf-8") as f:
+            f.write(body.replace("primitives of the space economy",
+                                 "primitives of the space economies", 1))
+        d_findings, _ = check_identity(drift, hero_path=os.path.join(
+            _REPO_ROOT, "assets", "hero.svg"))
+        checks.append(("identity freeze: a one-word header drift is red by "
+                       "name", any("not a frozen identity string" in x
+                                   for x in d_findings)))
+
     # Zero-write guarantees.
     ledger_sha_after = None
     if os.path.exists(ledger_path):
@@ -906,6 +1000,8 @@ def main(argv=None) -> int:
         findings.extend(r_findings)
         t_findings, t_stats = check_readme(TOUR_PATH)
         findings.extend(t_findings)
+        i_findings, i_stats = check_identity()
+        findings.extend(i_findings)
         readme_note = (f"era-pinned, {r_stats['era_tokens']} era tokens"
                        if r_stats["pinned"] else "no era pin (not yet opted "
                        "in)")
@@ -913,7 +1009,10 @@ def main(argv=None) -> int:
                         "tokens" if t_stats["pinned"] else " | TOUR unpinned")
         print(f"\ndocs checked: {stats['docs']}/{len(DOC_FILES)} | MIPs "
               f"scanned: {stats['mips']} | README: {readme_note}, "
-              f"{r_stats['idx_refs']} idx refs | chain "
+              f"{r_stats['idx_refs']} idx refs | identity: "
+              f"{i_stats['header_strings']} header strings + "
+              f"{i_stats['hero_nodes']} hero text nodes frozen"
+              f"{' (DRIFT)' if i_findings else ' (match)'} | chain "
               f"tokens: {stats['tokens']} | idx references: "
               f"{stats['idx_refs']} | command blocks: {stats['commands']}")
         if findings:

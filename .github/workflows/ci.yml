@@ -114,6 +114,7 @@ jobs:
           python3 integrations/baselines/run_baseline.py --estimate
           python3 integrations/openmct/generate_view_data.py --selftest
           python3 protocol/status_board_svg.py --selftest
+          python3 protocol/hero_svg.py --selftest
           python3 protocol/build_hf_dataset.py --selftest
 
       # The trust-ledger console (integrations/openmct/): npm-installs the
