@@ -440,8 +440,8 @@ def _normalize_identity(text):
 def check_identity(readme_path=README_PATH, hero_path=None):
     """The README header (everything above the era-pin marker) is checked
     against the frozen identity strings: every <strong>, <em>, and blockquote
-    in it must equal one of the constants after markup is stripped, the
-    DEFINITION must be present, and the embedded hero banner's text nodes
+    in it must equal one of the constants after markup is stripped, both
+    DEFINITION and STAKE must be present, and the embedded hero banner's text nodes
     must all be frozen strings (with TAGLINE, MOTTO, LINEAGE present). Any
     drift is a finding BY NAME. Returns (findings, stats)."""
     from protocol import identity_text as T
@@ -466,14 +466,16 @@ def check_identity(readme_path=README_PATH, hero_path=None):
         if not norm:
             continue
         stats["header_strings"] += 1
-        # a bold phrase inside DEFINITION is not a string of its own
-        if norm in T.FROZEN or norm in T.DEFINITION_BOLD:
+        # a bold phrase inside DEFINITION or STAKE is not a string of its own
+        if norm in T.FROZEN or norm in T.DEFINITION_BOLD or norm in T.STAKE_BOLD:
             seen.add(norm)
         else:
             findings.append(f"{name}: header text is not a frozen identity "
                             f"string (protocol/identity_text.py): {norm[:80]!r}")
     if T.DEFINITION not in seen:
         findings.append(f"{name}: header does not carry DEFINITION verbatim")
+    if T.STAKE not in seen:
+        findings.append(f"{name}: header does not carry STAKE verbatim")
     hero_rel = "assets/hero.svg"
     if hero_rel not in header:
         findings.append(f"{name}: header does not embed {hero_rel}")
@@ -922,7 +924,8 @@ def _selftest() -> int:
                    rn_findings == [] and t_stats["pinned"]))
 
     # [10c] IDENTITY FREEZE: the real README header + hero carry only the
-    # operator-owned strings; a one-word drift in the header is red BY NAME.
+    # operator-owned strings; a one-word drift in DEFINITION or STAKE, or the
+    # STAKE blockquote removed, is red BY NAME.
     from protocol import identity_text as _T
     id_findings, id_stats = check_identity()
     for f in id_findings:
@@ -943,6 +946,20 @@ def _selftest() -> int:
         checks.append(("identity freeze: a one-word header drift is red by "
                        "name", any("not a frozen identity string" in x
                                    for x in d_findings)))
+        hero_real = os.path.join(_REPO_ROOT, "assets", "hero.svg")
+        with open(drift, "w", encoding="utf-8") as f:
+            f.write(body.replace("bit for bit", "bit by bit", 1))
+        s_findings, _ = check_identity(drift, hero_path=hero_real)
+        checks.append(("identity freeze: a one-word STAKE drift is red by "
+                       "name", any("not a frozen identity string" in x
+                                   for x in s_findings)))
+        with open(drift, "w", encoding="utf-8") as f:
+            f.write("\n".join(ln for ln in body.splitlines()
+                               if _T.STAKE_BOLD[0] not in ln) + "\n")
+        g_findings, _ = check_identity(drift, hero_path=hero_real)
+        checks.append(("identity freeze: the STAKE blockquote removed is red "
+                       "by name", any("does not carry STAKE verbatim" in x
+                                      for x in g_findings)))
 
     # Zero-write guarantees.
     ledger_sha_after = None

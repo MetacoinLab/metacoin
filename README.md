@@ -19,6 +19,8 @@
 
 <blockquote align="center"><p>MetaCoin is a <strong>credibly neutral</strong>, <strong>fair-launch</strong> base currency for the Space Machine Economy: minted only through <strong>objective, programmatic, hard-to-fake infrastructure work</strong> — while a separate, fee-funded <strong>MetaStar Treasury</strong> pays <strong>humans, AI agents, and bounded-autonomous robots</strong> to build the software, energy, robotics, and research primitives of the space economy.</p></blockquote>
 
+<blockquote align="center"><p>Every hardware standard teaches agents and robots how to act. <strong>None of them proves what was actually done.</strong> MetaCoin is that missing layer: an append-only record where a machine's work counts only if a stranger can re-derive it, bit for bit — and where <strong>an honest "it failed" is worth as much as a success</strong>.</p></blockquote>
+
 ---
 
 <!--era-pin:entry_count=108 tip_hash_prefix=0e161cc80291-->
