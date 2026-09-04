@@ -1,20 +1,30 @@
 <p align="center">
-  <img src="assets/metacoin-logo.svg" width="220" alt="MetaCoin emblem">
+  <img src="assets/metacoin-logo.svg" width="300" alt="MetaCoin emblem">
 </p>
 
 <h1 align="center">MetaCoin</h1>
 
 <p align="center">
-MetaCoin is <strong>verification infrastructure for autonomous-agent work</strong>: a research-stage protocol that anchors machine work to an append-only hash chain and accepts a claim only when it re-derives bit-exact — including mission-scale feasibility verdicts whose honest answer is <strong>FALSE</strong>.<br>
-<strong>Don't trust this README — run it: 15 minutes, nothing to install</strong> beyond Python 3: <a href="docs/TOUR.md">docs/TOUR.md</a>.
+  <strong>The credibly neutral money-and-work protocol for the Space Machine Economy.</strong><br>
+  <em>Money for machines building the stars.</em>
 </p>
 
 <p align="center">
   <a href="https://github.com/MetacoinLab/metacoin/actions"><img src="https://img.shields.io/github/actions/workflow/status/MetacoinLab/metacoin/ci.yml?branch=main&label=CI&logo=github" alt="CI"></a>
-  <img src="https://img.shields.io/badge/anchored%20entries-108-2e7d32" alt="108 anchored entries">
+  <img src="https://img.shields.io/github/last-commit/MetacoinLab/metacoin?label=last%20commit" alt="Last commit">
+  <img src="https://img.shields.io/github/commit-activity/m/MetacoinLab/metacoin?label=commits" alt="Commit activity">
+  <img src="https://img.shields.io/github/languages/top/MetacoinLab/metacoin" alt="Top language">
+  <br>
+  <img src="https://img.shields.io/badge/stage-research-blue" alt="Research stage">
   <img src="https://img.shields.io/badge/token-none-lightgrey" alt="No token">
   <img src="https://img.shields.io/badge/license-SML--1.0-yellow" alt="SML-1.0">
 </p>
+
+> MetaCoin is a credibly neutral, fair-launch base currency for the Space Machine Economy: minted only through objective, programmatic, hard-to-fake infrastructure work — while a separate, fee-funded MetaStar Treasury pays humans, AI agents, and bounded-autonomous robots to build the software, energy, robotics, and research primitives of the space economy.
+
+> Gold was the money of the old world. Bitcoin became the money of the digital world. MetaCoin is *designed* to become the work-and-energy currency of the Space Machine Economy.
+
+---
 
 <!--era-pin:entry_count=108 tip_hash_prefix=0e161cc80291-->
 > **Protocol state as of ledger entry <!--era:entry_count-->108<!--/era--> (tip index <!--era:tip_index-->107<!--/era-->, hash `<!--era:tip_hash_prefix-->0e161cc80291<!--/era-->…`).** Every tagged number in this README hangs off that declared chain point, and `protocol/doc_verify.py` re-checks each one against the chain at that point on every CI run. This README is pinned to ledger entry <!--era:entry_count-->108<!--/era-->; the chain and [`docs/`](docs/) carry live state.
@@ -97,10 +107,6 @@ Ordered by ledger index — the chain is the timeline. The fuller record lives i
 | idx 94–98 | SPICE + EDL beachheads | a pinned DE440s ephemeris read by a stdlib Chebyshev reader; an EDL budget that finds its honest negative |
 | idx 100 | The anchored parameter table | 32 behavior-changing constants in one anchored table; a live constant that drifts from it is refused by name |
 | idx 101–107 | The software/data transfer family | six deterministic software/data-engineering tasks with two honest negatives, self-recomputed and batch-attested under the same law: the abstention probe design transfers to software/data tasks |
-
-## The vision, kept in its place
-
-The design documents describe where this is meant to go: a credibly neutral money-and-work protocol for a space machine economy, where agents and robots do engineering work that is paid for only when it verifies. That is the `[SPEC]` layer — [`WHITEPAPER.md`](WHITEPAPER.md), [`TOKENOMICS.md`](TOKENOMICS.md), and the [`mip/`](mip/) decisions — and it is design intent, not deployment. What is deployed today is the verification layer those documents presuppose: the anchored record, the bit-exact re-derivation rule, the honest negatives, and the mission-level verdicts above. Nothing in the deployed layer is money.
 
 ## What this is not
 
