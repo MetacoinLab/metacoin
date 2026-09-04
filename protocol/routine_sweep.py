@@ -416,6 +416,11 @@ def _expected_evidence(entries) -> dict:
                 and isinstance(p.get("envelope_hash"), str)):
             want(f"mission_envelope_{p['envelope_hash'][:12]}.json", idx,
                  "anchored mission envelope")
+        if (event == "physical_work_recorded"
+                and p.get("status") == "physical-work-confirmed"
+                and isinstance(p.get("record_hash"), str)):
+            want(f"physical_work_{p['record_hash'][:12]}.json", idx,
+                 "anchored physical-work record")
         if (event == "external_verification_result"
                 and p.get("task_id") in work_molecule._CATALOG_SUBMISSIONS):
             want(work_molecule._CATALOG_SUBMISSIONS[p["task_id"]], idx,

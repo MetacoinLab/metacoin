@@ -239,6 +239,23 @@ _ENVELOPE_STATUS = "mission-envelope-confirmed"
 
 _PARAM_TABLE_EVENT = "parameter_table_recorded"
 _PARAM_TABLE_STATUS = "parameter-table-confirmed"
+
+_PHYSICAL_EVENT = "physical_work_recorded"
+_PHYSICAL_STATUS = "physical-work-confirmed"
+PHYSICAL_LIMITATION_NOTE = (
+    "A physical-work record is a same-operator record over a SIMULATED, "
+    "MHS-shaped device: the measurements are ATTESTED (the device's "
+    "one-time hash-based signatures over each snapshot are verified under "
+    "its declared root; a measurement is never re-derived), only the "
+    "analysis over them is re-derived bit-exact, and the safety-limit "
+    "refusals are verified against the record's limits table — so an "
+    "anchored record proves the record's integrity and the analysis "
+    "arithmetic, not that any physical instrument was operated, not that "
+    "the device interface is the Model Hardware Standard (a limited "
+    "research preview, not yet public), and not that the measurements are "
+    "true; the run-1 rejection is an honest negative; not consensus, not "
+    "payment, not a token; research-stage."
+)
 PARAM_TABLE_LIMITATION_NOTE = (
     "The parameter table is a same-operator configuration snapshot: the "
     "coordinator rebuilds the table from the live code and compares the "
@@ -2882,6 +2899,42 @@ def anchor_mission_envelope(doc: dict, ledger: Ledger) -> dict:
         "no_token": True,
         "anchored_at": time.time(),
     }
+    entry = ledger.append(evaluation)
+    return {"evaluation": evaluation, "ledger_entry": entry}
+
+
+def anchor_physical_work(doc: dict, ledger: Ledger) -> dict:
+    """Validate + VERIFY + anchor a physical-work record
+    (protocol/physical_work.py). The coordinator verifies every device
+    signature under the declared root (attested), re-derives every run's
+    analysis bit-exact, and checks the manifest's limits against the limits
+    table — never trusts the file; any failure -> 'rejected', NOT anchored.
+    Scanner-invisible payload (no top-level task ids)."""
+    import protocol.physical_work as physical_work
+    ok, reasons, stats = physical_work.verify_record(doc)
+    if not ok:
+        evaluation = {
+            "event": _PHYSICAL_EVENT, "stage": "R-physical",
+            "topology": "same-operator-coordinator-physical-work-simulated",
+            "status": "rejected", "reason": "; ".join(reasons[:4]),
+            "anchored": False, "zero_value": True, "no_token": True,
+            "limitation_note": PHYSICAL_LIMITATION_NOTE,
+            "evaluated_at": time.time(),
+        }
+        return {"evaluation": evaluation, "ledger_entry": None}
+    evaluation = physical_work.build_payload(doc)
+    evaluation.update({
+        "coordinator_reconfirmed": {
+            "device_signatures_verified": stats["signatures_ok"],
+            "one_time_keys_unique": True,
+            "analysis_rederived_bit_exact": True,
+            "limits_table_matches_manifest": True,
+            "record_hash_recomputed": True,
+        },
+        "operator_relationship": "same-operator",
+        "limitation_note": PHYSICAL_LIMITATION_NOTE,
+        "anchored_at": time.time(),
+    })
     entry = ledger.append(evaluation)
     return {"evaluation": evaluation, "ledger_entry": entry}
 
@@ -7241,7 +7294,8 @@ def _cmd_anchor_json(path: str, ledger_path: str, anchor_fn, expected_status):
                 "mission_id", "mission_feasible", "verdict_hash",
                 "envelope_hash", "label", "baseline_verdict_hash",
                 "table_version", "table_hash", "parameter_count",
-                "governance_counts"):
+                "governance_counts", "record_hash", "device_manifest_hash",
+                "safety_limits_hash", "epistemology", "simulated", "tx_tag"):
         if key in ev:
             print(f"  {key}: {ev[key]}")
     if "bounded_failure" in ev:
@@ -7428,6 +7482,12 @@ def main(argv=None) -> int:
              "re-proves the baseline verdict and re-derives the envelope "
              "bit-exact — WRITES NOTHING without --confirm (the human gate)")
     mode.add_argument(
+        "--anchor-physical-work", metavar="PHYSICAL_WORK_JSON",
+        help="anchor a physical-work record (protocol/physical_work.py "
+             "--generate): the coordinator verifies every device signature "
+             "(attested), re-derives the analysis bit-exact, and checks the "
+             "limits table — WRITES NOTHING without --confirm (the human gate)")
+    mode.add_argument(
         "--anchor-parameter-table", metavar="PARAMETER_TABLE_JSON",
         help="anchor the protocol parameter table "
              "(protocol/parameter_table.py --generate): the coordinator "
@@ -7601,6 +7661,25 @@ def main(argv=None) -> int:
             return 0 if ok else 1
         return _cmd_anchor_json(args.anchor_mission_envelope, args.ledger,
                                 anchor_mission_envelope, _ENVELOPE_STATUS)
+    if args.anchor_physical_work is not None:
+        if not args.confirm:
+            import protocol.physical_work as physical_work
+            print(BANNER)
+            try:
+                with open(args.anchor_physical_work, encoding="utf-8") as f:
+                    doc = json.load(f)
+                ok, reasons, _st = physical_work.verify_record(doc)
+            except (OSError, json.JSONDecodeError) as exc:
+                ok, reasons = False, [str(exc)]
+            print("dry run — would " + ("anchor physical_work_recorded for "
+                  f"record {doc['record_hash'][:12]} (label: "
+                  f"{doc['label']!r}; headline "
+                  f"{physical_work.headline(doc)})" if ok
+                  else f"REJECT: {'; '.join(reasons)}"))
+            print("anchored: NO — nothing written (re-run with --confirm)")
+            return 0 if ok else 1
+        return _cmd_anchor_json(args.anchor_physical_work, args.ledger,
+                                anchor_physical_work, _PHYSICAL_STATUS)
     if args.anchor_parameter_table is not None:
         if not args.confirm:
             import protocol.parameter_table as parameter_table

@@ -1156,6 +1156,40 @@ def run_verification(full: bool, snapshot_path: str = DEFAULT_SNAPSHOT,
                       "parameters) equals the table; era rule verified")
                      if not problems else "; ".join(problems[:3])))
 
+    # --- layer 11g: physical work (attested snapshots; re-derived analysis) ---------
+    # Every anchored physical-work record's evidence file must verify: each
+    # device snapshot signature under the declared root (ATTESTED — a
+    # measurement is never re-derived), no one-time key reused, every run's
+    # analysis re-derived bit-exact with its verdict (honest negatives
+    # included), refusals enforcing a limit the record's table carries,
+    # and the evidence hashes equal to the anchored ones. The verbatim
+    # simulated-device label and epistemology are checked on the record.
+    import protocol.physical_work as physical_work
+    pw_records = [(e["index"], e["payload"]) for e in entries
+                  if isinstance(e.get("payload"), dict)
+                  and e["payload"].get("event") == physical_work.EVENT
+                  and e["payload"].get("status") == physical_work.STATUS]
+    if not pw_records:
+        rows.append(("physical work", FULL, True,
+                     "no physical-work record anchored on the chain yet"))
+    else:
+        problems = []
+        try:
+            out = physical_work.rederive(entries)
+            sig_total = sum(r["stats"]["signatures_ok"] for r in out["records"])
+            runs = sum(r["headline"]["runs"] for r in out["records"])
+            rej = sum(r["headline"]["rejected"] for r in out["records"])
+            refusals = sum(r["headline"]["refusals"] for r in out["records"])
+        except ValueError as exc:
+            problems.append(str(exc)[:200])
+        rows.append(("physical work", FULL, not problems,
+                     (f"{len(pw_records)} anchored record(s): {sig_total} "
+                      "device signatures verified (attested), "
+                      f"{runs} runs re-derived bit-exact ({rej} honest "
+                      f"negative), {refusals} safety refusal(s) verified "
+                      "against the limits table; simulated MHS-shaped device")
+                     if not problems else "; ".join(problems[:3])))
+
     # --- layer 12: Flow-1 uptime emission (both modes; ~9 signature verifies) -------
     # Root integrity via the identity layer's registrations; every anchored
     # epoch's heartbeat signatures re-verified from the shipped evidence copy

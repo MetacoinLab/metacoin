@@ -110,6 +110,7 @@ DOC_FILES = ("PARTICIPATE.md", "ARCHITECTURE.md", "VERIFICATION.md",
              "integrations/hal/README.md",
              "integrations/baselines/README.md",
              "integrations/openmct/README.md",
+             "integrations/mhs/README.md",
              # The ledger-native changelog: keyed by idx range, typed idx
              # references only (no chain tokens — past ranges never rot).
              "./CHANGELOG.md")

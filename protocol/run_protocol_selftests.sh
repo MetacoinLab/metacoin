@@ -44,6 +44,7 @@ TESTS=(
     "pulse.py --selftest"
     "mission_chain.py --selftest"
     "mission_envelope.py --selftest"
+    "physical_work.py --selftest"
     "mission_graph_svg.py --selftest"
     "parameter_table.py --selftest"
     "release_readiness.py --selftest"

@@ -43,7 +43,7 @@ timing claim, and an anchored acceptance.
 ## The layer-by-layer report
 
 The pasted run below is trimmed to the shape of the report; the full pass has
-20 layer lines. What each checks:
+21 layer lines. What each checks:
 
 - **chain+anchor** — the hash chain is intact from genesis
   <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->… to tip
@@ -71,6 +71,12 @@ The pasted run below is trimmed to the shape of the report; the full pass has
   verdict re-derives bit-exact (every node re-run, the typed DAG rebuilt),
   and the envelope's engineered-scenario label and dust-variant refusal are
   verified on the record.
+- **physical work** — every anchored physical-work record verifies: the
+  simulated device's one-time signatures over each state snapshot are
+  checked under its declared root (attested measurements are not
+  re-derived), every run's analysis re-derives bit-exact with its verdict
+  (the run-1 rejection included), and every safety-limit refusal is
+  checked against the record's limits table.
 - **parameter table** — the live protocol constants re-derive to the
   anchored parameter table's canonical hash, and every owner module's
   effective constant equals the table — a silently edited constant is a
@@ -133,7 +139,7 @@ $ python3 -c "import sys; sys.path.insert(0,'.'); from protocol.verify_everythin
 
 The suites behind the report are runnable directly:
 `protocol/run_protocol_selftests.sh`
-(<!--chain:protocol_suite_count-->28<!--/chain--> self-tests) and
+(<!--chain:protocol_suite_count-->29<!--/chain--> self-tests) and
 `demo/run_all_selftests.sh` (<!--chain:demo_suite_count-->49<!--/chain-->
 self-tests) — CI requires both green plus a fresh-clone full pass on every
 commit. The layer tools remain individually available (`audit.py --verify`,
