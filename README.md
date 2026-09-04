@@ -5,19 +5,19 @@
 <h1 align="center">MetaCoin</h1>
 
 <p align="center">
-MetaCoin is a research-stage verification protocol that anchors machine work to an append-only hash chain and accepts a claim only when it re-derives bit-exact — including mission-scale feasibility verdicts whose honest answer is <strong>FALSE</strong>.<br>
+MetaCoin is <strong>verification infrastructure for autonomous-agent work</strong>: a research-stage protocol that anchors machine work to an append-only hash chain and accepts a claim only when it re-derives bit-exact — including mission-scale feasibility verdicts whose honest answer is <strong>FALSE</strong>.<br>
 <strong>Don't trust this README — run it: 15 minutes, nothing to install</strong> beyond Python 3: <a href="docs/TOUR.md">docs/TOUR.md</a>.
 </p>
 
 <p align="center">
   <a href="https://github.com/MetacoinLab/metacoin/actions"><img src="https://img.shields.io/github/actions/workflow/status/MetacoinLab/metacoin/ci.yml?branch=main&label=CI&logo=github" alt="CI"></a>
-  <img src="https://img.shields.io/badge/anchored%20entries-100-2e7d32" alt="100 anchored entries">
+  <img src="https://img.shields.io/badge/anchored%20entries-108-2e7d32" alt="108 anchored entries">
   <img src="https://img.shields.io/badge/token-none-lightgrey" alt="No token">
   <img src="https://img.shields.io/badge/license-SML--1.0-yellow" alt="SML-1.0">
 </p>
 
-<!--era-pin:entry_count=100 tip_hash_prefix=650b3943e023-->
-> **Protocol state as of ledger entry <!--era:entry_count-->100<!--/era--> (tip index <!--era:tip_index-->99<!--/era-->, hash `<!--era:tip_hash_prefix-->650b3943e023<!--/era-->…`).** Every tagged number in this README hangs off that declared chain point, and `protocol/doc_verify.py` re-checks each one against the chain at that point on every CI run. This README is pinned to ledger entry <!--era:entry_count-->100<!--/era-->; the chain and [`docs/`](docs/) carry live state.
+<!--era-pin:entry_count=108 tip_hash_prefix=0e161cc80291-->
+> **Protocol state as of ledger entry <!--era:entry_count-->108<!--/era--> (tip index <!--era:tip_index-->107<!--/era-->, hash `<!--era:tip_hash_prefix-->0e161cc80291<!--/era-->…`).** Every tagged number in this README hangs off that declared chain point, and `protocol/doc_verify.py` re-checks each one against the chain at that point on every CI run. This README is pinned to ledger entry <!--era:entry_count-->108<!--/era-->; the chain and [`docs/`](docs/) carry live state.
 
 ---
 
@@ -35,10 +35,11 @@ The diagram is **generated, not drawn**: `python3 protocol/mission_graph_svg.py`
 
 ## Why this is different
 
-- **Bit-exact re-derivation is the only acceptance rule.** Every task emits canonical JSON (sorted keys, ASCII, sign-of-zero-free) and is accepted only when a re-run reproduces its SHA-256 to the digit — <!--era:recorded_task_count-->33<!--/era--> tasks and <!--era:mission_verdict_count-->4<!--/era--> mission verdicts re-derive this way on every full verification, with no LLM or human judgment anywhere in the loop.
-- **Honest negatives are first-class results.** 7 of the 33 tasks exist to prove a NO and anchor it: the Mars link budget (task-0012), the ascent budget and its corrected form (0018, 0021), Sabatier equilibrium conversion (0020), sunshade deployment cadence (0027), the L1 dust cloud (0028), and heavy-lander EDL (0034). They are kept, cited, and drawn in red above.
+- **Bit-exact re-derivation is the only acceptance rule.** Every task emits canonical JSON (sorted keys, ASCII, sign-of-zero-free) and is accepted only when a re-run reproduces its SHA-256 to the digit — <!--era:recorded_task_count-->39<!--/era--> tasks and <!--era:mission_verdict_count-->4<!--/era--> mission verdicts re-derive this way on every full verification, with no LLM or human judgment anywhere in the loop.
+- **Honest negatives are first-class results.** 9 of the 39 tasks exist to prove a NO and anchor it: the Mars link budget (task-0012), the ascent budget and its corrected form (0018, 0021), Sabatier equilibrium conversion (0020), sunshade deployment cadence (0027), the L1 dust cloud (0028), heavy-lander EDL (0034), and two from the software/data transfer family — a schema migration whose uniqueness invariant cannot survive (0035) and a test-coverage target honestly not met (0040). They are kept, cited, and drawn in red above.
 - **The negative-zero incident, in three lines.** A second machine's re-derivation exposed IEEE-754 negative zeros in canonical artifacts. The fix was a chain-wide canonical-form era transition (idx 67 <!--idx:67=task_hash_era_recorded-->) plus an append-only correction (idx 68 <!--idx:68=anchored_record_correction-->) — no record was rewritten, and the era-1 hashes still verify.
 - **The protocol measures its own centralization.** Same-operator concentration is quantified, anchored, and tracked: the frozen baseline measured pairwise ACI <!--era:baseline_pairwise_aci-->0.99365<!--/era--> over <!--era:baseline_path_count-->28<!--/era--> verification paths; the latest anchored epoch measures <!--era:epoch_pairwise_aci-->0.998508<!--/era--> over <!--era:epoch_path_count-->66<!--/era--> — rising toward 1 exactly as expected when one operator accumulates paths, which is what the record says.
+- **The abstention probe transfers beyond physics.** Six deterministic software/data-engineering tasks (schema migration, API-contract satisfiability, dependency resolution, configuration audit, pipeline reconciliation, test-coverage gap) are built under the same task law, scored by the same bit-exact rule, and anchored in the same record class (idx 101–107) — and the baseline harness catches a manufactured success on a software task by the identical detector that catches it on a link budget. The claim and its limits are stated in [`docs/TRANSFER.md`](docs/TRANSFER.md).
 - **Mistakes are anchored, not erased.** The coordinator has corrected itself twice on the record — the negative-zero repair (idx 68) and a claim-source correction replacing a paraphrase with the verified verbatim post and URL (idx 93 <!--idx:93=anchored_record_correction-->) — both append-only, both leaving the original record in place and re-derivable.
 
 ## Quick start
@@ -53,24 +54,24 @@ metacoin participate                             # the six-rung participant path
 
 The full verification corpus ships inside the package — a pip-installed `metacoin` verifies from an empty directory, and a CI cold-install test enforces it. The 15-minute guided walk is [`docs/TOUR.md`](docs/TOUR.md).
 
-A probe subset of the task library is published as a Hugging Face dataset: [metacoin-lab/metacoin-tasks](https://huggingface.co/datasets/metacoin-lab/metacoin-tasks) — **29 tasks as published 2026-09-01, currently behind the repository's 33**; the published set refreshes as the anchored library grows, and its `verify_tasks.py` re-derives every published hash against the anchored record.
+The task library is published as a Hugging Face dataset: [metacoin-lab/metacoin-tasks](https://huggingface.co/datasets/metacoin-lab/metacoin-tasks) — **39 tasks as published, in sync with the repository's 39**. The sync is automated: a CI workflow rebuilds the package from the anchored record on every push and publishes a new version only when the task count or a task hash changes (a minor bump on count, a patch bump on hash, otherwise a logged skip); its `verify_tasks.py` re-derives every published hash against the anchored record.
 
 ## By the numbers
 
-<p align="center"><img src="assets/status_board.svg" alt="Status board: 100 anchored entries, 33 reproducible tasks, 7 honest negatives, 4 mission verdicts all FALSE, 10 MIP decisions, 20 verify layers, 71 self-tests, 44,066 Python lines, 7 drills defeated, 5 catalog generations — tip 650b3943e023, release gate READY, approval human"></p>
+<p align="center"><img src="assets/status_board.svg" alt="Status board: 108 anchored entries, 39 reproducible tasks, 9 honest negatives, 4 mission verdicts all FALSE, 10 MIP decisions, 20 verify layers, 77 self-tests, 46,817 Python lines, 7 drills defeated, 5 catalog generations — tip 0e161cc80291, release gate READY, approval human"></p>
 
 The board is generated, not drawn: `python3 protocol/status_board_svg.py` renders it from the same sources `doc_verify` checks, and its self-test asserts tile-by-tile that the board equals those values — the table below carries the same numbers as verifiable text. Chain-derived cells are era tokens, mechanically re-checked against the pinned chain point on every CI run; repo-derived cells are stated as measured at the pin commit.
 
 | Fact | Value |
 |---|---|
-| Anchored ledger entries | <!--era:entry_count-->100<!--/era--> (tip index <!--era:tip_index-->99<!--/era-->, publicly anchored) |
-| Reproducible space-engineering tasks | <!--era:recorded_task_count-->33<!--/era--> |
-| Honest negatives among them | 7 |
+| Anchored ledger entries | <!--era:entry_count-->108<!--/era--> (tip index <!--era:tip_index-->107<!--/era-->, publicly anchored) |
+| Reproducible tasks (space engineering + the software/data transfer family) | <!--era:recorded_task_count-->39<!--/era--> |
+| Honest negatives among them | 9 |
 | Mission-level verdicts | <!--era:mission_verdict_count-->4<!--/era--> (every one FALSE, quantified) |
 | Anchored MIP decisions | <!--era:mip_decision_count-->10<!--/era--> (3 by declared supersession — amendments are new MIPs) |
 | Full-verification layers | 20 (`metacoin verify`) |
-| Self-test suites | 43 demo + 28 protocol |
-| Python in `protocol/` + `demo/` + the CLI, zero runtime dependencies | 44,066 lines |
+| Self-test suites | 49 demo + 28 protocol |
+| Python in `protocol/` + `demo/` + the CLI, zero runtime dependencies | 46,817 lines |
 | Defeated attack drills on-chain | <!--era:drill_entry_count-->7<!--/era--> drill-labeled entries (replays, forged rotation, forged heartbeat, tampered intake, wrongful grant clawed back) |
 | Work-molecule catalog generations | <!--era:catalog_anchor_count-->5<!--/era--> (every generation still verifies byte-for-byte) |
 | Cross-machine era | idx 69–73 (a second machine's participation and mirror) |
@@ -94,6 +95,12 @@ Ordered by ledger index — the chain is the timeline. The fuller record lives i
 | idx 82, idx 96, idx 99 | Mars mission verdicts v1→v3 | FALSE with five quantified bottlenecks; each extension supersedes on-chain while the superseded verdict still re-derives |
 | idx 83–93 | The civilization-scale claim | 8 pinned-constant tasks, verdict FALSE, the feasibility envelope, the append-only citation correction |
 | idx 94–98 | SPICE + EDL beachheads | a pinned DE440s ephemeris read by a stdlib Chebyshev reader; an EDL budget that finds its honest negative |
+| idx 100 | The anchored parameter table | 32 behavior-changing constants in one anchored table; a live constant that drifts from it is refused by name |
+| idx 101–107 | The software/data transfer family | six deterministic software/data-engineering tasks with two honest negatives, self-recomputed and batch-attested under the same law: the abstention probe design transfers to software/data tasks |
+
+## The vision, kept in its place
+
+The design documents describe where this is meant to go: a credibly neutral money-and-work protocol for a space machine economy, where agents and robots do engineering work that is paid for only when it verifies. That is the `[SPEC]` layer — [`WHITEPAPER.md`](WHITEPAPER.md), [`TOKENOMICS.md`](TOKENOMICS.md), and the [`mip/`](mip/) decisions — and it is design intent, not deployment. What is deployed today is the verification layer those documents presuppose: the anchored record, the bit-exact re-derivation rule, the honest negatives, and the mission-level verdicts above. Nothing in the deployed layer is money.
 
 ## What this is not
 
