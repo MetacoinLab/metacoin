@@ -117,6 +117,25 @@ measured, and its refusals are on the record beside its results. Nothing is
 paid for anything here (no token exists); what exists is the record a
 payment rule would need.
 
+## What an action-layer standard provides, and what this layer provides
+
+Two columns, no ranking. The left column is MHS as publicly described
+(quoted where the words are Anthropic's); the right column is this
+directory. Neither replaces the other: an action layer is where a device is
+operated, and this layer is where what happened is recorded so that a
+stranger can check it afterwards.
+
+| An action-layer standard (MHS, public description) | This layer (MHS-shaped, simulated) |
+|---|---|
+| A device vocabulary: "commands like 'read' (for example, 'get temperature') or 'write' (for example, 'set temperature')—that any hardware device can understand and act on." | The same two verbs over a simulated state dictionary. A write is checked against the manifest's limits and refused before any state changes. No real driver. |
+| A reference file: "what it can measure, what can be adjusted, and what safety limits will be enforced." | A manifest with those three parts plus an identity root and `simulated: true`, hashed onto the record. The limits are mirrored in an anchored device-limits table; a manifest that disagrees with the table is refused as drift, by name. |
+| Safety enforced at the moment of action: in the public CMU account, six induced fault conditions were "correctly blocked" before any device moved. | The refusal becomes a record: signed by the device, `state_changed: false`, verified to name a limit the table actually enforces. It says nothing about how well any real driver enforces its limits. |
+| Access for agents through "MCP, the command line interface, and code files (APIs)"; model-agnostic. | The same three shapes (a tool schema, a CLI, Python classes) and no MCP server. The shapes exist so a harness can be pointed at the record, not so a device can be run. |
+| The run happens and a decision is made: in the public CMU account, run 1 was rejected below R² 0.9 and run 2 was accepted without human intervention. | The decision is a deterministic analysis with a rule stated before the data (R² ≥ 0.9 and no plateau), a canonical output, and a hash. Anyone re-derives it bit-exact from a fresh clone, and the rejected run is kept as a result rather than discarded. |
+| Real measurements from a real instrument, held in the rig's own memory and logs. | Snapshots from a simulated device, signed under a published seed, attested and never re-derived. A green verification proves the record was not edited; it does not prove a measurement was true. |
+| Findings and deployment guidance to be released with the standard when it is open-sourced. | An append-only chain entry holding the manifest hash, the limits hash, the attested snapshots, the analysis hashes, and the refusals, checkable by a stranger after the fact. |
+| A limited research preview run by Anthropic with named partners; the specification is not yet public. | Pre-standard and research-stage, zero-value, no token. Re-shaped to the published specification when there is one, and labeled simulated until then. |
+
 ## Stated limitations
 
 Simulated device, published signing seed, one record class, one analysis
