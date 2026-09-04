@@ -7,13 +7,13 @@
 > describes and re-checked against live state, and nothing here claims more
 > than `metacoin verify` proves.
 >
-> Chain point: tip index <!--chain:tip_index-->107<!--/chain-->, hash
-> <!--chain:tip_hash_prefix-->0e161cc80291<!--/chain-->…,
-> <!--chain:entry_count-->108<!--/chain--> entries, genesis
+> Chain point: tip index <!--chain:tip_index-->108<!--/chain-->, hash
+> <!--chain:tip_hash_prefix-->5a029af0baf6<!--/chain-->…,
+> <!--chain:entry_count-->109<!--/chain--> entries, genesis
 > <!--chain:genesis_hash_prefix-->71fe94035edd<!--/chain-->….
 
 The protocol's entire public state is one append-only hash chain of
-<!--chain:entry_count-->108<!--/chain--> entries. Every layer described below is
+<!--chain:entry_count-->109<!--/chain--> entries. Every layer described below is
 *derived* from those entries plus the shipped evidence bundle — there is no
 hidden state. This document walks the chain in the order it was built and
 says, for each layer, what it proves and what it deliberately does not.

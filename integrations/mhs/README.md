@@ -96,8 +96,8 @@ The record class on the chain: `physical_work_recorded`, anchored through
 re-verifies every signature and re-derives every analysis; the
 `physical work` layer of `metacoin verify` re-checks the shipped evidence
 on every run. The chain currently holds
-<!--chain:entry_count-->108<!--/chain--> entries (tip index
-<!--chain:tip_index-->107<!--/chain-->).
+<!--chain:entry_count-->109<!--/chain--> entries (tip index
+<!--chain:tip_index-->108<!--/chain-->).
 
 ## Three control paths (the public description's shape)
 

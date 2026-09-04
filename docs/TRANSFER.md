@@ -7,8 +7,8 @@
 > with the chain point it describes and re-checked against live state, and
 > every ledger index cited is resolved against the chain.
 >
-> Chain point: tip index <!--chain:tip_index-->107<!--/chain-->,
-> <!--chain:entry_count-->108<!--/chain--> entries;
+> Chain point: tip index <!--chain:tip_index-->108<!--/chain-->,
+> <!--chain:entry_count-->109<!--/chain--> entries;
 > <!--chain:task_count-->39<!--/chain--> registered tasks,
 > <!--chain:honest_negative_count-->9<!--/chain--> honest negatives.
 

@@ -5418,19 +5418,75 @@
       },
       "prev_hash": "1413647b0dadf81ddf832480f0538d854034fec9f0a7bb22112296077ae6f05c",
       "timestamp": 1788330955.1757984
+    },
+    {
+      "hash": "5a029af0baf6fbe63125a5ff8d9b6891563fbf79021cbfdf321084254a6b3fce",
+      "index": 108,
+      "payload": {
+        "anchored_at": 1788495337.4081993,
+        "coordinator_reconfirmed": {
+          "analysis_rederived_bit_exact": true,
+          "device_signatures_verified": 17,
+          "limits_table_matches_manifest": true,
+          "one_time_keys_unique": true,
+          "record_hash_recomputed": true
+        },
+        "device_manifest_hash": "7d64957a4d28424087cfec38d69f152189d19011ae73a9439a819bc3bc2aa392",
+        "epistemology": "attested measurements are not re-derived; only the analysis is",
+        "event": "physical_work_recorded",
+        "headline": {
+          "accepted": 1,
+          "device_id": "sim-plate-reader-01",
+          "limits_enforced": 5,
+          "refusals": 1,
+          "rejected": 1,
+          "run_verdicts": [
+            {
+              "energy_j": 3885.0,
+              "r2": 0.893029,
+              "run_acceptable": false,
+              "run_id": "run-1"
+            },
+            {
+              "energy_j": 3885.0,
+              "r2": 0.984747,
+              "run_acceptable": true,
+              "run_id": "run-2"
+            }
+          ],
+          "runs": 2,
+          "snapshots_attested": 16
+        },
+        "label": "MHS-shaped, pre-standard, simulated device",
+        "limitation_note": "A physical-work record is a same-operator record over a SIMULATED, MHS-shaped device: the measurements are ATTESTED (the device's one-time hash-based signatures over each snapshot are verified under its declared root; a measurement is never re-derived), only the analysis over them is re-derived bit-exact, and the safety-limit refusals are verified against the record's limits table \u2014 so an anchored record proves the record's integrity and the analysis arithmetic, not that any physical instrument was operated, not that the device interface is the Model Hardware Standard (a limited research preview, not yet public), and not that the measurements are true; the run-1 rejection is an honest negative; not consensus, not payment, not a token; research-stage.",
+        "no_token": true,
+        "operator_relationship": "same-operator",
+        "record_hash": "c2a54466ebff8e5382cc0914048d517a8b1391ee093e9b4daa529a44bf850a77",
+        "record_schema": "physical_work/0.1",
+        "refusal_rule": "a physical-work record anchors only if every snapshot signature verifies under the device's declared root with no one-time key reused, the analysis re-derives its canonical output hash bit-exact, the manifest's limits equal the limits table byte-for-byte, and every refusal names the limit it enforced \u2014 a drifted limit, a re-signed snapshot, or a re-tuned analysis refuses by name",
+        "safety_limits_hash": "0a11671adb11bcb6003cc428a2b446fea11aee0c9828bde696ac2f2b717807fb",
+        "simulated": true,
+        "stage": "R-physical",
+        "status": "physical-work-confirmed",
+        "topology": "same-operator-coordinator-physical-work-simulated",
+        "tx_tag": "TX04",
+        "zero_value": true
+      },
+      "prev_hash": "0e161cc802917a2168eab0aab7bcb602fcf1c50cd62056bdef5b42ae117ad637",
+      "timestamp": 1788495337.4089253
     }
   ],
   "snapshot_header": {
-    "entry_count": 108,
+    "entry_count": 109,
     "format": "metacoin-ledger-snapshot",
     "no_token": true,
     "note": "point-in-time snapshot of the MetaCoin protocol ledger; verify independently with audit.py --verify",
     "research_only": true,
-    "snapshot_timestamp": 1788330955.2354789,
+    "snapshot_timestamp": 1788495337.469235,
     "snapshot_version": 1,
     "stage": "R-protocol",
-    "tip_hash": "0e161cc802917a2168eab0aab7bcb602fcf1c50cd62056bdef5b42ae117ad637",
-    "tip_index": 107,
+    "tip_hash": "5a029af0baf6fbe63125a5ff8d9b6891563fbf79021cbfdf321084254a6b3fce",
+    "tip_index": 108,
     "zero_value": true
   }
 }

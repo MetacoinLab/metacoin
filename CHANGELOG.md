@@ -8,6 +8,25 @@
 > ledger (integrations, generators, gate runs) is listed under the tip it
 > accompanied. Newest first. Research-stage; zero-value; no token.
 
+## idx 108 — the physical-work layer (MHS-shaped, pre-standard, simulated)
+
+The first `physical_work_recorded` entry
+<!--idx:108=physical_work_recorded-->: a device manifest (capabilities,
+enforced safety limits, a one-time-signature identity root) and a
+device-limits table in the anchored-parameter-table shape; sixteen state
+snapshots each ATTESTED by the device's signature (a measurement is never
+re-derived); two dose-response analyses re-derived bit-exact with the
+verdict inside the canonical output — run 1 rejected (saturation, R² 0.893
+below the pre-stated 0.9 rule), run 2 accepted (R² 0.985); and one
+safety-limit refusal (a shaker write above the limit, blocked before any
+state change) as a first-class signed record. Labeled on the record:
+"MHS-shaped, pre-standard, simulated device" — the device interface is
+shaped like the publicly described Model Hardware Standard, which is a
+research preview and not yet public; no instrument was operated. The
+`physical work` verification layer (21 layers) re-checks it on every run;
+the loosened-limit, tampered-snapshot, and flipped-verdict fixtures fail
+loudly in the self-test. Code and shapes: `integrations/mhs/`.
+
 ## idx 101–107 — the software/data-engineering transfer family
 
 Six tasks of the kind coding and data agents actually face — schema
