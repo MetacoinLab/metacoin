@@ -239,3 +239,7 @@ integrations/x402/*
 
 # nine-hour session working directory (SESSION_STATE, logs, scratch) — never tracked
 work/nine-hour-session/
+
+# service environment and the real-features session working directory — never tracked
+.venv-service/
+work/real-features-session/
