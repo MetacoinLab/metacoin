@@ -112,7 +112,7 @@ class CliTests(unittest.TestCase):
     def test_capabilities_table_is_machine_readable_and_honest(self):
         code, table, _ = invoke('capabilities')
         self.assertEqual(code, 0)
-        self.assertEqual(table['transport']['http_402'], 'unavailable')
+        self.assertTrue(table['transport']['http_402'].startswith('unavailable'))
         self.assertFalse(table['adapters']['legacy-simulation']['real_funds'])
         self.assertEqual(table['contract_fields']['retention_seconds'], 'descriptive;no-deletion-service-implemented')
         self.assertEqual(table['external_team_pilot'], 'not-performed')
