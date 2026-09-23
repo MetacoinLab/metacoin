@@ -69,6 +69,21 @@ class Journal:
         self.campaign_id = campaign
         self.limit = limit
 
+    @classmethod
+    def open(cls, path):
+        """Open an existing journal by its recorded campaign row (no retyping of the cap)."""
+        path = os.fspath(path)
+        if not os.path.exists(path):
+            raise merkle.Invalid('unknown campaign journal')
+        db = sqlite3.connect(path, timeout=15)
+        try:
+            rows = db.execute('SELECT id, cap FROM campaign').fetchall()
+        finally:
+            db.close()
+        if len(rows) != 1:
+            raise merkle.Invalid('campaign configuration is immutable')
+        return cls(path, rows[0][0], rows[0][1])
+
     # Test seams for deterministic process-interruption evidence. They do no
     # work here; a test-only subclass may terminate the process at either point.
     def _before_commit(self, db):
@@ -161,9 +176,10 @@ class Journal:
                 raise merkle.Invalid('work not accepted under the contract')
             return self._request(row, contract, request_id)
 
-    def _reserve(self, request, actor, adapter, now):
+    def _reserve(self, request, actor, adapter, now, dry_run=False):
         """Return True if a NEW reservation was recorded, False if the identical
-        action already exists (a retry: no new right is created)."""
+        action already exists (a retry: no new right is created). With dry_run
+        every check runs inside the same transaction but nothing is written."""
         adapter.validate(request)
         with self._tx() as db:
             row, contract = self._job(db, request.get('job_id'))
@@ -191,10 +207,28 @@ class Journal:
             exposure = self._exposure(db)
             if exposure + request['amount'] > self.limit:
                 raise merkle.Invalid('campaign budget exhausted')
+            if dry_run:
+                return True
             db.execute('INSERT INTO actions VALUES (?, ?, ?, ?, ?, ?, NULL)',
                        (request['request_id'], request['job_id'], request_digest(request),
                         merkle.canonical(request).decode('ascii'), request['amount'], 'RESERVED'))
             return True
+
+    def preview(self, request, actor, adapter, now=None):
+        """Dry run: the full authorization check with no reservation, no dispatch.
+        Shows the binding and adapter capability an operator is about to commit to."""
+        request = merkle.parse(merkle.canonical(request))
+        if type(request) is not dict:
+            raise merkle.Invalid('action must be an object')
+        would_reserve = self._reserve(request, actor, adapter, now, dry_run=True)
+        existing = None if would_reserve else self.status(request['request_id'], actor)
+        with self._tx() as db:
+            exposure = self._exposure(db)
+        return {'dry_run': True, 'dispatched': False, 'reserved': False,
+                'would_reserve': would_reserve, 'existing_action': existing,
+                'request_digest': request_digest(request), 'amount': request['amount'],
+                'campaign_exposure': exposure, 'campaign_available': self.limit - exposure,
+                'adapter': getattr(adapter, 'CAPABILITIES', {'capability': adapter.capability})}
 
     @staticmethod
     def _expire_reserved(db, request_id, now):
