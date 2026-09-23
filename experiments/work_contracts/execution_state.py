@@ -69,6 +69,14 @@ class Journal:
         self.campaign_id = campaign
         self.limit = limit
 
+    # Test seams for deterministic process-interruption evidence. They do no
+    # work here; a test-only subclass may terminate the process at either point.
+    def _before_commit(self, db):
+        pass
+
+    def _after_commit(self, db):
+        pass
+
     @contextmanager
     def _tx(self):
         db = sqlite3.connect(self.path, timeout=15, isolation_level=None)
@@ -78,7 +86,9 @@ class Journal:
             db.execute('PRAGMA synchronous=FULL')
             db.execute('BEGIN IMMEDIATE')
             yield db
+            self._before_commit(db)
             db.commit()
+            self._after_commit(db)
         except BaseException:
             db.rollback()
             raise
