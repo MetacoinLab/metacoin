@@ -1,0 +1,139 @@
+"""Durable job queue: draft -> (frozen contract) -> queued -> running -> succeeded | failed | cancelled.
+Review and payment states live in separate columns/tables and are never merged."""
+import json
+import secrets
+from experiments.private_receipts import receipt as merkle
+from experiments.work_contracts import contract as terms
+from experiments.work_contracts.execution_state import Journal
+from . import history
+from .db import now
+from .errors import ServiceError
+
+
+class Jobs:
+    def __init__(self, store, settings):
+        self.store, self.settings = store, settings
+
+    def journal(self, db, workspace):
+        row = db.execute('SELECT * FROM campaigns WHERE workspace=?', (workspace,)).fetchone()
+        if row is None:
+            raise ServiceError('CAPABILITY_UNAVAILABLE', 'campaign not initialized for workspace')
+        return Journal(self.settings.journal_path, row['campaign_id'], row['cap'])
+
+    def submit(self, db, principal, contract_id):
+        principal.require('job:submit')
+        row = db.execute('SELECT * FROM contracts WHERE id=? AND workspace=?', (contract_id, principal.workspace)).fetchone()
+        if row is None:
+            raise ServiceError('NOT_FOUND', 'contract')
+        if row['state'] != 'frozen':
+            raise ServiceError('CONFLICT', 'contract must be frozen before submission')
+        if row['expires_at'] <= now():
+            raise ServiceError('EXPIRED', 'contract expired')
+        if db.execute('SELECT 1 FROM jobs WHERE contract_id=?', (contract_id,)).fetchone():
+            raise ServiceError('CONFLICT', 'a job already exists for this contract version')
+        queued = db.execute("SELECT COUNT(*) FROM jobs WHERE workspace=? AND state IN ('queued','running')", (principal.workspace,)).fetchone()[0]
+        if queued >= self.settings.limits['max_queued_per_workspace']:
+            raise ServiceError('RATE_LIMITED')
+        if row['kind'] == 'energy_audit':
+            # One action entitlement per job, pinned in the economic journal at submission.
+            doc = merkle.parse(row['contract_json'])
+            self.journal(db, principal.workspace).register(doc, row['contract_digest'], principal.id, now())
+        jid = 'j_' + secrets.token_hex(8)
+        db.execute('INSERT INTO jobs (id, workspace, contract_id, kind, state, retries_left, submitted_by, created_at, updated_at) '
+                   'VALUES (?,?,?,?,?,?,?,?,?)', (jid, principal.workspace, contract_id, row['kind'], 'queued',
+                                                self.settings.limits['job_max_retries'], principal.id, now(), now()))
+        history.record(db, principal.workspace, principal.id, 'job.queued', 'job', jid,
+                       {'contract_id': contract_id, 'contract_digest': row['contract_digest'], 'kind': row['kind']})
+        return jid
+
+    def get(self, db, principal, job_id):
+        principal.require('job:read')
+        row = db.execute('SELECT * FROM jobs WHERE id=? AND workspace=?', (job_id, principal.workspace)).fetchone()
+        if row is None:
+            raise ServiceError('NOT_FOUND', 'job')
+        return row
+
+    def list(self, db, principal, *, state=None, review_state=None, limit=None, before=None):
+        principal.require('job:read')
+        limit = min(int(limit or self.settings.limits['page_size']), self.settings.limits['page_size'])
+        sql, args = 'SELECT * FROM jobs WHERE workspace=?', [principal.workspace]
+        if state:
+            sql += ' AND state=?'; args.append(state)
+        if review_state:
+            sql += ' AND review_state=?'; args.append(review_state)
+        if before:
+            sql += ' AND created_at < ?'; args.append(int(before))
+        sql += ' ORDER BY created_at DESC, id DESC LIMIT ?'; args.append(limit + 1)
+        rows = db.execute(sql, args).fetchall()
+        more = len(rows) > limit
+        return rows[:limit], more
+
+    def cancel(self, db, principal, job_id):
+        principal.require('job:cancel')
+        row = self.get(db, principal, job_id)
+        if row['state'] == 'queued':
+            db.execute("UPDATE jobs SET state='cancelled', cancel_requested=1, updated_at=?, finished_at=? WHERE id=? AND state='queued'",
+                       (now(), now(), job_id))
+            history.record(db, principal.workspace, principal.id, 'job.cancelled', 'job', job_id, {'from': 'queued'})
+            return 'cancelled'
+        if row['state'] == 'running':
+            db.execute("UPDATE jobs SET cancel_requested=1, updated_at=? WHERE id=?", (now(), job_id))
+            history.record(db, principal.workspace, principal.id, 'job.cancelled', 'job', job_id, {'from': 'running', 'cooperative': True})
+            return 'cancel_requested'
+        raise ServiceError('CONFLICT', 'job is terminal')
+
+    def view(self, db, principal, row, contract_row=None):
+        """Projection filtered by permission: viewers never see private summaries."""
+        contract_row = contract_row or db.execute('SELECT * FROM contracts WHERE id=?', (row['contract_id'],)).fetchone()
+        pol = json.loads(contract_row['policy_json'])
+        out = {'id': row['id'], 'kind': row['kind'], 'contract_id': row['contract_id'], 'state': row['state'],
+               'review_state': row['review_state'], 'attempt': row['attempt'], 'lease_generation': row['lease_generation'],
+               'retries_left': row['retries_left'], 'cancel_requested': bool(row['cancel_requested']),
+               'error_code': row['error_code'], 'created_at': row['created_at'], 'updated_at': row['updated_at'],
+               'finished_at': row['finished_at'], 'evidence_root': row['evidence_root'],
+               'contract_digest': contract_row['contract_digest'], 'title': contract_row['title'],
+               'expires_at': contract_row['expires_at'], 'model_id': json.loads(contract_row['contract_json'])['model_id'] if contract_row['contract_json'] else None,
+               'verifier_id': json.loads(contract_row['contract_json'])['verifier_id'] if contract_row['contract_json'] else None,
+               'verifier_digest': json.loads(contract_row['contract_json'])['verifier_digest'] if contract_row['contract_json'] else None}
+        private_ok = principal.can('job:read_private') or (principal.role == 'reviewer' and contract_row['reviewer_id'] == principal.id)
+        public_ok = pol['disclose_outcome'] and row['review_state'] == 'accepted'
+        if private_ok:
+            out['outcome'] = row['outcome']
+            out['summary'] = json.loads(row['summary_json']) if row['summary_json'] else None
+        elif public_ok:
+            out['outcome'] = row['outcome']
+            out['summary'] = None
+        else:
+            out['outcome'] = 'withheld-by-policy-or-not-yet-reviewed' if row['outcome'] else None
+            out['summary'] = None
+        out['payment'] = self.payment_view(db, principal, row)
+        out['next_operation'] = self.next_operation(row, contract_row, principal)
+        return out
+
+    def payment_view(self, db, principal, row):
+        act = db.execute('SELECT * FROM payment_actions WHERE job_id=?', (row['id'],)).fetchone()
+        if act is None:
+            return {'state': 'NOT_REQUESTED'}
+        try:
+            status = self.journal(db, principal.workspace).status(act['request_id'], json.loads(act['request_json'])['actor'])
+        except Exception:
+            return {'state': 'UNKNOWN_LOCAL_RECORD', 'request_id': act['request_id']}
+        return {'state': status['state'], 'request_id': act['request_id'], 'amount': status['amount'],
+                'capability': status['capability'], 'provider_mode': act['provider_mode'],
+                'reference': (status['result'] or {}).get('reference')}
+
+    @staticmethod
+    def next_operation(row, contract_row, principal):
+        if row['state'] in ('queued', 'running'):
+            return 'wait for the worker (or cancel)'
+        if row['state'] == 'failed':
+            return 'inspect error; amend the contract to a new version if inputs were invalid'
+        if row['state'] == 'cancelled':
+            return 'amend the contract and submit a new job'
+        if row['review_state'] == 'none':
+            return 'owner: request review'
+        if row['review_state'] == 'requested':
+            return 'designated reviewer: recompute and record a signed decision'
+        if row['review_state'] == 'accepted' and row['kind'] == 'energy_audit':
+            return 'owner: create the bounded payment action (dry run first), or export the public bundle'
+        return 'export the public bundle'

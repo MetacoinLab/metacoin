@@ -124,15 +124,16 @@ CAPABILITIES = tuple(ACTION_TEMPLATES)
 
 def make(job_id, input_root, expires_at, actor='agent-fixture', amount=1,
          accepted_outcomes=energy.OUTCOMES, disclose_outcome=True,
-         disclose_explanation=False, capability='legacy_simulation'):
+         disclose_explanation=False, capability='legacy_simulation',
+         owner='local-owner', auditor='local-auditor', retention_seconds=86400):
     if capability not in CAPABILITIES:
         raise merkle.Invalid('unsupported adapter capability or destination')
     destination = ACTION_TEMPLATES[capability]
     fields = list(BINDINGS) + (['outcome'] if disclose_outcome else [])
     if disclose_explanation:
         fields += ['margin_explanation', 'dominant_uncertainty_source']
-    obj = {'schema': SCHEMA, 'job_id': job_id, 'owner': 'local-owner',
-           'auditor': 'local-auditor', 'input_authority': 'local-owner',
+    obj = {'schema': SCHEMA, 'job_id': job_id, 'owner': owner,
+           'auditor': auditor, 'input_authority': owner,
            'input_root': input_root, 'commitment_schema': merkle.SCHEMA,
            'evidence_kind': merkle.KIND, 'verifier_id': VERIFIER,
            'verifier_digest': verifier_digest(), 'result_schema': energy.RESULT_SCHEMA,
@@ -144,6 +145,6 @@ def make(job_id, input_root, expires_at, actor='agent-fixture', amount=1,
            'action': {'actor': actor, 'amount': amount, 'limit': amount, 'capability': capability,
                       **destination},
            'expires_at': expires_at, 'dispute': 'owner-auditor-review-no-automatic-refund',
-           'retention_seconds': 86400, 'access': 'owner-controlled-local-audit'}
+           'retention_seconds': retention_seconds, 'access': 'owner-controlled-local-audit'}
     validate(obj)
     return obj
