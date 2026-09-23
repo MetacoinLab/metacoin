@@ -1,7 +1,4 @@
-"""Placeholder mount; the console is defined in console_ui.py (written next)."""
+"""Mounts the server-rendered console (console_ui) onto the API application."""
 def mount(app, svc):
-    try:
-        from . import console_ui
-        console_ui.mount(app, svc)
-    except ImportError:
-        pass
+    from . import console_ui
+    console_ui.mount(app, svc)

@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block body %}
+<h1>Reviewer decision · job <code>{{ e.job_id }}</code></h1>
+<div class="card"><h2>Bindings (verify before deciding)</h2><dl><dt>contract pin</dt><dd><code>{{ e.contract_digest }}</code></dd><dt>input root</dt><dd><code>{{ e.input_root }}</code></dd><dt>evidence root</dt><dd><code>{{ e.evidence_root }}</code></dd><dt>verifier</dt><dd>{{ e.verifier_id }} ({{ e.verifier_status }}) <code>{{ e.verifier_digest }}</code></dd><dt>model</dt><dd>{{ e.model_id }}</dd><dt>acceptance policy</dt><dd>{{ e.accepted_outcomes|join(', ') }}</dd></dl></div>
+<div class="card"><h2>Independent recomputation</h2><p>Recomputation: <strong>{{ e.recomputation }}</strong> · scientific outcome: <strong>{{ e.scientific_outcome }}</strong> · policy satisfied: <strong>{{ e.policy_satisfied }}</strong>{% if e.refusal %} · refusal: {{ e.refusal }}{% endif %}</p>
+{% if e.private_details %}<pre>{{ e.private_details|tojson(indent=1) }}</pre>{% endif %}{% if e.margin_explanation %}<h2>Margin explanation (private)</h2><pre>{{ e.margin_explanation|tojson(indent=1) }}</pre>{% endif %}</div>
+{% if existing %}<div class="card"><p>Decision already recorded: <strong>{{ existing.decision }}</strong> (key {{ existing.key_id }}, digest <code>{{ existing.envelope_digest }}</code>). A different decision requires a new contract version.</p></div>
+{% else %}<form method="post" action="/console/reviews/{{ e.job_id }}/decision"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}">
+<p><button type="submit" name="decision" value="accepted" {% if e.recomputation!='matches' or not e.policy_satisfied %}disabled{% endif %}>Accept (sign)</button> <button type="submit" name="decision" value="rejected" class="secondary">Reject (sign)</button></p>
+<p class="note">Accept is disabled when recomputation failed or the policy is unmet, and the server refuses it regardless of this form. Your decision is signed with the server-managed reviewer key ({{ principal.id }}).</p></form>{% endif %}
+<h2>Frozen terms</h2><pre>{{ terms_json }}</pre>{% endblock %}

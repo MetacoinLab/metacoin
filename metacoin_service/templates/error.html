@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block title %}Refused · MetaCoin{% endblock %}{% block body %}
+<h1>Request refused</h1><div class="err"><p><strong>{{ error.code }}</strong> — {{ error.action }}</p>{% if error.detail %}<p class="note">detail: {{ error.detail }}</p>{% endif %}</div>
+<p><a href="/console/">Back to the work list</a></p>{% endblock %}

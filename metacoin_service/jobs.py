@@ -112,12 +112,13 @@ class Jobs:
 
     def payment_view(self, db, principal, row):
         act = db.execute('SELECT * FROM payment_actions WHERE job_id=?', (row['id'],)).fetchone()
+        empty = {'request_id': None, 'amount': None, 'capability': None, 'provider_mode': None, 'reference': None}
         if act is None:
-            return {'state': 'NOT_REQUESTED'}
+            return dict(empty, state='NOT_REQUESTED')
         try:
             status = self.journal(db, principal.workspace).status(act['request_id'], json.loads(act['request_json'])['actor'])
         except Exception:
-            return {'state': 'UNKNOWN_LOCAL_RECORD', 'request_id': act['request_id']}
+            return dict(empty, state='UNKNOWN_LOCAL_RECORD', request_id=act['request_id'], provider_mode=act['provider_mode'])
         return {'state': status['state'], 'request_id': act['request_id'], 'amount': status['amount'],
                 'capability': status['capability'], 'provider_mode': act['provider_mode'],
                 'reference': (status['result'] or {}).get('reference')}

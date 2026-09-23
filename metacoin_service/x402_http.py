@@ -194,8 +194,12 @@ class SaleService:
         requirements_digest = hashlib.sha256(result.payment_requirements.model_dump_json(by_alias=True).encode()).hexdigest()
         existing = db.execute('SELECT * FROM sales WHERE payment_id=?', (identifier,)).fetchone()
         if existing is not None and existing['state'] == 'CONFIRMED':
+            # Idempotent re-delivery of an already settled sale: same bound resource, recorded settlement.
+            from x402.http.utils import encode_payment_response_header
+            recorded = ns.schemas.SettleResponse(success=True, transaction=existing['transaction_ref'], network=existing['network'],
+                                                 payer=existing['payer'], amount=existing['amount'])
             bundle = self.store.load(db, review['public_bundle_artifact_id'], workspace)
-            return 200, {'PAYMENT-RESPONSE': existing['transaction_ref'] and '', 'X-Sale-State': 'already-settled'}, bundle
+            return 200, {ns.http.PAYMENT_RESPONSE_HEADER: encode_payment_response_header(recorded), 'X-Sale-State': 'already-settled'}, bundle
         if existing is None:
             db.execute('INSERT INTO sales VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,?,?,?)',
                        (identifier, workspace, job_id, expected['route'], str(price), asset, network, pay_to,

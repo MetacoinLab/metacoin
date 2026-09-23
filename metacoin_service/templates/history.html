@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block body %}
+<h1>Workspace history</h1><p class="note">Hash chain: {{ 'valid' if chain.valid else 'BROKEN at ' ~ chain.first_bad_seq }} ({{ chain.checked }} events checked). The chain detects accidental alteration against an independent checkpoint; it does not defeat an administrator or a database rollback.</p>
+<table><tr><th>seq</th><th>time</th><th>category</th><th>event</th><th>object</th><th>actor</th><th>reference</th></tr>{% for e in events %}<tr><td>{{ e.seq }}</td><td>{{ e.ts }}</td><td><span class="badge">{{ e.category }}</span></td><td>{{ e.event_type }}</td><td>{{ e.object_type }} <code>{{ e.object_id }}</code></td><td><code>{{ e.actor_id }}</code></td><td><code>{{ e.ref|tojson }}</code></td></tr>{% endfor %}</table>{% endblock %}

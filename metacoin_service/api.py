@@ -5,6 +5,7 @@ import hashlib
 import json
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
@@ -90,7 +91,7 @@ def create_app(settings):
             response.headers.setdefault(key, value)
         return response
 
-    def run(request, mutating, fn, operation=None, raw=b''):
+    def run_sync(request, mutating, fn, operation=None, raw=b''):
         with svc.db.tx() as db:
             principal = principal_of(request, db, mutating)
             key = request.headers.get('idempotency-key') if operation else None
@@ -99,9 +100,16 @@ def create_app(settings):
             return JSONResponse(result[0], status_code=result[1])
         return JSONResponse(result)
 
+    async def run(request, mutating, fn, operation=None, raw=b''):
+        # Service work is synchronous (SQLite, subprocesses, SDK); keep the event loop free.
+        return await run_in_threadpool(run_sync, request, mutating, fn, operation, raw)
+
     # ---- health / capabilities ------------------------------------------------
     @app.get('/api/health')
     async def health():
+        return await run_in_threadpool(health_sync)
+
+    def health_sync():
         with svc.db.read() as db:
             queued = db.execute("SELECT COUNT(*) FROM jobs WHERE state='queued'").fetchone()[0]
             running = db.execute("SELECT COUNT(*) FROM jobs WHERE state='running'").fetchone()[0]
@@ -109,16 +117,18 @@ def create_app(settings):
 
     @app.get(API + '/capabilities')
     async def capabilities(request: Request):
-        return run(request, False, lambda db, p: capability_table(svc, db))
+        return await run(request, False, lambda db, p: capability_table(svc, db))
 
     # ---- session (browser) ---------------------------------------------------
     @app.post(API + '/session')
     async def login(request: Request):
         raw = await request.body()
         body = read_body(request, raw)
-        with svc.db.tx() as db:
-            principal = auth.authenticate_bearer(db, body.get('token'))
-            sid, csrf = auth.create_session(db, principal.id, settings.limits['session_seconds'])
+        def do():
+            with svc.db.tx() as db:
+                principal = auth.authenticate_bearer(db, body.get('token'))
+                return principal, auth.create_session(db, principal.id, settings.limits['session_seconds'])
+        principal, (sid, csrf) = await run_in_threadpool(do)
         response = JSONResponse({'principal_id': principal.id, 'role': principal.role, 'workspace': principal.workspace, 'csrf': csrf})
         response.set_cookie('metacoin_session', sid, httponly=True, samesite='strict', secure=not settings.dev_http_loopback,
                             max_age=settings.limits['session_seconds'], path='/')
@@ -126,17 +136,19 @@ def create_app(settings):
 
     @app.delete(API + '/session')
     async def logout(request: Request):
-        with svc.db.tx() as db:
-            principal = principal_of(request, db, True)
-            if principal.session:
-                auth.end_session(db, principal.session['id'])
+        def do():
+            with svc.db.tx() as db:
+                principal = principal_of(request, db, True)
+                if principal.session:
+                    auth.end_session(db, principal.session['id'])
+        await run_in_threadpool(do)
         response = JSONResponse({'ended': True})
         response.delete_cookie('metacoin_session', path='/')
         return response
 
     @app.get(API + '/me')
     async def me(request: Request):
-        return run(request, False, lambda db, p: {'principal_id': p.id, 'name': p.name, 'role': p.role, 'workspace': p.workspace,
+        return await run(request, False, lambda db, p: {'principal_id': p.id, 'name': p.name, 'role': p.role, 'workspace': p.workspace,
                                                   'permissions': sorted(auth.PERMISSIONS[p.role])})
 
     # ---- contracts -----------------------------------------------------------
@@ -147,7 +159,7 @@ def create_app(settings):
         def fn(db, p):
             cid = svc.contracts.create_draft(db, p, kind=body.get('kind'), title=body.get('title'), inputs=body.get('inputs'), policy=body.get('policy') or {})
             return svc.contracts.public_view(svc.contracts.get(db, p, cid)), 201
-        return run(request, True, fn, 'contracts.create', raw)
+        return await run(request, True, fn, 'contracts.create', raw)
 
     @app.get(API + '/contracts')
     async def list_contracts(request: Request):
@@ -155,11 +167,11 @@ def create_app(settings):
             p.require('contract:read')
             rows = db.execute('SELECT * FROM contracts WHERE workspace=? ORDER BY created_at DESC LIMIT ?', (p.workspace, settings.limits['page_size'])).fetchall()
             return {'items': [svc.contracts.public_view(r) for r in rows]}
-        return run(request, False, fn)
+        return await run(request, False, fn)
 
     @app.get(API + '/contracts/{contract_id}')
     async def get_contract(request: Request, contract_id: str):
-        return run(request, False, lambda db, p: svc.contracts.public_view(svc.contracts.get(db, p, contract_id)))
+        return await run(request, False, lambda db, p: svc.contracts.public_view(svc.contracts.get(db, p, contract_id)))
 
     @app.get(API + '/contracts/{contract_id}/inputs')
     async def contract_inputs(request: Request, contract_id: str):
@@ -168,7 +180,7 @@ def create_app(settings):
             row = svc.contracts.get(db, p, contract_id)
             data = svc.store.load_json(db, row['input_artifact_id'], p.workspace)
             return {'contract_id': contract_id, 'private': True, 'inputs': data if row['state'] == 'draft' else {f['name']: f['value'] for f in data['fields']}['inputs']}
-        return run(request, False, fn)
+        return await run(request, False, fn)
 
     @app.patch(API + '/contracts/{contract_id}')
     async def update_contract(request: Request, contract_id: str):
@@ -177,7 +189,7 @@ def create_app(settings):
         def fn(db, p):
             svc.contracts.update_draft(db, p, contract_id, inputs=body.get('inputs'), policy=body.get('policy'), title=body.get('title'))
             return svc.contracts.public_view(svc.contracts.get(db, p, contract_id))
-        return run(request, True, fn)
+        return await run(request, True, fn)
 
     @app.post(API + '/contracts/{contract_id}/freeze')
     async def freeze(request: Request, contract_id: str):
@@ -185,7 +197,7 @@ def create_app(settings):
         def fn(db, p):
             svc.contracts.freeze(db, p, contract_id)
             return svc.contracts.public_view(svc.contracts.get(db, p, contract_id))
-        return run(request, True, fn, 'contracts.freeze', raw)
+        return await run(request, True, fn, 'contracts.freeze', raw)
 
     @app.post(API + '/contracts/{contract_id}/amend', status_code=201)
     async def amend(request: Request, contract_id: str):
@@ -194,7 +206,7 @@ def create_app(settings):
         def fn(db, p):
             new_id = svc.contracts.amend(db, p, contract_id, inputs=body.get('inputs'), policy=body.get('policy'), title=body.get('title'))
             return svc.contracts.public_view(svc.contracts.get(db, p, new_id)), 201
-        return run(request, True, fn, 'contracts.amend', raw)
+        return await run(request, True, fn, 'contracts.amend', raw)
 
     # ---- jobs ----------------------------------------------------------------
     @app.post(API + '/jobs', status_code=202)
@@ -204,7 +216,7 @@ def create_app(settings):
         def fn(db, p):
             jid = svc.jobs.submit(db, p, body.get('contract_id'))
             return svc.jobs.view(db, p, svc.jobs.get(db, p, jid)), 202
-        return run(request, True, fn, 'jobs.submit', raw)
+        return await run(request, True, fn, 'jobs.submit', raw)
 
     @app.get(API + '/jobs')
     async def list_jobs(request: Request):
@@ -213,15 +225,15 @@ def create_app(settings):
             rows, more = svc.jobs.list(db, p, state=q.get('state'), review_state=q.get('review_state'), limit=q.get('limit'), before=q.get('before'))
             return {'items': [svc.jobs.view(db, p, r) for r in rows], 'more': more,
                     'next_before': rows[-1]['created_at'] if rows and more else None}
-        return run(request, False, fn)
+        return await run(request, False, fn)
 
     @app.get(API + '/jobs/{job_id}')
     async def get_job(request: Request, job_id: str):
-        return run(request, False, lambda db, p: svc.jobs.view(db, p, svc.jobs.get(db, p, job_id)))
+        return await run(request, False, lambda db, p: svc.jobs.view(db, p, svc.jobs.get(db, p, job_id)))
 
     @app.post(API + '/jobs/{job_id}/cancel')
     async def cancel_job(request: Request, job_id: str):
-        return run(request, True, lambda db, p: {'job_id': job_id, 'result': svc.jobs.cancel(db, p, job_id)})
+        return await run(request, True, lambda db, p: {'job_id': job_id, 'result': svc.jobs.cancel(db, p, job_id)})
 
     @app.get(API + '/jobs/{job_id}/result')
     async def job_result(request: Request, job_id: str):
@@ -240,7 +252,7 @@ def create_app(settings):
                     'margin_explanation': values.get('margin_explanation'), 'outcome': values.get('outcome') or row['outcome'],
                     'bindings': {k: values.get(k) for k in ('contract_digest', 'input_root', 'verifier_id', 'verifier_digest', 'model_id')},
                     'limits': 'conditional on the declared interval model; bounds are assumptions, not calibrated observations'}
-        return run(request, False, fn)
+        return await run(request, False, fn)
 
     @app.get(API + '/jobs/{job_id}/history')
     async def job_history(request: Request, job_id: str):
@@ -248,22 +260,22 @@ def create_app(settings):
             p.require('history:read')
             svc.jobs.get(db, p, job_id)
             return {'job_id': job_id, 'events': history.for_object(db, p.workspace, 'job', job_id)}
-        return run(request, False, fn)
+        return await run(request, False, fn)
 
     # ---- reviews -------------------------------------------------------------
     @app.post(API + '/jobs/{job_id}/review-request')
     async def review_request(request: Request, job_id: str):
-        return run(request, True, lambda db, p: {'job_id': job_id, 'review_state': 'requested', 'reviewer_id': svc.reviews.request(db, p, job_id)})
+        return await run(request, True, lambda db, p: {'job_id': job_id, 'review_state': 'requested', 'reviewer_id': svc.reviews.request(db, p, job_id)})
 
     @app.get(API + '/reviews/{job_id}/evidence')
     async def review_evidence(request: Request, job_id: str):
-        return run(request, False, lambda db, p: svc.reviews.evidence(db, p, job_id))
+        return await run(request, False, lambda db, p: svc.reviews.evidence(db, p, job_id))
 
     @app.post(API + '/reviews/{job_id}/decision')
     async def review_decide(request: Request, job_id: str):
         raw = await request.body()
         body = read_body(request, raw)
-        return run(request, True, lambda db, p: svc.reviews.decide(db, p, job_id, body.get('decision')), 'reviews.decide', raw)
+        return await run(request, True, lambda db, p: svc.reviews.decide(db, p, job_id, body.get('decision')), 'reviews.decide', raw)
 
     @app.get(API + '/reviews/{job_id}')
     async def review_get(request: Request, job_id: str):
@@ -275,7 +287,7 @@ def create_app(settings):
             out = svc.reviews.view(row)
             out['verification'] = svc.reviews.verify(db, out['envelope'], out['signature_hex'], expected={'job_id': job_id})
             return out
-        return run(request, False, fn)
+        return await run(request, False, fn)
 
     @app.post(API + '/reviews/verify')
     async def review_verify(request: Request):
@@ -283,7 +295,7 @@ def create_app(settings):
         body = read_body(request, raw)
         if len(raw) > settings.limits['max_envelope_bytes']:
             raise ServiceError('PAYLOAD_TOO_LARGE')
-        return run(request, False, lambda db, p: svc.reviews.verify(db, body.get('envelope'), body.get('signature_hex'), body.get('expected')))
+        return await run(request, False, lambda db, p: svc.reviews.verify(db, body.get('envelope'), body.get('signature_hex'), body.get('expected')))
 
     # ---- artifacts ---------------------------------------------------------------
     @app.get(API + '/jobs/{job_id}/artifacts')
@@ -293,11 +305,12 @@ def create_app(settings):
             rows = db.execute('SELECT * FROM artifacts WHERE job_id=? OR contract_id=(SELECT contract_id FROM jobs WHERE id=?) ORDER BY created_at', (job_id, job_id)).fetchall()
             return {'items': [artifact_view(r, p, db) for r in rows if r['public'] or p.can('artifact:read_private')
                               or (p.role == 'reviewer' and _assigned(db, r, p))]}
-        return run(request, False, fn)
+        return await run(request, False, fn)
 
     @app.get(API + '/artifacts/{artifact_id}/export')
     async def artifact_export(request: Request, artifact_id: str):
-        with svc.db.tx() as db:
+        def do():
+          with svc.db.tx() as db:
             p = principal_of(request, db, False)
             row = svc.store.row(db, artifact_id, p.workspace)
             if row['public']:
@@ -310,6 +323,8 @@ def create_app(settings):
                 row, data = svc.store.ciphertext(db, artifact_id, p.workspace)   # ciphertext only; recipients decrypt with their own identity
                 media = 'application/octet-stream'
             history.record(db, p.workspace, p.id, 'artifact.exported', 'artifact', artifact_id, {'public': bool(row['public']), 'kind': row['kind']})
+            return data, media
+        data, media = await run_in_threadpool(do)
         return Response(content=data, media_type=media, headers=dict(SENSITIVE_HEADERS, **{'Content-Disposition': 'attachment; filename="' + artifact_id + ('.json' if media == 'application/json' else '.age') + '"'}))
 
     @app.delete(API + '/artifacts/{artifact_id}')
@@ -320,27 +335,27 @@ def create_app(settings):
             history.record(db, p.workspace, p.id, 'artifact.deleted', 'artifact', artifact_id, {'payload_unlinked': removed})
             return {'artifact_id': artifact_id, 'payload_unlinked': removed,
                     'note': 'application reference and ciphertext object removed; not cryptographic erasure of every copy'}
-        return run(request, True, fn)
+        return await run(request, True, fn)
 
     # ---- actions / budget ------------------------------------------------------
     @app.post(API + '/actions')
     async def create_action(request: Request):
         raw = await request.body()
         body = read_body(request, raw)
-        return run(request, True, lambda db, p: svc.actions.create(db, p, body.get('job_id'), body.get('request_id'), body.get('provider_mode'),
+        return await run(request, True, lambda db, p: svc.actions.create(db, p, body.get('job_id'), body.get('request_id'), body.get('provider_mode'),
                                                                      dry_run=bool(body.get('dry_run'))), 'actions.create', raw)
 
     @app.post(API + '/actions/{job_id}/reconcile')
     async def reconcile_action(request: Request, job_id: str):
-        return run(request, True, lambda db, p: svc.actions.reconcile(db, p, job_id))
+        return await run(request, True, lambda db, p: svc.actions.reconcile(db, p, job_id))
 
     @app.get(API + '/budget')
     async def budget(request: Request):
-        return run(request, False, lambda db, p: svc.actions.budget(db, p))
+        return await run(request, False, lambda db, p: svc.actions.budget(db, p))
 
     @app.post(API + '/sales/{job_id}/reconcile')
     async def reconcile_sale(request: Request, job_id: str):
-        return run(request, True, lambda db, p: {k: v for k, v in svc.sales.reconcile(db, p, job_id).items() if k != 'requirements_digest'})
+        return await run(request, True, lambda db, p: {k: v for k, v in svc.sales.reconcile(db, p, job_id).items() if k != 'requirements_digest'})
 
     @app.get(API + '/history')
     async def workspace_history(request: Request):
@@ -349,15 +364,17 @@ def create_app(settings):
             rows = db.execute('SELECT seq, ts, actor_id, event_type, category, object_type, object_id, ref_json FROM events WHERE workspace=? ORDER BY seq DESC LIMIT ?',
                               (p.workspace, settings.limits['page_size'])).fetchall()
             return {'events': [dict(r, ref=json.loads(r['ref_json'])) for r in rows], 'chain': history.verify_chain(db, p.workspace)}
-        return run(request, False, fn)
+        return await run(request, False, fn)
 
     # ---- x402 sale route (real HTTP 402) ------------------------------------------
     @app.get(API + '/x402/jobs/{job_id}/public-bundle')
     async def x402_public_bundle(request: Request, job_id: str):
         body = await request.body()
         base = str(request.base_url).rstrip('/')
-        with svc.db.tx() as db:
-            status, headers, content = svc.sales.handle(db, request, body, base, job_id, _workspace_of_job(db, job_id))
+        def do():
+            with svc.db.tx() as db:
+                return svc.sales.handle(db, request, body, base, job_id, _workspace_of_job(db, job_id))
+        status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
 
     if settings.provider_mode == 'test-http':

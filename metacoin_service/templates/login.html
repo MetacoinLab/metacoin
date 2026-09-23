@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}Sign in · MetaCoin{% endblock %}{% block body %}
+<h1>Sign in</h1>
+{% if expired %}<p class="err">Your session expired or was signed out. Sign in again.</p>{% endif %}
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form method="post" action="/console/login"><label for="token">Bearer credential</label>
+<input id="token" name="token" type="password" autocomplete="off" required>
+<p class="note">Credentials were written once to the private bootstrap file (<code>metacoin_service credentials path</code>). This development console runs over plain HTTP on loopback only.</p>
+<button type="submit">Sign in</button></form>{% endblock %}
