@@ -40,8 +40,10 @@ def capabilities():
                                                     'current_digest': contract.verifier_digest(),
                                                     'historical_read_only': list(verifiers.HISTORICAL)},
             'adapters': {'legacy-simulation': LegacyAdapter.CAPABILITIES,
-                         'durable-test-simulation': _durable().CAPABILITIES},
-            'transport': {'http_402': 'unavailable', 'x402_sdk': 'not-installed-in-core;see integrations/x402/README.md',
+                         'durable-test-simulation': _durable().CAPABILITIES,
+                         'x402-loopback-test': _loopback_capabilities()},
+            'transport': {'http_402': 'unavailable-over-a-socket;header-level-compatibility-tested-offline-with-x402-sdk-2.24.0',
+                          'x402_sdk': 'optional;isolated-venv-only;see integrations/x402/README.md',
                           'network_settlement': 'unavailable', 'external_verification': 'not-performed'},
             'evidence': {'private_audit': 'full-recomputation-by-authorized-local-auditor',
                          'public_verification': 'salted-merkle-membership-and-bindings-only',
@@ -54,6 +56,15 @@ def capabilities():
 def _durable():
     from .tests.durable_provider import DurableProvider  # testing facility, imported lazily
     return DurableProvider
+
+
+def _loopback_capabilities():
+    from integrations.x402 import loopback_harness
+    if not loopback_harness.available():
+        return {'capability': 'x402_loopback_test', 'status': 'sdk-not-installed-in-this-interpreter;tests-skip',
+                'sdk': {'package': 'x402', 'version': loopback_harness.SDK_VERSION}}
+    from integrations.x402.loopback_adapter import LoopbackAdapter
+    return LoopbackAdapter.CAPABILITIES
 
 
 def build_adapter(args):

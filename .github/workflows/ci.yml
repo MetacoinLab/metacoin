@@ -121,6 +121,20 @@ jobs:
           python3 -m experiments.private_receipts.demo
           python3 -m unittest discover -s experiments/work_contracts/tests -v
           python3 -m experiments.work_contracts.cli demo --out "$RUNNER_TEMP/work-contract-demo.json"
+          bash experiments/work_contracts/pilot/walkthrough.sh "$RUNNER_TEMP/work-contract-walkthrough"
+          python3 -m unittest integrations.x402.test_loopback -v   # stdlib interpreter: skips, and says so
+
+      # x402 SDK loopback (integrations/x402/): an OPTIONAL pinned dependency,
+      # installed only here. A failed install never fails the build; a present
+      # SDK exposing a defect does. Offline compatibility only; no settlement.
+      - name: Install pinned x402 SDK (optional dependency)
+        id: x402
+        continue-on-error: true
+        run: python3 -m pip install "x402==2.24.0"
+
+      - name: x402 SDK loopback tests (only when the SDK installed)
+        if: steps.x402.outcome == 'success'
+        run: python3 -m unittest integrations.x402.test_loopback -v
 
       # The trust-ledger console (integrations/openmct/): npm-installs the
       # pinned Open MCT release and syntax-checks the plugin — a network

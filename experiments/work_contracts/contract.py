@@ -109,7 +109,17 @@ def trusted(contract, expected_digest, mode='current'):
     return contract
 
 
-CAPABILITIES = ('legacy_simulation', 'durable_test_simulation')
+# Action destinations per adapter capability. Tokens only (the CAIP-2 network
+# id eip155:84532 is written eip155-84532; the loopback adapter maps it back).
+ACTION_TEMPLATES = {
+    'legacy_simulation': {'recipient': 'legacy-compute-provider', 'resource': 'next-compute',
+                          'asset': 'Test-META', 'network': 'local-simulation'},
+    'durable_test_simulation': {'recipient': 'legacy-compute-provider', 'resource': 'next-compute',
+                                'asset': 'Test-META', 'network': 'local-simulation'},
+    'x402_loopback_test': {'recipient': 'loopback-compute-provider', 'resource': 'next-compute',
+                           'asset': 'usdc-test-identifier', 'network': 'eip155-84532'},
+}
+CAPABILITIES = tuple(ACTION_TEMPLATES)
 
 
 def make(job_id, input_root, expires_at, actor='agent-fixture', amount=1,
@@ -117,6 +127,7 @@ def make(job_id, input_root, expires_at, actor='agent-fixture', amount=1,
          disclose_explanation=False, capability='legacy_simulation'):
     if capability not in CAPABILITIES:
         raise merkle.Invalid('unsupported adapter capability or destination')
+    destination = ACTION_TEMPLATES[capability]
     fields = list(BINDINGS) + (['outcome'] if disclose_outcome else [])
     if disclose_explanation:
         fields += ['margin_explanation', 'dominant_uncertainty_source']
@@ -130,10 +141,8 @@ def make(job_id, input_root, expires_at, actor='agent-fixture', amount=1,
            'domain': 'nonnegative-integers;1..128-segments;aggregate<=2^53-1',
            'accepted_outcomes': list(accepted_outcomes), 'allowed_disclosures': list(fields),
            'required_disclosures': list(fields),
-           'action': {'actor': actor, 'recipient': 'legacy-compute-provider',
-                      'resource': 'next-compute', 'amount': amount, 'limit': amount,
-                      'asset': 'Test-META', 'network': 'local-simulation',
-                      'capability': capability},
+           'action': {'actor': actor, 'amount': amount, 'limit': amount, 'capability': capability,
+                      **destination},
            'expires_at': expires_at, 'dispute': 'owner-auditor-review-no-automatic-refund',
            'retention_seconds': 86400, 'access': 'owner-controlled-local-audit'}
     validate(obj)
