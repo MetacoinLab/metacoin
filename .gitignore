@@ -224,7 +224,17 @@ experiments/work_contracts/*
 !experiments/work_contracts/README.md
 !experiments/work_contracts/tests/
 experiments/work_contracts/tests/*
-!experiments/work_contracts/tests/test_*.py
+!experiments/work_contracts/tests/*.py
+!experiments/work_contracts/tests/fixtures/
+experiments/work_contracts/tests/fixtures/*
+!experiments/work_contracts/tests/fixtures/*.json
+!experiments/work_contracts/pilot/
+experiments/work_contracts/pilot/*
+!experiments/work_contracts/pilot/*.md
+!experiments/work_contracts/pilot/*.json
 integrations/x402/*
 !integrations/x402/legacy_adapter.py
 !integrations/x402/README.md
+
+# nine-hour session working directory (SESSION_STATE, logs, scratch) — never tracked
+work/nine-hour-session/

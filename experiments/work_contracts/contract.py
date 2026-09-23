@@ -3,14 +3,16 @@ import hashlib
 from pathlib import Path
 import re
 from experiments.private_receipts import receipt as merkle
-from . import energy_analysis as energy
+from . import energy_analysis as energy, verifiers
 
 SCHEMA = 'metacoin-work-contract/v0-experimental'
-VERIFIER = 'local-energy-audit/v0'
+VERIFIER = verifiers.CURRENT_ID
 SCOPE = 'local-private-recomputation;public-membership-only'
 BINDINGS = ('contract_digest', 'input_root', 'verifier_id', 'verifier_digest',
             'result_schema', 'model_id', 'scope')
-PUBLIC_FIELDS = set(BINDINGS) | {'outcome'}
+# Fields a contract MAY permit in public openings. The two explanation fields
+# are private unless the owner's disclosure policy names them explicitly.
+PUBLIC_FIELDS = set(BINDINGS) | {'outcome', 'margin_explanation', 'dominant_uncertainty_source'}
 TOKEN = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,79}\Z')
 ACTION_KEYS = ('actor', 'recipient', 'resource', 'amount', 'limit', 'asset', 'network', 'capability')
 
@@ -25,14 +27,29 @@ def verifier_digest():
     """Pin the installed evaluator and all local acceptance/schema dependencies."""
     here = Path(__file__).parent
     files = [('energy_analysis.py', here / 'energy_analysis.py'),
+             ('explanation.py', here / 'explanation.py'),
              ('contract.py', here / 'contract.py'),
              ('acceptance.py', here / 'acceptance.py'),
              ('private_receipt.py', Path(merkle.__file__))]
     values = [[name, hashlib.sha256(path.read_bytes()).hexdigest()] for name, path in files]
-    return hashlib.sha256(b'metacoin/verifier-bundle/v0\0' + merkle.canonical(values)).hexdigest()
+    return hashlib.sha256(b'metacoin/verifier-bundle/v1\0' + merkle.canonical(values)).hexdigest()
 
 
-def validate(contract):
+def verifier_status(contract):
+    """'current' | 'historical' | None for the verifier a contract names."""
+    return verifiers.status(contract.get('verifier_id'), contract.get('verifier_digest'), verifier_digest())
+
+
+def validate(contract, mode='current'):
+    """Structural + semantic validation.
+
+    mode='current'    the installed bundle must be the one the contract names
+                      (required before any new registration, audit or spend).
+    mode='historical' a superseded, allowlisted bundle is also accepted; the
+                      caller may only read/verify, never execute or authorize.
+    """
+    if mode not in verifiers.MODES:
+        raise ValueError('unknown validation mode')
     merkle.canonical(contract)
     energy.exact(contract, ('schema', 'job_id', 'owner', 'auditor', 'input_authority',
                            'input_root', 'commitment_schema', 'evidence_kind',
@@ -43,10 +60,14 @@ def validate(contract):
     for name in ('job_id', 'owner', 'auditor', 'input_authority'):
         token(contract[name])
     merkle._hex(contract['input_root'])
+    merkle._hex(contract['verifier_digest'])
+    status = verifier_status(contract)
+    if status is None:
+        raise merkle.Invalid('unknown verifier bundle')
+    if status != 'current' and mode == 'current':
+        raise merkle.Invalid('verifier bundle superseded; read-only verification only')
     if (contract['schema'] != SCHEMA or contract['commitment_schema'] != merkle.SCHEMA
             or contract['evidence_kind'] != merkle.KIND
-            or contract['verifier_id'] != VERIFIER
-            or contract['verifier_digest'] != verifier_digest()
             or contract['result_schema'] != energy.RESULT_SCHEMA
             or contract['model_id'] != energy.MODEL_ID
             or contract['units'] != energy.UNITS or contract['assumptions'] != energy.ASSUMPTIONS
@@ -76,21 +97,29 @@ def validate(contract):
     return contract
 
 
-def digest(contract):
-    validate(contract)
+def digest(contract, mode='current'):
+    validate(contract, mode)
     return hashlib.sha256(b'metacoin/work-contract/v0\0' + merkle.canonical(contract)).hexdigest()
 
 
-def trusted(contract, expected_digest):
+def trusted(contract, expected_digest, mode='current'):
     merkle._hex(expected_digest)
-    if digest(contract) != expected_digest:
+    if digest(contract, mode) != expected_digest:
         raise merkle.Invalid('contract does not match owner pin')
     return contract
 
 
+CAPABILITIES = ('legacy_simulation', 'durable_test_simulation')
+
+
 def make(job_id, input_root, expires_at, actor='agent-fixture', amount=1,
-         accepted_outcomes=energy.OUTCOMES, disclose_outcome=True):
+         accepted_outcomes=energy.OUTCOMES, disclose_outcome=True,
+         disclose_explanation=False, capability='legacy_simulation'):
+    if capability not in CAPABILITIES:
+        raise merkle.Invalid('unsupported adapter capability or destination')
     fields = list(BINDINGS) + (['outcome'] if disclose_outcome else [])
+    if disclose_explanation:
+        fields += ['margin_explanation', 'dominant_uncertainty_source']
     obj = {'schema': SCHEMA, 'job_id': job_id, 'owner': 'local-owner',
            'auditor': 'local-auditor', 'input_authority': 'local-owner',
            'input_root': input_root, 'commitment_schema': merkle.SCHEMA,
@@ -104,7 +133,7 @@ def make(job_id, input_root, expires_at, actor='agent-fixture', amount=1,
            'action': {'actor': actor, 'recipient': 'legacy-compute-provider',
                       'resource': 'next-compute', 'amount': amount, 'limit': amount,
                       'asset': 'Test-META', 'network': 'local-simulation',
-                      'capability': 'legacy_simulation'},
+                      'capability': capability},
            'expires_at': expires_at, 'dispute': 'owner-auditor-review-no-automatic-refund',
            'retention_seconds': 86400, 'access': 'owner-controlled-local-audit'}
     validate(obj)

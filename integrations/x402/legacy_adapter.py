@@ -1,7 +1,7 @@
 """Thin adapter over the existing zero-value stub; no HTTP or real settlement."""
 import hashlib
 import threading
-from demo.x402_spend_stub import buy_compute
+from demo.x402_spend_stub import COMPUTE_UNITS_PER_TEST_META, buy_compute
 from experiments.private_receipts import receipt as merkle
 
 
@@ -11,11 +11,22 @@ def request_digest(request):
 
 class LegacyAdapter:
     capability = 'legacy_simulation'
+    # Declared honestly: what this adapter is and is not.
+    CAPABILITIES = {'capability': capability, 'transport': 'in-process-function-call',
+                    'settlement': 'zero-value-simulation', 'asset': 'Test-META',
+                    'network': 'local-simulation', 'signature_coverage': 'none',
+                    'idempotency': 'per-process-memory-by-request-id-and-digest',
+                    'reconciliation': 'same-adapter-instance-only', 'durable_outcomes': False,
+                    'http_402': False, 'facilitator': False, 'real_funds': False}
 
     def __init__(self, faucet):
         self._faucet = faucet
         self._outcomes = {}
         self._lock = threading.Lock()
+
+    def expected_units(self, request):
+        """Units a CONFIRMED answer must carry for this bound request."""
+        return request['amount'] * COMPUTE_UNITS_PER_TEST_META
 
     def validate(self, request):
         expected = {'capability': self.capability, 'recipient': 'legacy-compute-provider',
