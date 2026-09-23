@@ -5,7 +5,7 @@ private scientific inputs, explicit uncertainty, valid negative deliverables,
 and budgeted use of MetaCoin's **existing x402-class simulation**.
 
 ```sh
-python3 -m unittest discover -s experiments/work_contracts/tests -v   # 72 tests, ~7 s (spawns child processes)
+python3 -m unittest discover -s experiments/work_contracts/tests -v   # 74 tests, ~10 s (spawns child processes)
 python3 -m experiments.work_contracts.cli demo
 python3 -m experiments.work_contracts.benchmark --samples 30
 bash experiments/work_contracts/pilot/walkthrough.sh                  # the full non-demo local pilot

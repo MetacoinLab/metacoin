@@ -232,6 +232,7 @@ experiments/work_contracts/tests/fixtures/*
 experiments/work_contracts/pilot/*
 !experiments/work_contracts/pilot/*.md
 !experiments/work_contracts/pilot/*.json
+!experiments/work_contracts/pilot/*.sh
 integrations/x402/*
 !integrations/x402/*.py
 !integrations/x402/README.md
