@@ -5,10 +5,22 @@ private scientific inputs, explicit uncertainty, valid negative deliverables,
 and budgeted use of MetaCoin's **existing x402-class simulation**.
 
 ```sh
-python3 -m unittest discover -s experiments/work_contracts/tests -v
+python3 -m unittest discover -s experiments/work_contracts/tests -v   # 72 tests, ~7 s (spawns child processes)
 python3 -m experiments.work_contracts.cli demo
 python3 -m experiments.work_contracts.benchmark --samples 30
+bash experiments/work_contracts/pilot/walkthrough.sh                  # the full non-demo local pilot
+python3 -m experiments.work_contracts.cli capabilities                # machine-readable capability table
 ```
+
+2026-09-23 increment (verifier bundle `local-energy-audit/v1`): allowlisted
+verifier versions with read-only historical verification, an audit-only
+explanation of where the margin uncertainty comes from, a hardened journal
+(audit outside the write lock with an atomic recheck, retry/expiry semantics,
+semantic checks on adapter answers), stable refusal codes, real child-process
+interruption tests, public/private package exchange, and the operator command
+surface. Details: `docs/experiments/ACCEPTANCE_MATRIX_STEP_01.md`,
+`pilot/OPERATOR_WALKTHROUGH.md`, `pilot/REVIEWER_CHECKLIST.md`,
+`pilot/INTAKE_TEMPLATE.md` (unfilled) and `pilot/INTAKE_EXAMPLE_SYNTHETIC.md`.
 
 The demo creates temporary SQLite state, agrees on contracts before execution,
 privately audits three outcomes, checks public disclosures, buys imaginary
@@ -45,6 +57,8 @@ an attempt at a separately budgeted action; it does not itself move value.
 | Authorized private audit | Full committed structure and the declared result match local recomputation | Auditor sees private inputs; model applicability and measurement provenance are not proven |
 | Public receipt verification | Disclosed fields belong to a separately trusted result root and match contract bindings | No hidden-computation proof, signature, anonymity or payment eligibility |
 | Compute purchase | One local authorized action is reserved against job and campaign limits | `legacy_simulation`; no HTTP, chain, actual compute or real funds |
+| Private explanation | Exact split of the margin interval width into the battery-bound term and each segment's power-bound term; dominant source; counterfactual shift | Not a probability, not joint attainability, not a measurement-cost estimate; private unless the contract discloses it |
+| Public package import | Included files are consistent with the manifest and verify against the OPERATOR's pins | Publisher not authenticated; package pins are only compared |
 
 Do not expose `Journal.register`, `Journal.audit`, or caller-supplied actor strings
 as public authenticated APIs. These are local administrative functions. The DB
@@ -85,8 +99,25 @@ python3 -m experiments.work_contracts.cli verify \
 
 The owner pin is obtained from the owner's earlier preparation, and the result
 pin from the local authorized audit. Neither file is a signed attestation. The
-CLI audit is read-only with respect to spending authority. Only a successful
-`Journal.audit` records acceptance usable by `Journal.dispatch`.
+CLI `audit` is stateless and read-only with respect to spending authority;
+`record-audit` is the journal-backed form whose acceptance `dispatch` can use.
+
+The journal-backed commands (`campaign init|show`, `register`, `record-audit`,
+`request`, `dispatch [--dry-run]`, `status`, `reconcile`) and the package
+commands (`export-public`, `import-public`, `export-private`, `import-private`)
+are shown step by step, with their trust context and side-effect boundary, in
+`pilot/OPERATOR_WALKTHROUGH.md`. `dispatch --dry-run` runs every authorization
+check inside one transaction and reserves nothing. `--adapter legacy-simulation`
+is process-scoped (a fresh fixture faucet per process, stated in the output);
+`--adapter durable-test-simulation` is a file-backed testing facility whose
+outcomes a later process can reconcile. Refusals exit 2 with a stable code
+(`refusals.py`) and never echo private values or paths.
+
+Verifier evolution: `verifiers.py` allowlists superseded bundles. Contracts and
+receipts produced under the 2026-09-18 bundle (`local-energy-audit/v0`) still
+verify publicly, labeled `historical`; registering, auditing or spending under
+them is refused with `VERIFIER_SUPERSEDED`. The allowlist is local policy; a
+digest named by a submitter is never accepted.
 
 For another compatible task instance, supply a JSON file with the fixture's
 schema and actual parameters, marked `declared_unverified` until provenance is
@@ -110,12 +141,18 @@ conclusively failed actions. This campaign has no automatic refill.
 
 Submission intent is persisted before calling the adapter. A loss between intent
 and durable completion leaves pending/unknown state. Reconciliation queries the
-adapter; it never resubmits. The current adapter remembers outcomes only in the
-same process. After loss of that process it cannot resolve an uncertain debit;
-the journal conservatively retains exposure. An old DB backup must not be
-restored as if it represented current authorization state. The in-memory faucet
-is not made durable by adding a SQLite journal. No claim of exactly-once network
-settlement follows.
+adapter; it never resubmits. An adapter answer must bind the stored request
+digest and capability and be semantically consistent (a confirmation carries the
+units the bound amount implies; a failure grants nothing), otherwise the outcome
+stays unknown. The legacy adapter remembers outcomes only in the same process.
+After loss of that process it cannot resolve an uncertain debit; the journal
+conservatively retains exposure. An old DB backup must not be restored as if it
+represented current authorization state. The in-memory faucet is not made
+durable by adding a SQLite journal. No claim of exactly-once network settlement
+follows. `tests/test_interruption.py` terminates real child processes at six
+points (before/after reservation commit, after intent commit, after the
+adapter's effect, before/after confirmation commit) and asserts what a fresh
+process observes; these are software boundaries, not power-loss tests.
 
 Only the guarded legacy faucet APIs change simulated balances. Initial funding
 comes from a separately identified existing-task fixture. It is not issuance or

@@ -97,3 +97,34 @@ not equivalent security. Also time the same energy inputs with a raw-result
 baseline versus private audit/disclosure. Thirty measured repetitions follow
 three warmups. Report median, nearest-rank p95, environment, sample/seed and
 serialized public bytes. No timing threshold in correctness CI.
+
+## Addendum 2026-09-23: verifier bundle v1
+
+Changes to the trust model above, in force from verifier `local-energy-audit/v1`:
+
+- Verifier evolution is explicit. `experiments/work_contracts/verifiers.py`
+  allowlists superseded bundle digests. Historical bundles permit public
+  verification and journal inspection only; new registration, audit and
+  spending require the current bundle. Old receipts are never re-pinned or
+  edited. The allowlist file is policy and is not part of the digested bundle.
+- The private audit runs outside the journal's write lock, bound to a snapshot
+  of the registration (contract bytes + pin); acceptance is recorded only after
+  an atomic recheck of that snapshot, the expiry, and root immutability.
+- Expiry gates new reservations only. An identical retry of an existing action
+  returns its recorded state; status and reconciliation stay available.
+- Adapter answers are checked for semantic consistency (units versus bound
+  amount; failures grant nothing) and an answer for a row that never recorded
+  submission intent is unbound. Inconsistent answers preserve uncertainty.
+- Evidence gains two audit-only fields, `margin_explanation` and
+  `dominant_uncertainty_source` (see `explanation.py`). They are public only
+  when the contract lists them; public verification checks the explanation's
+  versioned envelope. Old contracts never list them and remain valid.
+- Refusals carry stable codes (`refusals.py`); the CLI never prints private
+  values, paths or foreign exception text.
+- Public and private packages (`packages.py`) are whitelisted, size-bounded zip
+  files with a sha256 manifest; import parses data only. The manifest proves
+  consistency with itself, not publisher identity, scientific truth, or payment
+  eligibility. The operator's pins are the only pins used.
+- A file-backed durable test provider exists for tests and the walkthrough. It
+  is a testing facility that models a rail with durable idempotency keys and an
+  authoritative, key-voiding "no record" answer. It is not a payment system.
