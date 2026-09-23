@@ -208,3 +208,23 @@ integrations/openmct/package-lock.json
 datasets/
 # the parameter-table working copy (protocol/parameter_table.py --generate); the anchored copy ships as protocol/evidence/parameter_table_<hash12>.json
 parameter_table.json
+
+# Reviewed experimental source only. Keep private vaults/generated artifacts
+# ignored; the global *receipt* rule would otherwise hide this source folder.
+!experiments/private_receipts/
+experiments/private_receipts/*
+!experiments/private_receipts/README.md
+!experiments/private_receipts/receipt.py
+!experiments/private_receipts/demo.py
+!experiments/private_receipts/test_receipt.py
+
+# Track only experimental source, never private vaults or SQLite state.
+experiments/work_contracts/*
+!experiments/work_contracts/*.py
+!experiments/work_contracts/README.md
+!experiments/work_contracts/tests/
+experiments/work_contracts/tests/*
+!experiments/work_contracts/tests/test_*.py
+integrations/x402/*
+!integrations/x402/legacy_adapter.py
+!integrations/x402/README.md

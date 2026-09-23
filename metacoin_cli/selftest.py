@@ -98,7 +98,10 @@ def _selftest() -> int:
             loud = "refusing to fall back" in str(exc)
         checks.append(("locate priority: explicit > CWD checkout > package "
                        "data; wrong --repo fails loudly",
-                       explicit == fake and via_cwd == fake
+                       # macOS getcwd() resolves /var to /private/var;
+                       # these spellings still name the same checkout.
+                       os.path.samefile(explicit, fake)
+                       and os.path.samefile(via_cwd, fake)
                        and via_none is None and loud))
 
         # (a) cheap REAL call per subcommand (against the checkout's corpus,

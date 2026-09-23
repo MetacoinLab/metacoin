@@ -117,6 +117,10 @@ jobs:
           python3 protocol/hero_svg.py --selftest
           python3 integrations/mhs/mhs_sim.py --selftest
           python3 protocol/build_hf_dataset.py --selftest
+          python3 -m unittest experiments.private_receipts.test_receipt -v
+          python3 -m experiments.private_receipts.demo
+          python3 -m unittest discover -s experiments/work_contracts/tests -v
+          python3 -m experiments.work_contracts.cli demo --out "$RUNNER_TEMP/work-contract-demo.json"
 
       # The trust-ledger console (integrations/openmct/): npm-installs the
       # pinned Open MCT release and syntax-checks the plugin — a network
