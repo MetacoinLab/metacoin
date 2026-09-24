@@ -52,6 +52,12 @@ class Jobs:
                                                   self.settings.limits['job_max_retries'], principal.id, now(), now(), batch_id))
         history.record(db, principal.workspace, principal.id, 'job.queued', 'job', jid,
                        {'contract_id': row['id'], 'contract_digest': row['contract_digest'], 'kind': row['kind'], 'batch_id': batch_id, 'grant_id': grant})
+        from .compute import manifests as compute_manifests
+        if row['kind'] in compute_manifests.KINDS:
+            params = json.loads(row['params_json'] or '{}')
+            db.execute('INSERT INTO compute_runs (job_id, workspace, kind, manifest_id, manifest_version, implementation_digest, input_digest, device_policy, precision, phase, work_total, updated_at) '
+                       'VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', (jid, principal.workspace, row['kind'], params['manifest_id'], params['manifest_version'], params['implementation_digest'],
+                                                             params['input_digest'], params['device_policy'], params['precision'], 'admitted', params['work_units'], now()))
         from .datasets import add_edge
         add_edge(db, principal.workspace, 'contract', row['id'], 'job', jid, 'used_input')
         return jid
@@ -175,6 +181,13 @@ class Jobs:
         else:
             out['outcome'] = 'withheld-by-policy-or-not-yet-reviewed' if row['outcome'] else None
             out['summary'] = None
+        crun = db.execute('SELECT * FROM compute_runs WHERE job_id=?', (row['id'],)).fetchone()
+        if crun:
+            ver = json.loads(crun['verification_json']) if crun['verification_json'] else None
+            out['compute'] = {'phase': crun['phase'], 'device_policy': crun['device_policy'], 'backend': crun['selected_backend'], 'backend_reason': crun['backend_reason'],
+                              'work_total': crun['work_total'], 'work_committed': crun['work_committed'], 'work_computed': crun['work_computed'],
+                              'checkpoint_generation': crun['checkpoint_generation'], 'control': crun['control'], 'hold': bool(row['hold']) if 'hold' in row.keys() else False,
+                              'verification': ({'mode': ver.get('mode'), 'passed': ver.get('passed')} if ver else None), 'manifest_id': crun['manifest_id']}
         out['payment'] = self.payment_view(db, principal, row)
         out['next_operation'] = self.next_operation(row, contract_row, principal)
         return out

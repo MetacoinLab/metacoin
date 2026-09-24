@@ -14,6 +14,10 @@ LIMITS = {
     'session_seconds': 8 * 3600, 'credential_seconds': 90 * 24 * 3600, 'max_envelope_bytes': 64 * 1024,
     'facilitator_timeout_seconds': 10, 'batch_max_items': 20,
     'max_dataset_bytes': 1024 * 1024, 'max_dataset_rows': 512, 'max_line_chars': 4096, 'max_dataset_versions_per_workspace': 500, 'max_active_workflows': 20,
+    # compute engine (conservative; leave headroom for the API and the host)
+    'compute_gpu_slots': 1, 'compute_cpu_slots': 2, 'compute_threads': 4, 'compute_cpu_seconds': 7200, 'compute_timeout_seconds': 7200,
+    'compute_checkpoint_interval_seconds': 5, 'compute_max_artifact_bytes': 64 * 1024 * 1024, 'compute_lease_renew_seconds': 20,
+    'compute_telemetry_interval_seconds': 2, 'compute_checkpoints_retained': 2, 'compute_log_tail_bytes': 16384,
 }
 
 
@@ -39,6 +43,7 @@ class Settings:
     buyer_asset_token: str = 'usdc-test-identifier'   # the contract's asset token that maps to buyer_asset
     buyer_max_amount: int = 0
     buyer_pay_to: str = ''             # optional pinned recipient
+    compute_python: str = ''           # trusted interpreter for compute children (numpy, optional CUDA torch); probed when empty
     limits: dict = field(default_factory=lambda: dict(LIMITS))
 
     @classmethod
@@ -58,7 +63,8 @@ class Settings:
                 buyer_resource_url=env.get('METACOIN_BUYER_RESOURCE_URL', ''), buyer_key_file=env.get('METACOIN_BUYER_KEY_FILE', ''),
                 buyer_network=env.get('METACOIN_BUYER_NETWORK', ''), buyer_asset=env.get('METACOIN_BUYER_ASSET', ''),
                 buyer_asset_token=env.get('METACOIN_BUYER_ASSET_TOKEN', 'usdc-test-identifier'),
-                buyer_max_amount=int(env.get('METACOIN_BUYER_MAX_AMOUNT', '0') or 0), buyer_pay_to=env.get('METACOIN_BUYER_PAY_TO', ''))
+                buyer_max_amount=int(env.get('METACOIN_BUYER_MAX_AMOUNT', '0') or 0), buyer_pay_to=env.get('METACOIN_BUYER_PAY_TO', ''),
+                compute_python=env.get('METACOIN_COMPUTE_PYTHON', ''))
         for key, value in overrides.items():
             setattr(s, key, value)
         # Operator override of bounded limits (integers only), e.g. METACOIN_LIMITS_JSON='{"job_timeout_seconds": 5}'

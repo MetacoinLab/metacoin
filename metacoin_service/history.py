@@ -8,7 +8,7 @@ import json
 from experiments.private_receipts import receipt as merkle
 from .db import now
 
-CATEGORIES = {'budget.ceiling_set': 'economic', 'worker.state_set': 'administrative', 'quota.set': 'administrative', 'worker.registered': 'administrative',
+CATEGORIES = {'budget.ceiling_set': 'economic', 'compute.progress': 'scientific', 'compute.checkpoint': 'scientific', 'compute.control': 'administrative', 'compute.verified': 'scientific', 'worker.state_set': 'administrative', 'quota.set': 'administrative', 'worker.registered': 'administrative',
     'sharing.granted': 'administrative', 'sharing.revoked': 'administrative', 
     'contract.created': 'administrative', 'contract.frozen': 'scientific', 'contract.amended': 'administrative',
     'job.queued': 'scientific', 'job.claimed': 'scientific', 'job.result_committed': 'scientific',
@@ -21,6 +21,15 @@ CATEGORIES = {'budget.ceiling_set': 'economic', 'worker.state_set': 'administrat
     'key.revoked': 'administrative', 'backup.created': 'administrative', 'restore.completed': 'administrative',
     'retention.cleanup': 'administrative',
 }
+
+
+def record_safe(database, workspace, actor_id, event_type, object_type, object_id, ref=None):
+    """Record in a transaction of its own (for callers that hold no transaction, e.g. the compute supervisor)."""
+    try:
+        with database.tx() as db:
+            record(db, workspace, actor_id, event_type, object_type, object_id, ref)
+    except Exception:
+        pass
 
 
 def record(db, workspace, actor_id, event_type, object_type, object_id, ref=None):

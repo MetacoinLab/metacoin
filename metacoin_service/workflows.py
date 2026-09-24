@@ -33,7 +33,7 @@ from .db import now
 from .errors import ServiceError
 
 SCHEMA = 'metacoin-workflow/v1'
-SERVICE_TYPES = ('temporal_energy', 'energy_audit', 'safe_runtime', 'task_selection', 'plan_comparison')
+SERVICE_TYPES = ('temporal_energy', 'energy_audit', 'safe_runtime', 'task_selection', 'plan_comparison', 'temporal_batch', 'monte_carlo_reliability', 'heat_diffusion')
 NODE_TYPES = ('dataset',) + SERVICE_TYPES + ('review_gate', 'export')
 LIMITS = {'max_nodes': 32, 'max_edges': 64, 'max_outputs': 8, 'max_export_fields': 16}
 FROM_FIELDS = {'safe_duration', 'additional_usable_energy', 'required_high', 'required_low', 'worst_margin', 'best_margin',

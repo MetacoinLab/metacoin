@@ -31,17 +31,21 @@ from .datasets import add_edge
 from .db import now
 from .errors import ServiceError
 
-KINDS = ('temporal_energy', 'energy_audit', 'safe_runtime')
+KINDS = ('temporal_energy', 'energy_audit', 'safe_runtime', 'heat_diffusion', 'monte_carlo_reliability')
 AXES = {'temporal_energy': ('capacity', 'reserve', 'initial_low', 'initial_high', 'load_scale_percent', 'harvest_scale_percent'),
         'energy_audit': ('available_low', 'available_high', 'reserve', 'load_scale_percent'),
-        'safe_runtime': ('available_low', 'reserve', 'variable_power_high', 'duration_cap')}
+        'safe_runtime': ('available_low', 'reserve', 'variable_power_high', 'duration_cap'),
+        'heat_diffusion': ('nx', 'ny', 'steps', 'snapshots'),                  # grid/horizon refinement sweeps (dt, dx are decimal strings: not sweepable here)
+        'monte_carlo_reliability': ('samples', 'seed')}
 MONOTONE = {  # axis -> 'up_better' (larger values never make FEASIBLE harder) | 'up_worse'
     'capacity': 'up_better', 'reserve': 'up_worse', 'load_scale_percent': 'up_worse', 'harvest_scale_percent': 'up_better',
     'available_low': 'up_better', 'available_high': 'up_better'}
 LIMITS = {'max_axes': 3, 'max_values_per_axis': 64, 'max_evaluations': 256, 'max_inflight': 8, 'max_total_segments': 65_536, 'max_adaptive_evaluations': 24}
 STATES = ('created', 'running', 'paused', 'cancelled', 'completed', 'budget_exhausted')
 CAND_STATES = ('unevaluated', 'invalid', 'queued', 'running', 'succeeded', 'failed', 'cancelled')
-RESULT_FIELDS = {'temporal_energy': ('outcome', 'min_reserve_margin_pessimistic', 'min_reserve_margin_optimistic', 'spill_bounds', 'horizon_seconds'),
+RESULT_FIELDS = {'heat_diffusion': ('final_min', 'final_max', 'steps', 'r_x', 'backend', 'work_units_committed'),
+                 'monte_carlo_reliability': ('probability_estimate', 'events', 'samples', 'backend', 'work_units_committed'),
+                 'temporal_energy': ('outcome', 'min_reserve_margin_pessimistic', 'min_reserve_margin_optimistic', 'spill_bounds', 'horizon_seconds'),
                  'energy_audit': ('outcome', 'worst_margin', 'best_margin', 'additional_usable_energy', 'required_high'),
                  'safe_runtime': ('status', 'safe_duration', 'margin_at_duration', 'residual_energy_worst_case')}
 
@@ -263,7 +267,8 @@ class Campaigns:
             if r['state'] == 'invalid':
                 item['reason'] = r['outcome']            # refusal code, never a value
             table.append(item)
-        return {'campaign_id': campaign_id, 'kind': c['kind'], 'model_version': {'temporal_energy': 'temporal-energy/v1', 'energy_audit': 'outage-energy-bounds/v0', 'safe_runtime': 'safe-runtime/v1'}[c['kind']],
+        return {'campaign_id': campaign_id, 'kind': c['kind'], 'model_version': {'temporal_energy': 'temporal-energy/v1', 'energy_audit': 'outage-energy-bounds/v0', 'safe_runtime': 'safe-runtime/v1',
+                                                                            'heat_diffusion': 'heat-diffusion-2d-ftcs/v1', 'monte_carlo_reliability': 'monte-carlo-reliability/v1'}[c['kind']],
                 'rows': table, 'legend': {'unevaluated': 'not yet run', 'invalid': 'outside the model domain', 'failed': 'execution failed', 'cancelled': 'cancelled',
                                           'succeeded': 'result available; see outcome'}, 'note': 'missing values are absent, never zero'}
 

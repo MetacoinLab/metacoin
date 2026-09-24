@@ -11,6 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
+from .compute import service as compute_svc
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -441,7 +442,7 @@ def create_app(settings):
     async def service_quote(request: Request, sid: str):
         raw = await request.body()
         body = read_body(request, raw)
-        return await run(request, True, lambda db, p: (svc.catalog.quote(db, p, sid, body.get('inputs'), body.get('quantity_max', 1), body.get('provider_mode')), 201), 'services.quote', raw)
+        return await run(request, True, lambda db, p: (svc.catalog.quote(db, p, sid, body.get('inputs'), body.get('quantity_max'), body.get('provider_mode')), 201), 'services.quote', raw)
 
     @app.post(API + '/quotes/{qid}/accept')
     async def quote_accept(request: Request, qid: str):
@@ -483,6 +484,56 @@ def create_app(settings):
                 return status, headers, content
         status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
+
+    # ---- compute engine ------------------------------------------------------------------------
+    @app.get(API + '/compute/capabilities')
+    async def compute_capabilities(request: Request):
+        def fn(db, p):
+            p.require('contract:read')
+            return compute_svc.capabilities(db, settings)
+        return await run(request, False, fn)
+
+    @app.get(API + '/compute/jobs/{job_id}')
+    async def compute_job_view(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: compute_svc.view(db, p, svc.jobs, job_id))
+
+    @app.post(API + '/compute/jobs/{job_id}/{action}')
+    async def compute_job_control(request: Request, job_id: str, action: str):
+        return await run(request, True, lambda db, p: compute_svc.control(db, p, svc.jobs, job_id, action), 'compute.control:' + action)
+
+    @app.get(API + '/compute/jobs/{job_id}/outputs')
+    async def compute_outputs(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: compute_svc.outputs(db, p, svc.jobs, svc.store, job_id))
+
+    @app.get(API + '/compute/jobs/{job_id}/outputs/{name}')
+    async def compute_output_file(request: Request, job_id: str, name: str):
+        def do():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, False)
+                return compute_svc.outputs(db, p, svc.jobs, svc.store, job_id, name)
+        data, media = await run_in_threadpool(do)
+        return Response(content=data, media_type=media, headers=dict(SENSITIVE_HEADERS, **{'Content-Disposition': 'attachment; filename="' + name + '"', 'Cache-Control': 'private, no-store'}))
+
+    @app.get(API + '/compute/jobs/{job_id}/checkpoints')
+    async def compute_checkpoints(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: compute_svc.checkpoints(db, p, svc.jobs, job_id))
+
+    @app.get(API + '/compute/jobs/{job_id}/log')
+    async def compute_log(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: compute_svc.log_tail(db, p, svc.jobs, job_id))
+
+    @app.get(API + '/compute/jobs/{job_id}/reproducibility')
+    async def compute_repro(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: compute_svc.reproducibility(db, p, svc.jobs, job_id, settings))
+
+    @app.get(API + '/compute/jobs/{job_id}/plot.svg')
+    async def compute_plot(request: Request, job_id: str):
+        def do():
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                return compute_svc.heat_svg(db, p, svc.jobs, svc.store, job_id)
+        text = await run_in_threadpool(do)
+        return Response(content=text, media_type='image/svg+xml', headers=dict(SENSITIVE_HEADERS, **{'Cache-Control': 'private, no-store'}))
 
     # ---- §46 extras: compatibility preview, PROV-JSON lineage export --------------------------
     @app.get(API + '/services/{sid}/compatibility')

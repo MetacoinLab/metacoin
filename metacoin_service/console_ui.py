@@ -10,12 +10,19 @@ from starlette.concurrency import run_in_threadpool
 import jinja2
 from experiments.work_contracts import energy_analysis as energy, fixtures
 from . import auth, history, metering, scheduling
+from .compute import service as compute_svc, manifests as compute_manifests, inputs as compute_inputs
 from .errors import ServiceError, from_exception
 from .api import SENSITIVE_HEADERS
 
 templates = Jinja2Templates(env=jinja2.Environment(loader=jinja2.FileSystemLoader(str(Path(__file__).parent / 'templates')),
                                                    autoescape=True))
 SAMPLE_ENERGY = dict(fixtures.inputs('INDETERMINATE'), private_label='SAMPLE_SYNTHETIC')
+SAMPLE_TEMPORAL_BASE = {'schema': 'temporal-energy-input/v1', 'capacity': 10_000, 'initial_low': 6_000, 'initial_high': 6_000, 'reserve': 2_000,
+                        'segments': [{'duration': 10, 'harvest_low': 600, 'harvest_high': 800, 'load_low': 500, 'load_high': 500, 'leakage_low': 0, 'leakage_high': 0},
+                                     {'duration': 30, 'harvest_low': 0, 'harvest_high': 0, 'load_low': 100, 'load_high': 200, 'leakage_low': 0, 'leakage_high': 5}],
+                        'units': {'energy': 'mJ', 'power': 'mW', 'duration': 's'},
+                        'assumptions': ['piecewise_constant_power_bounds', 'independent_interval_bounds', 'powers_at_usable_energy_boundary', 'saturation_at_capacity', 'constant_reserve',
+                                        'virtual_energy_below_reserve_for_diagnostics', 'no_unmodeled_loads', 'no_recharge_physics'], 'provenance': 'synthetic', 'private_label': 'CONSOLE_SAMPLE'}
 SAMPLE_RUNTIME = {'available_low': 1_000_000, 'available_high': 1_100_000, 'reserve': 100_000,
                   'fixed_segments': [{'duration': 600, 'power_low': 800, 'power_high': 1000}],
                   'variable_power_low': 100, 'variable_power_high': 250, 'duration_cap': 3600,
@@ -200,8 +207,16 @@ def mount(app, svc):
             review = db.execute('SELECT * FROM reviews WHERE job_id=?', (job_id,)).fetchone()
             arts = db.execute('SELECT * FROM artifacts WHERE job_id=? OR contract_id=? ORDER BY created_at', (job_id, row['contract_id'])).fetchall()
             visible = [a for a in arts if a['public'] or p.can('artifact:read_private') or (p.role == 'reviewer' and contract['reviewer_id'] == p.id)]
+            compute = compute_svc.view(db, p, svc.jobs, job_id) if db.execute('SELECT 1 FROM compute_runs WHERE job_id=?', (job_id,)).fetchone() else None
+            batch_rows = None
+            if compute and compute.get('output_artifact_id') and row['kind'] == 'temporal_batch':
+                try:
+                    listing, _ = compute_svc.outputs(db, p, svc.jobs, svc.store, job_id, 'results.json')
+                    batch_rows = json.loads(listing)['rows'][:50]
+                except Exception:
+                    batch_rows = None
             return render(request, 'job.html', principal=p, job=view, contract=contract, review=svc.reviews.view(review) if review else None,
-                          artifacts=visible, events=history.for_object(db, p.workspace, 'job', job_id),
+                          artifacts=visible, events=history.for_object(db, p.workspace, 'job', job_id), compute=compute, batch_rows=batch_rows,
                           sale=db.execute('SELECT * FROM sales WHERE job_id=?', (job_id,)).fetchone())
         return await page(request, fn)
 
@@ -343,6 +358,83 @@ def mount(app, svc):
         def fn(db, p):
             scheduling.set_worker_state(db, p, worker_id, 'draining' if action == 'drain' else 'active')
             return RedirectResponse('/console/queue', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    # ---- compute -----------------------------------------------------------------------------
+    SAMPLES_COMPUTE = {
+        'temporal_batch': {'schema': compute_inputs.TEMPORAL_BATCH_SCHEMA, 'base': SAMPLE_TEMPORAL_BASE, 'scenarios': None,
+                           'grid': [{'path': 'reserve', 'start': 0, 'stop': 9000, 'step': 500}, {'path': 'load_scale_percent', 'values': [50, 100, 150, 200]}],
+                           'device_policy': 'auto', 'verification': 'auto', 'private_label': 'CONSOLE_SAMPLE_BATCH'},
+        'monte_carlo_reliability': {'schema': compute_inputs.MONTE_CARLO_SCHEMA, 'base': dict(SAMPLE_TEMPORAL_BASE, segments=[dict(s, harvest_high=s['harvest_low'], load_high=s['load_low'], leakage_high=s['leakage_low']) for s in SAMPLE_TEMPORAL_BASE['segments']]),
+                                    'distributions': {'initial_energy': {'type': 'finite', 'values': [4000, 6000, 8000], 'weights': [1, 2, 1]}, 'load_scale_percent': {'type': 'uniform_int', 'low': 50, 'high': 200}},
+                                    'samples': 20000, 'seed': 11, 'confidence_percent': 95, 'event': 'reserve_maintained', 'device_policy': 'auto', 'private_label': 'CONSOLE_SAMPLE_MC'},
+        'heat_diffusion': {'schema': compute_inputs.HEAT_SCHEMA, 'nx': 128, 'ny': 128, 'dx': '0.01', 'dy': '0.01', 'dt': '0.00002', 'alpha': '1.0', 'steps': 2000,
+                           'boundary': {'type': 'dirichlet', 'values': {'left': '0', 'right': '0', 'top': '0', 'bottom': '0'}},
+                           'initial': {'type': 'gaussian', 'center_x': '0.64', 'center_y': '0.64', 'sigma': '0.15', 'amplitude': '100', 'background': '0'}, 'snapshots': 2,
+                           'units': {'field': 'K', 'length': 'm', 'time': 's'}, 'device_policy': 'auto', 'precision': 'float64', 'private_label': 'CONSOLE_SAMPLE_HEAT'},
+    }
+
+    @app.get('/console/compute', response_class=HTMLResponse)
+    async def compute_page(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            caps = compute_svc.capabilities(db, settings)
+            rows = db.execute('SELECT job_id FROM compute_runs WHERE workspace=? ORDER BY updated_at DESC LIMIT 50', (p.workspace,)).fetchall()
+            jobs = [compute_svc.view(db, p, svc.jobs, r['job_id']) for r in rows]
+            return render(request, 'compute.html', principal=p, caps=caps, jobs=jobs)
+        return await page(request, fn)
+
+    @app.get('/console/compute/new', response_class=HTMLResponse)
+    async def compute_new(request: Request):
+        kind = request.query_params.get('kind', 'temporal_batch')
+        def fn(db, p):
+            p.require('contract:create')
+            if kind not in compute_manifests.KINDS:
+                raise ServiceError('VALIDATION', 'kind')
+            caps = compute_svc.capabilities(db, settings)
+            reviewers = db.execute("SELECT id, name FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL", (p.workspace,)).fetchall()
+            srow = db.execute('SELECT * FROM services WHERE kind=? AND status=? ORDER BY version DESC LIMIT 1', (kind, 'registered')).fetchone()
+            price = svc.catalog.view(srow)['price'] if srow else {'amount_per_unit': None, 'asset': None}
+            return render(request, 'compute_new.html', principal=p, kind=kind, manifest=caps['manifests'][kind], devices=caps['facts']['currently_available']['live_worker_devices'],
+                          reviewers=reviewers, price=price, sample=json.dumps(SAMPLES_COMPUTE[kind], indent=1), values={}, estimate=None, error=None)
+        return await page(request, fn)
+
+    @app.post('/console/compute', response_class=HTMLResponse)
+    async def compute_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            kind = f.get('kind')
+            if kind not in compute_manifests.KINDS:
+                raise ServiceError('VALIDATION', 'kind')
+            caps = compute_svc.capabilities(db, settings)
+            reviewers = db.execute("SELECT id, name FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL", (p.workspace,)).fetchall()
+            srow = db.execute('SELECT * FROM services WHERE kind=? AND status=? ORDER BY version DESC LIMIT 1', (kind, 'registered')).fetchone()
+            price = svc.catalog.view(srow)['price'] if srow else {'amount_per_unit': None, 'asset': None}
+            ctx = dict(principal=p, kind=kind, manifest=caps['manifests'][kind], devices=caps['facts']['currently_available']['live_worker_devices'], reviewers=reviewers, price=price,
+                       sample=json.dumps(SAMPLES_COMPUTE[kind], indent=1), values=dict(f), estimate=None, error=None)
+            try:
+                inputs = json.loads(f.get('inputs', ''))
+                compute_inputs.VALIDATORS[kind](inputs)
+            except ValueError as exc:
+                return render(request, 'compute_new.html', status=422, **dict(ctx, error='inputs are not valid JSON'))
+            except Exception as exc:
+                return render(request, 'compute_new.html', status=422, **dict(ctx, error='refused: ' + str(exc)[:300]))
+            units = compute_inputs.work_units(kind, inputs)
+            ctx['estimate'] = {'work_units': units, 'max_charge': (price['amount_per_unit'] or 0) * units, 'device_policy': inputs.get('device_policy', 'auto')}
+            if f.get('submit'):
+                cid = svc.contracts.create_draft(db, p, kind=kind, title=f.get('title') or kind, inputs=inputs, policy={'reviewer_id': f.get('reviewer_id') or None})
+                svc.contracts.freeze(db, p, cid)
+                jid = svc.jobs.submit(db, p, cid)
+                return RedirectResponse('/console/jobs/' + jid, status_code=303)
+            return render(request, 'compute_new.html', **ctx)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/compute/{job_id}/{action}', response_class=HTMLResponse)
+    async def compute_control(request: Request, job_id: str, action: str):
+        await form(request)
+        def fn(db, p):
+            compute_svc.control(db, p, svc.jobs, job_id, action)
+            return RedirectResponse('/console/jobs/' + job_id, status_code=303)
         return await page(request, fn, mutating=True)
 
     @app.get('/console/history', response_class=HTMLResponse)

@@ -63,7 +63,7 @@ def set_worker_state(db, principal, worker_id, state):
 def fair_order(db, capabilities=None, workspace=None):
     """Deterministic order of queued jobs for a worker with the given capabilities (None = all kinds)."""
     running = {r['submitted_by']: r['n'] for r in db.execute("SELECT submitted_by, COUNT(*) AS n FROM jobs WHERE state='running' GROUP BY submitted_by")}
-    sql = "SELECT id, kind, submitted_by, created_at, workspace FROM jobs WHERE state='queued' AND cancel_requested=0"
+    sql = "SELECT id, kind, submitted_by, created_at, workspace FROM jobs WHERE state='queued' AND cancel_requested=0 AND hold=0"
     args = []
     if workspace:
         sql += ' AND workspace=?'; args.append(workspace)
@@ -91,9 +91,16 @@ def queue(db, principal):
     global_order = fair_order(db, None)                              # what the next worker with every capability would take
     position = {r['id']: i for i, r in enumerate(global_order)}
     items = []
-    for r in db.execute("SELECT id, kind, submitted_by, created_at, cancel_requested FROM jobs WHERE workspace=? AND state='queued' ORDER BY created_at, id", (principal.workspace,)):
+    for r in db.execute("SELECT id, kind, submitted_by, created_at, cancel_requested, hold FROM jobs WHERE workspace=? AND state='queued' ORDER BY created_at, id", (principal.workspace,)):
+        crun = db.execute('SELECT device_policy, phase FROM compute_runs WHERE job_id=?', (r['id'],)).fetchone()
         if r['cancel_requested']:
             reason = 'cancel requested; will not be claimed'
+        elif r['hold']:
+            reason = 'paused at a durable checkpoint; resume to continue'
+        elif crun and crun['device_policy'] == 'gpu' and not any('device:cuda' in json.loads(w['capabilities_json']) for w in live_workers):
+            reason = 'policy requires gpu; no live worker offers a cuda device'
+        elif crun and db.execute("SELECT COUNT(*) FROM compute_reservations WHERE device=?", ('cuda' if crun['device_policy'] == 'gpu' else 'cpu',)).fetchone()[0] > 0 and crun['device_policy'] != 'auto':
+            reason = 'waiting for a free %s compute slot' % ('cuda' if crun['device_policy'] == 'gpu' else 'cpu')
         elif not live_workers and draining:
             reason = 'all live workers are draining'
         elif not live_workers:

@@ -37,6 +37,9 @@ def record_for_job(settings, db, job_row):
     quote = db.execute('SELECT * FROM quotes WHERE id=?', (job_row['quote_id'],)).fetchone()
     reused = bool(job_row['reused_from']) if 'reused_from' in job_row.keys() else False
     quantity = 0 if reused else 1                          # one completed evaluation; a reused result computed nothing
+    crun = db.execute('SELECT work_committed FROM compute_runs WHERE job_id=?', (job_row['id'],)).fetchone()
+    if crun and not reused:
+        quantity = min(crun['work_committed'], quote['quantity_max'])   # committed logical work units only; retries never add units
     charge = quantity * quote['amount_max'] // quote['quantity_max'] if quote['quantity_max'] else 0
     charge = min(charge, quote['amount_max'])
     pub = ensure_service_key(settings, db)

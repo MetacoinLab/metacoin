@@ -56,6 +56,15 @@ INSTALLED = {
                        'dataset_kind': None, 'input_schema': {'type': 'object', 'required': ['available_low', 'available_high', 'reserve', 'fixed_segments', 'optional_tasks', 'duration_cap', 'units', 'assumptions', 'provenance', 'private_label']},
                        'output_fields': ['status', 'selected_ids', 'total_value', 'energy_margin', 'duration_margin'], 'limits': {'max_optional_tasks': science.MAX_OPTIONAL_TASKS}, 'action_entitlement': False},
 }
+from .compute import inputs as compute_inputs, manifests as compute_manifests
+for _kind, _m in compute_manifests.MANIFESTS.items():
+    INSTALLED[_kind] = {'model_id': _m['model_id'], 'result_schema': _m['result_schema'], 'verifier': _m['manifest_id'] + '-verifier', 'input_type': 'compute',
+                        'dataset_kind': None, 'input_schema': {'type': 'object', 'schema': _m['input_schema'], 'manifest': _m['manifest_id'], 'devices': _m['devices'],
+                                                               'precision': _m['precision'], 'limits': _m['limits'], 'numerical_policy': _m['numerical_policy']},
+                        'output_fields': _m['outputs'], 'limits': _m['limits'], 'action_entitlement': False,
+                        'compute': {'work_unit': _m['work_unit'], 'price_basis': _m['price_basis'], 'checkpoint_format': _m['checkpoint_format'],
+                                    'verification_modes': _m['verification_modes'], 'verification_policy': _m['verification_policy']}}
+
 PRIVACY = {'inputs': 'private (age-encrypted); readable by owner, worker and the designated reviewer',
            'results': 'private by default; public openings only by contract disclosure policy after an accepted signed review',
            'public_verification': 'salted Merkle membership + bindings; no hidden-computation proof'}
@@ -63,6 +72,8 @@ PRIVACY = {'inputs': 'private (age-encrypted); readable by owner, worker and the
 
 def verifier_digest(kind):
     from experiments.work_contracts import contract as terms
+    if kind in compute_manifests.KINDS:
+        return compute_manifests.implementation_digest()
     return {'energy_audit': terms.verifier_digest, 'temporal_energy': temporal.bundle_digest}.get(kind, science.bundle_digest)()
 
 
@@ -192,8 +203,18 @@ class Catalog:
         row, digest = self.validate_request(db, principal, sid, inputs)
         from .agents import guard
         guard(db, principal, 'quote', service_id=sid, service_kind=row['kind'])
-        if type(quantity_max) is not int or not 1 <= quantity_max <= 1000:
-            raise ServiceError('VALIDATION', 'quantity_max 1..1000')
+        if row['kind'] in compute_manifests.KINDS:
+            needed = compute_inputs.work_units(row['kind'], inputs)          # deterministic work bound from the validated inputs
+            if quantity_max is None:
+                quantity_max = needed
+            if type(quantity_max) is not int or quantity_max < needed:
+                raise ServiceError('VALIDATION', {'code': 'quantity_below_work_estimate', 'work_units': needed, 'unit': compute_manifests.MANIFESTS[row['kind']]['work_unit']})
+            if quantity_max > 10 ** 9:
+                raise ServiceError('VALIDATION', 'quantity_max')
+        else:
+            quantity_max = 1 if quantity_max is None else quantity_max
+            if type(quantity_max) is not int or not 1 <= quantity_max <= 1000:
+                raise ServiceError('VALIDATION', 'quantity_max 1..1000')
         mode = provider_mode or self.settings.provider_mode
         pricing = json.loads(row['pricing_json'])
         asset = pricing['asset_by_mode'].get(mode)

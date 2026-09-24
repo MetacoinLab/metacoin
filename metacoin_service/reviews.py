@@ -79,6 +79,14 @@ class Reviews:
                 out.update(recomputation='matches', scientific_outcome=audited['scientific_outcome'],
                            policy_satisfied=audited['work_completed'], private_details=values['audit_details'],
                            margin_explanation=values['margin_explanation'], verifier_status=terms.verifier_status(doc))
+            elif job['kind'] in __import__('metacoin_service.compute.manifests', fromlist=['KINDS']).KINDS:
+                from .compute import manifests as compute_manifests
+                values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
+                matches = values['contract_digest'] == contract['contract_digest'] and values['verifier_digest'] == compute_manifests.implementation_digest() \
+                    and bool(values['result'].get('verification', {}).get('passed'))
+                out.update(recomputation='matches' if matches else 'mismatch', verification_source='persisted-verification-phase: ' + str(values['result'].get('verification', {}).get('mode')),
+                           scientific_outcome=job['outcome'], policy_satisfied=matches, private_details=values['result'],
+                           verifier_status='current' if values['verifier_digest'] == compute_manifests.implementation_digest() else 'superseded')
             else:
                 values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
                 inputs = acceptance.full_values(input_vault, contract['input_root'])['inputs']

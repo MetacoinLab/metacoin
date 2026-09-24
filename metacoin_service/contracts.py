@@ -5,18 +5,22 @@ import secrets
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy
 from . import history, science, temporal
+from .compute import inputs as compute_inputs, manifests as compute_manifests
 from .db import now
 from .errors import ServiceError
 
-KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy')
+COMPUTE_KINDS = compute_manifests.KINDS
+KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy') + COMPUTE_KINDS
 DEFAULT_EXPIRY_SECONDS = 7 * 86400
 SERVICE_CONTRACT_SCHEMA = 'metacoin-service-contract/v1'
 VALIDATORS = {'energy_audit': energy.validate, 'safe_runtime': science.validate_safe_runtime,
               'plan_comparison': science.validate_comparison, 'task_selection': science.validate_selection,
-              'temporal_energy': temporal.validate}
+              'temporal_energy': temporal.validate, **compute_inputs.VALIDATORS}
 MODEL_IDS = {'safe_runtime': science.SAFE_RUNTIME_MODEL, 'plan_comparison': science.COMPARISON_MODEL,
-             'task_selection': science.SELECTION_MODEL, 'temporal_energy': temporal.MODEL_ID}
-VERIFIER_OF = {'temporal_energy': ('temporal-energy-verifier/v1', temporal.bundle_digest)}
+             'task_selection': science.SELECTION_MODEL, 'temporal_energy': temporal.MODEL_ID,
+             **{k: m['model_id'] for k, m in compute_manifests.MANIFESTS.items()}}
+VERIFIER_OF = {'temporal_energy': ('temporal-energy-verifier/v1', temporal.bundle_digest),
+               **{k: (m['manifest_id'] + '-verifier', compute_manifests.implementation_digest) for k, m in compute_manifests.MANIFESTS.items()}}
 
 
 DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loopback_test', 'production': 'x402_http_buyer'}
@@ -87,12 +91,18 @@ class Contracts:
         if pol['reviewer_id'] is not None:
             self._reviewer(db, principal.workspace, pol['reviewer_id'])
         cid = 'ct_' + secrets.token_hex(8)
+        params = {}
+        if kind in COMPUTE_KINDS:                   # the accepted job binds manifest version, implementation digest, device policy and work bound
+            man = compute_manifests.manifest(kind)
+            params = {'manifest_id': man['manifest_id'], 'manifest_version': man['version'], 'implementation_digest': man['implementation_digest'],
+                      'device_policy': inputs.get('device_policy', 'auto'), 'precision': man['precision'][0], 'work_units': compute_inputs.work_units(kind, inputs),
+                      'input_digest': hashlib.sha256(merkle.canonical(inputs)).hexdigest()}
         aid = self.store.store(db, workspace=principal.workspace, kind='draft_input', owner_id=principal.id,
                                plaintext=merkle.canonical(inputs), recipients=[], intended_use='draft-input;owner-and-worker',
                                contract_id=None)
         db.execute('INSERT INTO contracts (id, workspace, owner_id, kind, state, version, lineage_id, title, policy_json, params_json, '
                    'input_artifact_id, reviewer_id, created_at) VALUES (?,?,?,?,?,1,?,?,?,?,?,?,?)',
-                   (cid, principal.workspace, principal.id, kind, 'draft', cid, title, json.dumps(pol), json.dumps({}),
+                   (cid, principal.workspace, principal.id, kind, 'draft', cid, title, json.dumps(pol), json.dumps(params),
                     aid, pol['reviewer_id'], now()))
         db.execute('UPDATE artifacts SET contract_id=? WHERE id=?', (cid, aid))
         db.execute('UPDATE contracts SET inputs_digest=? WHERE id=?', (hashlib.sha256(merkle.canonical(inputs)).hexdigest(), cid))

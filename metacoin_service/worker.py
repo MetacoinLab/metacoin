@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 from experiments.private_receipts import receipt as merkle
 from . import history, scheduling
+from .compute import manifests as compute_manifests
+from .compute.engine import ComputeEngine
 from .db import now
 from .errors import ServiceError
 
@@ -20,10 +22,15 @@ class Worker:
         self.worker_id = worker_id or 'w_' + secrets.token_hex(6)
         self.name = name or self.worker_id
         from .contracts import KINDS
-        self.capabilities = sorted(set(capabilities or KINDS))
-        unknown = set(self.capabilities) - set(KINDS)
+        self.compute = ComputeEngine(self)
+        wanted = set(capabilities or KINDS)
+        unknown = {c for c in wanted if c not in KINDS and not c.startswith('device:')}
         if unknown:
             raise ServiceError('VALIDATION', {'code': 'unknown_capabilities', 'unknown': sorted(unknown), 'installed': list(KINDS)})
+        if not self.compute.runtime:                       # no numpy-capable interpreter: compute kinds are not offered
+            wanted -= set(compute_manifests.KINDS)
+        wanted = {c for c in wanted if not c.startswith('device:')} | {'device:' + d for d in self.compute.devices}
+        self.capabilities = sorted(wanted)
         self.lease = settings.limits['job_lease_seconds']
         from .db import MIGRATIONS
         with self.db.tx() as db:
@@ -41,6 +48,7 @@ class Worker:
     def offline(self):
         with self.db.tx() as db:
             scheduling.go_offline(db, self.worker_id)
+            db.execute('DELETE FROM compute_reservations WHERE worker_id=?', (self.worker_id,))
 
     def claim(self):
         """Atomically claim one queued job (fair order within our capabilities), or recover one whose lease expired."""
@@ -48,13 +56,24 @@ class Worker:
             state = scheduling.heartbeat(db, self.worker_id)
             if state == 'draining':
                 return None
-            nxt = scheduling.next_job_id(db, self.capabilities)
-            row = db.execute("SELECT id FROM jobs WHERE id=? AND state='queued' AND cancel_requested=0", (nxt,)).fetchone() if nxt else None
+            kinds = [c for c in self.capabilities if not c.startswith('device:')]
+            row = None
+            for cand in scheduling.fair_order(db, kinds):
+                if cand['kind'] in compute_manifests.KINDS and self.compute.try_reserve(db, cand['id']) is None:
+                    continue                               # no compatible device slot for this job right now; try the next fair candidate
+                row = db.execute("SELECT id FROM jobs WHERE id=? AND state='queued' AND cancel_requested=0 AND hold=0", (cand['id'],)).fetchone()
+                if row:
+                    break
+                self.compute.release(db, cand['id'])
             recovered = False
             if row is None:
-                placeholders = ','.join('?' * len(self.capabilities))
-                row = db.execute("SELECT id FROM jobs WHERE state='running' AND lease_expires < ? AND kind IN (" + placeholders + ") ORDER BY lease_expires LIMIT 1",
-                                 (now(), *self.capabilities)).fetchone()
+                placeholders = ','.join('?' * len(kinds))
+                for cand in db.execute("SELECT id, kind FROM jobs WHERE state='running' AND lease_expires < ? AND kind IN (" + placeholders + ") ORDER BY lease_expires LIMIT 10", (now(), *kinds)).fetchall():
+                    if cand['kind'] in compute_manifests.KINDS:
+                        db.execute('DELETE FROM compute_reservations WHERE job_id=?', (cand['id'],))
+                        if self.compute.try_reserve(db, cand['id']) is None:
+                            continue
+                    row = cand; break
                 recovered = row is not None
             if row is None:
                 return None
@@ -83,6 +102,8 @@ class Worker:
 
     def execute(self, job):
         """Run one attempt in a child process; publish only if the lease is still ours."""
+        if job['kind'] in compute_manifests.KINDS:
+            return self.compute.run(job)
         with self.db.read() as db:
             contract, spec = self._spec(db, job)
         limits = {'cpu': self.settings.limits['worker_cpu_seconds'], 'mem': self.settings.limits['worker_address_space_bytes'],

@@ -217,6 +217,26 @@ MIGRATIONS = [
         disabled_reason TEXT, last_run_at INTEGER, next_run_at INTEGER, created_by TEXT NOT NULL REFERENCES principals(id), created_at INTEGER NOT NULL);
     CREATE INDEX schedules_due ON schedules(enabled, next_run_at);
     """),
+    ('012_compute_engine', """
+    CREATE TABLE compute_runs (
+        job_id TEXT PRIMARY KEY REFERENCES jobs(id), workspace TEXT NOT NULL, kind TEXT NOT NULL, manifest_id TEXT NOT NULL, manifest_version INTEGER NOT NULL,
+        implementation_digest TEXT NOT NULL, input_digest TEXT NOT NULL, device_policy TEXT NOT NULL, selected_backend TEXT, backend_reason TEXT,
+        precision TEXT NOT NULL, phase TEXT NOT NULL, work_total INTEGER NOT NULL, work_committed INTEGER NOT NULL DEFAULT 0, work_computed INTEGER NOT NULL DEFAULT 0,
+        chunk_id INTEGER NOT NULL DEFAULT 0, checkpoint_generation INTEGER NOT NULL DEFAULT 0, control TEXT, controlled_at INTEGER, versions_json TEXT,
+        telemetry_json TEXT, verification_json TEXT, progress_json TEXT, output_artifact_id TEXT REFERENCES artifacts(id), log_tail TEXT, child_pid INTEGER,
+        started_at INTEGER, updated_at INTEGER NOT NULL);
+    CREATE TABLE compute_checkpoints (
+        id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES jobs(id), generation INTEGER NOT NULL, attempt_generation INTEGER NOT NULL,
+        artifact_id TEXT NOT NULL REFERENCES artifacts(id), committed_units INTEGER NOT NULL, boundary_json TEXT NOT NULL, backend TEXT NOT NULL,
+        digest TEXT NOT NULL, state TEXT NOT NULL, published_at INTEGER NOT NULL, UNIQUE (job_id, generation));
+    CREATE TABLE compute_reservations (
+        job_id TEXT PRIMARY KEY REFERENCES jobs(id), worker_id TEXT NOT NULL, device TEXT NOT NULL, slots INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE compute_work_units (
+        job_id TEXT NOT NULL REFERENCES jobs(id), unit_from INTEGER NOT NULL, unit_to INTEGER NOT NULL, generation INTEGER NOT NULL,
+        attempt_generation INTEGER NOT NULL, committed_at INTEGER NOT NULL, PRIMARY KEY (job_id, unit_from));
+    ALTER TABLE jobs ADD COLUMN hold INTEGER NOT NULL DEFAULT 0;
+    """),
 ]
 
 

@@ -23,7 +23,7 @@ class SchedulingTests(unittest.TestCase):
         q = self.c.get('/api/v1/queue', headers=self.H).json()
         self.assertEqual(q['queued'][0]['waiting_reason'], 'no live worker declares capability energy_audit')
         self.assertEqual([w['name'] for w in q['workers']], ['runtime-only'])
-        self.assertEqual(q['live_capabilities'], ['safe_runtime'])
+        self.assertEqual([c for c in q['live_capabilities'] if not c.startswith('device:')], ['safe_runtime'])
         # unknown capabilities are refused at registration
         with self.assertRaises(Exception):
             self.worker('bad', ['shell'])

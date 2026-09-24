@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block body %}
+<h1>New compute job: {{ manifest.manifest_id }}</h1>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<div class="card"><dl><dt>model</dt><dd>{{ manifest.model_id }}</dd><dt>numerical policy</dt><dd>{{ manifest.numerical_policy }}</dd><dt>backends available now</dt><dd>{{ devices|join(', ') or 'none live' }}</dd><dt>precision</dt><dd>{{ manifest.precision|join('; ') }}</dd><dt>verification policy</dt><dd><code>{{ manifest.verification_policy|tojson }}</code></dd><dt>price</dt><dd>{{ price.amount_per_unit }} {{ price.asset }} per {{ manifest.work_unit }} (max charge = work units x price; estimated below after validation)</dd></dl></div>
+<form method="post" action="/console/compute" class="card">
+<input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><input type="hidden" name="kind" value="{{ kind }}">
+<label for="title">title</label><input id="title" name="title" value="{{ values.get('title', manifest.manifest_id + ' job') }}" maxlength="128">
+<label for="reviewer_id">designated reviewer</label><select id="reviewer_id" name="reviewer_id">{% for r in reviewers %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}</select>
+<label for="inputs">inputs (bounded JSON; decimal parameters as strings; device_policy cpu|gpu|auto inside the document)</label>
+<textarea id="inputs" name="inputs" rows="18">{{ values.get('inputs', sample) }}</textarea>
+<button type="submit" name="preview" value="1" class="secondary">Validate and estimate</button> <button type="submit" name="submit" value="1">Freeze and submit</button></form>
+{% if estimate %}<div class="card"><h2>Estimate</h2><dl><dt>work units</dt><dd>{{ estimate.work_units }} ({{ manifest.work_unit }})</dd><dt>maximum charge</dt><dd>{{ estimate.max_charge }} {{ price.asset }} at {{ price.amount_per_unit }} per unit (an admission bound, not a runtime guarantee)</dd><dt>device policy</dt><dd>{{ estimate.device_policy }}</dd></dl></div>{% endif %}{% endblock %}

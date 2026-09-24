@@ -93,6 +93,17 @@ def main(argv=None):
     lg = sub.add_parser('lineage'); lg.add_argument('object_type'); lg.add_argument('object_id')
     sh = sub.add_parser('share'); sh.add_argument('job_id'); sh.add_argument('--grantee', required=True); sh.add_argument('--fields', required=True, help='comma-separated projectable fields')
     pj = sub.add_parser('projection'); pj.add_argument('job_id')
+    # compute engine
+    sub.add_parser('compute-capabilities', help='installed / configured / available / observed compute facts')
+    cs = sub.add_parser('compute-submit', help='create, freeze and submit a compute job from a bounded JSON input file'); cs.add_argument('--kind', required=True, choices=('temporal_batch', 'monte_carlo_reliability', 'heat_diffusion'))
+    cs.add_argument('--inputs', required=True); cs.add_argument('--title', default='compute job'); cs.add_argument('--reviewer', required=True); cs.add_argument('--idempotency-key')
+    ci = sub.add_parser('compute-inspect'); ci.add_argument('job_id')
+    cw = sub.add_parser('compute-watch', help='poll progress until the job is paused, cancelled or terminal'); cw.add_argument('job_id'); cw.add_argument('--timeout', type=int, default=600); cw.add_argument('--pause-after-checkpoint', action='store_true')
+    for name in ('compute-pause', 'compute-resume', 'compute-cancel'):
+        x = sub.add_parser(name); x.add_argument('job_id')
+    cv = sub.add_parser('compute-verify', help='fetch the persisted verification record and reproducibility bundle'); cv.add_argument('job_id')
+    ce = sub.add_parser('compute-export', help='download one output file (npy/json) or the heat plot'); ce.add_argument('job_id'); ce.add_argument('name'); ce.add_argument('--out', required=True)
+    cl = sub.add_parser('compute-log'); cl.add_argument('job_id')
     ac = sub.add_parser('action', help='create (or dry-run) the bounded next-step payment action of an accepted job'); ac.add_argument('job_id'); ac.add_argument('--request-id', required=True); ac.add_argument('--dry-run', action='store_true')
     sub.add_parser('budget-tree'); sub.add_parser('status-ops', help='operational status counters')
     se = sub.add_parser('search'); se.add_argument('--type'); se.add_argument('--status'); se.add_argument('--model'); se.add_argument('--limit', type=int)
@@ -254,6 +265,57 @@ def main(argv=None):
         status, out = go('GET', '/api/v1/reuse/lookup?contract_id=' + args.contract_id)
     elif args.command == 'artifacts':
         status, out = go('GET', '/api/v1/jobs/' + args.job_id + '/artifacts')
+    elif args.command == 'compute-capabilities':
+        status, out = go('GET', '/api/v1/compute/capabilities')
+    elif args.command == 'compute-submit':
+        with open(args.inputs) as stream:
+            inputs = json.load(stream)
+        if inputs.get('schema', '').split('-input/')[0].replace('-', '_') not in (args.kind, args.kind.replace('_reliability', ''), 'temporal_batch', 'monte_carlo_reliability', 'heat_diffusion'):
+            pass                                                     # the server validates; the local check only catches an obviously wrong file
+        status, out = go('POST', '/api/v1/contracts', {'kind': args.kind, 'title': args.title, 'inputs': inputs, 'policy': {'reviewer_id': args.reviewer}})
+        if status == 201:
+            cid = out['id']
+            status, out = go('POST', '/api/v1/contracts/' + cid + '/freeze', {})
+            if status == 200:
+                status, out = go('POST', '/api/v1/jobs', {'contract_id': cid}, idempotency_key=args.idempotency_key or ('cli-compute-' + cid))
+                if status == 202:
+                    out = {'job_id': out['id'], 'contract_id': cid, 'state': out['state'], 'compute': out.get('compute')}
+    elif args.command == 'compute-inspect':
+        status, out = go('GET', '/api/v1/compute/jobs/' + args.job_id)
+    elif args.command == 'compute-watch':
+        deadline = time.time() + args.timeout; last = None; paused_sent = False
+        while True:
+            status, out = go('GET', '/api/v1/compute/jobs/' + args.job_id)
+            if status != 200:
+                break
+            line = (out['phase'], out['work']['committed'], out['work']['computed'], out['checkpoint_generation'])
+            if line != last:
+                print(json.dumps({'phase': out['phase'], 'committed': out['work']['committed'], 'computed': out['work']['computed'], 'total': out['work']['total'], 'checkpoint_generation': out['checkpoint_generation'], 'backend': out['backend']}), file=sys.stderr)
+                last = line
+            if args.pause_after_checkpoint and not paused_sent and out['checkpoint_generation'] >= 1 and 'pause' in out['allowed_actions']:
+                go('POST', '/api/v1/compute/jobs/' + args.job_id + '/pause', {}); paused_sent = True
+            if out['state'] in ('succeeded', 'failed', 'cancelled') or out['phase'] == 'paused' or time.time() > deadline:
+                break
+            time.sleep(1)
+    elif args.command in ('compute-pause', 'compute-resume', 'compute-cancel'):
+        status, out = go('POST', '/api/v1/compute/jobs/' + args.job_id + '/' + args.command.split('-')[1], {}, idempotency_key='cli-' + args.command + '-' + args.job_id + '-' + str(int(time.time())))
+    elif args.command == 'compute-verify':
+        status, view = go('GET', '/api/v1/compute/jobs/' + args.job_id)
+        status2, repro = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/reproducibility')
+        out = {'verification': view.get('verification') if status == 200 else view, 'reproducibility': repro if status2 == 200 else repro}
+        status = max(status, status2)
+    elif args.command == 'compute-export':
+        path = '/api/v1/compute/jobs/' + args.job_id + ('/plot.svg' if args.name == 'plot.svg' else '/outputs/' + args.name)
+        status, content = go('GET', path, raw=True)
+        if status == 200:
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(content)
+            out = {'written': args.out, 'bytes': len(content)}
+        else:
+            out = json.loads(content)
+    elif args.command == 'compute-log':
+        status, out = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/log')
     elif args.command == 'share':
         status, out = go('POST', '/api/v1/jobs/' + args.job_id + '/shares', {'grantee_id': args.grantee, 'fields': args.fields.split(',')})
     else:

@@ -13,7 +13,7 @@ from .db import now
 from .errors import ServiceError
 
 KINDS = ('draft_input', 'input_vault', 'evidence_vault', 'public_bundle', 'review_envelope', 'comparison_input', 'export',
-         'dataset_raw', 'dataset_normalized')
+         'dataset_raw', 'dataset_normalized', 'compute_checkpoint', 'compute_output')
 
 
 class ArtifactStore:
@@ -34,10 +34,10 @@ class ArtifactStore:
         return self._identity
 
     def store(self, db, *, workspace, kind, owner_id, plaintext, recipients, intended_use,
-              job_id=None, contract_id=None, public=False, retention_deadline=None):
+              job_id=None, contract_id=None, public=False, retention_deadline=None, limit_bytes=None):
         if kind not in KINDS:
             raise ServiceError('VALIDATION', 'artifact kind')
-        if len(plaintext) > self.settings.limits['max_upload_bytes']:
+        if len(plaintext) > (limit_bytes or self.settings.limits['max_upload_bytes']):
             raise ServiceError('PAYLOAD_TOO_LARGE', 'artifact')
         aid = 'a_' + secrets.token_hex(12)
         digest = hashlib.sha256(plaintext).hexdigest()
