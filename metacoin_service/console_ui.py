@@ -4,7 +4,7 @@ services as the API; nothing is hidden with CSS or browser JavaScript."""
 import json
 from pathlib import Path
 from fastapi import Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 import jinja2
@@ -73,6 +73,13 @@ def mount(app, svc):
     async def form(request):
         request.state.form = dict(await request.form())
         return request.state.form
+
+    CSS = (Path(__file__).parent / 'templates' / 'console.css').read_text()
+
+    @app.get('/console/static/console.css')
+    async def stylesheet():
+        # Served from the same origin so the CSP (default-src 'self', no inline) applies to the console too.
+        return Response(CSS, media_type='text/css', headers={'Cache-Control': 'public, max-age=3600'})
 
     @app.get('/', response_class=HTMLResponse)
     async def root(request: Request):

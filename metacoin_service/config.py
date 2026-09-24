@@ -60,6 +60,13 @@ class Settings:
                 buyer_max_amount=int(env.get('METACOIN_BUYER_MAX_AMOUNT', '0') or 0), buyer_pay_to=env.get('METACOIN_BUYER_PAY_TO', ''))
         for key, value in overrides.items():
             setattr(s, key, value)
+        # Operator override of bounded limits (integers only), e.g. METACOIN_LIMITS_JSON='{"job_timeout_seconds": 5}'
+        if env.get('METACOIN_LIMITS_JSON'):
+            import json
+            for key, value in json.loads(env['METACOIN_LIMITS_JSON']).items():
+                if key not in s.limits or type(value) not in (int, float) or value <= 0:
+                    raise ValueError('invalid limits override: ' + str(key))
+                s.limits[key] = value
         s.validate()
         return s
 
