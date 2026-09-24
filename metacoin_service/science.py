@@ -14,6 +14,9 @@ SAFE_RUNTIME_MODEL = 'safe-runtime/v1'
 SAFE_RUNTIME_SCHEMA = 'safe-runtime-result/v1'
 COMPARISON_MODEL = 'plan-comparison/v1'
 COMPARISON_SCHEMA = 'plan-comparison-result/v1'
+SELECTION_MODEL = 'task-selection/v1'
+SELECTION_SCHEMA = 'task-selection-result/v1'
+MAX_OPTIONAL_TASKS = 12          # exhaustive search over 2^12 subsets is bounded and exact
 MAX_CANDIDATES = 16
 MAX_TOTAL_SEGMENTS = 512
 RANK = {'INFEASIBLE': 0, 'INDETERMINATE': 1, 'FEASIBLE': 2}
@@ -157,3 +160,81 @@ def compare_plans(data):
             'selected_input_digest': next((r['input_digest'] for r in rows if r['id'] == selected), None),
             'scope': 'selection among submitted candidates only; no global optimization claimed',
             'assumptions': list(energy.ASSUMPTIONS)}
+
+
+# ---- backlog 3: bounded task-selection optimizer -------------------------------
+def validate_selection(data):
+    canonical(data)
+    energy.exact(data, ('available_low', 'available_high', 'reserve', 'fixed_segments', 'optional_tasks', 'duration_cap',
+                        'units', 'assumptions', 'provenance', 'private_label'))
+    if data['units'] != energy.UNITS or data['assumptions'] != energy.ASSUMPTIONS:
+        raise Invalid('unsupported units or assumptions')
+    if data['provenance'] not in ('synthetic', 'declared_unverified'):
+        raise Invalid('unsupported provenance')
+    if type(data['private_label']) is not str or not 1 <= len(data['private_label']) <= 128:
+        raise Invalid('invalid private label')
+    for name in ('available_low', 'available_high', 'reserve'):
+        energy.integer(data[name])
+    energy.integer(data['duration_cap'], 1)
+    if data['available_low'] > data['available_high']:
+        raise Invalid('reversed available bounds')
+    if type(data['fixed_segments']) is not list or len(data['fixed_segments']) > 128:
+        raise Invalid('segment limit exceeded')
+    for row in data['fixed_segments']:
+        energy.exact(row, ('duration', 'power_low', 'power_high'))
+        energy.integer(row['duration'], 1)
+        energy.integer(row['power_low'])
+        energy.integer(row['power_high'])
+        if row['power_low'] > row['power_high']:
+            raise Invalid('reversed power bounds')
+    tasks = data['optional_tasks']
+    if type(tasks) is not list or not 1 <= len(tasks) <= MAX_OPTIONAL_TASKS:
+        raise Invalid('candidate limit exceeded')
+    ids = set()
+    for task in tasks:
+        energy.exact(task, ('id', 'duration', 'power_high', 'value'))
+        if type(task['id']) is not str or not 1 <= len(task['id']) <= 64 or task['id'] in ids:
+            raise Invalid('invalid candidate identifier')
+        ids.add(task['id'])
+        energy.integer(task['duration'], 1)
+        energy.integer(task['power_high'])
+        energy.integer(task['value'])
+
+
+def select_tasks(data):
+    """Exact selection of optional tasks: maximize the integer sum of declared values
+    subject to worst-case energy (sum power_high * duration) <= residual worst-case energy
+    and total duration <= duration_cap. Exhaustive over all subsets (n <= 12), so the
+    optimum is established for the submitted tasks and this objective only. Ties:
+    lower worst-case energy, shorter duration, then lexicographic identifier set."""
+    validate_selection(data)
+    fixed = 0
+    for row in data['fixed_segments']:
+        fixed = energy.integer(fixed + row['power_high'] * row['duration'])
+    residual = data['available_low'] - data['reserve'] - fixed
+    tasks = data['optional_tasks']
+    base = {'result_schema': SELECTION_SCHEMA, 'model_id': SELECTION_MODEL, 'base_model_id': energy.MODEL_ID,
+            'units': dict(energy.UNITS), 'residual_energy_worst_case': residual, 'duration_cap': data['duration_cap'],
+            'objective': 'maximize sum of declared integer values; constraints: worst-case energy and total duration',
+            'search': 'exhaustive over ' + str(2 ** len(tasks)) + ' subsets; optimal for the submitted tasks and this objective only',
+            'assumptions': list(energy.ASSUMPTIONS) + ['task_upper_power_bound_binding', 'tasks_independent_and_sequential', 'fixed_reserve'],
+            'provenance': data['provenance'], 'conditional_on': 'declared-interval-model;not-a-measurement;not-a-hardware-guarantee'}
+    if residual < 0:
+        return dict(base, status='BASE_PLAN_INFEASIBLE', selected_ids=[], total_value=0, energy_used=0, duration_used=0,
+                    energy_margin=residual, considered=0)
+    cost = [(t['power_high'] * t['duration'], t['duration'], t['value'], t['id']) for t in tasks]
+    best = None
+    for mask in range(2 ** len(tasks)):
+        e = d = v = 0
+        chosen = []
+        for i, (ce, cd, cv, cid) in enumerate(cost):
+            if mask >> i & 1:
+                e += ce; d += cd; v += cv; chosen.append(cid)
+        if e > residual or d > data['duration_cap']:
+            continue
+        key = (-v, e, d, sorted(chosen))
+        if best is None or key < best[0]:
+            best = (key, chosen, e, d, v)
+    _, chosen, e, d, v = best
+    return dict(base, status='OPTIMAL_FOR_SUBMITTED_TASKS', selected_ids=sorted(chosen), total_value=v, energy_used=e,
+                duration_used=d, energy_margin=residual - e, duration_margin=data['duration_cap'] - d, considered=2 ** len(tasks))

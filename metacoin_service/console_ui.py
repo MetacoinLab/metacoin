@@ -21,6 +21,13 @@ SAMPLE_RUNTIME = {'available_low': 1_000_000, 'available_high': 1_100_000, 'rese
                   'variable_power_low': 100, 'variable_power_high': 250, 'duration_cap': 3600,
                   'units': dict(energy.UNITS), 'assumptions': list(energy.ASSUMPTIONS), 'provenance': 'synthetic',
                   'private_label': 'SAMPLE_SYNTHETIC'}
+SAMPLE_SELECT = {'available_low': 1_000_000, 'available_high': 1_100_000, 'reserve': 100_000,
+                 'fixed_segments': [{'duration': 600, 'power_low': 800, 'power_high': 1000}],
+                 'optional_tasks': [{'id': 'imaging', 'duration': 300, 'power_high': 500, 'value': 8},
+                                    {'id': 'downlink', 'duration': 200, 'power_high': 900, 'value': 6},
+                                    {'id': 'calibration', 'duration': 120, 'power_high': 300, 'value': 3}],
+                 'duration_cap': 900, 'units': dict(energy.UNITS), 'assumptions': list(energy.ASSUMPTIONS),
+                 'provenance': 'synthetic', 'private_label': 'SAMPLE_SYNTHETIC'}
 SAMPLE_COMPARE = {'candidates': [{'id': 'plan-a', 'inputs': dict(fixtures.inputs('FEASIBLE'), private_label='SAMPLE_SYNTHETIC'), 'utility': 5},
                                  {'id': 'plan-b', 'inputs': dict(fixtures.inputs('INDETERMINATE'), private_label='SAMPLE_SYNTHETIC'), 'utility': 9},
                                  {'id': 'plan-c', 'inputs': dict(fixtures.inputs('INFEASIBLE'), private_label='SAMPLE_SYNTHETIC'), 'utility': 1}],
@@ -126,7 +133,7 @@ def mount(app, svc):
         def fn(db, p):
             p.require('contract:create')
             reviewers = db.execute("SELECT id, name FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL", (p.workspace,)).fetchall()
-            sample = {'energy_audit': SAMPLE_ENERGY, 'safe_runtime': SAMPLE_RUNTIME, 'plan_comparison': SAMPLE_COMPARE}[kind]
+            sample = {'energy_audit': SAMPLE_ENERGY, 'safe_runtime': SAMPLE_RUNTIME, 'plan_comparison': SAMPLE_COMPARE, 'task_selection': SAMPLE_SELECT}[kind]
             return render(request, 'contract_new.html', principal=p, kind=kind, reviewers=reviewers,
                           sample=json.dumps(sample, indent=1), outcomes=energy.OUTCOMES, error=None, values={})
         return await page(request, fn)

@@ -32,6 +32,9 @@ def run(spec):
     elif kind == 'plan_comparison':
         result = science.compare_plans(inputs)
         outcome = 'SELECTED:' + result['selected_id'] if result['selected_id'] else 'NO_SELECTION'
+    elif kind == 'task_selection':
+        result = science.select_tasks(inputs)
+        outcome = result['status']
     else:
         raise merkle.Invalid('unsupported adapter capability or destination')
     evidence = {'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'],

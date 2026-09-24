@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import jobs as jobs_mod, reviews as reviews_mod, science, x402_http
+from . import jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -28,6 +28,7 @@ class Services:
         self.reviews = reviews_mod.Reviews(self.store, settings, self.jobs)
         self.actions = actions_mod.Actions(settings, self.jobs)
         self.sales = x402_http.SaleService(settings, self.store, self.jobs)
+        self.templates = templates_svc.Templates(self.contracts)
 
 
 def read_body(request, raw):
@@ -207,6 +208,33 @@ def create_app(settings):
             new_id = svc.contracts.amend(db, p, contract_id, inputs=body.get('inputs'), policy=body.get('policy'), title=body.get('title'))
             return svc.contracts.public_view(svc.contracts.get(db, p, new_id)), 201
         return await run(request, True, fn, 'contracts.amend', raw)
+
+    # ---- templates (non-secret parameters) ------------------------------------
+    @app.post(API + '/templates', status_code=201)
+    async def create_template(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            tid = svc.templates.save(db, p, name=body.get('name'), kind=body.get('kind'), policy=body.get('policy') or {}, notes=body.get('notes') or '')
+            return svc.templates.view(svc.templates.get(db, p, tid)), 201
+        return await run(request, True, fn, 'templates.create', raw)
+
+    @app.get(API + '/templates')
+    async def list_templates(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.templates.list(db, p)})
+
+    @app.post(API + '/templates/{template_id}/instantiate', status_code=201)
+    async def instantiate_template(request: Request, template_id: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            cid = svc.templates.instantiate(db, p, template_id, inputs=body.get('inputs'), title=body.get('title'), policy_overrides=body.get('policy'))
+            return svc.contracts.public_view(svc.contracts.get(db, p, cid)), 201
+        return await run(request, True, fn, 'templates.instantiate', raw)
+
+    @app.get(API + '/templates/{template_id}/runs')
+    async def template_runs(request: Request, template_id: str):
+        return await run(request, False, lambda db, p: svc.templates.runs(db, p, template_id))
 
     # ---- jobs ----------------------------------------------------------------
     @app.post(API + '/jobs', status_code=202)

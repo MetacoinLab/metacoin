@@ -704,3 +704,79 @@ class BacklogTests(unittest.TestCase):
         self.assertTrue(all(j['outcome'] is None for j in progress['jobs']))          # viewer projection
         self.assertEqual(self.c.post('/api/v1/jobs/batch', headers=self.inst.h('viewer'), json={'contract_ids': good}).status_code, 403)
         self.assertEqual(self.c.post('/api/v1/jobs/batch', headers=self.inst.h('owner'), json={'contract_ids': ['x'] * 21}).status_code, 422)
+
+    def test_saved_templates_instantiate_with_explicit_inputs_and_compare_runs(self):
+        r = self.c.post('/api/v1/templates', headers=self.inst.h('owner'),
+                        json={'name': 'nightly adequacy', 'kind': 'energy_audit', 'policy': {'reviewer_id': self.inst.ids['reviewer'], 'amount': 2}, 'notes': 'no inputs stored'})
+        self.assertEqual(r.status_code, 201)
+        tid = r.json()['id']
+        self.assertNotIn('inputs', r.json())
+        self.assertEqual(self.c.post('/api/v1/templates/' + tid + '/instantiate', headers=self.inst.h('owner'), json={}).status_code, 422)
+        ids = []
+        for reserve in (150_000, 900_000):
+            cid = self.c.post('/api/v1/templates/' + tid + '/instantiate', headers=self.inst.h('owner'),
+                              json={'inputs': dict(own_inputs(), reserve=reserve), 'title': 'run reserve ' + str(reserve)}).json()['id']
+            self.c.post('/api/v1/contracts/' + cid + '/freeze', headers=self.inst.h('owner'))
+            ids.append(self.c.post('/api/v1/jobs', headers=self.inst.h('owner'), json={'contract_id': cid}).json()['id'])
+        w = self.inst.worker(); w.run_once(); w.run_once()
+        runs = self.c.get('/api/v1/templates/' + tid + '/runs', headers=self.inst.h('owner')).json()
+        self.assertEqual((len(runs['runs']), runs['distinct_input_roots']), (2, 2))
+        self.assertEqual([x['outcome'] for x in runs['runs']], ['FEASIBLE', 'INDETERMINATE'])   # larger reserve: bounds overlap
+        self.assertLess(runs['runs'][1]['worst_margin'], runs['runs'][0]['worst_margin'])
+        viewer_runs = self.c.get('/api/v1/templates/' + tid + '/runs', headers=self.inst.h('viewer')).json()
+        self.assertNotIn('worst_margin', json.dumps(viewer_runs))
+        self.assertEqual(self.c.post('/api/v1/templates', headers=self.inst.h('viewer'), json={'name': 'x', 'kind': 'energy_audit', 'policy': {}}).status_code, 403)
+        self.assertEqual(self.c.get('/api/v1/templates', headers=self.inst.h('reviewer')).json()['items'][0]['id'], tid)
+
+    def test_task_selection_optimizer_exhaustive_small_cases(self):
+        def reference(d):
+            """Independent recursive branch-and-bound-free search (include/exclude), same tie policy."""
+            fixed = sum(s['power_high'] * s['duration'] for s in d['fixed_segments'])
+            residual = d['available_low'] - d['reserve'] - fixed
+            if residual < 0:
+                return 'BASE_PLAN_INFEASIBLE', []
+            tasks = d['optional_tasks']
+            best = [None]
+            def rec(i, chosen, e, dur, v):
+                if e > residual or dur > d['duration_cap']:
+                    return
+                if i == len(tasks):
+                    key = (-v, e, dur, sorted(chosen))
+                    if best[0] is None or key < best[0]:
+                        best[0] = key
+                    return
+                t = tasks[i]
+                rec(i + 1, chosen + [t['id']], e + t['power_high'] * t['duration'], dur + t['duration'], v + t['value'])
+                rec(i + 1, chosen, e, dur, v)
+            rec(0, [], 0, 0, 0)
+            return 'OPTIMAL_FOR_SUBMITTED_TASKS', best[0][3]
+        base = {'available_low': 1_000_000, 'available_high': 1_100_000, 'reserve': 100_000,
+                'fixed_segments': [{'duration': 600, 'power_low': 800, 'power_high': 1000}],
+                'optional_tasks': [{'id': 'imaging', 'duration': 300, 'power_high': 500, 'value': 8},
+                                   {'id': 'downlink', 'duration': 200, 'power_high': 900, 'value': 6},
+                                   {'id': 'calibration', 'duration': 120, 'power_high': 300, 'value': 3}],
+                'duration_cap': 900, 'units': dict(energy.UNITS), 'assumptions': list(energy.ASSUMPTIONS),
+                'provenance': 'synthetic', 'private_label': 'x'}
+        out = science.select_tasks(base)       # residual 300000 mJ: imaging 150000 + calibration 36000 fit; +downlink 180000 does not
+        self.assertEqual((out['status'], out['selected_ids'], out['total_value'], out['energy_margin']), ('OPTIMAL_FOR_SUBMITTED_TASKS', ['calibration', 'imaging'], 11, 114000))
+        self.assertEqual(out['considered'], 8)
+        rng = random.Random(7_301)
+        for _ in range(120):
+            d = dict(base, available_low=rng.randint(700_000, 1_400_000), available_high=1_400_000, duration_cap=rng.randint(100, 1500),
+                     optional_tasks=[{'id': 't%d' % k, 'duration': rng.randint(1, 400), 'power_high': rng.randint(0, 800), 'value': rng.randint(0, 9)}
+                                     for k in range(rng.randint(1, 7))])
+            out = science.select_tasks(d)
+            status, ids = reference(d)
+            self.assertEqual((out['status'], out['selected_ids']), (status, ids), d)
+            if status != 'BASE_PLAN_INFEASIBLE':
+                self.assertGreaterEqual(out['energy_margin'], 0)
+                self.assertGreaterEqual(out['duration_margin'], 0)
+        self.assertEqual(science.select_tasks(dict(base, reserve=2_000_000))['status'], 'BASE_PLAN_INFEASIBLE')
+        with self.assertRaises(merkle.Invalid):
+            science.select_tasks(dict(base, optional_tasks=[{'id': 't%d' % k, 'duration': 1, 'power_high': 1, 'value': 1} for k in range(13)]))
+        jid = self.inst.job(kind='task_selection', inputs=base)
+        self.assertEqual(self.inst.worker_process()[1], 'succeeded')
+        view = self.c.get('/api/v1/jobs/' + jid, headers=self.inst.h('owner')).json()
+        self.assertEqual((view['outcome'], view['summary']['selected_ids']), ('OPTIMAL_FOR_SUBMITTED_TASKS', ['calibration', 'imaging']))
+        self.c.post('/api/v1/jobs/' + jid + '/review-request', headers=self.inst.h('owner'))
+        self.assertEqual(self.c.get('/api/v1/reviews/' + jid + '/evidence', headers=self.inst.h('reviewer')).json()['recomputation'], 'matches')

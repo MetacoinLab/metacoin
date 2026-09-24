@@ -7,11 +7,13 @@ from . import history, science
 from .db import now
 from .errors import ServiceError
 
-KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison')
+KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection')
 DEFAULT_EXPIRY_SECONDS = 7 * 86400
 SERVICE_CONTRACT_SCHEMA = 'metacoin-service-contract/v1'
 VALIDATORS = {'energy_audit': energy.validate, 'safe_runtime': science.validate_safe_runtime,
-              'plan_comparison': science.validate_comparison}
+              'plan_comparison': science.validate_comparison, 'task_selection': science.validate_selection}
+MODEL_IDS = {'safe_runtime': science.SAFE_RUNTIME_MODEL, 'plan_comparison': science.COMPARISON_MODEL,
+             'task_selection': science.SELECTION_MODEL}
 
 
 def validate_policy(kind, policy):
@@ -129,7 +131,7 @@ class Contracts:
         else:
             doc = {'schema': SERVICE_CONTRACT_SCHEMA, 'kind': row['kind'], 'job_id': contract_id, 'workspace': principal.workspace,
                    'owner': principal.id, 'auditor': pol['reviewer_id'], 'input_root': receipt['root'],
-                   'commitment_schema': merkle.SCHEMA, 'model_id': science.SAFE_RUNTIME_MODEL if row['kind'] == 'safe_runtime' else science.COMPARISON_MODEL,
+                   'commitment_schema': merkle.SCHEMA, 'model_id': MODEL_IDS[row['kind']],
                    'verifier_id': 'service-science/v1', 'verifier_digest': science.bundle_digest(),
                    'accepted_outcomes': pol['accepted_outcomes'], 'disclose_outcome': pol['disclose_outcome'],
                    'expires_at': expires_at, 'retention_seconds': pol['retention_seconds'],

@@ -82,7 +82,7 @@ class Reviews:
             else:
                 values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
                 inputs = acceptance.full_values(input_vault, contract['input_root'])['inputs']
-                fresh = science.safe_runtime(inputs) if job['kind'] == 'safe_runtime' else science.compare_plans(inputs)
+                fresh = {'safe_runtime': science.safe_runtime, 'plan_comparison': science.compare_plans, 'task_selection': science.select_tasks}[job['kind']](inputs)
                 matches = (merkle.canonical(fresh) == merkle.canonical(values['result'])
                            and values['contract_digest'] == contract['contract_digest']
                            and values['verifier_digest'] == science.bundle_digest())
