@@ -271,6 +271,15 @@ def create_app(settings):
             return out, 202
         return await run(request, True, fn, 'workflows.run', raw)
 
+    @app.post(API + '/workflows/{wid}/instantiate', status_code=201)
+    async def workflow_instantiate(request: Request, wid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            out = svc.workflows.instantiate(db, p, wid, body.get('values'), name=body.get('name'))
+            return out, (201 if out['created'] else 200)
+        return await run(request, True, fn, 'workflows.instantiate', raw)
+
     @app.get(API + '/runs')
     async def runs_list(request: Request):
         return await run(request, False, lambda db, p: {'items': svc.workflows.list(db, p, request.query_params.get('limit', 50))})
@@ -678,7 +687,7 @@ def create_app(settings):
         q = request.query_params
         def fn(db, p):
             p.require('history:read')
-            if object_type not in ('dataset_version', 'contract', 'job', 'artifact', 'review', 'workflow_run', 'campaign', 'quote', 'usage'):
+            if object_type not in ('dataset_version', 'contract', 'job', 'artifact', 'review', 'workflow_run', 'workflow_definition', 'campaign', 'quote', 'usage', 'service'):
                 raise ServiceError('VALIDATION', 'object_type')
             return datasets_mod.lineage(db, p, object_type, object_id, depth=int(q.get('depth', 4)), limit=min(int(q.get('limit', 200)), 500))
         return await run(request, False, fn)

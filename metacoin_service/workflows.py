@@ -55,6 +55,12 @@ def validate_definition(definition):
         raise ServiceError('VALIDATION', {'node': None, 'code': 'top_level_fields', 'allowed': sorted(allowed_top)})
     if type(definition['name']) is not str or not 1 <= len(definition['name']) <= 128:
         errors.append({'node': None, 'code': 'name'})
+    slots = definition.get('slots', {})
+    if type(slots) is not dict or len(slots) > 16 or not all(
+            type(k) is str and 1 <= len(k) <= 32 and k.replace('_', '').isalnum() and type(v) is dict and set(v) <= {'type', 'min', 'max', 'description'}
+            and v.get('type') == 'integer' and all(type(v[b]) is int and type(v[b]) is not bool for b in ('min', 'max') if b in v)
+            and (type(v.get('description', '')) is str and len(v.get('description', '')) <= 256) for k, v in slots.items()):
+        raise ServiceError('VALIDATION', {'node': None, 'code': 'slots', 'expected': "{name: {type: 'integer', min?: int, max?: int, description?: str}}", 'max_slots': 16})
     nodes = definition['nodes']
     if type(nodes) is not list or not 1 <= len(nodes) <= LIMITS['max_nodes']:
         raise ServiceError('VALIDATION', {'node': None, 'code': 'node_count', 'max': LIMITS['max_nodes']})
@@ -104,6 +110,10 @@ def validate_definition(definition):
             if 'inputs' in n and type(n['inputs']) is not dict:
                 errors.append({'node': nid, 'code': 'inputs_object'})
             for k, v in (n.get('parameters') or {}).items():
+                if type(v) is dict and set(v) == {'slot'}:
+                    if type(v['slot']) is not str or v['slot'] not in slots:
+                        errors.append({'node': nid, 'code': 'undeclared_slot', 'parameter': k, 'slot': v.get('slot'), 'declared': sorted(slots)})
+                    continue
                 if type(v) is dict:
                     src = v.get('from') if set(v) == {'from'} else None
                     if not (type(src) is dict and set(src) == {'node', 'field'} and src['node'] in seen and src['field'] in FROM_FIELDS):
@@ -147,6 +157,11 @@ def validate_definition(definition):
     # every required output must be reachable from some dataset/inline root (it always is in a DAG); check outputs are not orphaned pending
     digest = hashlib.sha256(b'metacoin/workflow-definition/v1\0' + merkle.canonical(definition)).hexdigest()
     return digest, order
+
+
+def slot_references(definition):
+    """Names of parameter slots referenced by service nodes ({'slot': name})."""
+    return {v['slot'] for n in definition['nodes'] for v in (n.get('parameters') or {}).values() if type(v) is dict and set(v) == {'slot'}}
 
 
 def estimate(definition, limits):
@@ -195,10 +210,45 @@ class Workflows:
                 'created_at': row['created_at']}
 
     # ---- runs --------------------------------------------------------------------------
+    def instantiate(self, db, principal, wid, values, name=None):
+        """Fill a template's integer parameter slots and create a new immutable definition. The instance carries
+        the caller's values only; it inherits no bindings, runs, budgets or grants from the template's owner."""
+        principal.require('contract:create')
+        drow = self.get_definition(db, principal, wid)
+        template = merkle.parse(drow['definition_json'])
+        slots = template.get('slots', {})
+        referenced = slot_references(template)
+        if not referenced:
+            raise ServiceError('VALIDATION', {'code': 'not_a_template', 'detail': 'the definition references no parameter slots'})
+        if type(values) is not dict or set(values) != referenced or not all(type(v) is int and type(v) is not bool for v in values.values()):
+            raise ServiceError('VALIDATION', {'code': 'slot_values', 'required': sorted(referenced), 'given': sorted(values) if type(values) is dict else None})
+        for k, v in values.items():
+            spec = slots[k]
+            if ('min' in spec and v < spec['min']) or ('max' in spec and v > spec['max']):
+                raise ServiceError('VALIDATION', {'code': 'slot_out_of_range', 'slot': k, 'value': v, 'min': spec.get('min'), 'max': spec.get('max')})
+        instance = json.loads(json.dumps(template))
+        for n in instance['nodes']:
+            for k, v in list((n.get('parameters') or {}).items()):
+                if type(v) is dict and set(v) == {'slot'}:
+                    n['parameters'][k] = values[v['slot']]
+        instance.pop('slots', None)
+        if name is not None:
+            if type(name) is not str or not 1 <= len(name) <= 128:
+                raise ServiceError('VALIDATION', 'name')
+            instance['name'] = name
+        new_id, digest, created = self.create(db, principal, instance)
+        if created:
+            add_edge(db, principal.workspace, 'workflow_definition', wid, 'workflow_definition', new_id, 'derived_from')
+            history.record(db, principal.workspace, principal.id, 'contract.created', 'workflow_definition', new_id, {'instantiated_from': wid, 'slots': sorted(values), 'digest': digest})
+        return dict(self.definition_view(self.get_definition(db, principal, new_id)), template_id=wid, values=values, created=created)
+
     def start_run(self, db, principal, wid, bindings=None, budget_ceiling=None, preview=False):
         principal.require('job:submit')
         drow = self.get_definition(db, principal, wid)
         definition = merkle.parse(drow['definition_json'])
+        unbound = slot_references(definition)
+        if unbound:
+            raise ServiceError('VALIDATION', {'code': 'template_has_parameter_slots', 'slots': sorted(unbound), 'action': 'instantiate the template with values, then run the instance'})
         bindings = bindings or {}
         if type(bindings) is not dict or not all(type(k) is str and type(v) is str for k, v in bindings.items()):
             raise ServiceError('VALIDATION', 'bindings must map slot names to dataset version ids')

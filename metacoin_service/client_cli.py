@@ -74,6 +74,7 @@ def main(argv=None):
     sub.add_parser('datasets')
     wf = sub.add_parser('workflow-create', help='register a workflow definition from a JSON file'); wf.add_argument('--file', required=True)
     wr = sub.add_parser('workflow-run'); wr.add_argument('definition_id'); wr.add_argument('--bindings', help='JSON object slot->dataset version id'); wr.add_argument('--budget-ceiling', type=int); wr.add_argument('--preview', action='store_true')
+    wi = sub.add_parser('workflow-instantiate', help='fill a template\'s parameter slots into a new immutable definition'); wi.add_argument('definition_id'); wi.add_argument('--values', required=True, help='JSON object slot->integer'); wi.add_argument('--name')
     rs = sub.add_parser('run-status'); rs.add_argument('run_id'); rs.add_argument('--follow', action='store_true'); rs.add_argument('--timeout', type=int, default=300)
     rc = sub.add_parser('run-cancel'); rc.add_argument('run_id')
     cc = sub.add_parser('campaign-create', help='create a scientific campaign from a JSON definition file'); cc.add_argument('--file', required=True); cc.add_argument('--preview', action='store_true')
@@ -149,6 +150,11 @@ def main(argv=None):
         if args.budget_ceiling is not None:
             body['budget_ceiling'] = args.budget_ceiling
         status, out = go('POST', '/api/v1/workflows/' + args.definition_id + '/runs', body)
+    elif args.command == 'workflow-instantiate':
+        body = {'values': json.loads(args.values)}
+        if args.name:
+            body['name'] = args.name
+        status, out = go('POST', '/api/v1/workflows/' + args.definition_id + '/instantiate', body)
     elif args.command == 'run-status':
         deadline = time.time() + args.timeout
         while True:
