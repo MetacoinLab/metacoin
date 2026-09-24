@@ -35,8 +35,14 @@ class Principal:
         self.id, self.name, self.role, self.workspace = row['id'], row['name'], row['role'], row['workspace']
         self.credential_id, self.session = credential_id, session
 
+    scope = None      # {'operations': [...], 'workspace': ws} for scoped automation credentials
+
     def can(self, operation):
-        return operation in PERMISSIONS[self.role]
+        if operation not in PERMISSIONS[self.role]:
+            return False
+        if self.scope is not None:
+            return operation in self.scope.get('operations', ()) and self.scope.get('workspace') == self.workspace
+        return True
 
     def require(self, operation):
         if not self.can(operation):
@@ -67,6 +73,24 @@ def create_principal(db, name, role, workspace):
     pid = new_id('p')
     db.execute('INSERT INTO principals VALUES (?, ?, ?, ?, ?, NULL)', (pid, name[:64], role, workspace, now()))
     return pid
+
+
+AUTOMATION_OPERATIONS = {'contract:create', 'contract:read', 'contract:freeze', 'job:submit', 'job:read', 'job:read_private',
+                         'review:request', 'artifact:export', 'history:read', 'budget:read', 'action:read'}
+
+
+def issue_scoped_credential(db, issuer, operations, lifetime_seconds):
+    """Automation credential limited to the issuer's workspace and a subset of the issuer's
+    own permissions within AUTOMATION_OPERATIONS. Request fields cannot widen it."""
+    issuer.require('admin:credentials')
+    if type(operations) is not list or not operations or len(operations) > 20 or not all(type(o) is str for o in operations):
+        raise ServiceError('VALIDATION', 'operations')
+    widened = [o for o in operations if o not in AUTOMATION_OPERATIONS or not issuer.can(o)]
+    if widened:
+        raise ServiceError('FORBIDDEN', 'scope exceeds the issuer or the automation set')
+    if type(lifetime_seconds) is not int or not 60 <= lifetime_seconds <= 30 * 86400:
+        raise ServiceError('VALIDATION', 'expires_in_seconds')
+    return issue_credential(db, issuer.id, lifetime_seconds, scope={'operations': sorted(set(operations)), 'workspace': issuer.workspace})
 
 
 def issue_credential(db, principal_id, lifetime_seconds, scope=None):

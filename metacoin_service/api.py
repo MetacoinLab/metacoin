@@ -209,6 +209,35 @@ def create_app(settings):
             return svc.contracts.public_view(svc.contracts.get(db, p, new_id)), 201
         return await run(request, True, fn, 'contracts.amend', raw)
 
+    # ---- scoped automation credentials -----------------------------------------
+    @app.post(API + '/credentials', status_code=201)
+    async def issue_credential(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            cid, token = auth.issue_scoped_credential(db, p, body.get('operations'), body.get('expires_in_seconds', 86400))
+            history.record(db, p.workspace, p.id, 'credential.issued', 'principal', p.id, {'credential_id': cid, 'scoped': True})
+            return {'credential_id': cid, 'token': token, 'scope': {'operations': sorted(set(body['operations'])), 'workspace': p.workspace},
+                    'note': 'shown once; store privately; never place in URLs or logs'}, 201
+        return await run(request, True, fn)
+
+    @app.delete(API + '/credentials/{credential_id}')
+    async def revoke_credential(request: Request, credential_id: str):
+        def fn(db, p):
+            p.require('admin:credentials')
+            row = db.execute('SELECT principal_id FROM credentials WHERE id=?', (credential_id,)).fetchone()
+            if row is None or row['principal_id'] != p.id:
+                raise ServiceError('NOT_FOUND', 'credential')
+            auth.revoke_credential(db, credential_id)
+            history.record(db, p.workspace, p.id, 'credential.revoked', 'principal', p.id, {'credential_id': credential_id})
+            return {'revoked': credential_id}
+        return await run(request, True, fn)
+
+    # ---- comparison of two completed runs -----------------------------------------
+    @app.get(API + '/jobs/{job_a}/compare/{job_b}')
+    async def compare_runs(request: Request, job_a: str, job_b: str):
+        return await run(request, False, lambda db, p: compare_jobs(svc, db, p, job_a, job_b))
+
     # ---- templates (non-secret parameters) ------------------------------------
     @app.post(API + '/templates', status_code=201)
     async def create_template(request: Request):
@@ -494,3 +523,43 @@ def capability_table(svc, db):
                     'verifier_bundles': {'energy_audit': terms.verifier_digest(), 'service_science': science.bundle_digest()}},
         'external_settlement_observed': False, 'external_team_participation': False,
     }
+
+
+def compare_jobs(svc, db, principal, job_a, job_b):
+    """Explain what changed between two completed runs of the same kind: policy, assumptions,
+    inputs (by root only), verdict and margins. Private fields for the owner/designated reviewer;
+    a viewer receives only the differences both contracts permit publicly after review."""
+    rows = [svc.jobs.get(db, principal, j) for j in (job_a, job_b)]
+    if rows[0]['kind'] != rows[1]['kind']:
+        raise ServiceError('CONFLICT', 'runs of different kinds are not comparable')
+    if any(r['state'] != 'succeeded' for r in rows):
+        raise ServiceError('CONFLICT', 'both runs must have a committed result')
+    contracts = [db.execute('SELECT * FROM contracts WHERE id=?', (r['contract_id'],)).fetchone() for r in rows]
+    pols = [json.loads(c['policy_json']) for c in contracts]
+    docs = [merkle.parse(c['contract_json']) for c in contracts]
+    private = principal.can('job:read_private') or (principal.role == 'reviewer' and all(c['reviewer_id'] == principal.id for c in contracts))
+    public_ok = all(p['disclose_outcome'] and r['review_state'] == 'accepted' for p, r in zip(pols, rows))
+    out = {'kind': rows[0]['kind'], 'jobs': [job_a, job_b],
+           'contract_digests': [c['contract_digest'] for c in contracts], 'input_roots': [c['input_root'] for c in contracts],
+           'same_inputs': contracts[0]['input_root'] == contracts[1]['input_root'],
+           'same_lineage': contracts[0]['lineage_id'] == contracts[1]['lineage_id'],
+           'verifier_digests': [d['verifier_digest'] for d in docs],
+           'changed_policy': {k: [pols[0].get(k), pols[1].get(k)] for k in pols[0] if pols[0].get(k) != pols[1].get(k)},
+           'changed_assumptions': sorted(set(docs[0].get('assumptions', [])) ^ set(docs[1].get('assumptions', []))),
+           'scope': 'differences between two submitted runs; no claim about runs not compared'}
+    if private:
+        sums = [json.loads(r['summary_json']) if r['summary_json'] else {} for r in rows]
+        keys = sorted(set(sums[0]) & set(sums[1]) & {'outcome', 'worst_margin', 'best_margin', 'required_low', 'required_high',
+                                                         'additional_usable_energy', 'margin_width', 'dominant_uncertainty_source',
+                                                         'safe_duration', 'status', 'selected_id', 'selected_ids', 'total_value'})
+        out['outcomes'] = [r['outcome'] for r in rows]
+        out['changed_results'] = {k: [sums[0].get(k), sums[1].get(k)] for k in keys if sums[0].get(k) != sums[1].get(k)}
+        out['margin_delta_worst_case_mJ'] = (sums[1].get('worst_margin') - sums[0].get('worst_margin')) if all('worst_margin' in x for x in sums) else None
+        out['projection'] = 'private'
+    elif public_ok:
+        out['outcomes'] = [r['outcome'] for r in rows]
+        out['projection'] = 'public: outcomes and bindings only (both contracts disclose the outcome and are accepted)'
+    else:
+        out['outcomes'] = None
+        out['projection'] = 'public: bindings only'
+    return out

@@ -780,3 +780,72 @@ class BacklogTests(unittest.TestCase):
         self.assertEqual((view['outcome'], view['summary']['selected_ids']), ('OPTIMAL_FOR_SUBMITTED_TASKS', ['calibration', 'imaging']))
         self.c.post('/api/v1/jobs/' + jid + '/review-request', headers=self.inst.h('owner'))
         self.assertEqual(self.c.get('/api/v1/reviews/' + jid + '/evidence', headers=self.inst.h('reviewer')).json()['recomputation'], 'matches')
+
+    def test_scoped_credentials_cannot_be_widened(self):
+        r = self.c.post('/api/v1/credentials', headers=self.inst.h('owner'), json={'operations': ['job:read', 'job:submit', 'contract:read'], 'expires_in_seconds': 3600})
+        self.assertEqual(r.status_code, 201)
+        scoped = {'Authorization': 'Bearer ' + r.json()['token']}
+        cid = self.inst.contract()
+        self.assertEqual(self.c.post('/api/v1/jobs', headers=scoped, json={'contract_id': cid}).status_code, 202)     # in scope
+        self.assertEqual(self.c.post('/api/v1/contracts', headers=scoped, json={'kind': 'energy_audit', 'title': 'x', 'inputs': own_inputs(), 'policy': {}}).status_code, 403)
+        self.assertEqual(self.c.post('/api/v1/actions', headers=scoped, json={'job_id': 'x', 'request_id': 'r'}).status_code, 403)
+        self.assertEqual(self.c.post('/api/v1/credentials', headers=scoped, json={'operations': ['job:read']}).status_code, 403)   # cannot mint
+        for widen in (['admin:credentials'], ['action:create'], ['job:read', 'review:decide']):
+            self.assertEqual(self.c.post('/api/v1/credentials', headers=self.inst.h('owner'), json={'operations': widen}).status_code, 403, widen)
+        self.assertEqual(self.c.post('/api/v1/credentials', headers=self.inst.h('viewer'), json={'operations': ['job:read']}).status_code, 403)
+        self.assertEqual(self.c.post('/api/v1/credentials', headers=self.inst.h('owner'), json={'operations': ['job:read'], 'expires_in_seconds': 10}).status_code, 422)
+        self.assertEqual(self.c.delete('/api/v1/credentials/' + r.json()['credential_id'], headers=self.inst.h('owner')).status_code, 200)
+        self.assertEqual(self.c.get('/api/v1/jobs', headers=scoped).status_code, 401)
+
+    def test_client_cli_and_run_comparison(self):
+        from metacoin_service import client_cli
+        import threading, uvicorn
+        port = free_port()
+        server = uvicorn.Server(uvicorn.Config(self.inst.app, host='127.0.0.1', port=port, log_level='error'))
+        thread = threading.Thread(target=server.run, daemon=True); thread.start()
+        import httpx
+        for _ in range(100):
+            try:
+                if httpx.get('http://127.0.0.1:%d/api/health' % port, timeout=1).status_code == 200:
+                    break
+            except Exception:
+                time.sleep(0.05)
+        cred = Path(self.inst.temp.name) / 'cred.json'
+        cred.write_text(json.dumps({'token': self.inst.tok['owner']})); os.chmod(cred, 0o600)
+        inputs = Path(self.inst.temp.name) / 'inputs.json'
+        inputs.write_text(json.dumps(own_inputs()))
+        import io, contextlib
+        def cli(*args):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                code = client_cli.main(['--credential-file', str(cred), '--base', 'http://127.0.0.1:%d' % port] + list(args))
+            return code, json.loads(buf.getvalue())
+        code, out = cli('create', '--title', 'cli run', '--inputs', str(inputs), '--reviewer', self.inst.ids['reviewer'])
+        self.assertEqual(code, 0); cid = out['id']
+        self.assertEqual(cli('freeze', cid)[1]['state'], 'frozen')
+        jid = cli('submit', cid, '--idempotency-key', 'cli-1')[1]['id']
+        self.assertEqual(cli('submit', cid, '--idempotency-key', 'cli-1')[1]['id'], jid)
+        self.inst.worker().run_once()
+        self.assertEqual(cli('poll', jid)[1]['state'], 'succeeded')
+        self.assertEqual(cli('review-request', jid)[1]['review_state'], 'requested')
+        os.chmod(cred, 0o644)
+        with self.assertRaises(SystemExit):
+            cli('me')
+        os.chmod(cred, 0o600)
+        # second run with a changed reserve, then compare
+        second = self.inst.job(inputs=dict(own_inputs(), reserve=900_000))
+        self.inst.worker().run_once()
+        code, cmp = cli('compare', jid, second)
+        self.assertEqual(code, 0)
+        self.assertEqual((cmp['outcomes'], cmp['same_inputs'], cmp['projection']), (['FEASIBLE', 'INDETERMINATE'], False, 'private'))
+        self.assertIn('worst_margin', cmp['changed_results'])
+        self.assertEqual(cmp['margin_delta_worst_case_mJ'], -750_000)
+        viewer = self.c.get('/api/v1/jobs/' + jid + '/compare/' + second, headers=self.inst.h('viewer')).json()
+        self.assertIsNone(viewer['outcomes'])
+        self.assertNotIn('changed_results', viewer)
+        self.assertEqual(self.c.get('/api/v1/jobs/' + jid + '/compare/' + self.inst.job(kind='safe_runtime', inputs={'available_low': 1_000_000, 'available_high': 1_100_000, 'reserve': 100_000, 'fixed_segments': [], 'variable_power_low': 0, 'variable_power_high': 1, 'duration_cap': 10, 'units': dict(energy.UNITS), 'assumptions': list(energy.ASSUMPTIONS), 'provenance': 'synthetic', 'private_label': 'x'}), headers=self.inst.h('owner')).status_code, 409)
+        pub = [a for a in self.c.get('/api/v1/jobs/' + jid + '/artifacts', headers=self.inst.h('owner')).json()['items'] if a['kind'] == 'input_vault'][0]['id']
+        code, out = cli('export', pub, '--out', str(Path(self.inst.temp.name) / 'vault.age'))
+        self.assertEqual((code, out['bytes'] > 0), (0, True))
+        self.assertTrue((Path(self.inst.temp.name) / 'vault.age').read_bytes().startswith(b'age-encryption'))
+        server.should_exit = True; thread.join(timeout=5)
