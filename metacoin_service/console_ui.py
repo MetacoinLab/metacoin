@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 import jinja2
 from experiments.work_contracts import energy_analysis as energy, fixtures
-from . import auth, history
+from . import auth, history, metering, scheduling
 from .errors import ServiceError, from_exception
 from .api import SENSITIVE_HEADERS
 
@@ -252,6 +252,98 @@ def mount(app, svc):
             sales = db.execute('SELECT job_id, payment_id, amount, asset, network, state, provider_mode FROM sales WHERE workspace=? ORDER BY created_at DESC LIMIT 50', (p.workspace,)).fetchall()
             return render(request, 'budget.html', principal=p, budget=b, actions=rows, sales=sales)
         return await page(request, fn)
+
+    # ---- services, datasets, workflows, campaigns, agents, usage, queue --------------------
+    @app.get('/console/services', response_class=HTMLResponse)
+    async def services_page(request: Request):
+        def fn(db, p):
+            services = svc.catalog.list(db, p)
+            services = services['items'] if isinstance(services, dict) else services
+            quotes = db.execute('SELECT id, service_id, amount_max, asset, state, expires_at FROM quotes WHERE workspace=? ORDER BY created_at DESC LIMIT 30', (p.workspace,)).fetchall() if p.can('contract:read') else []
+            return render(request, 'services.html', principal=p, services=services, quotes=quotes)
+        return await page(request, fn)
+
+    @app.get('/console/datasets', response_class=HTMLResponse)
+    async def datasets_page(request: Request):
+        def fn(db, p):
+            items = svc.datasets.list(db, p)
+            items = items['items'] if isinstance(items, dict) else items
+            return render(request, 'datasets.html', principal=p, datasets=items)
+        return await page(request, fn)
+
+    @app.get('/console/workflows', response_class=HTMLResponse)
+    async def workflows_page(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            defs = db.execute('SELECT id, name, digest, definition_json, created_at FROM workflow_definitions WHERE workspace=? ORDER BY created_at DESC LIMIT 50', (p.workspace,)).fetchall()
+            definitions = [{'id': d['id'], 'name': d['name'], 'digest': d['digest'], 'created_at': d['created_at'], 'node_count': len(json.loads(d['definition_json'])['nodes'])} for d in defs]
+            return render(request, 'workflows.html', principal=p, definitions=definitions, runs=svc.workflows.list(db, p))
+        return await page(request, fn)
+
+    @app.get('/console/runs/{run_id}', response_class=HTMLResponse)
+    async def run_page(request: Request, run_id: str):
+        return await page(request, lambda db, p: render(request, 'run.html', principal=p, run=svc.workflows.view(db, p, run_id)))
+
+    @app.post('/console/runs/{run_id}/cancel', response_class=HTMLResponse)
+    async def run_cancel(request: Request, run_id: str):
+        await form(request)
+        def fn(db, p):
+            svc.workflows.cancel(db, p, run_id)
+            return RedirectResponse('/console/runs/' + run_id, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/campaigns', response_class=HTMLResponse)
+    async def campaigns_page(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            rows = db.execute('SELECT id FROM sci_campaigns WHERE workspace=? ORDER BY created_at DESC LIMIT 50', (p.workspace,)).fetchall()
+            items = []
+            for r in rows:
+                v = svc.campaigns.view(db, p, r['id'])
+                items.append({'id': r['id'], 'name': v['name'], 'kind': v['kind'], 'state': v['state'], 'done': v['done'], 'total_candidates': v['total_candidates'], 'updated_at': v['updated_at']})
+            return render(request, 'campaigns.html', principal=p, campaigns=items)
+        return await page(request, fn)
+
+    @app.get('/console/campaigns/{campaign_id}', response_class=HTMLResponse)
+    async def campaign_page(request: Request, campaign_id: str):
+        def fn(db, p):
+            v = svc.campaigns.view(db, p, campaign_id)
+            res = svc.campaigns.results(db, p, campaign_id)
+            rows = res['rows'] if isinstance(res, dict) else res
+            return render(request, 'campaign.html', principal=p, c=v, rows=rows)
+        return await page(request, fn)
+
+    @app.get('/console/agents', response_class=HTMLResponse)
+    async def agents_page(request: Request):
+        return await page(request, lambda db, p: render(request, 'agents.html', principal=p, grants=svc.agents.list(db, p)['items']))
+
+    @app.post('/console/agents/{gid}/stop', response_class=HTMLResponse)
+    async def agent_stop(request: Request, gid: str):
+        await form(request)
+        def fn(db, p):
+            svc.agents.stop(db, p, gid, revoke=False)
+            return RedirectResponse('/console/agents', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/usage', response_class=HTMLResponse)
+    async def usage_page(request: Request):
+        def fn(db, p):
+            p.require('budget:read')
+            rows = db.execute('SELECT * FROM usage_records WHERE workspace=? ORDER BY created_at DESC LIMIT 100', (p.workspace,)).fetchall()
+            return render(request, 'usage.html', principal=p, usage=[metering.view(db, r) for r in rows])
+        return await page(request, fn)
+
+    @app.get('/console/queue', response_class=HTMLResponse)
+    async def queue_page(request: Request):
+        return await page(request, lambda db, p: render(request, 'queue.html', principal=p, q=scheduling.queue(db, p)))
+
+    @app.post('/console/workers/{worker_id}/{action}', response_class=HTMLResponse)
+    async def worker_action(request: Request, worker_id: str, action: str):
+        await form(request)
+        def fn(db, p):
+            scheduling.set_worker_state(db, p, worker_id, 'draining' if action == 'drain' else 'active')
+            return RedirectResponse('/console/queue', status_code=303)
+        return await page(request, fn, mutating=True)
 
     @app.get('/console/history', response_class=HTMLResponse)
     async def history_page(request: Request):

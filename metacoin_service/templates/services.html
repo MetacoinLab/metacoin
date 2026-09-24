@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block body %}
+<h1>Services</h1><p class="note">Registered means listed; installed means the verifier code is present; available means the provider mode can price it; externally validated is a separate claim nobody here makes.</p>
+<div class="tablewrap"><table><tr><th>name</th><th>kind</th><th>version</th><th>price</th><th>registered</th><th>installed</th><th>available</th><th>externally validated</th><th>verifier digest</th></tr>
+{% for s in services %}<tr><td>{{ s.name }}</td><td>{{ s.kind }}</td><td>{{ s.version }} (rev {{ s.revision }})</td><td>{{ s.price.amount_per_unit }} per {{ s.price.unit }}</td>
+<td><span class="badge {{ 'ok' if s.state.registered else 'bad' }}">{{ s.state.registered }}</span></td><td><span class="badge {{ 'ok' if s.state.installed else 'bad' }}">{{ s.state.installed }}</span></td>
+<td><span class="badge {{ 'ok' if s.state.available else 'warn' }}">{{ s.state.available }}</span></td><td><span class="badge">{{ s.state.externally_validated }}</span></td><td><code>{{ s.verifier_digest[:16] }}…</code></td></tr>{% endfor %}</table></div>
+<h2>Quotes (latest)</h2><div class="tablewrap"><table><tr><th>quote</th><th>service</th><th>amount max</th><th>state</th><th>expires</th></tr>{% for q in quotes %}<tr><td><code>{{ q.id }}</code></td><td>{{ q.service_id }}</td><td>{{ q.amount_max }} {{ q.asset }}</td><td>{{ q.state }}</td><td>{{ q.expires_at }}</td></tr>{% endfor %}</table></div>{% endblock %}

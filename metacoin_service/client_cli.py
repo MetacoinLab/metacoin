@@ -68,6 +68,26 @@ def main(argv=None):
     e.add_argument('artifact_id'); e.add_argument('--out', required=True)
     cm = sub.add_parser('compare'); cm.add_argument('job_a'); cm.add_argument('job_b')
     sub.add_parser('me'); sub.add_parser('budget')
+    # workflows, datasets, campaigns, services, agents, usage, queue, events
+    ds = sub.add_parser('dataset-create', help='upload a bounded CSV/JSON dataset version'); ds.add_argument('--name', required=True); ds.add_argument('--kind', required=True)
+    ds.add_argument('--file', required=True); ds.add_argument('--format', default='csv'); ds.add_argument('--provenance', default='declared')
+    sub.add_parser('datasets')
+    wf = sub.add_parser('workflow-create', help='register a workflow definition from a JSON file'); wf.add_argument('--file', required=True)
+    wr = sub.add_parser('workflow-run'); wr.add_argument('definition_id'); wr.add_argument('--bindings', help='JSON object slot->dataset version id'); wr.add_argument('--budget-ceiling', type=int); wr.add_argument('--preview', action='store_true')
+    rs = sub.add_parser('run-status'); rs.add_argument('run_id'); rs.add_argument('--follow', action='store_true'); rs.add_argument('--timeout', type=int, default=300)
+    rc = sub.add_parser('run-cancel'); rc.add_argument('run_id')
+    cc = sub.add_parser('campaign-create', help='create a scientific campaign from a JSON definition file'); cc.add_argument('--file', required=True); cc.add_argument('--preview', action='store_true')
+    cs = sub.add_parser('campaign-status'); cs.add_argument('campaign_id'); cs.add_argument('--results', action='store_true'); cs.add_argument('--csv', help='write results CSV to this new file')
+    cp = sub.add_parser('campaign-control'); cp.add_argument('campaign_id'); cp.add_argument('action', choices=('pause', 'resume', 'cancel'))
+    sub.add_parser('services'); sq = sub.add_parser('quote'); sq.add_argument('service_id'); sq.add_argument('--inputs', required=True); sq.add_argument('--accept', action='store_true')
+    iv = sub.add_parser('invoke'); iv.add_argument('service_id'); iv.add_argument('--quote', required=True); iv.add_argument('--inputs', required=True)
+    sub.add_parser('usage'); sub.add_parser('queue'); sub.add_parser('workers'); sub.add_parser('grants')
+    gi = sub.add_parser('grant-issue', help='issue an agent policy grant from a JSON policy file; the token is written to --out (0600)'); gi.add_argument('--policy', required=True); gi.add_argument('--out', required=True)
+    gs = sub.add_parser('grant-stop'); gs.add_argument('grant_id'); gs.add_argument('--revoke', action='store_true')
+    ev = sub.add_parser('events', help='poll events after a cursor'); ev.add_argument('--after', type=int, default=0); ev.add_argument('--types')
+    lg = sub.add_parser('lineage'); lg.add_argument('object_type'); lg.add_argument('object_id')
+    sh = sub.add_parser('share'); sh.add_argument('job_id'); sh.add_argument('--grantee', required=True); sh.add_argument('--fields', required=True, help='comma-separated projectable fields')
+    pj = sub.add_parser('projection'); pj.add_argument('job_id')
     args = parser.parse_args(argv)
     token = load_token(args.credential_file)
     go = lambda *a, **k: call(args.base, token, *a, **k)
@@ -108,8 +128,88 @@ def main(argv=None):
         status, out = go('GET', '/api/v1/jobs/' + args.job_a + '/compare/' + args.job_b)
     elif args.command == 'me':
         status, out = go('GET', '/api/v1/me')
-    else:
+    elif args.command == 'budget':
         status, out = go('GET', '/api/v1/budget')
+    elif args.command == 'dataset-create':
+        with open(args.file) as stream:
+            content = stream.read()
+        status, out = go('POST', '/api/v1/datasets', {'name': args.name, 'kind': args.kind, 'format': args.format, 'content': content, 'provenance': args.provenance})
+    elif args.command == 'datasets':
+        status, out = go('GET', '/api/v1/datasets')
+    elif args.command == 'workflow-create':
+        with open(args.file) as stream:
+            status, out = go('POST', '/api/v1/workflows', {'definition': json.load(stream)})
+    elif args.command == 'workflow-run':
+        body = {'bindings': json.loads(args.bindings) if args.bindings else {}, 'preview': args.preview}
+        if args.budget_ceiling is not None:
+            body['budget_ceiling'] = args.budget_ceiling
+        status, out = go('POST', '/api/v1/workflows/' + args.definition_id + '/runs', body)
+    elif args.command == 'run-status':
+        deadline = time.time() + args.timeout
+        while True:
+            status, out = go('GET', '/api/v1/runs/' + args.run_id)
+            if not args.follow or status != 200 or out['state'] in ('completed', 'blocked', 'partially_failed', 'failed', 'cancelled', 'waiting_review') or time.time() > deadline:
+                break
+            time.sleep(1)
+    elif args.command == 'run-cancel':
+        status, out = go('POST', '/api/v1/runs/' + args.run_id + '/cancel', {})
+    elif args.command == 'campaign-create':
+        with open(args.file) as stream:
+            definition = json.load(stream)
+        status, out = go('POST', '/api/v1/campaigns', {'definition': definition, 'preview': args.preview})
+    elif args.command == 'campaign-status':
+        if args.csv:
+            status, content = go('GET', '/api/v1/campaigns/' + args.campaign_id + '/results.csv', raw=True)
+            if status == 200:
+                fd = os.open(args.csv, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'wb') as stream:
+                    stream.write(content)
+                out = {'written': args.csv, 'bytes': len(content)}
+            else:
+                out = json.loads(content)
+        else:
+            status, out = go('GET', '/api/v1/campaigns/' + args.campaign_id + ('/results' if args.results else ''))
+    elif args.command == 'campaign-control':
+        status, out = go('POST', '/api/v1/campaigns/' + args.campaign_id + '/' + args.action, {})
+    elif args.command == 'services':
+        status, out = go('GET', '/api/v1/services')
+    elif args.command == 'quote':
+        with open(args.inputs) as stream:
+            inputs = json.load(stream)
+        status, out = go('POST', '/api/v1/services/' + args.service_id + '/quote', {'inputs': inputs})
+        if status == 201 and args.accept:
+            status, out = go('POST', '/api/v1/quotes/' + out['quote_id'] + '/accept', {})
+    elif args.command == 'invoke':
+        with open(args.inputs) as stream:
+            inputs = json.load(stream)
+        status, out = go('POST', '/api/v1/services/' + args.service_id + '/invoke', {'quote_id': args.quote, 'inputs': inputs}, idempotency_key='cli-invoke-' + args.quote)
+    elif args.command == 'usage':
+        status, out = go('GET', '/api/v1/usage')
+    elif args.command == 'queue':
+        status, out = go('GET', '/api/v1/queue')
+    elif args.command == 'workers':
+        status, out = go('GET', '/api/v1/workers')
+    elif args.command == 'grants':
+        status, out = go('GET', '/api/v1/agents/grants')
+    elif args.command == 'grant-issue':
+        with open(args.policy) as stream:
+            policy = json.load(stream)
+        status, out = go('POST', '/api/v1/agents/grants', {'policy': policy})
+        if status == 201:
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'w') as stream:
+                json.dump({'token': out.pop('token')}, stream)
+            out['credential_written_to'] = args.out
+    elif args.command == 'grant-stop':
+        status, out = go('POST', '/api/v1/agents/grants/' + args.grant_id + ('/revoke' if args.revoke else '/stop'), {})
+    elif args.command == 'events':
+        status, out = go('GET', '/api/v1/events?after=%d%s' % (args.after, '&types=' + args.types if args.types else ''))
+    elif args.command == 'lineage':
+        status, out = go('GET', '/api/v1/lineage/' + args.object_type + '/' + args.object_id)
+    elif args.command == 'share':
+        status, out = go('POST', '/api/v1/jobs/' + args.job_id + '/shares', {'grantee_id': args.grantee, 'fields': args.fields.split(',')})
+    else:
+        status, out = go('GET', '/api/v1/jobs/' + args.job_id + '/projection')
     print(json.dumps(out, indent=2))
     return 0 if status < 400 else 2
 
