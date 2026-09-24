@@ -41,6 +41,21 @@ def call(base, token, method, path, body=None, idempotency_key=None):
             return e.code, {'error': True, 'code': 'HTTP_' + str(e.code)}
 
 
+def call_raw(base, token, method, path, body, extra_headers=None):
+    """Like call() but returns (status, header-getter, raw content) for protocol exchanges (x402)."""
+    req = urllib.request.Request(base + path, data=body, method=method)
+    req.add_header('Authorization', 'Bearer ' + token)
+    req.add_header('Content-Type', 'application/json')
+    for k, v in (extra_headers or {}).items():
+        req.add_header(k, v)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            content = r.read()
+            return r.status, r.headers, content
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers, e.read()
+
+
 def load_private_json(path):
     info = os.stat(path)
     if info.st_mode & 0o077:
@@ -120,6 +135,9 @@ class Runner:
         if job is None:
             key = 'agent-invoke-' + plan['quote_id']
             status, job = self.api('POST', '/api/v1/services/' + plan['service']['id'] + '/invoke', {'quote_id': plan['quote_id'], 'inputs': inputs}, key=key)
+            if status == 501 or 'payment' in self.cp['steps']:
+                # the service prices this invocation: pay over x402 with a checkpointed payment identifier (re-presented after interruption)
+                return self.paid_invoke(plan, inputs)
             if status == 409 and job.get('code') == 'CONFLICT':
                 # the server may have accepted an earlier attempt whose response we lost: look up by quote
                 status, q = self.api('GET', '/api/v1/quotes/' + plan['quote_id'])
@@ -131,6 +149,44 @@ class Runner:
                 return {'executed': False, 'stage': 'invoke', 'refusal': job}
             self.remember('job', job)
         return {'executed': True, 'plan': plan, 'job': job}
+
+    def paid_invoke(self, plan, inputs):
+        from integrations.x402 import loopback_harness as lb
+        ns = lb.load()
+        if ns is None:
+            return {'executed': False, 'stage': 'invoke', 'refusal': {'code': 'CAPABILITY_UNAVAILABLE', 'detail': 'x402 SDK not installed for this agent'}, 'plan': plan}
+        client = lb.build_client(ns)
+        path = '/api/v1/x402/services/' + plan['service']['id'] + '/invoke'
+        body = json.dumps({'quote_id': plan['quote_id'], 'inputs': inputs}, sort_keys=True).encode()
+        status, headers, content = call_raw(self.base, self.token, 'POST', path, body)
+        if status != 402:
+            try:
+                refusal = json.loads(content)
+            except ValueError:
+                refusal = {'code': 'HTTP_' + str(status)}
+            return {'executed': False, 'stage': 'invoke-402', 'refusal': refusal, 'plan': plan}
+        required = client.http.get_payment_required_response(lambda n: headers.get(n), content)
+        amounts = [int(a.amount) for a in required.accepts]
+        ceiling = min(self.policy['ceilings']['per_action_amount'], plan['max_exposure']['amount'])
+        if not amounts or max(amounts) > ceiling:
+            return {'executed': False, 'stage': 'invoke-402', 'refusal': {'code': 'EXPOSURE_EXCEEDS_POLICY', 'required': amounts, 'ceiling': ceiling, 'signed_anything': False}, 'plan': plan}
+        payment = self.cp['steps'].get('payment')
+        if payment is None or payment.get('quote_id') != plan['quote_id']:
+            payment = {'identifier': ns.pi.generate_payment_id(), 'amount': max(amounts), 'quote_id': plan['quote_id'], 'resource': path}
+            self.remember('payment', payment)                       # durable before anything is signed or sent
+        extensions = dict(required.extensions or {})
+        ns.pi.append_payment_identifier_to_extensions(extensions, payment['identifier'])
+        payload = client.core.create_payment_payload(required, extensions=extensions)
+        pay_headers = client.http.encode_payment_signature_header(payload)
+        status, headers, content = call_raw(self.base, self.token, 'POST', path, body, extra_headers=pay_headers)
+        if status in (200, 202):
+            job = json.loads(content)
+            job.update(paid=True, payment_identifier=payment['identifier'], replayed=bool(job.get('replayed')))
+            self.remember('job', job)
+            return {'executed': True, 'plan': plan, 'job': job}
+        header = headers.get(ns.http.PAYMENT_REQUIRED_HEADER)
+        error = json.loads(ns.http.safe_base64_decode(header)).get('error') if header else content[:200].decode(errors='replace')
+        return {'executed': False, 'stage': 'invoke-paid', 'refusal': {'code': 'PAYMENT_REFUSED', 'detail': error, 'payment_identifier': payment['identifier']}, 'plan': plan}
 
     def status(self):
         job = self.cp['steps'].get('job')

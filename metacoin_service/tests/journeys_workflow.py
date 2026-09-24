@@ -200,7 +200,7 @@ class Journeys:
         self.record(4, 'agent under a limited grant: discovers permitted services, completes a workflow, then cannot exceed its job/workflow ceiling', ok,
                     {'grant': g.get('grant_id'), 'plan_within_policy': plan.get('within_policy'), 'workflow_run': r1.get('run_id'), 'run_state': v['state'], 'second_workflow_refusal': r2.get('code'),
                      'invoke_after_ceiling': {'executed': ex.get('executed'), 'stage': ex.get('stage'), 'refusal': refusal.get('code'), 'detail': refusal.get('detail')}, 'third_refusal': r3.get('code'), 'counters': view['counters'], 'remaining': view['remaining']},
-                    caveat='the agent runner invokes through the plain route, which prices only in simulation mode; in test-http the ceiling refusal arrives at quote acceptance, before any payment')
+                    caveat='with max_jobs 1 the ceiling refusal arrives at quote acceptance, before any payment; the paid x402 path of the runner is exercised by test_agent_paid')
 
     def j5_shared_budget_multi_worker(self):
         already = self.http.get('/api/v1/budgets/tree', headers=self.inst.h('owner')).json()['tree']
