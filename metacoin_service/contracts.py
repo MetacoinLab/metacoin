@@ -1,4 +1,5 @@
 """Drafts change; a frozen contract never does. An amendment is a new version with lineage."""
+import hashlib
 import json
 import secrets
 from experiments.private_receipts import receipt as merkle
@@ -94,6 +95,7 @@ class Contracts:
                    (cid, principal.workspace, principal.id, kind, 'draft', cid, title, json.dumps(pol), json.dumps({}),
                     aid, pol['reviewer_id'], now()))
         db.execute('UPDATE artifacts SET contract_id=? WHERE id=?', (cid, aid))
+        db.execute('UPDATE contracts SET inputs_digest=? WHERE id=?', (hashlib.sha256(merkle.canonical(inputs)).hexdigest(), cid))
         if dataset_version_id:
             db.execute('UPDATE contracts SET dataset_version_id=? WHERE id=?', (dataset_version_id, cid))
             from .datasets import add_edge

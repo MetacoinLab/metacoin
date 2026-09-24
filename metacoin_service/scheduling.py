@@ -105,6 +105,7 @@ def queue(db, principal):
             reason = 'next to run' if not ahead else 'behind %d job(s) under fair share (fewest running jobs per submitter first)' % len(ahead)
         items.append({'job_id': r['id'], 'kind': r['kind'], 'submitted_by': r['submitted_by'], 'created_at': r['created_at'],
                       'predicted_position': position.get(r['id']), 'waiting_reason': reason})
+    items.sort(key=lambda i: (i['predicted_position'] is None, i['predicted_position'] or 0, i['created_at'], i['job_id']))   # predicted claim order
     running = [dict(r) for r in db.execute("SELECT id, kind, lease_owner, lease_expires FROM jobs WHERE workspace=? AND state='running' ORDER BY updated_at", (principal.workspace,))]
     return {'queued': items, 'running': running, 'workers': [worker_view(w) for w in ws], 'live_capabilities': sorted(caps),
             'rule': 'fewest running jobs per submitter first, then oldest, then id; only live active workers with the capability claim'}

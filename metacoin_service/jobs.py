@@ -56,9 +56,18 @@ class Jobs:
         add_edge(db, principal.workspace, 'contract', row['id'], 'job', jid, 'used_input')
         return jid
 
-    def submit(self, db, principal, contract_id):
+    def submit(self, db, principal, contract_id, reuse=False):
         principal.require('job:submit')
-        return self._insert(db, principal, self._check_submittable(db, principal, contract_id))
+        row = self._check_submittable(db, principal, contract_id)
+        if reuse:
+            from . import reuse as reuse_mod, agents
+            found = reuse_mod.lookup(db, principal, row)
+            if found['hit']:
+                grant = agents.grant_of(principal)
+                if grant and not getattr(principal, 'agent_counted', False):
+                    agents.guard(db, principal, 'job:submit', service_kind=row['kind'], jobs=1)
+                return reuse_mod.submit_reused(db, principal, row, found['hit'], self.settings)
+        return self._insert(db, principal, row)
 
     def submit_batch(self, db, principal, contract_ids):
         """All-or-nothing: every item is checked first and per-item decisions are returned;
@@ -151,6 +160,7 @@ class Jobs:
                'error_code': row['error_code'], 'created_at': row['created_at'], 'updated_at': row['updated_at'],
                'finished_at': row['finished_at'], 'evidence_root': row['evidence_root'],
                'contract_digest': contract_row['contract_digest'], 'title': contract_row['title'],
+               'reused_from': row['reused_from'] if 'reused_from' in row.keys() else None,
                'expires_at': contract_row['expires_at'], 'model_id': json.loads(contract_row['contract_json'])['model_id'] if contract_row['contract_json'] else None,
                'verifier_id': json.loads(contract_row['contract_json'])['verifier_id'] if contract_row['contract_json'] else None,
                'verifier_digest': json.loads(contract_row['contract_json'])['verifier_digest'] if contract_row['contract_json'] else None}

@@ -132,8 +132,10 @@ class Worker:
                                {'evidence_root': root, 'artifact_id': aid, 'generation': job['lease_generation']})
                 from .datasets import add_edge
                 add_edge(db, job['workspace'], 'job', job['id'], 'artifact', aid, 'produced')
-                from . import metering
-                metering.record_for_job(self.settings, db, db.execute('SELECT * FROM jobs WHERE id=?', (job['id'],)).fetchone())
+                from . import metering, reuse
+                done = db.execute('SELECT * FROM jobs WHERE id=?', (job['id'],)).fetchone()
+                metering.record_for_job(self.settings, db, done)
+                reuse.record(db, done, contract)
                 return 'succeeded'
             retryable = error in ('COMPUTATION_ERROR', 'TIMEOUT') and current['retries_left'] > 0
             if error == 'CANCELLED' or not retryable:

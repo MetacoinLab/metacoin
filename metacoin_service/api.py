@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import agents as agents_mod, budgets, campaigns as campaigns_mod, scheduling, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
+from . import agents as agents_mod, budgets, campaigns as campaigns_mod, reuse as reuse_mod, scheduling, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -444,6 +444,36 @@ def create_app(settings):
         status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
 
+    # ---- result reuse and selective sharing ----------------------------------------------
+    @app.get(API + '/reuse/lookup')
+    async def reuse_lookup(request: Request):
+        cid = request.query_params.get('contract_id')
+        return await run(request, False, lambda db, p: reuse_mod.lookup(db, p, svc.contracts.get(db, p, cid)))
+
+    @app.post(API + '/jobs/{job_id}/shares', status_code=201)
+    async def share_grant(request: Request, job_id: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (sharing.grant(db, p, job_id, body.get('grantee_id'), body.get('fields')), 201))
+
+    @app.get(API + '/jobs/{job_id}/shares')
+    async def share_list(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: sharing.list_shares(db, p, job_id))
+
+    @app.delete(API + '/shares/{share_id}')
+    async def share_revoke(request: Request, share_id: str):
+        return await run(request, True, lambda db, p: sharing.revoke(db, p, share_id))
+
+    @app.get(API + '/jobs/{job_id}/projection')
+    async def share_projection(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: sharing.projection(db, p, settings, job_id))
+
+    @app.post(API + '/projections/verify')
+    async def share_verify(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: sharing.verify_bundle(db, body.get('bundle')))
+
     # ---- events: cursor polling and server-sent events ---------------------------------
     def event_rows(workspace, cursor, limit=200):
         with svc.db.read() as db:
@@ -718,7 +748,7 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         def fn(db, p):
-            jid = svc.jobs.submit(db, p, body.get('contract_id'))
+            jid = svc.jobs.submit(db, p, body.get('contract_id'), reuse=bool(body.get('reuse')))
             return svc.jobs.view(db, p, svc.jobs.get(db, p, jid)), 202
         return await run(request, True, fn, 'jobs.submit', raw)
 

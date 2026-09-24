@@ -197,6 +197,18 @@ MIGRATIONS = [
         workspace TEXT NOT NULL, principal_id TEXT NOT NULL, max_queued INTEGER NOT NULL, max_per_minute INTEGER NOT NULL,
         updated_at INTEGER NOT NULL, PRIMARY KEY (workspace, principal_id));
     """),
+    ('010_reuse_and_sharing', """
+    ALTER TABLE contracts ADD COLUMN inputs_digest TEXT;
+    ALTER TABLE jobs ADD COLUMN reused_from TEXT REFERENCES jobs(id);
+    CREATE TABLE result_cache (
+        workspace TEXT NOT NULL, kind TEXT NOT NULL, inputs_digest TEXT NOT NULL, verifier_digest TEXT NOT NULL,
+        job_id TEXT NOT NULL REFERENCES jobs(id), evidence_root TEXT NOT NULL, outcome TEXT, created_at INTEGER NOT NULL,
+        PRIMARY KEY (workspace, kind, inputs_digest, verifier_digest));
+    CREATE TABLE shares (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, job_id TEXT NOT NULL REFERENCES jobs(id), granted_by TEXT NOT NULL REFERENCES principals(id),
+        grantee_id TEXT NOT NULL REFERENCES principals(id), fields_json TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER);
+    CREATE INDEX shares_job ON shares(job_id, grantee_id);
+    """),
 ]
 
 

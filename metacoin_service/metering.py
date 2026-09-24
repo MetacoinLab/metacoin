@@ -35,7 +35,8 @@ def record_for_job(settings, db, job_row):
     if db.execute('SELECT id FROM usage_records WHERE job_id=?', (job_row['id'],)).fetchone():
         return None
     quote = db.execute('SELECT * FROM quotes WHERE id=?', (job_row['quote_id'],)).fetchone()
-    quantity = 1                                           # one completed evaluation
+    reused = bool(job_row['reused_from']) if 'reused_from' in job_row.keys() else False
+    quantity = 0 if reused else 1                          # one completed evaluation; a reused result computed nothing
     charge = quantity * quote['amount_max'] // quote['quantity_max'] if quote['quantity_max'] else 0
     charge = min(charge, quote['amount_max'])
     pub = ensure_service_key(settings, db)
@@ -50,7 +51,8 @@ def record_for_job(settings, db, job_row):
                  'meaning': 'assessed charge for one completed evaluation; not settlement; the signature identifies the issuer, not resource truth'}
     message = merkle.canonical(statement)
     signature = crypto.sign(crypto.load_signing_key(settings.keys_dir / 'service.ed25519'), message)
-    calc = {'quantity': quantity, 'amount_per_unit': statement['amount_per_unit'], 'cap': quote['amount_max'], 'formula': 'min(quantity*amount_per_unit, cap)'}
+    calc = {'quantity': quantity, 'amount_per_unit': statement['amount_per_unit'], 'cap': quote['amount_max'], 'formula': 'min(quantity*amount_per_unit, cap)',
+            'reused_from': job_row['reused_from'] if reused else None}
     db.execute('INSERT INTO usage_records VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                (uid, job_row['workspace'], job_row['id'], quote['id'], quote['service_id'], quote['pricing_revision'], quote['unit'], quantity,
                 statement['amount_per_unit'], charge, quote['asset'], json.dumps(calc), 'assessed', message.decode(), signature, key_id, now()))
