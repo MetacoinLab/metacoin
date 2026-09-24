@@ -345,6 +345,13 @@ def create_app(settings):
     async def campaign_get(request: Request, campaign_id: str):
         return await run(request, False, lambda db, p: svc.campaigns.view(db, p, campaign_id))
 
+    @app.post(API + '/campaigns/{campaign_id}/plan')
+    async def campaign_plan(request: Request, campaign_id: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        from .compute import planning
+        return await run(request, False, lambda db, p: planning.plan(db, p, campaign_id, body.get('cost_cap_units')))
+
     @app.post(API + '/campaigns/{campaign_id}/branch', status_code=201)
     async def campaign_branch(request: Request, campaign_id: str):
         raw = await request.body()

@@ -356,10 +356,45 @@ class Journeys:
         self.record(12, 'multi-step scientific workflow (batch -> monte carlo -> review gate -> export) and a heat refinement campaign through normal gates', 'passed' if ok else 'failed',
                     {'run': rid, 'state_before_review': st['state'], 'state_after_review': st2['state'], 'campaign': camp.get('campaign_id'), 'campaign_state': cs['state'], 'candidates': [(r['params'], r['state']) for r in rows]})
 
+    def j13_two_worker_environments(self):
+        """§53(6): a cpu-only worker (numpy-only interpreter, no torch) and the accelerator worker share the queue; gpu-required work
+        is routed only to the cuda worker, cpu-required work to any worker, and both draw on the same workspace budget."""
+        cpu_python = os.environ.get('METACOIN_CPU_ONLY_PYTHON')
+        if not cpu_python or not os.path.exists(cpu_python):
+            self.record(13, 'two worker environments (cpu-only interpreter + accelerator worker) with capability routing', 'blocked', {'reason': 'set METACOIN_CPU_ONLY_PYTHON to a numpy-only interpreter'}); return
+        env_cpu = dict(self.env, METACOIN_COMPUTE_PYTHON=cpu_python)
+        stop_c = Path(self.inst.temp.name) / 'stop-j13-cpu'
+        wc = subprocess.Popen([PY, '-m', 'metacoin_service', '--home', str(self.inst.home), '--provider-mode', 'test-http', 'worker', '--name', 'w-j13-cpu-only', '--stop-file', str(stop_c)], cwd=ROOT, env=env_cpu, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(3)
+        workers = {w['name']: w for w in self.http.get('/api/v1/workers', headers=self.H()).json()['items']}
+        cpu_caps = [c for c in workers.get('w-j13-cpu-only', {}).get('capabilities', []) if c.startswith('device:')]
+        jg = self.submit('temporal_batch', batch_spec(device_policy='gpu', private_label='J13_GPU'), 'j13g')
+        jc = self.submit('heat_diffusion', heat_spec(nx=64, ny=64, steps=300, device_policy='cpu', private_label='J13_CPU'), 'j13c')
+        time.sleep(4)                                                              # the cpu-only worker must take the cpu job and never the gpu job
+        q = self.http.get('/api/v1/queue', headers=self.H()).json()
+        reason_g = next((x['waiting_reason'] for x in q['queued'] if x['job_id'] == jg), None)
+        vc_by = None
+        vcj = self.wait(jc, lambda v: v['state'] in ('succeeded', 'failed'), timeout=60)
+        with database.Database(self.inst.settings.db_path).read() as db:
+            a = db.execute('SELECT worker_id FROM attempts WHERE job_id=? ORDER BY generation DESC LIMIT 1', (jc,)).fetchone()
+            vc_by = workers_by_id = {w['id']: w['name'] for w in self.http.get('/api/v1/workers', headers=self.H()).json()['items']}.get(a['worker_id']) if a else None
+        self.start_worker('w-j13-cuda')                                            # the accelerator worker arrives; the gpu job proceeds only now
+        vg = self.wait(jg, lambda v: v['state'] in ('succeeded', 'failed'), timeout=120)
+        with database.Database(self.inst.settings.db_path).read() as db:
+            a = db.execute('SELECT worker_id FROM attempts WHERE job_id=? ORDER BY generation DESC LIMIT 1', (jg,)).fetchone()
+            vg_by = {w['id']: w['name'] for w in self.http.get('/api/v1/workers', headers=self.H()).json()['items']}.get(a['worker_id']) if a else None
+        stop_c.write_text('stop'); wc.wait(timeout=60); self.stop_workers()
+        caps = self.http.get('/api/v1/compute/capabilities', headers=self.H()).json()['facts']['currently_available']
+        ok = cpu_caps == ['device:cpu'] and reason_g == 'policy requires gpu; no live worker offers a cuda device' and vcj['state'] == 'succeeded' and vc_by == 'w-j13-cpu-only' and vg['state'] == 'succeeded' and vg['backend'] == 'cuda' and vg_by == 'w-j13-cuda'
+        self.record(13, 'two worker environments (cpu-only interpreter + accelerator worker) with capability routing', 'passed' if ok else 'failed',
+                    {'cpu_only_worker_devices': cpu_caps, 'gpu_job_waiting_reason_before_cuda_worker': reason_g, 'cpu_job': {'state': vcj['state'], 'backend': vcj['backend'], 'run_by': vc_by},
+                     'gpu_job': {'state': vg['state'], 'backend': vg['backend'], 'run_by': vg_by}, 'cpu_only_interpreter': cpu_python},
+                    caveat='same host, two processes: capability routing evidence, not multi-machine performance')
+
     def run_all(self, only=None):
         for fn in (self.j1_temporal_batch_cpu, self.j2_gpu_batch_vs_cpu, self.j3_long_job_progress_pause_resume, self.j4_kill_worker_recover_fenced, self.j5_monte_carlo_chunk_and_resume_invariance,
                    self.j6_heat_reject_unstable_verify_export, self.j7_capacity_race, self.j8_unauthorized_access, self.j9_purchase_over_x402, self.j10_lost_response_idempotent_recovery,
-                   self.j11_cancel_with_unresolved_economic_state, self.j12_workflow_and_refinement_campaign):
+                   self.j11_cancel_with_unresolved_economic_state, self.j12_workflow_and_refinement_campaign, self.j13_two_worker_environments):
             if only and int(fn.__name__[1:].split('_')[0]) not in only:
                 continue
             try:

@@ -82,6 +82,7 @@ def main(argv=None):
     cc = sub.add_parser('campaign-create', help='create a scientific campaign from a JSON definition file'); cc.add_argument('--file', required=True); cc.add_argument('--preview', action='store_true')
     cs = sub.add_parser('campaign-status'); cs.add_argument('campaign_id'); cs.add_argument('--results', action='store_true'); cs.add_argument('--csv', help='write results CSV to this new file')
     cb = sub.add_parser('campaign-branch', help='fork a campaign with explicit changed assumptions'); cb.add_argument('campaign_id'); cb.add_argument('--base-changes', help='JSON object field->integer'); cb.add_argument('--candidates', help='comma-separated succeeded candidate indexes'); cb.add_argument('--name')
+    cpl = sub.add_parser('campaign-plan', help='rank validated campaign candidates under a cost cap (quality vs cost)'); cpl.add_argument('campaign_id'); cpl.add_argument('--cost-cap', type=int, required=True)
     cc2 = sub.add_parser('campaign-compare'); cc2.add_argument('campaign_a'); cc2.add_argument('campaign_b')
     cp = sub.add_parser('campaign-control'); cp.add_argument('campaign_id'); cp.add_argument('action', choices=('run', 'pause', 'resume', 'cancel'))
     sub.add_parser('services'); sq = sub.add_parser('quote'); sq.add_argument('service_id'); sq.add_argument('--inputs', required=True); sq.add_argument('--accept', action='store_true')
@@ -213,6 +214,8 @@ def main(argv=None):
         if args.name:
             body['name'] = args.name
         status, out = go('POST', '/api/v1/campaigns/' + args.campaign_id + '/branch', body)
+    elif args.command == 'campaign-plan':
+        status, out = go('POST', '/api/v1/campaigns/' + args.campaign_id + '/plan', {'cost_cap_units': args.cost_cap})
     elif args.command == 'campaign-compare':
         status, out = go('GET', '/api/v1/campaigns/' + args.campaign_a + '/compare/' + args.campaign_b)
     elif args.command == 'campaign-control':

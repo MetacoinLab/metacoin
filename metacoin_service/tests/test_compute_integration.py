@@ -66,6 +66,15 @@ class ComputeIntegrationTests(unittest.TestCase):
         jobs = [self.c.get('/api/v1/compute/jobs/' + r['job_id'], headers=self.H).json() for r in rows]
         self.assertTrue(all(j['verification']['passed'] for j in jobs))
         self.assertEqual([j['work']['committed'] for j in jobs], [1, 1, 1])                        # < 1e6 cell updates each: one billable unit each
+        # §53(1): quality-versus-cost planning over the validated candidates
+        plan = self.c.post('/api/v1/campaigns/' + cid + '/plan', headers=self.H, json={'cost_cap_units': 1}).json()
+        self.assertEqual(len(plan['candidates_within_cap']), 3)
+        self.assertEqual(plan['recommended']['params'], {'nx': 64})                                # finest fits the cap; predicted error 1.0 relative to itself
+        for got, want in zip([c['quality']['value'] for c in plan['candidates_within_cap']], [1.0, 1.6, 4.0]):
+            self.assertAlmostEqual(got, want, places=9)
+        self.assertIn('predicted', plan['what_is_proven']); self.assertTrue(plan['not_a_global_optimum'])
+        self.assertEqual(self.c.post('/api/v1/campaigns/' + cid + '/plan', headers=self.H, json={'cost_cap_units': 0})['recommended'] if False else self.c.post('/api/v1/campaigns/' + cid + '/plan', headers=self.H, json={'cost_cap_units': 0}).json()['recommended'], None)
+        self.assertEqual(self.c.post('/api/v1/campaigns/' + cid + '/plan', headers=self.H, json={'cost_cap_units': -1}).status_code, 422)
 
     def test_console_compute_pages_and_form(self):
         s = self.c.post('/api/v1/session', json={'token': self.inst.tok['owner']})
