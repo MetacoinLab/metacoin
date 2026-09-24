@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import datasets as datasets_mod, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
+from . import campaigns as campaigns_mod, datasets as datasets_mod, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -31,6 +31,7 @@ class Services:
         self.templates = templates_svc.Templates(self.contracts)
         self.datasets = datasets_mod.Datasets(self.store, settings)
         self.workflows = workflows_mod.Workflows(self.contracts, self.jobs, self.reviews, self.datasets, self.store, settings)
+        self.campaigns = campaigns_mod.Campaigns(self.contracts, self.jobs, self.datasets, self.store, settings)
 
 
 def read_body(request, raw):
@@ -282,6 +283,72 @@ def create_app(settings):
     @app.post(API + '/runs/{run_id}/cancel')
     async def run_cancel(request: Request, run_id: str):
         return await run(request, True, lambda db, p: svc.workflows.cancel(db, p, run_id))
+
+    # ---- campaigns ----------------------------------------------------------------
+    @app.post(API + '/campaigns', status_code=201)
+    async def campaign_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            if body.get('preview'):
+                pv = svc.campaigns.preview(db, p, body.get('definition'))
+                return {'preview': True, 'total_candidates': pv['total'], 'estimate': pv['estimate'], 'digest': pv['digest']}, 200
+            return svc.campaigns.create(db, p, body.get('definition')), 201
+        return await run(request, True, fn, 'campaigns.create', raw)
+
+    @app.get(API + '/campaigns')
+    async def campaign_list(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            rows = db.execute('SELECT id, name, kind, state, total_candidates, created_at FROM sci_campaigns WHERE workspace=? ORDER BY created_at DESC LIMIT 100', (p.workspace,)).fetchall()
+            return {'items': [dict(r) for r in rows]}
+        return await run(request, False, fn)
+
+    @app.get(API + '/campaigns/{campaign_id}')
+    async def campaign_get(request: Request, campaign_id: str):
+        return await run(request, False, lambda db, p: svc.campaigns.view(db, p, campaign_id))
+
+    @app.post(API + '/campaigns/{campaign_id}/{action}')
+    async def campaign_control(request: Request, campaign_id: str, action: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            if action in ('run', 'pause', 'resume', 'cancel'):
+                return svc.campaigns.control(db, p, campaign_id, action)
+            if action == 'tick':
+                p.require('job:read'); svc.campaigns._campaign(db, campaign_id, p.workspace)
+                return {'campaign_id': campaign_id, 'state': svc.campaigns.tick(db, campaign_id)}
+            if action == 'pareto':
+                return svc.campaigns.pareto(db, p, campaign_id, body.get('objectives'), tuple(body.get('require_outcomes', ['FEASIBLE'])))
+            raise ServiceError('NOT_FOUND', 'action')
+        return await run(request, True, fn)
+
+    @app.get(API + '/campaigns/{campaign_id}/results')
+    async def campaign_results(request: Request, campaign_id: str):
+        return await run(request, False, lambda db, p: svc.campaigns.results(db, p, campaign_id, request.query_params.get('limit', 500)))
+
+    @app.get(API + '/campaigns/{campaign_id}/results.csv')
+    async def campaign_results_csv(request: Request, campaign_id: str):
+        def do():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, False)
+                return svc.campaigns.results_csv(db, p, campaign_id)
+        text = await run_in_threadpool(do)
+        return Response(text, media_type='text/csv', headers=dict(SENSITIVE_HEADERS, **{'Content-Disposition': 'attachment; filename="' + campaign_id + '.csv"'}))
+
+    @app.get(API + '/campaigns/{campaign_id}/plot.svg')
+    async def campaign_plot(request: Request, campaign_id: str):
+        def do():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, False)
+                return svc.campaigns.plot_svg(db, p, campaign_id)
+        return Response(await run_in_threadpool(do), media_type='image/svg+xml', headers=SENSITIVE_HEADERS)
+
+    @app.post(API + '/jobs/{job_id}/refine')
+    async def job_refine(request: Request, job_id: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.campaigns.refine_job(db, p, job_id, body.get('refinements')))
 
     @app.get(API + '/lineage/{object_type}/{object_id}')
     async def lineage_query(request: Request, object_type: str, object_id: str):

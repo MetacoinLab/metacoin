@@ -133,6 +133,18 @@ MIGRATIONS = [
         PRIMARY KEY (run_id, node_id));
     ALTER TABLE jobs ADD COLUMN run_id TEXT REFERENCES workflow_runs(id);
     """),
+    ('005_campaigns', """
+    CREATE TABLE sci_campaigns (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES principals(id), name TEXT NOT NULL,
+        kind TEXT NOT NULL, dataset_version_id TEXT REFERENCES dataset_versions(id), base_artifact_id TEXT NOT NULL REFERENCES artifacts(id),
+        definition_json TEXT NOT NULL, digest TEXT NOT NULL, state TEXT NOT NULL, total_candidates INTEGER NOT NULL,
+        adaptive_json TEXT, estimate_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, finished_at INTEGER);
+    CREATE INDEX campaigns_ws ON sci_campaigns(workspace, state, updated_at);
+    CREATE TABLE sci_campaign_candidates (
+        campaign_id TEXT NOT NULL REFERENCES sci_campaigns(id), idx INTEGER NOT NULL, params_json TEXT NOT NULL,
+        contract_id TEXT REFERENCES contracts(id), job_id TEXT REFERENCES jobs(id), state TEXT NOT NULL, outcome TEXT,
+        summary_json TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY (campaign_id, idx));
+    """),
 ]
 
 
