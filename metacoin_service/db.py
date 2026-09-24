@@ -145,6 +145,32 @@ MIGRATIONS = [
         contract_id TEXT REFERENCES contracts(id), job_id TEXT REFERENCES jobs(id), state TEXT NOT NULL, outcome TEXT,
         summary_json TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY (campaign_id, idx));
     """),
+    ('006_catalog_quotes_usage', """
+    CREATE TABLE services (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, version INTEGER NOT NULL,
+        revision INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', input_schema_json TEXT NOT NULL,
+        output_schema_json TEXT NOT NULL, verifier_id TEXT NOT NULL, verifier_digest TEXT NOT NULL, limits_json TEXT NOT NULL,
+        privacy_json TEXT NOT NULL, pricing_json TEXT NOT NULL, capabilities_json TEXT NOT NULL, visibility TEXT NOT NULL,
+        created_at INTEGER NOT NULL, retired_at INTEGER, UNIQUE (name, version));
+    CREATE TABLE quotes (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, service_id TEXT NOT NULL REFERENCES services(id), service_revision INTEGER NOT NULL,
+        principal_id TEXT NOT NULL REFERENCES principals(id), request_digest TEXT NOT NULL, quantity_max INTEGER NOT NULL,
+        amount_max INTEGER NOT NULL, unit TEXT NOT NULL, asset TEXT NOT NULL, network TEXT NOT NULL, pay_to TEXT NOT NULL,
+        pricing_revision TEXT NOT NULL, provider_mode TEXT NOT NULL, expires_at INTEGER NOT NULL, accepted_at INTEGER, consumed_at INTEGER,
+        state TEXT NOT NULL, binding_json TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE INDEX quotes_ws ON quotes(workspace, created_at);
+    CREATE TABLE usage_records (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, job_id TEXT NOT NULL UNIQUE REFERENCES jobs(id), quote_id TEXT REFERENCES quotes(id),
+        service_id TEXT REFERENCES services(id), pricing_revision TEXT NOT NULL, unit TEXT NOT NULL, quantity INTEGER NOT NULL,
+        amount_per_unit INTEGER NOT NULL, assessed_charge INTEGER NOT NULL, asset TEXT NOT NULL, calculation_json TEXT NOT NULL,
+        state TEXT NOT NULL, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, key_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+    ALTER TABLE jobs ADD COLUMN quote_id TEXT REFERENCES quotes(id);
+    ALTER TABLE contracts ADD COLUMN quote_id TEXT REFERENCES quotes(id);
+    CREATE TABLE invoke_sales (
+        payment_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, quote_id TEXT NOT NULL REFERENCES quotes(id), job_id TEXT REFERENCES jobs(id),
+        resource TEXT NOT NULL, amount TEXT NOT NULL, asset TEXT NOT NULL, network TEXT NOT NULL, pay_to TEXT NOT NULL, provider_mode TEXT NOT NULL,
+        state TEXT NOT NULL, transaction_ref TEXT, payer TEXT, requirements_digest TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    """),
 ]
 
 

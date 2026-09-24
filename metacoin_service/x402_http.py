@@ -188,6 +188,10 @@ class SaleService:
             if not got or not ns.pi.is_valid_payment_id(got):
                 return ns.schemas.AbortResult(reason='work_contract_payment_identifier_required')
             seen['identifier'] = got
+            if quote['state'] == 'consumed':
+                prior = db.execute("SELECT state FROM invoke_sales WHERE payment_id=? AND quote_id=?", (got, quote['id'])).fetchone()
+                if prior is None or prior['state'] != 'CONFIRMED':
+                    return ns.schemas.AbortResult(reason='work_contract_quote_consumed')
             if (accepted.amount != str(price_amount) or accepted.pay_to != pay_to or accepted.network != network
                     or accepted.asset != asset or any(accepted.extra.get(k) != v for k, v in expected.items())):
                 return ns.schemas.AbortResult(reason=ERR_BINDING)
@@ -278,6 +282,90 @@ class SaleService:
         history.record(db, workspace, 'x402-route', 'sale.settled', 'job', job_id, {'payment_id': identifier, 'transaction': settled.transaction})
         bundle = self.store.load(db, review['public_bundle_artifact_id'], workspace)
         return 200, dict(settled.headers), bundle
+
+    def handle_invoke(self, db, request, body, base_url, sid, quote, principal, invoke):
+        """Priced invocation over x402: 402 requirements bound to the accepted quote and the request body
+        digest; after settlement the quote is consumed and the job created. Amount = quote amount_max."""
+        if not self.enabled():
+            raise ServiceError('CAPABILITY_UNAVAILABLE', 'x402 invoke route disabled in simulation provider mode')
+        ns = sdk()
+        from integrations.x402 import loopback_harness as lb
+        network, asset, pay_to = self.terms()
+        if quote['provider_mode'] != self.settings.provider_mode:
+            raise ServiceError('CONFLICT', 'quote provider mode differs from the service')
+        path = '/api/v1/x402/services/' + sid + '/invoke'
+        body_digest = hashlib.sha256(body).hexdigest()
+        expected = {'quote_id': quote['id'], 'request_digest': quote['request_digest'], 'service_revision': str(quote['service_revision']),
+                    'body_sha256': body_digest, 'resource_version': 'service-invoke/v1', 'route': 'POST ' + path}
+        price = quote['amount_max']
+        core = ns.server.x402ResourceServerSync(self.facilitator_client(base_url))
+        core.register(network, lb.LocalServerScheme())
+        seen = {}
+
+        def bind(ctx):
+            accepted = ctx.requirements
+            got = ns.pi.extract_payment_identifier(ctx.payment_payload, validate=False)
+            if not got or not ns.pi.is_valid_payment_id(got):
+                return ns.schemas.AbortResult(reason='work_contract_payment_identifier_required')
+            seen['identifier'] = got
+            if quote['state'] == 'consumed':
+                prior = db.execute("SELECT state FROM invoke_sales WHERE payment_id=? AND quote_id=?", (got, quote['id'])).fetchone()
+                if prior is None or prior['state'] != 'CONFIRMED':
+                    return ns.schemas.AbortResult(reason='work_contract_quote_consumed')
+            if (accepted.amount != str(price) or accepted.pay_to != pay_to or accepted.network != network or accepted.asset != asset
+                    or any(accepted.extra.get(k) != v for k, v in expected.items())):
+                return ns.schemas.AbortResult(reason=ERR_BINDING)
+            resource = getattr(ctx.payment_payload, 'resource', None)
+            if resource is None or getattr(resource, 'url', None) != base_url + path:
+                return ns.schemas.AbortResult(reason=ERR_BINDING)
+            return None
+        core.on_before_verify(bind)
+        option = ns.http.PaymentOption(scheme='exact', pay_to=pay_to, price=ns.schemas.AssetAmount(amount=str(price), asset=asset, extra={'name': 'USDC', 'version': '2'}),
+                                       network=network, max_timeout_seconds=300, extra=expected)
+        routes = {'POST ' + path: ns.http.RouteConfig(accepts=option, resource=base_url + path, description='priced invocation under quote ' + quote['id'], mime_type='application/json',
+                                                      extensions={ns.pi.PAYMENT_IDENTIFIER: ns.pi.declare_payment_identifier_extension(required=True)})}
+        server = ns.http.x402HTTPResourceServerSync(core, routes)
+        server.initialize()
+        ctx = ns.http.HTTPRequestContext(adapter=StarletteAdapter(request, body), path=path, method='POST')
+        result = server.process_http_request(ctx)
+        if result.type == 'payment-error':
+            return result.response.status, dict(result.response.headers), json.dumps(result.response.body or {}).encode()
+        if result.type != 'payment-verified':
+            raise ServiceError('CONFLICT', 'route not protected')
+        identifier = seen['identifier']
+        existing = db.execute('SELECT * FROM invoke_sales WHERE payment_id=?', (identifier,)).fetchone()
+        if existing is not None and existing['state'] == 'CONFIRMED':
+            from x402.http.utils import encode_payment_response_header
+            recorded = ns.schemas.SettleResponse(success=True, transaction=existing['transaction_ref'], network=existing['network'], payer=existing['payer'], amount=existing['amount'])
+            job = db.execute('SELECT id, contract_id, state FROM jobs WHERE quote_id=?', (quote['id'],)).fetchone()
+            return 200, {ns.http.PAYMENT_RESPONSE_HEADER: encode_payment_response_header(recorded), 'X-Sale-State': 'already-settled'}, \
+                json.dumps({'job_id': job['id'] if job else None, 'state': job['state'] if job else None, 'quote_id': quote['id'], 'replayed': True}).encode()
+        requirements_digest = hashlib.sha256(result.payment_requirements.model_dump_json(by_alias=True).encode()).hexdigest()
+        if existing is None:
+            db.execute('INSERT INTO invoke_sales VALUES (?,?,?,NULL,?,?,?,?,?,?,?,NULL,NULL,?,?,?)',
+                       (identifier, principal.workspace, quote['id'], expected['route'], str(price), asset, network, pay_to,
+                        self.settings.provider_mode, 'SUBMISSION_PENDING', requirements_digest, now(), now()))
+            history.record(db, principal.workspace, principal.id, 'sale.requested', 'quote', quote['id'], {'payment_id': identifier, 'amount': str(price), 'direction': 'customer-buys-invocation'})
+        db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')
+        try:
+            settled = server.process_settlement(result.payment_payload, result.payment_requirements, context=ctx, declared_extensions=result.declared_extensions)
+        except Exception:
+            db.execute("UPDATE invoke_sales SET state='OUTCOME_UNKNOWN', updated_at=? WHERE payment_id=?", (now(), identifier))
+            raise ServiceError('PROVIDER_UNAVAILABLE', 'settlement outcome unknown; reconcile before retrying')
+        response = settled.settle_response.model_dump(by_alias=True, exclude_none=True) if settled.settle_response else {}
+        consistent = settled.success and response.get('amount') == str(price) and response.get('network') == network and isinstance(settled.transaction, str) and len(settled.transaction) == 66
+        if settled.success and not consistent:
+            db.execute("UPDATE invoke_sales SET state='OUTCOME_UNKNOWN', updated_at=? WHERE payment_id=?", (now(), identifier))
+            raise ServiceError('ADAPTER_RESPONSE_INVALID', 'settlement answer inconsistent with the bound sale')
+        if not settled.success:
+            state = 'OUTCOME_UNKNOWN' if settled.error_reason == 'settlement_pending' else 'FAILED_CONFIRMED'
+            db.execute("UPDATE invoke_sales SET state=?, updated_at=? WHERE payment_id=?", (state, now(), identifier))
+            return settled.response.status, dict(settled.headers), json.dumps({'error': settled.error_reason}).encode()
+        out = invoke()                                   # consumes the quote atomically and creates the bound job
+        db.execute("UPDATE invoke_sales SET state='CONFIRMED', transaction_ref=?, payer=?, job_id=?, updated_at=? WHERE payment_id=?",
+                   (settled.transaction, settled.payer, out['job_id'], now(), identifier))
+        history.record(db, principal.workspace, principal.id, 'sale.settled', 'job', out['job_id'], {'payment_id': identifier, 'transaction': settled.transaction, 'quote_id': quote['id']})
+        return 202, dict(settled.headers), json.dumps(out).encode()
 
     def reconcile(self, db, principal, job_id):
         principal.require('action:reconcile')

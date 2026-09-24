@@ -17,10 +17,12 @@ def init(settings, workspace='ws_default', names=None):
         raise ServiceError('CONFLICT', 'service home already initialized')
     database.migrate(settings.db_path)
     service_pub = crypto.generate_age_identity(settings.keys_dir / 'service.age')
+    service_sign_pub = crypto.generate_signing_key(settings.keys_dir / 'service.ed25519')
     D = database.Database(settings.db_path)
     out = {'workspace': workspace, 'principals': {}}
     with D.tx() as db:
         db.execute("INSERT INTO meta VALUES ('service_age_public', ?)", (service_pub,))
+        db.execute("INSERT INTO meta VALUES ('service_signing_public', ?)", (service_sign_pub,))
         db.execute("INSERT INTO meta VALUES ('initialized_at', ?)", (str(now()),))
         db.execute("INSERT INTO meta VALUES ('reconciliation_gate', '0')")
         db.execute('INSERT INTO campaigns VALUES (?,?,?,?,?,?)', (workspace, 'campaign-' + workspace, settings.campaign_cap,

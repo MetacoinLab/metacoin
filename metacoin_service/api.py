@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import campaigns as campaigns_mod, datasets as datasets_mod, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
+from . import campaigns as campaigns_mod, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -32,6 +32,10 @@ class Services:
         self.datasets = datasets_mod.Datasets(self.store, settings)
         self.workflows = workflows_mod.Workflows(self.contracts, self.jobs, self.reviews, self.datasets, self.store, settings)
         self.campaigns = campaigns_mod.Campaigns(self.contracts, self.jobs, self.datasets, self.store, settings)
+        self.catalog = catalog_mod.Catalog(settings, self.contracts, self.jobs)
+        with self.db.tx() as db:                       # installed services are registered idempotently at start
+            self.catalog.populate(db)
+            metering.ensure_service_key(settings, db)
 
 
 def read_body(request, raw):
@@ -349,6 +353,111 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         return await run(request, True, lambda db, p: svc.campaigns.refine_job(db, p, job_id, body.get('refinements')))
+
+    # ---- service catalog, quotes, usage ------------------------------------------------
+    @app.get(API + '/services')
+    async def services_list(request: Request):
+        q = request.query_params
+        return await run(request, False, lambda db, p: {'items': svc.catalog.list(db, p, model=q.get('model'), input_type=q.get('input_type'), price_unit=q.get('price_unit'),
+                                                                                       privacy=q.get('privacy'), include_retired=q.get('include_retired') == '1')})
+
+    @app.get(API + '/services/{sid}')
+    async def service_get(request: Request, sid: str):
+        return await run(request, False, lambda db, p: svc.catalog.view(svc.catalog._row(db, sid, p.workspace)))
+
+    @app.get(API + '/services/{sid}/x402-discovery')
+    async def service_discovery(request: Request, sid: str):
+        base = str(request.base_url).rstrip('/')
+        return await run(request, False, lambda db, p: svc.catalog.x402_discovery(svc.catalog._row(db, sid, p.workspace), base))
+
+    @app.post(API + '/services', status_code=201)
+    async def service_register(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('admin:keys')                        # trusted operator role only
+            sid = svc.catalog.register(db, p.id, name=body.get('name'), kind=body.get('kind'), version=body.get('version', 1),
+                                       price_per_unit=body.get('price_per_unit', 1), description=body.get('description', ''), workspace=p.workspace)
+            return svc.catalog.view(svc.catalog._row(db, sid, p.workspace)), 201
+        return await run(request, True, fn, 'services.register', raw)
+
+    @app.post(API + '/services/{sid}/retire')
+    async def service_retire(request: Request, sid: str):
+        return await run(request, True, lambda db, p: svc.catalog.retire(db, p, sid))
+
+    @app.post(API + '/services/{sid}/validate')
+    async def service_validate(request: Request, sid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            row, digest = svc.catalog.validate_request(db, p, sid, body.get('inputs'))
+            return {'valid': True, 'service_id': sid, 'revision': row['revision'], 'request_digest': digest}
+        return await run(request, False, fn)
+
+    @app.post(API + '/services/{sid}/quote', status_code=201)
+    async def service_quote(request: Request, sid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.catalog.quote(db, p, sid, body.get('inputs'), body.get('quantity_max', 1), body.get('provider_mode')), 201), 'services.quote', raw)
+
+    @app.post(API + '/quotes/{qid}/accept')
+    async def quote_accept(request: Request, qid: str):
+        return await run(request, True, lambda db, p: svc.catalog.accept(db, p, qid))
+
+    @app.get(API + '/quotes/{qid}')
+    async def quote_get(request: Request, qid: str):
+        return await run(request, False, lambda db, p: svc.catalog.quote_view(svc.catalog.get_quote(db, p, qid)))
+
+    @app.post(API + '/services/{sid}/invoke', status_code=202)
+    async def service_invoke(request: Request, sid: str):
+        """Invocation under an accepted quote without x402 (simulation mode / zero-price); the x402 route binds payment."""
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            if settings.provider_mode != 'simulation':
+                raise ServiceError('CAPABILITY_UNAVAILABLE', 'priced invocation requires the x402 invoke route in this provider mode')
+            return invoke_under_quote(svc, db, p, sid, body.get('quote_id'), body.get('inputs')), 202
+        return await run(request, True, fn, 'services.invoke', raw)
+
+    @app.post(API + '/x402/services/{sid}/invoke')
+    async def x402_invoke(request: Request, sid: str):
+        raw = await request.body()
+        base = str(request.base_url).rstrip('/')
+        def do():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, False)
+                body = read_body(request, raw)
+                quote = svc.catalog.get_quote(db, p, body.get('quote_id'))
+                if quote['principal_id'] != p.id:
+                    raise ServiceError('FORBIDDEN', 'quote belongs to another principal')
+                if quote['state'] == 'consumed':
+                    # re-delivery path: only a payment whose identifier already settled can be answered
+                    if db.execute("SELECT 1 FROM invoke_sales WHERE quote_id=? AND state='CONFIRMED'", (quote['id'],)).fetchone() is None:
+                        raise ServiceError('CONFLICT', 'quote consumed')
+                elif quote['state'] != 'accepted':
+                    raise ServiceError('CONFLICT', 'quote not accepted')
+                status, headers, content = svc.sales.handle_invoke(db, request, raw, base, sid, quote, p, lambda: invoke_under_quote(svc, db, p, sid, quote['id'], body.get('inputs')))
+                return status, headers, content
+        status, headers, content = await run_in_threadpool(do)
+        return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
+
+    @app.get(API + '/usage')
+    async def usage_list(request: Request):
+        def fn(db, p):
+            p.require('budget:read')
+            rows = db.execute('SELECT * FROM usage_records WHERE workspace=? ORDER BY created_at DESC LIMIT 100', (p.workspace,)).fetchall()
+            return {'items': [metering.view(db, r) for r in rows]}
+        return await run(request, False, fn)
+
+    @app.get(API + '/usage/{uid}')
+    async def usage_get(request: Request, uid: str):
+        def fn(db, p):
+            p.require('budget:read')
+            row = db.execute('SELECT * FROM usage_records WHERE id=? AND workspace=?', (uid, p.workspace)).fetchone()
+            if row is None:
+                raise ServiceError('NOT_FOUND', 'usage record')
+            return metering.view(db, row)
+        return await run(request, False, fn)
 
     @app.get(API + '/lineage/{object_type}/{object_id}')
     async def lineage_query(request: Request, object_type: str, object_id: str):
@@ -761,3 +870,18 @@ def compare_jobs(svc, db, principal, job_a, job_b):
         out['outcomes'] = None
         out['projection'] = 'public: bindings only'
     return out
+
+
+def invoke_under_quote(svc, db, principal, sid, quote_id, inputs):
+    """Consume the quote atomically, then create the bound contract and job (reviewer = first workspace reviewer)."""
+    quote, service = svc.catalog.consume(db, principal, quote_id, inputs)
+    reviewer = db.execute("SELECT id FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL ORDER BY created_at LIMIT 1", (principal.workspace,)).fetchone()
+    policy = {'reviewer_id': reviewer['id'] if reviewer else None}
+    cid = svc.contracts.create_draft(db, principal, kind=service['kind'], title=service['name'] + ' invocation', inputs=inputs, policy=policy, datasets=svc.datasets)
+    svc.contracts.freeze(db, principal, cid)
+    jid = svc.jobs.submit(db, principal, cid)
+    db.execute('UPDATE jobs SET quote_id=? WHERE id=?', (quote['id'], jid))
+    db.execute('UPDATE contracts SET quote_id=? WHERE id=?', (quote['id'], cid))
+    from .datasets import add_edge
+    add_edge(db, principal.workspace, 'quote', quote['id'], 'job', jid, 'used_input')
+    return {'job_id': jid, 'contract_id': cid, 'quote_id': quote['id'], 'state': 'queued', 'service_id': sid}
