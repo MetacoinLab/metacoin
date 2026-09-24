@@ -143,7 +143,11 @@ def rotate_reviewer_key(settings, principal_id):
         old = db.execute("SELECT key_id FROM reviewer_keys WHERE principal_id=? AND status='active'", (principal_id,)).fetchone()
         if old:
             db.execute("UPDATE reviewer_keys SET status='rotated', status_changed_at=? WHERE key_id=?", (now(), old['key_id']))
-            os.replace(settings.keys_dir / ('reviewer-' + principal_id + '.ed25519'), settings.keys_dir / ('reviewer-' + principal_id + '.ed25519.' + old['key_id']))
+        current = settings.keys_dir / ('reviewer-' + principal_id + '.ed25519')
+        if current.exists():
+            # keep the superseded private key under its key id (historical verification needs only the public key)
+            latest = db.execute('SELECT key_id FROM reviewer_keys WHERE principal_id=? ORDER BY created_at DESC LIMIT 1', (principal_id,)).fetchone()
+            os.replace(current, settings.keys_dir / ('reviewer-' + principal_id + '.ed25519.' + (latest['key_id'] if latest else 'old')))
         pub = crypto.generate_signing_key(settings.keys_dir / ('reviewer-' + principal_id + '.ed25519'))
         key_id = crypto.key_id_for(pub)
         db.execute('INSERT INTO reviewer_keys VALUES (?,?,?,?,?,NULL)', (key_id, principal_id, pub, 'active', now()))
