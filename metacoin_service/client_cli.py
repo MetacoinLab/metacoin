@@ -79,6 +79,8 @@ def main(argv=None):
     rc = sub.add_parser('run-cancel'); rc.add_argument('run_id')
     cc = sub.add_parser('campaign-create', help='create a scientific campaign from a JSON definition file'); cc.add_argument('--file', required=True); cc.add_argument('--preview', action='store_true')
     cs = sub.add_parser('campaign-status'); cs.add_argument('campaign_id'); cs.add_argument('--results', action='store_true'); cs.add_argument('--csv', help='write results CSV to this new file')
+    cb = sub.add_parser('campaign-branch', help='fork a campaign with explicit changed assumptions'); cb.add_argument('campaign_id'); cb.add_argument('--base-changes', help='JSON object field->integer'); cb.add_argument('--candidates', help='comma-separated succeeded candidate indexes'); cb.add_argument('--name')
+    cc2 = sub.add_parser('campaign-compare'); cc2.add_argument('campaign_a'); cc2.add_argument('campaign_b')
     cp = sub.add_parser('campaign-control'); cp.add_argument('campaign_id'); cp.add_argument('action', choices=('run', 'pause', 'resume', 'cancel'))
     sub.add_parser('services'); sq = sub.add_parser('quote'); sq.add_argument('service_id'); sq.add_argument('--inputs', required=True); sq.add_argument('--accept', action='store_true')
     iv = sub.add_parser('invoke'); iv.add_argument('service_id'); iv.add_argument('--quote', required=True); iv.add_argument('--inputs', required=True)
@@ -180,6 +182,15 @@ def main(argv=None):
                 out = json.loads(content)
         else:
             status, out = go('GET', '/api/v1/campaigns/' + args.campaign_id + ('/results' if args.results else ''))
+    elif args.command == 'campaign-branch':
+        body = {'base_changes': json.loads(args.base_changes) if args.base_changes else {}}
+        if args.candidates:
+            body['candidate_indexes'] = [int(x) for x in args.candidates.split(',')]
+        if args.name:
+            body['name'] = args.name
+        status, out = go('POST', '/api/v1/campaigns/' + args.campaign_id + '/branch', body)
+    elif args.command == 'campaign-compare':
+        status, out = go('GET', '/api/v1/campaigns/' + args.campaign_a + '/compare/' + args.campaign_b)
     elif args.command == 'campaign-control':
         status, out = go('POST', '/api/v1/campaigns/' + args.campaign_id + '/' + args.action, {})
     elif args.command == 'services':

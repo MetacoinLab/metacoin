@@ -115,3 +115,54 @@ class TemplateTests(unittest.TestCase):
         # a plain definition is not a template
         plain = self.c.post('/api/v1/workflows', headers=self.H, json={'definition': definition()}).json()['id']
         self.assertEqual(self.c.post('/api/v1/workflows/' + plain + '/instantiate', headers=self.H, json={'values': {}}).json()['detail']['code'], 'not_a_template')
+
+
+class BranchTests(unittest.TestCase):
+    """§46(3): fork a campaign from authorized results with explicit changed assumptions and compare branch to original."""
+
+    def setUp(self):
+        self.inst = Instance(); self.addCleanup(self.inst.close); self.c = self.inst.client; self.H = self.inst.h('owner')
+
+    def drive(self, cid, ticks=12):
+        self.c.post('/api/v1/campaigns/' + cid + '/run', headers=self.H)
+        for _ in range(ticks):
+            self.inst.worker().tick_workflows(); self.inst.worker().run_once()
+            if self.c.get('/api/v1/campaigns/' + cid, headers=self.H).json()['state'] == 'completed':
+                return 'completed'
+        return self.c.get('/api/v1/campaigns/' + cid, headers=self.H).json()['state']
+
+    def test_branch_with_changed_assumptions_and_compare(self):
+        from metacoin_service.tests.test_agents import TEMPORAL
+        base = dict(TEMPORAL, private_label='BRANCH_SYNTHETIC')
+        definition = {'name': 'reserve sweep', 'kind': 'temporal_energy', 'base': base, 'axes': [{'path': 'reserve', 'values': [1000, 5000, 7000]}]}
+        a = self.c.post('/api/v1/campaigns', headers=self.H, json={'definition': definition}).json()['campaign_id']
+        self.assertEqual(self.drive(a), 'completed')
+        # refusals: no change, unknown field, unauthorized candidate, viewer
+        self.assertEqual(self.c.post('/api/v1/campaigns/' + a + '/branch', headers=self.H, json={}).json()['detail']['code'], 'no_change')
+        self.assertEqual(self.c.post('/api/v1/campaigns/' + a + '/branch', headers=self.H, json={'base_changes': {'nope': 1}}).json()['detail']['code'], 'unknown_base_field')
+        self.assertEqual(self.c.post('/api/v1/campaigns/' + a + '/branch', headers=self.H, json={'candidate_indexes': [99]}).json()['detail']['code'], 'candidate_not_authorized')
+        self.assertEqual(self.c.post('/api/v1/campaigns/' + a + '/branch', headers=self.inst.h('viewer'), json={'base_changes': {'capacity': 1}}).status_code, 403)
+        # branch: lower initial energy is an explicit changed assumption; the branch re-evaluates the same grid
+        b = self.c.post('/api/v1/campaigns/' + a + '/branch', headers=self.H, json={'base_changes': {'initial_low': 2000, 'initial_high': 2000}, 'name': 'reserve sweep / low start'})
+        self.assertEqual(b.status_code, 201, b.text)
+        bid = b.json()['campaign_id']
+        self.assertEqual((b.json()['branched_from'], b.json()['total_candidates']), (a, 3))
+        self.assertIn('branch-of:' + a, self.c.get('/api/v1/campaigns/' + bid, headers=self.H).json()['definition']['tags'])
+        self.assertEqual(self.drive(bid), 'completed')
+        cmp_ = self.c.get('/api/v1/campaigns/' + a + '/compare/' + bid, headers=self.H).json()
+        self.assertEqual(cmp_['base_changes'], {'initial_low': {'a': 6000, 'b': 2000}, 'initial_high': {'a': 6000, 'b': 2000}})
+        self.assertEqual((cmp_['summary']['matched'], cmp_['summary']['only_in_a'], cmp_['summary']['only_in_b']), (3, 0, 0))
+        self.assertGreaterEqual(cmp_['summary']['worsened'], 1)                           # a lower start can only make feasibility worse
+        self.assertEqual(cmp_['summary']['improved'], 0)
+        self.assertTrue(all(c['direction'] == 'worsened' for c in cmp_['changes']))
+        # the viewer sees which fields changed, never the values
+        vcmp = self.c.get('/api/v1/campaigns/' + a + '/compare/' + bid, headers=self.inst.h('viewer')).json()
+        self.assertEqual(vcmp['base_changes'], {'initial_low': 'changed', 'initial_high': 'changed'})
+        # candidate selection: the branch grid is the smallest product grid containing the selected succeeded candidates
+        results = self.c.get('/api/v1/campaigns/' + a + '/results', headers=self.H).json()['rows']
+        ok_idx = [r['index'] for r in results if r['state'] == 'succeeded'][:2]
+        s = self.c.post('/api/v1/campaigns/' + a + '/branch', headers=self.H, json={'candidate_indexes': ok_idx, 'base_changes': {'capacity': 20000}}).json()
+        self.assertEqual(s['total_candidates'], 2)
+        self.assertEqual(s['axes'], [{'path': 'reserve', 'values': sorted(results[i]['params']['reserve'] for i in ok_idx)}])
+        lineage = self.c.get('/api/v1/lineage/campaign/' + bid, headers=self.H).json()
+        self.assertIn({'from': ['campaign', a], 'to': ['campaign', bid], 'relation': 'derived_from'}, [{k: e[k] for k in ('from', 'to', 'relation')} for e in lineage['edges']])

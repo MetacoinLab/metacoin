@@ -509,3 +509,85 @@ class Campaigns:
         add_edge(db, principal.workspace, 'job', job_id, 'artifact', aid, 'derived_from')
         history.record(db, principal.workspace, principal.id, 'job.result_committed', 'artifact', aid, {'refinement_of': job_id, 'hypothetical': True})
         return dict(result, artifact_id=aid, source_job=job_id)
+
+    # ---- §46(3) experiment branching -------------------------------------------------------
+    OUTCOME_RANK = {'FEASIBLE': 2, 'ROBUSTLY_FEASIBLE': 2, 'INDETERMINATE': 1, 'INFEASIBLE': 0, 'ROBUSTLY_INFEASIBLE': 0}
+
+    def branch(self, db, principal, campaign_id, *, base_changes=None, axes=None, candidate_indexes=None, name=None):
+        """Fork a campaign from its authorized (succeeded) results with explicit changed assumptions. The branch is a
+        new campaign whose definition is the original's with the stated base overrides (and optionally new axes or the
+        smallest product grid containing the selected candidates). Nothing from the original is re-used as evidence."""
+        principal.require('job:read_private')                      # the base input is private to the workspace owner
+        c = self._campaign(db, campaign_id, principal.workspace)
+        definition = merkle.parse(c['definition_json'])
+        if definition.get('adaptive') is not None:
+            raise ServiceError('VALIDATION', {'code': 'branch_adaptive', 'detail': 'branch a grid campaign; adaptive searches are re-run, not forked'})
+        base_changes = base_changes or {}
+        if type(base_changes) is not dict or not all(type(k) is str and type(v) is int and type(v) is not bool for k, v in base_changes.items()):
+            raise ServiceError('VALIDATION', {'code': 'base_changes', 'expected': '{field: integer}'})
+        base = definition['base']
+        if 'dataset_version_id' in base:
+            params = dict(base.get('parameters', {}))
+            unknown = [k for k in base_changes if k not in params]
+            if unknown:
+                raise ServiceError('VALIDATION', {'code': 'unknown_base_field', 'fields': unknown, 'known': sorted(params)})
+            new_base = dict(base, parameters=dict(params, **base_changes))
+        else:
+            unknown = [k for k in base_changes if k not in base or type(base[k]) is not int]
+            if unknown:
+                raise ServiceError('VALIDATION', {'code': 'unknown_base_field', 'fields': unknown, 'known': sorted(k for k, v in base.items() if type(v) is int)})
+            new_base = dict(base, **base_changes)
+        new_axes = axes if axes is not None else definition.get('axes')
+        if candidate_indexes is not None:
+            if type(candidate_indexes) is not list or not candidate_indexes or not all(type(i) is int for i in candidate_indexes):
+                raise ServiceError('VALIDATION', 'candidate_indexes: non-empty integer list')
+            rows = {r['idx']: r for r in db.execute('SELECT idx, state, params_json FROM sci_campaign_candidates WHERE campaign_id=?', (campaign_id,))}
+            bad = [i for i in candidate_indexes if i not in rows or rows[i]['state'] != 'succeeded']
+            if bad:
+                raise ServiceError('VALIDATION', {'code': 'candidate_not_authorized', 'indexes': bad, 'detail': 'only succeeded candidates can seed a branch'})
+            selected = [json.loads(rows[i]['params_json']) for i in candidate_indexes]
+            new_axes = [{'path': a['path'], 'values': sorted({p[a['path']] for p in selected if a['path'] in p})} for a in (definition.get('axes') or [])]
+            new_axes = [a for a in new_axes if a['values']]
+        new_def = {k: v for k, v in definition.items() if k not in ('axes', 'base', 'name', 'tags')}
+        new_def.update({'name': name or (definition['name'] + ' / branch'), 'base': new_base, 'axes': new_axes,
+                        'tags': sorted(set(definition.get('tags', [])) | {'branch-of:' + campaign_id})[:10]})
+        if not base_changes and axes is None and candidate_indexes is None:
+            raise ServiceError('VALIDATION', {'code': 'no_change', 'detail': 'a branch must state at least one changed assumption, new axes or a candidate selection'})
+        out = self.create(db, principal, new_def)
+        add_edge(db, principal.workspace, 'campaign', campaign_id, 'campaign', out['campaign_id'], 'derived_from')
+        history.record(db, principal.workspace, principal.id, 'contract.created', 'campaign', out['campaign_id'],
+                       {'branched_from': campaign_id, 'base_changes': sorted(base_changes), 'candidate_indexes': candidate_indexes, 'digest': out['digest']})
+        return dict(out, branched_from=campaign_id, base_changes=base_changes, axes=new_axes, name=new_def['name'],
+                    note='the branch re-evaluates every candidate; original evidence is never re-used')
+
+    def compare(self, db, principal, a_id, b_id):
+        """Candidate-by-candidate comparison of two campaigns joined on parameter values, plus the base-input differences
+        (fields only for non-private principals)."""
+        principal.require('job:read')
+        ca, cb = self._campaign(db, a_id, principal.workspace), self._campaign(db, b_id, principal.workspace)
+        if ca['kind'] != cb['kind']:
+            raise ServiceError('VALIDATION', {'code': 'kind_mismatch', 'a': ca['kind'], 'b': cb['kind']})
+        da, dbf = merkle.parse(ca['definition_json']), merkle.parse(cb['definition_json'])
+        private = principal.can('job:read_private')
+        ba, bb = da['base'], dbf['base']
+        changed_fields = sorted(k for k in set(ba) | set(bb) if ba.get(k) != bb.get(k))
+        base_changes = {k: {'a': ba.get(k), 'b': bb.get(k)} for k in changed_fields} if private else {k: 'changed' for k in changed_fields}
+        def table(cid):
+            return {r['params_json']: dict(r) for r in db.execute('SELECT idx, params_json, state, outcome FROM sci_campaign_candidates WHERE campaign_id=?', (cid,))}
+        ta, tb = table(a_id), table(b_id)
+        matched, changes = [], []
+        for key in sorted(set(ta) & set(tb)):
+            ra, rb = ta[key], tb[key]
+            item = {'params': json.loads(key), 'a': {'index': ra['idx'], 'state': ra['state'], 'outcome': ra['outcome']}, 'b': {'index': rb['idx'], 'state': rb['state'], 'outcome': rb['outcome']}}
+            matched.append(item)
+            if ra['outcome'] != rb['outcome'] or ra['state'] != rb['state']:
+                ranka, rankb = self.OUTCOME_RANK.get(ra['outcome']), self.OUTCOME_RANK.get(rb['outcome'])
+                item['direction'] = 'unknown' if ranka is None or rankb is None else ('improved' if rankb > ranka else ('worsened' if rankb < ranka else 'changed'))
+                changes.append(item)
+        summary = {'matched': len(matched), 'changed': len(changes), 'improved': sum(c.get('direction') == 'improved' for c in changes),
+                   'worsened': sum(c.get('direction') == 'worsened' for c in changes), 'unknown': sum(c.get('direction') == 'unknown' for c in changes),
+                   'only_in_a': len(set(ta) - set(tb)), 'only_in_b': len(set(tb) - set(ta))}
+        return {'a': {'campaign_id': a_id, 'name': ca['name'], 'state': ca['state'], 'digest': ca['digest']}, 'b': {'campaign_id': b_id, 'name': cb['name'], 'state': cb['state'], 'digest': cb['digest']},
+                'base_changes': base_changes, 'summary': summary, 'changes': changes[:500],
+                'note': 'candidates joined on identical parameter values; outcomes of unfinished candidates are null, never guessed; ranking FEASIBLE > INDETERMINATE > INFEASIBLE'}
+

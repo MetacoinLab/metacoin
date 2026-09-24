@@ -324,6 +324,13 @@ def create_app(settings):
     async def campaign_get(request: Request, campaign_id: str):
         return await run(request, False, lambda db, p: svc.campaigns.view(db, p, campaign_id))
 
+    @app.post(API + '/campaigns/{campaign_id}/branch', status_code=201)
+    async def campaign_branch(request: Request, campaign_id: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.campaigns.branch(db, p, campaign_id, base_changes=body.get('base_changes'), axes=body.get('axes'),
+                                                                            candidate_indexes=body.get('candidate_indexes'), name=body.get('name')), 201), 'campaigns.branch', raw)
+
     @app.post(API + '/campaigns/{campaign_id}/{action}')
     async def campaign_control(request: Request, campaign_id: str, action: str):
         raw = await request.body()
@@ -338,6 +345,10 @@ def create_app(settings):
                 return svc.campaigns.pareto(db, p, campaign_id, body.get('objectives'), tuple(body.get('require_outcomes', ['FEASIBLE'])))
             raise ServiceError('NOT_FOUND', 'action')
         return await run(request, True, fn)
+
+    @app.get(API + '/campaigns/{campaign_a}/compare/{campaign_b}')
+    async def campaign_compare(request: Request, campaign_a: str, campaign_b: str):
+        return await run(request, False, lambda db, p: svc.campaigns.compare(db, p, campaign_a, campaign_b))
 
     @app.get(API + '/campaigns/{campaign_id}/results')
     async def campaign_results(request: Request, campaign_id: str):
