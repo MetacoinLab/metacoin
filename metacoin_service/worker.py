@@ -89,7 +89,8 @@ class Worker:
                   'out': self.settings.limits['job_output_bytes']}
         proc = subprocess.Popen([sys.executable, '-m', 'metacoin_service.worker_exec', json.dumps(limits)], cwd=ROOT,
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                                env={'PATH': os.environ.get('PATH', ''), 'PYTHONPATH': str(ROOT), 'HOME': os.environ.get('HOME', '/')})
+                                env=dict({'PATH': os.environ.get('PATH', ''), 'PYTHONPATH': str(ROOT), 'HOME': os.environ.get('HOME', '/')},
+                                         **({'METACOIN_TEST_EXEC_DELAY_SECONDS': os.environ['METACOIN_TEST_EXEC_DELAY_SECONDS']} if 'METACOIN_TEST_EXEC_DELAY_SECONDS' in os.environ else {})))
         try:
             out, _ = proc.communicate(merkle.canonical(spec), timeout=self.settings.limits['job_timeout_seconds'])
         except subprocess.TimeoutExpired:

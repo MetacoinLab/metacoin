@@ -123,11 +123,11 @@ class Journeys:
         self.stop_workers()
         out_node = [n for n in v['nodes'] if n['node_id'] == 'out'][0]
         rc, arts = self.cli('owner', 'artifacts', temporal_job)
-        rc, vres = self.cli('viewer', 'result', temporal_job)
+        rc_res, vres = self.cli('viewer', 'result', temporal_job)
         rc, vjob = self.cli('viewer', 'status', temporal_job)
         # the export node's artifact is the authorized summary; the viewer gets the disclosed outcome only after review, never the private result
-        export_ok = self.http.get('/api/v1/artifacts/' + out_node['output_artifact_id'] + '/export', headers=self.inst.h('owner')) if out_node.get('output_artifact_id') else None
-        ok = v['state'] == 'completed' and dec.get('decision') == 'accepted' and rc == 2 and vres.get('code') == 'FORBIDDEN' and vjob.get('outcome') == 'FEASIBLE' and export_ok is not None and export_ok.status_code == 200
+        export_ok = self.http.get('/api/v1/artifacts/' + out_node['artifact_id'] + '/export', headers=self.inst.h('owner')) if out_node.get('artifact_id') else None
+        ok = v['state'] == 'completed' and dec.get('decision') == 'accepted' and rc_res == 2 and vres.get('code') == 'FORBIDDEN' and vjob.get('outcome') == 'FEASIBLE' and export_ok is not None and export_ok.status_code == 200
         self.record(1, 'dataset version -> workflow -> review -> authorized export', ok,
                     {'dataset_version': vid, 'run': rid, 'run_state': v['state'], 'export_node': out_node['state'], 'viewer_result_refusal': vres.get('code'), 'viewer_disclosed_outcome': vjob.get('outcome'),
                      'export_artifact_status': export_ok.status_code if export_ok is not None else None, 'summary_fields': sorted(json.loads(export_ok.text).get('fields', {}).keys()) if export_ok is not None and export_ok.status_code == 200 and export_ok.text.startswith('{') else None})
@@ -154,10 +154,10 @@ class Journeys:
         jobs = self.http.get('/api/v1/jobs?limit=100', headers=self.inst.h('owner')).json()['items']
         campaign_jobs = [j for j in jobs if j['title'].startswith('capacity x load#')]
         valid = [r for r in rows if r['state'] != 'invalid']
-        ok = st['state'] == 'completed' and len(campaign_jobs) == len(valid) and all(r['state'] == 'succeeded' for r in valid) and pv['total'] == 6
+        ok = st['state'] == 'completed' and len(campaign_jobs) == len(valid) and all(r['state'] == 'succeeded' for r in valid) and pv['total_candidates'] == 6
         self.record(2, 'campaign preview -> partial execution -> service restart -> completion without duplicates', ok,
-                    {'campaign': cid, 'preview_total': pv.get('total'), 'preview_estimate': pv.get('estimate'), 'state_before_restart': mid.get('state'), 'done_before_restart': mid.get('done'),
-                     'final_state': st['state'], 'jobs_for_valid_candidates': len(campaign_jobs), 'valid_candidates': len(valid), 'outcomes': {r['idx']: r.get('outcome') or r.get('reason') for r in rows}})
+                    {'campaign': cid, 'preview_total': pv.get('total_candidates'), 'preview_estimate': pv.get('estimate'), 'state_before_restart': mid.get('state'), 'done_before_restart': mid.get('done'),
+                     'final_state': st['state'], 'jobs_for_valid_candidates': len(campaign_jobs), 'valid_candidates': len(valid), 'outcomes': {r['index']: r.get('outcome') or r.get('reason') for r in rows}})
 
     def j3_priced_invocation_x402(self):
         rc, svcs = self.cli('owner', 'services')
@@ -177,7 +177,7 @@ class Journeys:
                     caveat='facilitator is a local double; settlement is not externally observed')
 
     def j4_agent_under_grant(self):
-        pol = agent_policy(allowed_operations=['services:read', 'quote', 'invoke', 'job:read', 'workflow:run'], ceilings={'total_amount': 2, 'per_action_amount': 1, 'max_jobs': 2, 'max_workflows': 1, 'concurrency': 2})
+        pol = agent_policy(allowed_operations=['services:read', 'quote', 'invoke', 'job:read', 'workflow:run'], ceilings={'total_amount': 2, 'per_action_amount': 1, 'max_jobs': 1, 'max_workflows': 1, 'concurrency': 2})
         out_cred = Path(self.inst.temp.name) / 'agent-cred.json'
         rc, g = self.cli('owner', 'grant-issue', '--policy', self.tmpjson('pol.json', pol), '--out', str(out_cred))
         pf = self.tmpjson('pol-agent.json', pol); os.chmod(pf, 0o600)
@@ -195,13 +195,17 @@ class Journeys:
         # invoking under the plan is refused by the job ceiling (2 jobs: one used by the workflow, one more would fit; make the amount ceiling bite instead)
         ex = json.loads(run('execute', '--service', 'temporal_energy', '--inputs-file', self.tmpjson('t4.json', TEMPORAL)).stdout)
         rc, r3 = self.cli('agent', 'workflow-run', w['id'], cred=out_cred)
-        ok = plan.get('plan') and 'run_id' in r1 and r2.get('code') == 'RATE_LIMITED' and v['state'] == 'completed' and ex.get('executed') and r3.get('code') in ('RATE_LIMITED', 'FORBIDDEN') and view['counters']['jobs_created'] == 2
+        refusal = (ex.get('refusal') or ex.get('plan', {}).get('refusal') or {})
+        ok = plan.get('plan') and 'run_id' in r1 and r2.get('code') == 'RATE_LIMITED' and v['state'] == 'completed' and not ex.get('executed') and refusal.get('code') == 'RATE_LIMITED' and r3.get('code') in ('RATE_LIMITED', 'FORBIDDEN') and view['counters']['jobs_created'] == 1
         self.record(4, 'agent under a limited grant: discovers permitted services, completes a workflow, then cannot exceed its job/workflow ceiling', ok,
                     {'grant': g.get('grant_id'), 'plan_within_policy': plan.get('within_policy'), 'workflow_run': r1.get('run_id'), 'run_state': v['state'], 'second_workflow_refusal': r2.get('code'),
-                     'invoke_executed': ex.get('executed'), 'third_refusal': r3.get('code'), 'counters': view['counters'], 'remaining': view['remaining']})
+                     'invoke_after_ceiling': {'executed': ex.get('executed'), 'stage': ex.get('stage'), 'refusal': refusal.get('code'), 'detail': refusal.get('detail')}, 'third_refusal': r3.get('code'), 'counters': view['counters'], 'remaining': view['remaining']},
+                    caveat='the agent runner invokes through the plain route, which prices only in simulation mode; in test-http the ceiling refusal arrives at quote acceptance, before any payment')
 
     def j5_shared_budget_multi_worker(self):
-        self.http.put('/api/v1/budgets/workspace', headers=self.inst.h('owner'), json={'ceiling': 3})
+        already = self.http.get('/api/v1/budgets/tree', headers=self.inst.h('owner')).json()['tree']
+        base_used = already['reserved'] + already['committed']                      # earlier journeys committed units against the same workspace root
+        self.http.put('/api/v1/budgets/workspace', headers=self.inst.h('owner'), json={'ceiling': base_used + 3})
         def defn(name):
             return {'schema': wf_mod.SCHEMA, 'name': name, 'outputs': ['a', 'b'], 'nodes': [{'id': 'a', 'type': 'energy_audit', 'inputs': own_inputs('J5A_' + name)}, {'id': 'b', 'type': 'energy_audit', 'inputs': own_inputs('J5B_' + name)}]}
         rc, wa = self.cli('owner', 'workflow-create', '--file', self.tmpjson('wf5a.json', defn('shared-alpha')))
@@ -214,10 +218,13 @@ class Journeys:
         rc, tree = self.cli('owner', 'budget-tree')
         root = tree['tree']
         states = sorted([va['state'], vb['state']])
-        ok = root['reserved'] + root['committed'] <= 3 and root['committed'] == 3 and states == ['blocked', 'completed'] and root['reserved'] == 0
+        succeeded = sum(n['state'] == 'succeeded' for v in (va, vb) for n in v['nodes'])
         blocked = [n for v in (va, vb) for n in v['nodes'] if n['state'] == 'blocked']
+        ok = root['reserved'] + root['committed'] <= base_used + 3 and root['committed'] == base_used + 3 and root['reserved'] == 0 and succeeded == 3 and len(blocked) == 1 and 'never fit' in blocked[0]['blocked_reason']
         self.record(5, 'two workflows share a parent budget under two worker processes: no overspend, explained refusal', ok,
-                    {'workspace_ceiling': root['ceiling'], 'reserved': root['reserved'], 'committed': root['committed'], 'run_states': states, 'blocked_reason': blocked[0]['blocked_reason'] if blocked else None,
+                    {'workspace_ceiling': root['ceiling'], 'committed_before_journey': base_used, 'reserved': root['reserved'], 'committed': root['committed'], 'run_states': states, 'succeeded_nodes': succeeded, 'blocked_nodes': len(blocked), 'blocked_reason': blocked[0]['blocked_reason'] if blocked else None,
+                     'note': 'which run loses the fourth unit depends on worker interleaving; the invariant is committed <= ceiling and exactly one explained refusal',
+                     'nodes': {v['run_id']: [(n['node_id'], n['state'], n['blocked_reason']) for n in v['nodes']] for v in (va, vb)},
                      'workers': [w['name'] for w in self.http.get('/api/v1/workers', headers=self.inst.h('owner')).json()['items'] if w['name'].startswith('w-j5')]},
                     caveat='stale-attempt fencing is exercised by the failure suite (test_failures_workflow) with a killed worker')
         self.http.put('/api/v1/budgets/workspace', headers=self.inst.h('owner'), json={'ceiling': 10})

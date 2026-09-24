@@ -4,6 +4,8 @@ Resource limits are applied here (CPU, address space, output size). This is a
 process boundary for cancellation and limits, not a sandbox for hostile code:
 only the three local implementations below can run."""
 import json
+import time
+import os
 import resource
 import sys
 from experiments.private_receipts import receipt as merkle
@@ -53,6 +55,9 @@ def run(spec):
 
 def main():
     limits = json.loads(sys.argv[1]) if len(sys.argv) > 1 else {}
+    delay = float(os.environ.get('METACOIN_TEST_EXEC_DELAY_SECONDS', '0') or 0)     # test hook for termination cases; bounded
+    if 0 < delay <= 30:
+        time.sleep(delay)
     resource.setrlimit(resource.RLIMIT_CPU, (limits.get('cpu', 20), limits.get('cpu', 20)))
     resource.setrlimit(resource.RLIMIT_AS, (limits.get('mem', 1 << 30), limits.get('mem', 1 << 30)))
     resource.setrlimit(resource.RLIMIT_FSIZE, (limits.get('out', 1 << 20), limits.get('out', 1 << 20)))

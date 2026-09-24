@@ -84,7 +84,10 @@ def run(args, settings):
         worker = Worker(Database(settings.db_path), ArtifactStore(settings), settings, name=args.name, capabilities=caps)
         if args.once:
             try:
-                return {'worker_id': worker.worker_id, 'ran': worker.run_once(), 'capabilities': worker.capabilities}
+                advanced_before = worker.tick_workflows()                 # one scheduler tick (workflows + campaigns), one job, one more tick
+                ran = worker.run_once()
+                advanced_after = worker.tick_workflows()
+                return {'worker_id': worker.worker_id, 'ran': ran, 'capabilities': worker.capabilities, 'scheduler_ticks': [advanced_before, advanced_after]}
             finally:
                 worker.offline()
         settings.run_dir.mkdir(mode=0o700, parents=True, exist_ok=True)

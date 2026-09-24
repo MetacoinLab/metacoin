@@ -1078,7 +1078,7 @@ def compare_jobs(svc, db, principal, job_a, job_b):
 
 def invoke_under_quote(svc, db, principal, sid, quote_id, inputs):
     """Consume the quote atomically, then create the bound contract and job (reviewer = first workspace reviewer)."""
-    quote, service = svc.catalog.consume(db, principal, quote_id, inputs)
+    quote, service = svc.catalog.consume(db, principal, quote_id, inputs, provider_mode=svc.settings.provider_mode)
     agents_mod.guard(db, principal, 'invoke', service_id=sid, service_kind=service['kind'], jobs=1)
     principal.agent_counted = True                     # the job below is already counted against the grant
     reviewer = db.execute("SELECT id FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL ORDER BY created_at LIMIT 1", (principal.workspace,)).fetchone()

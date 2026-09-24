@@ -78,7 +78,7 @@ def main(argv=None):
     rc = sub.add_parser('run-cancel'); rc.add_argument('run_id')
     cc = sub.add_parser('campaign-create', help='create a scientific campaign from a JSON definition file'); cc.add_argument('--file', required=True); cc.add_argument('--preview', action='store_true')
     cs = sub.add_parser('campaign-status'); cs.add_argument('campaign_id'); cs.add_argument('--results', action='store_true'); cs.add_argument('--csv', help='write results CSV to this new file')
-    cp = sub.add_parser('campaign-control'); cp.add_argument('campaign_id'); cp.add_argument('action', choices=('pause', 'resume', 'cancel'))
+    cp = sub.add_parser('campaign-control'); cp.add_argument('campaign_id'); cp.add_argument('action', choices=('run', 'pause', 'resume', 'cancel'))
     sub.add_parser('services'); sq = sub.add_parser('quote'); sq.add_argument('service_id'); sq.add_argument('--inputs', required=True); sq.add_argument('--accept', action='store_true')
     iv = sub.add_parser('invoke'); iv.add_argument('service_id'); iv.add_argument('--quote', required=True); iv.add_argument('--inputs', required=True)
     sub.add_parser('usage'); sub.add_parser('queue'); sub.add_parser('workers'); sub.add_parser('grants')
