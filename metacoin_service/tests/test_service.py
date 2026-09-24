@@ -625,8 +625,8 @@ class X402SocketTests(unittest.TestCase):
         cls.proc.wait(timeout=10)
         cls.inst.close()
 
-    def client(self, mutation=None):
-        proc = subprocess.run([sys.executable, '-m', 'metacoin_service.tests.x402_client', self.base, self.jid] + ([mutation] if mutation else []),
+    def client(self, mutation=None, identifier=None):
+        proc = subprocess.run([sys.executable, '-m', 'metacoin_service.tests.x402_client', self.base, self.jid, mutation or '', identifier or ''][:7 if identifier else (6 if mutation else 5)],
                               cwd=ROOT, env=ENV, capture_output=True, text=True, timeout=60)
         self.assertEqual(proc.returncode, 0, proc.stderr[-800:])
         return json.loads(proc.stdout.strip().splitlines()[-1])
@@ -637,11 +637,13 @@ class X402SocketTests(unittest.TestCase):
         self.assertTrue(out['settled']['success'])
         self.assertEqual(out['settled']['amount'], '3')
         self.assertEqual(out['bundle_keys'], ['disclosures', 'receipt'])
-        again = self.client()                                     # same identifier: idempotent re-delivery, one settlement
+        again = self.client(identifier=out['identifier'])         # same identifier: idempotent re-delivery, one settlement
         self.assertEqual(again['second_status'], 200)
         self.assertEqual(again['settled']['transaction'], out['settled']['transaction'])
+        fresh = self.client()                                     # a new identifier is a new sale of the same bundle
+        self.assertNotEqual(fresh['settled']['transaction'], out['settled']['transaction'])
         sales = [e for e in self.http.get('/api/v1/history', headers=self.inst.h('owner')).json()['events'] if e['event_type'].startswith('sale')]
-        self.assertEqual(sorted(e['event_type'] for e in sales), ['sale.requested', 'sale.settled'])
+        self.assertEqual(sorted(e['event_type'] for e in sales), ['sale.requested', 'sale.requested', 'sale.settled', 'sale.settled'])
         page = self.http.get('/api/v1/jobs/' + self.jid, headers=self.inst.h('owner')).json()
         self.assertEqual(page['payment']['state'], 'NOT_REQUESTED')   # selling a result is not the agent's purchase
         self.assertEqual(self.http.post('/api/v1/sales/' + self.jid + '/reconcile', headers=self.inst.h('owner')).json()['reconciliation'], 'terminal-already')
@@ -649,7 +651,7 @@ class X402SocketTests(unittest.TestCase):
     def test_11_bindings_refused_at_the_right_layer(self):
         expected = {'amount': 'No matching payment requirements', 'pay_to': 'No matching payment requirements',
                     'network': 'No matching payment requirements', 'extra': 'No matching payment requirements',
-                    'resource': 'work_contract_binding_mismatch', 'wrong_identifier': 'work_contract_payment_identifier_mismatch',
+                    'resource': 'work_contract_binding_mismatch', 'no_identifier': 'work_contract_payment_identifier_required',
                     'signature': 'invalid_signature'}
         for mutation, error in expected.items():
             with self.subTest(mutation=mutation):
@@ -849,3 +851,160 @@ class BacklogTests(unittest.TestCase):
         self.assertEqual((code, out['bytes'] > 0), (0, True))
         self.assertTrue((Path(self.inst.temp.name) / 'vault.age').read_bytes().startswith(b'age-encryption'))
         server.should_exit = True; thread.join(timeout=5)
+
+
+class ProductionBuyerTests(unittest.TestCase):
+    """The production buyer adapter (real SDK client, real EIP-3009 signing with a THROWAWAY
+    UNFUNDED key, durable submission, re-presentation) against this service's own sale route
+    served by a real server process whose facilitator double verifies the signature
+    cryptographically offline. No chain, no funds, nothing broadcast."""
+
+    @classmethod
+    def setUpClass(cls):
+        from eth_account import Account
+        cls.seller = Instance(provider_mode='test-http')
+        cls.port = free_port()
+        cls.base = 'http://127.0.0.1:' + str(cls.port)
+        cls.proc = subprocess.Popen([sys.executable, '-m', 'metacoin_service', '--home', str(cls.seller.home), '--provider-mode', 'test-http',
+                                     'serve', '--port', str(cls.port)], cwd=ROOT, env=ENV, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        import httpx
+        for _ in range(100):
+            try:
+                if httpx.get(cls.base + '/api/health', timeout=1).status_code == 200:
+                    break
+            except Exception:
+                time.sleep(0.1)
+        cls.http = httpx.Client(base_url=cls.base, timeout=30)
+        cls.sold = cls._sold_job(amount=3)
+        key = Account.create()                                        # throwaway; unfunded; never on any chain
+        cls.key_file = Path(cls.seller.temp.name) / 'buyer.key'
+        cls.key_file.write_text(key.key.hex()); os.chmod(cls.key_file, 0o600)
+        cls.buyer_address = key.address
+
+    @classmethod
+    def _sold_job(cls, amount):
+        cid = cls.http.post('/api/v1/contracts', headers=cls.seller.h('owner'),
+                            json={'kind': 'energy_audit', 'title': 'sold', 'inputs': own_inputs(), 'policy': {'reviewer_id': cls.seller.ids['reviewer'], 'amount': amount}}).json()['id']
+        cls.http.post('/api/v1/contracts/' + cid + '/freeze', headers=cls.seller.h('owner'))
+        jid = cls.http.post('/api/v1/jobs', headers=cls.seller.h('owner'), json={'contract_id': cid}).json()['id']
+        subprocess.run([sys.executable, '-m', 'metacoin_service', '--home', str(cls.seller.home), '--provider-mode', 'test-http', 'worker', '--once'],
+                       cwd=ROOT, env=ENV, check=True, capture_output=True, timeout=120)
+        cls.http.post('/api/v1/jobs/' + jid + '/review-request', headers=cls.seller.h('owner'))
+        assert cls.http.post('/api/v1/reviews/' + jid + '/decision', headers=cls.seller.h('reviewer'), json={'decision': 'accepted'}).status_code == 200
+        return jid
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.proc.terminate(); cls.proc.wait(timeout=10); cls.seller.close()
+
+    def buyer_instance(self, **overrides):
+        inst = Instance(provider_mode='production' if False else 'simulation')   # provider mode is per action; settings below select production
+        s = inst.settings
+        s.buyer_resource_url = self.base + '/api/v1/x402/jobs/' + self.sold + '/public-bundle'
+        s.buyer_key_file = str(self.key_file); s.buyer_network = 'eip155:84532'
+        s.buyer_asset = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'; s.buyer_max_amount = 5
+        for k, v in overrides.items():
+            setattr(s, k, v)
+        inst.reopen()
+        return inst
+
+    def test_status_distinguishes_missing_configuration_from_missing_code(self):
+        from metacoin_service import buyer
+        bare = config.Settings(home=Path(tempfile.mkdtemp()))
+        st = buyer.status(bare)
+        self.assertTrue(st['code_implemented'] and st['sdk_evm_extra_installed'])
+        self.assertEqual(st['configuration_missing'], ['buyer_resource_url', 'buyer_key_file', 'buyer_network', 'buyer_asset', 'buyer_max_amount'])
+        self.assertFalse(st['available'])
+        r = TestClient(api.create_app(bare) if False else self.seller.app).get('/api/v1/capabilities', headers=self.seller.h('viewer')).json()
+        self.assertEqual(r['payment_actions']['modes']['production']['available'], False)
+        with self.assertRaises(ServiceError) as ctx:
+            buyer.HttpBuyerAdapter(bare)
+        self.assertEqual(ctx.exception.code, 'CAPABILITY_UNAVAILABLE')
+        loose = self.buyer_instance().settings
+        os.chmod(self.key_file, 0o644)
+        try:
+            self.assertFalse(buyer.status(loose)['credential_file_usable'])
+        finally:
+            os.chmod(self.key_file, 0o600)
+
+    def test_buyer_pays_a_real_402_resource_with_a_real_signature(self):
+        inst = self.buyer_instance()
+        jid = inst.accepted_job(policy={'capability': 'x402_http_buyer', 'amount': 3})
+        c = inst.client
+        dry = c.post('/api/v1/actions', headers=inst.h('owner'), json={'job_id': jid, 'request_id': 'buy-1', 'provider_mode': 'production', 'dry_run': True}).json()
+        self.assertEqual((dry['would_reserve'], dry['adapter']['capability']), (True, 'x402_http_buyer'))
+        r = c.post('/api/v1/actions', headers=inst.h('owner'), json={'job_id': jid, 'request_id': 'buy-1', 'provider_mode': 'production'}).json()
+        stored = sqlite3.connect(inst.home / 'buyer.sqlite').execute('SELECT state, response_json FROM submissions').fetchall()
+        self.assertEqual(r['state'], 'CONFIRMED', (r, stored))
+        self.assertTrue(r['result']['reference'].startswith('0x') and len(r['result']['reference']) == 66)
+        # the seller recorded the sale, and its double verified the buyer's real signature (not the placeholder)
+        sales = [e for e in self.http.get('/api/v1/history', headers=self.seller.h('owner')).json()['events'] if e['event_type'] == 'sale.settled']
+        self.assertEqual(len(sales), 1)
+        seller_page = self.http.get('/console/budget')  # route exists; content checked via API instead
+        # identical retry: no second signature, no second exchange
+        again = c.post('/api/v1/actions', headers=inst.h('owner'), json={'job_id': jid, 'request_id': 'buy-1', 'provider_mode': 'production'}).json()
+        self.assertEqual(again['result']['reference'], r['result']['reference'])
+        with sqlite3.connect(inst.home / 'buyer.sqlite') as db:
+            rows = db.execute('SELECT state, identifier FROM submissions').fetchall()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0][0], 'CONFIRMED')
+        # reconcile from a fresh process view: durable record answers without re-sending
+        r2 = c.post('/api/v1/actions/' + jid + '/reconcile', headers=inst.h('owner')).json()
+        self.assertEqual(r2['reconciliation'], 'terminal-already')
+        self.assertEqual(c.get('/api/v1/budget', headers=inst.h('owner')).json()['by_state']['CONFIRMED'], 3)
+
+    def test_buyer_refuses_bindings_before_signing(self):
+        # price offered (3) differs from the journal-authorized amount (2): refused before any signature
+        inst = self.buyer_instance()
+        jid = inst.accepted_job(policy={'capability': 'x402_http_buyer', 'amount': 2})
+        r = inst.client.post('/api/v1/actions', headers=inst.h('owner'), json={'job_id': jid, 'request_id': 'buy-2', 'provider_mode': 'production'}).json()
+        self.assertEqual(r['state'], 'OUTCOME_UNKNOWN')       # the journal saw an adapter exception; nothing was sent
+        self.assertFalse((inst.home / 'buyer.sqlite').exists() and sqlite3.connect(inst.home / 'buyer.sqlite').execute('SELECT COUNT(*) FROM submissions').fetchone()[0])
+        # configured ceiling below the contract amount: refused at validation
+        inst2 = self.buyer_instance(buyer_max_amount=1)
+        jid2 = inst2.accepted_job(policy={'capability': 'x402_http_buyer', 'amount': 3})
+        r = inst2.client.post('/api/v1/actions', headers=inst2.h('owner'), json={'job_id': jid2, 'request_id': 'buy-3', 'provider_mode': 'production'})
+        self.assertEqual(r.json()['code'], 'ADAPTER_CAPABILITY')
+        # wrong network configuration: no matching requirement, nothing signed
+        inst3 = self.buyer_instance(buyer_network='eip155:1')
+        jid3 = inst3.accepted_job(policy={'capability': 'x402_http_buyer', 'amount': 3})
+        r = inst3.client.post('/api/v1/actions', headers=inst3.h('owner'), json={'job_id': jid3, 'request_id': 'buy-4', 'provider_mode': 'production'})
+        self.assertEqual(r.json()['code'], 'ADAPTER_CAPABILITY')
+        # pinned recipient mismatch
+        inst4 = self.buyer_instance(buyer_pay_to='0x' + '99' * 20)
+        jid4 = inst4.accepted_job(policy={'capability': 'x402_http_buyer', 'amount': 3})
+        r = inst4.client.post('/api/v1/actions', headers=inst4.h('owner'), json={'job_id': jid4, 'request_id': 'buy-5', 'provider_mode': 'production'}).json()
+        self.assertEqual(r['state'], 'OUTCOME_UNKNOWN')
+        # a plain-HTTP non-loopback resource URL is refused as configuration
+        with self.assertRaises(ServiceError):
+            from metacoin_service import buyer
+            buyer.HttpBuyerAdapter(self.buyer_instance(buyer_resource_url='http://example.invalid/paid').settings)
+
+    def test_lost_response_then_re_presentation_reconciles(self):
+        from metacoin_service import buyer
+        inst = self.buyer_instance()
+        jid = inst.accepted_job(policy={'capability': 'x402_http_buyer', 'amount': 3})
+        original = buyer.HttpBuyerAdapter._get
+        calls = {'n': 0}
+        def flaky(self_, headers=None):
+            calls['n'] += 1
+            if headers and calls['n'] == 2:                   # the paid request is sent, the response is lost
+                import httpx
+                original(self_, headers)
+                raise httpx.ReadTimeout('lost')
+            return original(self_, headers)
+        buyer.HttpBuyerAdapter._get = flaky
+        try:
+            r = inst.client.post('/api/v1/actions', headers=inst.h('owner'), json={'job_id': jid, 'request_id': 'buy-6', 'provider_mode': 'production'}).json()
+            self.assertEqual(r['state'], 'OUTCOME_UNKNOWN')
+            self.assertEqual(inst.client.get('/api/v1/budget', headers=inst.h('owner')).json()['by_state']['OUTCOME_UNKNOWN'], 3)
+        finally:
+            buyer.HttpBuyerAdapter._get = original
+        with sqlite3.connect(inst.home / 'buyer.sqlite') as db:
+            self.assertEqual(db.execute('SELECT state FROM submissions').fetchone()[0], 'OUTCOME_UNKNOWN')
+        settled_before = len([e for e in self.http.get('/api/v1/history', headers=self.seller.h('owner')).json()['events'] if e['event_type'] == 'sale.settled'])
+        r = inst.client.post('/api/v1/actions/' + jid + '/reconcile', headers=inst.h('owner')).json()   # re-presents the SAME signed payload
+        self.assertEqual((r['state'], r['reconciliation']), ('CONFIRMED', 'resolved-from-adapter-record'))
+        settled_after = len([e for e in self.http.get('/api/v1/history', headers=self.seller.h('owner')).json()['events'] if e['event_type'] == 'sale.settled'])
+        self.assertEqual(settled_after, settled_before)           # the seller did not settle twice
+        self.assertEqual(inst.client.get('/api/v1/budget', headers=inst.h('owner')).json()['by_state']['CONFIRMED'], 3)

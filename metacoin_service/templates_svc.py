@@ -18,7 +18,7 @@ class Templates:
         principal.require('template:write')
         if kind not in KINDS or type(name) is not str or not 1 <= len(name) <= 64 or type(notes) is not str or len(notes) > 1000:
             raise ServiceError('VALIDATION', 'template fields')
-        pol = validate_policy(kind, policy)
+        pol = validate_policy(kind, policy, self.contracts.default_capability)
         tid = 't_' + secrets.token_hex(8)
         db.execute('INSERT INTO templates VALUES (?,?,?,?,?,?,?,?,?)',
                    (tid, principal.workspace, principal.id, name, kind, json.dumps(pol), notes, now(), now()))

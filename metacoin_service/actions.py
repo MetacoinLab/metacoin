@@ -34,10 +34,11 @@ def provider_for(mode, settings, capability, actor='agent-fixture'):
             raise ServiceError('CAPABILITY_UNAVAILABLE', 'x402 SDK not installed')
         return LoopbackAdapter(_test_facilitator(lb)), {'adapter_session': 'in-process SDK objects with facilitator double', 'real_funds': False}
     if mode == 'production':
-        missing = ['x402[evm] signer (eth-account) not installed in the service environment',
-                   'METACOIN_BUYER_RESOURCE_URL (remote compute resource to purchase) not configured',
-                   'funded wallet credential not configured']
-        raise ServiceError('CAPABILITY_UNAVAILABLE', 'production buyer adapter incomplete: ' + '; '.join(missing))
+        if capability != 'x402_http_buyer':
+            raise ServiceError('ADAPTER_CAPABILITY', 'contract capability does not match production buyer mode')
+        from .buyer import HttpBuyerAdapter
+        adapter = HttpBuyerAdapter(settings)     # raises CAPABILITY_UNAVAILABLE naming missing configuration
+        return adapter, {'adapter_session': 'durable buyer submissions in <home>/buyer.sqlite', 'real_funds': 'if the configured key is funded'}
     raise ServiceError('VALIDATION', 'provider_mode')
 
 

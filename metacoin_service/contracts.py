@@ -16,14 +16,17 @@ MODEL_IDS = {'safe_runtime': science.SAFE_RUNTIME_MODEL, 'plan_comparison': scie
              'task_selection': science.SELECTION_MODEL}
 
 
-def validate_policy(kind, policy):
+DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loopback_test', 'production': 'x402_http_buyer'}
+
+
+def validate_policy(kind, policy, default_capability='legacy_simulation'):
     merkle.canonical(policy)
     allowed = {'accepted_outcomes', 'disclose_outcome', 'disclose_explanation', 'amount', 'capability',
                'expires_in_seconds', 'retention_seconds', 'reviewer_id'}
     if type(policy) is not dict or not set(policy) <= allowed:
         raise ServiceError('VALIDATION', 'policy fields')
     out = {'accepted_outcomes': list(energy.OUTCOMES), 'disclose_outcome': True, 'disclose_explanation': False,
-           'amount': 1, 'capability': 'legacy_simulation', 'expires_in_seconds': DEFAULT_EXPIRY_SECONDS,
+           'amount': 1, 'capability': default_capability, 'expires_in_seconds': DEFAULT_EXPIRY_SECONDS,
            'retention_seconds': 30 * 86400, 'reviewer_id': None}
     out.update(policy)
     if type(out['accepted_outcomes']) is not list or not out['accepted_outcomes'] \
@@ -50,15 +53,18 @@ def validate_inputs(kind, inputs):
 
 
 class Contracts:
-    def __init__(self, store):
+    def __init__(self, store, settings=None):
         self.store = store
+        # Contracts default to the action capability that matches the configured provider mode,
+        # so a job created in the console can actually be dispatched on this instance.
+        self.default_capability = DEFAULT_CAPABILITY[settings.provider_mode] if settings else 'legacy_simulation'
 
     def create_draft(self, db, principal, *, kind, title, inputs, policy):
         principal.require('contract:create')
         if type(title) is not str or not 1 <= len(title) <= 128:
             raise ServiceError('VALIDATION', 'title')
         validate_inputs(kind, inputs)
-        pol = validate_policy(kind, policy)
+        pol = validate_policy(kind, policy, self.default_capability)
         if pol['reviewer_id'] is not None:
             self._reviewer(db, principal.workspace, pol['reviewer_id'])
         cid = 'ct_' + secrets.token_hex(8)
@@ -99,7 +105,7 @@ class Contracts:
                                    contract_id=contract_id)
             db.execute('UPDATE contracts SET input_artifact_id=? WHERE id=?', (aid, contract_id))
         if policy is not None:
-            pol = validate_policy(row['kind'], policy)
+            pol = validate_policy(row['kind'], policy, self.default_capability)
             if pol['reviewer_id'] is not None:
                 self._reviewer(db, principal.workspace, pol['reviewer_id'])
             db.execute('UPDATE contracts SET policy_json=?, reviewer_id=? WHERE id=?', (json.dumps(pol), pol['reviewer_id'], contract_id))

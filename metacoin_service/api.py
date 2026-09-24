@@ -23,7 +23,7 @@ class Services:
         self.settings = settings
         self.db = Database(settings.db_path)
         self.store = artifacts_mod.ArtifactStore(settings)
-        self.contracts = contracts_mod.Contracts(self.store)
+        self.contracts = contracts_mod.Contracts(self.store, settings)
         self.jobs = jobs_mod.Jobs(self.store, settings)
         self.reviews = reviews_mod.Reviews(self.store, settings, self.jobs)
         self.actions = actions_mod.Actions(settings, self.jobs)
@@ -80,14 +80,22 @@ def create_app(settings):
     app.state.services = Services(settings)
     svc = app.state.services
 
-    @app.exception_handler(Exception)
-    async def handle(request, exc):
-        err = from_exception(exc)
-        return JSONResponse(err.body(), status_code=err.status, headers=SENSITIVE_HEADERS)
+    @app.exception_handler(ServiceError)
+    async def handle_service_error(request, exc):
+        return JSONResponse(exc.body(), status_code=exc.status, headers=SENSITIVE_HEADERS)
 
     @app.middleware('http')
     async def headers(request, call_next):
-        response = await call_next(request)
+        # Every other exception becomes a safe JSON refusal here (Starlette's generic
+        # Exception handler would re-raise after responding, logging a trace and
+        # closing the connection). No exception text reaches the client.
+        try:
+            response = await call_next(request)
+        except ServiceError as exc:
+            response = JSONResponse(exc.body(), status_code=exc.status)
+        except Exception as exc:
+            err = from_exception(exc)
+            response = JSONResponse(err.body(), status_code=err.status)
         for key, value in SENSITIVE_HEADERS.items():
             response.headers.setdefault(key, value)
         return response
@@ -516,7 +524,7 @@ def capability_table(svc, db):
                            'mode': settings.provider_mode, 'externally_validated': False,
                            'settlement_observed': 'none (test double in test-http; production unexercised)'},
         'payment_actions': {'modes': {'simulation': 'zero-value in-process stub', 'test-http': 'in-process SDK objects with facilitator double',
-                                      'production': 'incomplete: buyer signer (x402[evm]) and remote resource not configured'},
+                                      'production': __import__('metacoin_service.buyer', fromlist=['status']).status(settings)},
                             'current_mode': settings.provider_mode, 'externally_validated': False},
         'retention': {'installed': True, 'available': True, 'semantics': 'deadline per private artifact; cleanup unlinks ciphertext; not secure erasure'},
         'science': {'models': [energy.MODEL_ID, science.SAFE_RUNTIME_MODEL, science.COMPARISON_MODEL],

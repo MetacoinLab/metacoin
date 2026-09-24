@@ -16,6 +16,7 @@ import hashlib
 import json
 import secrets
 import threading
+import time
 from experiments.private_receipts import receipt as merkle
 from . import history
 from .db import now
@@ -64,9 +65,14 @@ class FacilitatorDoubleState:
 
     def verify(self, body):
         self.calls['verify'] += 1
-        ok = body.get('paymentPayload', {}).get('payload', {}).get('signature') == PLACEHOLDER_SIGNATURE
-        return {'isValid': ok, 'invalidReason': None if ok else 'invalid_signature',
-                'payer': body.get('paymentPayload', {}).get('payload', {}).get('authorization', {}).get('from')}
+        inner = body.get('paymentPayload', {}).get('payload', {})
+        req = body.get('paymentRequirements', {})
+        signature = inner.get('signature')
+        if signature == PLACEHOLDER_SIGNATURE:
+            ok, reason = True, None
+        else:
+            ok, reason = verify_eip3009_offline(inner, req)
+        return {'isValid': ok, 'invalidReason': None if ok else reason, 'payer': inner.get('authorization', {}).get('from')}
 
     def settle(self, body):
         self.calls['settle'] += 1
@@ -86,6 +92,40 @@ class FacilitatorDoubleState:
 
     def lookup(self, identifier):
         return self.settled.get(identifier)
+
+
+def verify_eip3009_offline(inner, requirements):
+    """Cryptographic check of a real EIP-3009 authorization (EIP-712 recovery) against the
+    requirements: recovered signer == from, to == payTo, value == amount, validity window.
+    No chain is consulted: balance and nonce state are NOT verified here (test facility)."""
+    try:
+        from eth_account import Account
+        from eth_account.messages import encode_typed_data
+        from x402.mechanisms.evm import eip712
+        from x402.mechanisms.evm.types import ExactEIP3009Authorization
+    except ImportError:
+        return False, 'evm_verification_unavailable'
+    auth = inner.get('authorization') or {}
+    try:
+        authorization = ExactEIP3009Authorization(from_address=auth['from'], to=auth['to'], value=str(auth['value']),
+                                                  valid_after=str(auth['validAfter']), valid_before=str(auth['validBefore']), nonce=auth['nonce'])
+        chain_id = int(str(requirements['network']).split(':')[1])
+        extra = requirements.get('extra') or {}
+        domain, types, primary, message = eip712.build_typed_data_for_signing(authorization, chain_id, requirements['asset'],
+                                                                                extra.get('name', ''), extra.get('version', ''))
+        domain_data = {k: v for k, v in {'name': domain.name, 'version': domain.version, 'chainId': domain.chain_id,
+                                          'verifyingContract': domain.verifying_contract}.items() if v is not None}
+        signable = encode_typed_data(domain_data=domain_data, message_types={primary: types[primary]}, message_data=message)
+        recovered = Account.recover_message(signable, signature=inner['signature'])
+    except Exception:
+        return False, 'invalid_signature'
+    if recovered.lower() != auth['from'].lower():
+        return False, 'invalid_signature'
+    if auth['to'].lower() != str(requirements.get('payTo', '')).lower() or str(auth['value']) != str(requirements.get('amount')):
+        return False, 'authorization_does_not_match_requirements'
+    if not int(auth['validAfter']) <= int(time.time()) <= int(auth['validBefore']):
+        return False, 'authorization_expired'
+    return True, None
 
 
 class SaleService:
@@ -138,14 +178,16 @@ class SaleService:
         path = '/api/v1/x402/jobs/' + job['id'] + '/public-bundle'
         expected = {'job_id': job['id'], 'contract_digest': contract['contract_digest'], 'evidence_root': job['evidence_root'],
                     'resource_version': 'public-bundle/v1', 'route': 'GET ' + path}
-        identifier = 'sale_' + hashlib.sha256(merkle.canonical(dict(expected, amount=str(price_amount), asset=asset,
-                                                                   network=network, pay_to=pay_to))).hexdigest()[:48]
+        seen = {}
 
         def bind(ctx):
             accepted = ctx.requirements
+            # The payment identifier is the CLIENT's idempotency key (payment-identifier extension);
+            # it must be present and well formed, and the sale is recorded under it.
             got = ns.pi.extract_payment_identifier(ctx.payment_payload, validate=False)
-            if got != identifier:
-                return ns.schemas.AbortResult(reason='work_contract_payment_identifier_mismatch')
+            if not got or not ns.pi.is_valid_payment_id(got):
+                return ns.schemas.AbortResult(reason='work_contract_payment_identifier_required')
+            seen['identifier'] = got
             if (accepted.amount != str(price_amount) or accepted.pay_to != pay_to or accepted.network != network
                     or accepted.asset != asset or any(accepted.extra.get(k) != v for k, v in expected.items())):
                 return ns.schemas.AbortResult(reason=ERR_BINDING)
@@ -162,7 +204,7 @@ class SaleService:
                                                      extensions={ns.pi.PAYMENT_IDENTIFIER: ns.pi.declare_payment_identifier_extension(required=True)})}
         server = ns.http.x402HTTPResourceServerSync(core, routes)
         server.initialize()
-        return server, identifier, expected, (network, asset, pay_to)
+        return server, seen, expected, (network, asset, pay_to)
 
     def handle(self, db, request, body, base_url, job_id, workspace):
         """Full sale exchange for one request. Returns (status, headers, body_bytes)."""
@@ -179,7 +221,7 @@ class SaleService:
             raise ServiceError('NOT_FOUND', 'no public bundle')
         price = json.loads(contract['policy_json'])['amount']
         try:
-            server, identifier, expected, (network, asset, pay_to) = self._build(base_url, job, contract, doc, price)
+            server, seen, expected, (network, asset, pay_to) = self._build(base_url, job, contract, doc, price)
         except ServiceError:
             raise
         except Exception:
@@ -190,9 +232,12 @@ class SaleService:
             return result.response.status, dict(result.response.headers), json.dumps(result.response.body or {}).encode()
         if result.type != 'payment-verified':
             raise ServiceError('CONFLICT', 'route not protected')
+        identifier = seen['identifier']
         # Persist the sale intent BEFORE settlement so the outcome can be reconciled.
         requirements_digest = hashlib.sha256(result.payment_requirements.model_dump_json(by_alias=True).encode()).hexdigest()
         existing = db.execute('SELECT * FROM sales WHERE payment_id=?', (identifier,)).fetchone()
+        if existing is not None and existing['job_id'] != job_id:
+            raise ServiceError('REQUEST_ID_REBOUND', 'payment identifier already used for another sale')
         if existing is not None and existing['state'] == 'CONFIRMED':
             # Idempotent re-delivery of an already settled sale: same bound resource, recorded settlement.
             from x402.http.utils import encode_payment_response_header

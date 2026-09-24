@@ -135,7 +135,8 @@ def mount(app, svc):
             reviewers = db.execute("SELECT id, name FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL", (p.workspace,)).fetchall()
             sample = {'energy_audit': SAMPLE_ENERGY, 'safe_runtime': SAMPLE_RUNTIME, 'plan_comparison': SAMPLE_COMPARE, 'task_selection': SAMPLE_SELECT}[kind]
             return render(request, 'contract_new.html', principal=p, kind=kind, reviewers=reviewers,
-                          sample=json.dumps(sample, indent=1), outcomes=energy.OUTCOMES, error=None, values={})
+                          sample=json.dumps(sample, indent=1), outcomes=energy.OUTCOMES, error=None, values={},
+                          capability=svc.contracts.default_capability, provider_mode=settings.provider_mode)
         return await page(request, fn)
 
     @app.post('/console/contracts', response_class=HTMLResponse)

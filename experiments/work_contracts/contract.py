@@ -118,6 +118,8 @@ ACTION_TEMPLATES = {
                                 'asset': 'Test-META', 'network': 'local-simulation'},
     'x402_loopback_test': {'recipient': 'loopback-compute-provider', 'resource': 'next-compute',
                            'asset': 'usdc-test-identifier', 'network': 'eip155-84532'},
+    'x402_http_buyer': {'recipient': 'remote-x402-resource', 'resource': 'next-compute',
+                        'asset': 'usdc-test-identifier', 'network': 'eip155-84532'},
 }
 CAPABILITIES = tuple(ACTION_TEMPLATES)
 

@@ -30,6 +30,14 @@ class Settings:
     x402_asset: str = ''
     x402_pay_to: str = ''
     facilitator_credential_file: str = ''
+    # production BUYER (agent pays a remote resource); all required for that adapter, never for anything else
+    buyer_resource_url: str = ''
+    buyer_key_file: str = ''
+    buyer_network: str = ''            # CAIP-2, e.g. eip155:84532
+    buyer_asset: str = ''              # token contract address
+    buyer_asset_token: str = 'usdc-test-identifier'   # the contract's asset token that maps to buyer_asset
+    buyer_max_amount: int = 0
+    buyer_pay_to: str = ''             # optional pinned recipient
     limits: dict = field(default_factory=lambda: dict(LIMITS))
 
     @classmethod
@@ -45,7 +53,11 @@ class Settings:
                 x402_network=env.get('METACOIN_X402_NETWORK', ''),
                 x402_asset=env.get('METACOIN_X402_ASSET', ''),
                 x402_pay_to=env.get('METACOIN_X402_PAY_TO', ''),
-                facilitator_credential_file=env.get('METACOIN_FACILITATOR_CREDENTIAL_FILE', ''))
+                facilitator_credential_file=env.get('METACOIN_FACILITATOR_CREDENTIAL_FILE', ''),
+                buyer_resource_url=env.get('METACOIN_BUYER_RESOURCE_URL', ''), buyer_key_file=env.get('METACOIN_BUYER_KEY_FILE', ''),
+                buyer_network=env.get('METACOIN_BUYER_NETWORK', ''), buyer_asset=env.get('METACOIN_BUYER_ASSET', ''),
+                buyer_asset_token=env.get('METACOIN_BUYER_ASSET_TOKEN', 'usdc-test-identifier'),
+                buyer_max_amount=int(env.get('METACOIN_BUYER_MAX_AMOUNT', '0') or 0), buyer_pay_to=env.get('METACOIN_BUYER_PAY_TO', ''))
         for key, value in overrides.items():
             setattr(s, key, value)
         s.validate()

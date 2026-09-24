@@ -18,7 +18,8 @@ textarea{min-height:220px;font-family:ui-monospace,monospace}.note{color:var(--m
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.8rem}.err{border-left:4px solid var(--bad);padding:.6rem 1rem;background:#fff4f4}
 dl{display:grid;grid-template-columns:max-content 1fr;gap:.2rem 1rem}dt{color:var(--mute)}dd{margin:0;word-break:break-all}
 .scale{position:relative;height:1.4rem;border:1px solid var(--line);background:#fff;margin:.3rem 0}.scale span{position:absolute;top:0;bottom:0}
-@media (max-width:600px){dl{grid-template-columns:1fr}table{font-size:.85em}}
+code{overflow-wrap:anywhere;word-break:break-all}pre{max-width:100%}.tablewrap{overflow-x:auto;max-width:100%}main{overflow-x:hidden}
+@media (max-width:600px){dl{grid-template-columns:1fr}table{font-size:.85em}header{gap:.5rem}header .who{margin-left:0;width:100%}}
 </style></head><body>
 <header><a href="/console/">Work list</a>
 {% if principal and principal.can('contract:create') %}<a href="/console/contracts/new?kind=energy_audit">New analysis</a><a href="/console/contracts/new?kind=safe_runtime">Safe runtime</a><a href="/console/contracts/new?kind=plan_comparison">Compare plans</a><a href="/console/contracts/new?kind=task_selection">Select tasks</a>{% endif %}
