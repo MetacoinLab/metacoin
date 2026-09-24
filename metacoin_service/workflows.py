@@ -26,7 +26,7 @@ import hashlib
 import json
 import secrets
 from experiments.private_receipts import receipt as merkle
-from . import history
+from . import history, budgets
 from .auth import Principal
 from .datasets import add_edge
 from .db import now
@@ -93,8 +93,10 @@ def validate_definition(definition):
             if not (extra == {'dataset_version_id'} and type(n['dataset_version_id']) is str) and not (extra == {'bind'} and type(n['bind']) is str):
                 errors.append({'node': nid, 'code': 'dataset_params', 'expected': 'dataset_version_id | bind'})
         elif t in SERVICE_TYPES:
-            if not extra <= {'input', 'inputs', 'parameters', 'policy'}:
-                errors.append({'node': nid, 'code': 'unexpected_params', 'allowed': ['input', 'inputs', 'parameters', 'policy']})
+            if not extra <= {'input', 'inputs', 'parameters', 'policy', 'budget'}:
+                errors.append({'node': nid, 'code': 'unexpected_params', 'allowed': ['input', 'inputs', 'parameters', 'policy', 'budget']})
+            if 'budget' in n and (type(n['budget']) is not int or type(n['budget']) is bool or n['budget'] < 0):
+                errors.append({'node': nid, 'code': 'budget_type', 'expected': 'non-negative integer ceiling for this node'})
             if ('input' in n) == ('inputs' in n):
                 errors.append({'node': nid, 'code': 'input_xor_inputs'})
             if 'input' in n and (n['input'] not in by_id or by_id[n['input']].get('type') != 'dataset' or n['input'] not in seen):
@@ -218,6 +220,13 @@ class Workflows:
         from .agents import guard
         guard(db, principal, 'workflow:run', workflows=1, jobs=est['service_nodes'])
         rid = 'run_' + secrets.token_hex(8)
+        # hierarchical budget: workspace -> run (if a ceiling was given) -> node (if the definition gives one)
+        parent = budgets.root(db, principal.workspace)['id']
+        if budget_ceiling is not None:
+            parent = budgets.create_child(db, principal.workspace, parent, 'workflow_run', rid, budget_ceiling)
+        for n in definition['nodes']:
+            if 'budget' in n:
+                budgets.create_child(db, principal.workspace, parent, 'workflow_node', rid + '/' + n['id'], n['budget'])
         db.execute('INSERT INTO workflow_runs VALUES (?,?,?,?,?,?,?,?,?,0,?,?,NULL)',
                    (rid, principal.workspace, wid, principal.id, 'created', budget_ceiling, json.dumps(bindings), json.dumps(est), None, now(), now()))
         for n in definition['nodes']:
@@ -263,8 +272,17 @@ class Workflows:
                 'budget_ceiling': run['budget_ceiling'], 'bindings': json.loads(run['bindings_json']), 'estimate': json.loads(run['estimate_json']),
                 'cancel_requested': bool(run['cancel_requested']), 'created_at': run['created_at'], 'updated_at': run['updated_at'],
                 'finished_at': run['finished_at'], 'nodes': out_nodes, 'outputs': definition['outputs'],
+                'budget': self._budget_summary(db, run_id),
                 'deliverables': {o: nodes[o]['state'] == 'succeeded' for o in definition['outputs']},
                 'summary': json.loads(run['summary_json']) if run['summary_json'] else None}
+
+    def _budget_summary(self, db, run_id):
+        run_node = budgets.node_for(db, 'workflow_run', run_id)
+        nodes = [dict(r) for r in db.execute("SELECT kind, ref_id, ceiling, reserved, committed FROM budget_nodes WHERE kind='workflow_node' AND ref_id LIKE ?", (run_id + '/%',))]
+        reservations = [dict(r) for r in db.execute("SELECT ref_id, amount, state FROM budget_reservations WHERE ref_type='workflow_node' AND ref_id LIKE ?", (run_id + '/%',))]
+        return {'run_ceiling': run_node['ceiling'] if run_node else None, 'run_reserved': run_node['reserved'] if run_node else None,
+                'run_committed': run_node['committed'] if run_node else None, 'node_ceilings': nodes, 'reservations': reservations,
+                'reserved_total': sum(r['amount'] for r in reservations if r['state'] == 'reserved'), 'committed_total': sum(r['amount'] for r in reservations if r['state'] == 'committed')}
 
     def list(self, db, principal, limit=50):
         principal.require('job:read')
@@ -332,6 +350,9 @@ class Workflows:
                                                      (run['workspace'],)).fetchone()['id'])
         cid = self.contracts.create_draft(db, owner, kind=node_def['type'], title=drow['name'] + '/' + nid, inputs=inputs, policy=policy, datasets=self.datasets)
         self.contracts.freeze(db, owner, cid)
+        amount = json.loads(db.execute('SELECT policy_json FROM contracts WHERE id=?', (cid,)).fetchone()['policy_json']).get('amount', 0)
+        bnode = budgets.node_for(db, 'workflow_node', run['id'] + '/' + nid) or budgets.node_for(db, 'workflow_run', run['id']) or budgets.root(db, run['workspace'])
+        budgets.reserve(db, run['workspace'], bnode['id'], amount, 'workflow_node', run['id'] + '/' + nid)     # refuses atomically before any job exists
         jid = self.jobs.submit(db, owner, cid)
         db.execute("UPDATE workflow_nodes SET state='queued', job_id=?, contract_id=?, attempts=attempts+1, binding_json=?, updated_at=? WHERE run_id=? AND node_id=?",
                    (jid, cid, json.dumps({'upstream': binding, 'contract_digest': db.execute('SELECT contract_digest FROM contracts WHERE id=?', (cid,)).fetchone()[0]}),
@@ -368,8 +389,10 @@ class Workflows:
                 if cancel and job['state'] in ('queued', 'running') and not job['cancel_requested']:
                     self.jobs.cancel(db, owner, n['job_id'])
                 if job['state'] == 'succeeded':
+                    budgets.settle(db, 'workflow_node', run_id + '/' + nid, 'commit')
                     set_state(nid, 'succeeded', None, output_root=job['evidence_root'], output_artifact_id=job['evidence_artifact_id'])
                 elif job['state'] in ('failed', 'cancelled'):
+                    budgets.settle(db, 'workflow_node', run_id + '/' + nid, 'release')
                     set_state(nid, job['state'], 'job ' + job['state'])
                 elif job['state'] == 'running' and n['state'] == 'queued':
                     set_state(nid, 'running')
@@ -408,7 +431,11 @@ class Workflows:
                     aid = self._export(db, run, owner, d, nodes)
                     set_state(nid, 'succeeded', None, output_artifact_id=aid)
             except ServiceError as exc:
-                set_state(nid, 'blocked', exc.code + ': ' + (json.dumps(exc.detail) if isinstance(exc.detail, dict) else str(exc.detail or '')))
+                if exc.code == 'BUDGET_EXHAUSTED' and isinstance(exc.detail, dict) and exc.detail.get('retryable'):
+                    set_state(nid, 'waiting_dependency', 'budget ' + exc.detail['explanation'])      # re-evaluated next tick
+                else:
+                    set_state(nid, 'blocked', exc.code + ': ' + (exc.detail.get('explanation') if isinstance(exc.detail, dict) and exc.detail.get('explanation') else
+                                                                  (json.dumps(exc.detail) if isinstance(exc.detail, dict) else str(exc.detail or ''))))
         # derive run state
         states = [nodes[i]['state'] for i in order]
         outputs = definition['outputs']

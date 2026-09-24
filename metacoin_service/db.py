@@ -179,6 +179,16 @@ MIGRATIONS = [
         stopped_at INTEGER, last_denial_json TEXT);
     CREATE INDEX policy_grants_ws ON policy_grants(workspace, created_at);
     """),
+    ('008_hierarchical_budgets', """
+    CREATE TABLE budget_nodes (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, parent_id TEXT REFERENCES budget_nodes(id), kind TEXT NOT NULL, ref_id TEXT NOT NULL,
+        ceiling INTEGER NOT NULL, reserved INTEGER NOT NULL DEFAULT 0, committed INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL,
+        UNIQUE (kind, ref_id), CHECK (reserved >= 0 AND committed >= 0 AND ceiling >= 0));
+    CREATE TABLE budget_reservations (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, node_id TEXT NOT NULL REFERENCES budget_nodes(id), amount INTEGER NOT NULL,
+        state TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        UNIQUE (ref_type, ref_id));
+    """),
 ]
 
 

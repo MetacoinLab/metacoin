@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import agents as agents_mod, campaigns as campaigns_mod, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
+from . import agents as agents_mod, budgets, campaigns as campaigns_mod, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -441,6 +441,23 @@ def create_app(settings):
                 return status, headers, content
         status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
+
+    # ---- hierarchical budgets ------------------------------------------------------
+    @app.get(API + '/budgets/tree')
+    async def budgets_tree(request: Request):
+        return await run(request, False, lambda db, p: budgets.tree(db, p))
+
+    @app.post(API + '/budgets/preview')
+    async def budgets_preview(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: budgets.preview(db, p, body.get('parent_run_id'), body.get('amounts')))
+
+    @app.put(API + '/budgets/workspace')
+    async def budgets_workspace(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: budgets.set_workspace_ceiling(db, p, body.get('ceiling')))
 
     # ---- agent policy grants ------------------------------------------------------
     @app.post(API + '/agents/grants', status_code=201)
