@@ -23,7 +23,11 @@ $SVC status | health | backup DIR | restore DIR | migrate | cleanup | reviewer-k
 
 Console: `http://127.0.0.1:8402/console/` (sign in with a bearer credential from the
 bootstrap file). API schema: `/api/openapi.json`, interactive docs `/api/docs`. Client CLI:
-`python -m metacoin_service.client_cli --credential-file FILE create|freeze|submit|poll|result|review-request|decide|export|compare`.
+`python -m metacoin_service.client_cli --credential-file FILE create|freeze|submit [--reuse]|poll|result|review-request|decide|export|compare|
+dataset-create|datasets|workflow-create|workflow-run|run-status|run-cancel|campaign-create|campaign-status|campaign-control|services|quote|invoke|
+usage|queue|workers|grants|grant-issue|grant-stop|events|lineage|share|projection|action|budget-tree|status-ops|search|reuse-lookup|artifacts`.
+Agent runner (policy-limited, checkpointed): `python -m metacoin_service.agent_runner --credential-file F --policy-file P --checkpoint C plan|execute|status|follow --service KIND --inputs-file I`.
+Worker options: `worker --name NAME --capabilities kind1,kind2 [--once] [--stop-file F]`; a worker refuses a database whose schema differs from its code.
 Stop: `tmux kill-session -t metacoin-service` (or kill the pids in `<home>/run/`).
 
 Development mode is plain HTTP on loopback and says so; cookies are `Secure` only when
@@ -49,6 +53,27 @@ pay-to and a credential file are all configured.
 | Backup, restore into a fresh location, migrations, status, health | operator commands | SQLite backup API; manifest declares contents | operator (local) | test_13 | implemented-and-verified | keys excluded by default; restore sets a reconciliation gate; no automatic resubmission |
 | Saved templates; run comparison across a template; compare two runs | `/api/v1/templates…`, `GET /jobs/{a}/compare/{b}` | `templates`, `contracts.template_id` | owner writes; viewer permitted differences only | templates, comparison | implemented-and-verified | templates never hold inputs |
 | Console journey | `/console/…`, stylesheet at `/console/static/console.css` | same services | session cookie + CSRF | test_17 + `tests/browser/journey.py` (32) + `journey2.py` (23) in headless Chromium 153 via Playwright 1.63 | implemented-and-verified in a real browser at 1280 px and 400 px | screenshots in the delivery; Firefox not exercised |
+
+## Workflows, services and agents (order 2026-09-24)
+
+| User operation | Entry point | Persistence | Auth / authz | Tests | Status | Known limits |
+|---|---|---|---|---|---|---|
+| Time-dependent energy feasibility (`temporal-energy/v1`): exact envelopes with saturation, first uncertain / infeasible boundary, spill bounds, dominant uncertainty, refinement | contract kind `temporal_energy`; service `temporal-energy`; workflow node `temporal_energy` | evidence vault | as any job | test_temporal (10) incl. per-second exact reference and exhaustive tiny domain | implemented-and-verified | declared interval model, 512 segments; not a calibrated battery |
+| Bounded CSV/JSON datasets, immutable versions, retire, lineage (PROV mapping, PROV-JSON export) | `POST/GET /api/v1/datasets…`, `GET /lineage/{type}/{id}[/prov.json]`, console Datasets | `datasets`, `dataset_versions`, `lineage_edges`, encrypted payloads | owner writes; readers see commitments, not rows | test_workflows, test_extras | implemented-and-verified | integers only, formulas refused, 512 rows / 1 MiB |
+| Typed workflow DAG: dataset → services → review gate → export; conditions; cancellation; admission estimate; run detail | `POST /workflows`, `POST /workflows/{id}/runs` (preview), `GET /runs/{id}`, `/advance`, `/cancel`, console Workflows / run page | `workflow_definitions`, `workflow_runs`, `workflow_nodes` | owner starts; viewer reads projections | test_workflows (5), journeys 1/8, browser | implemented-and-verified | node types are installed kinds; scheduler tick runs in the worker |
+| Scientific campaigns: deterministic grids, adaptive bisection (monotone axes only), pause/resume/cancel, restart-safe, Pareto with interval dominance, refinement, CSV and SVG | `POST /campaigns` (preview), `/campaigns/{id}/{run|pause|resume|cancel}`, `/results[.csv]`, `/plot.svg`, `/pareto`, console Campaigns | `sci_campaigns`, `sci_campaign_candidates` | owner | test_campaigns (4), journey 2 | implemented-and-verified | grid bounded by application limits |
+| Service catalog with separate status facts, bound quotes, bazaar discovery, priced invocation over x402, compatibility preview | `GET /services`, `/services/{id}/validate|quote|x402-discovery|compatibility`, `POST /quotes/{id}/accept`, `POST /services/{id}/invoke` (simulation) / `POST /x402/services/{id}/invoke` (paid), console Services | `services`, `quotes`, `invoke_sales` | owner/agent; quote bound to principal, request digest, revision, expiry, provider mode | test_catalog (3, TCP with the installed SDK), journey 3 | SDK/transport-tested with a local facilitator double | no external settlement; `upto` scheme not wired (SDK has it; the double lacks Permit2) |
+| Signed usage statements per completed evaluation; reused results meter at zero | `GET /usage`, `/usage/{id}`, console Usage | `usage_records` (UNIQUE per job) | budget:read | test_catalog, test_reuse_sharing | implemented-and-verified | assessed charge is not settlement |
+| Agent grants: immutable policy bound to a scoped credential, server-side guard on every mutation, conservative counters, stop/revoke, simulation; checkpointed agent runner | `POST/GET /agents/grants`, `/stop`, `/revoke`, `/simulate`, console Agents; `agent_runner` | `policy_grants` | owner issues (cannot exceed self); agent cannot widen | test_agents (5), journey 4 | implemented-and-verified | runner's plain invoke prices only in simulation mode |
+| Hierarchical budgets workspace → run → node: atomic reservation along the chain, commit on success, release on failure/cancel, explained refusals, preview | `GET /budgets/tree`, `POST /budgets/preview`, `PUT /budgets/workspace`; run view `budget` | `budget_nodes`, `budget_reservations` | owner sets; budget:read views | test_budgets (2), journey 5 (two worker processes) | implemented-and-verified | governs workflow-run jobs; the economic journal stays the hard cap for actions |
+| Workers with capabilities, heartbeats, draining, fair deterministic scheduling, queue view with waiting reasons, persisted quotas | `GET /queue`, `/workers`, `POST /workers/{id}/drain|resume`, `GET/PUT /quotas`, console Queue | `workers`, `quotas` | admin drains; job:read views | test_scheduling (3), test_failures_workflow (killed worker, fencing) | implemented-and-verified | fair share per submitter; no resource-aware placement |
+| Events: cursor polling and SSE with ids, resume and filters | `GET /events`, `GET /events/stream` | `events` | history:read | test_events (TCP) | implemented-and-verified | bounded stream lifetime; reconnect with `Last-Event-ID` |
+| Explicit result reuse keyed by inputs digest + verifier digest | `GET /reuse/lookup`, `POST /jobs {reuse:true}` | `result_cache`, `jobs.reused_from` | job:submit | test_reuse_sharing, journey 7 | implemented-and-verified | no review or payment entitlement is implied |
+| Selective sharing: allowlisted projection per grantee, signed bundle, verification | `POST/GET /jobs/{id}/shares`, `DELETE /shares/{id}`, `GET /jobs/{id}/projection`, `POST /projections/verify` | `shares` | owner grants; grantee reads exactly the fields | test_reuse_sharing (canaries), journey 6 | implemented-and-verified | same-workspace principals only |
+| Search, CSV result table, operational status, Prometheus-style metrics | `GET /search`, `/results.csv`, `/status`, `/api/metrics` | none (queries) | job:read / history:read | test_ops_search | implemented-and-verified | bounded filtering; no full-text index |
+
+Migrations 003–010 add every table above; `migrate` applies them after a backup (`backup DIR`). A worker whose code
+does not match the applied schema refuses to register (`schema_mismatch`).
 
 ## Capability matrix (installed / configured / available / externally validated)
 
