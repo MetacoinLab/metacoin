@@ -33,6 +33,8 @@ class Jobs:
         queued = db.execute("SELECT COUNT(*) FROM jobs WHERE workspace=? AND state IN ('queued','running')", (principal.workspace,)).fetchone()[0]
         if queued + queued_extra >= self.settings.limits['max_queued_per_workspace']:
             raise ServiceError('RATE_LIMITED')
+        from . import scheduling
+        scheduling.check_admission(db, principal, queued_extra)
         return row
 
     def _insert(self, db, principal, row, batch_id=None):

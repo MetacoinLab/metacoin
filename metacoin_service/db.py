@@ -189,6 +189,14 @@ MIGRATIONS = [
         state TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
         UNIQUE (ref_type, ref_id));
     """),
+    ('009_workers_quotas', """
+    CREATE TABLE workers (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, capabilities_json TEXT NOT NULL, state TEXT NOT NULL,
+        registered_at INTEGER NOT NULL, last_heartbeat INTEGER NOT NULL, drained_at INTEGER, current_job_id TEXT);
+    CREATE TABLE quotas (
+        workspace TEXT NOT NULL, principal_id TEXT NOT NULL, max_queued INTEGER NOT NULL, max_per_minute INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (workspace, principal_id));
+    """),
 ]
 
 

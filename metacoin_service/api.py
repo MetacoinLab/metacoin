@@ -1,15 +1,17 @@
 """Versioned HTTP API. Every handler authenticates a server-side principal, parses the
 body with the strict canonical parser (bounded size, no duplicate keys, no floats),
 and calls the narrow services; state machines live in the services, not here."""
+import asyncio
 import hashlib
 import json
+import time
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import agents as agents_mod, budgets, campaigns as campaigns_mod, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
+from . import agents as agents_mod, budgets, campaigns as campaigns_mod, scheduling, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -441,6 +443,94 @@ def create_app(settings):
                 return status, headers, content
         status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
+
+    # ---- events: cursor polling and server-sent events ---------------------------------
+    def event_rows(workspace, cursor, limit=200):
+        with svc.db.read() as db:
+            rows = db.execute('SELECT seq, ts, actor_id, event_type, category, object_type, object_id, ref_json FROM events WHERE workspace=? AND seq>? ORDER BY seq LIMIT ?',
+                              (workspace, cursor, limit)).fetchall()
+        return [{'seq': r['seq'], 'ts': r['ts'], 'actor_id': r['actor_id'], 'event_type': r['event_type'], 'category': r['category'],
+                 'object_type': r['object_type'], 'object_id': r['object_id'], 'ref': json.loads(r['ref_json'])} for r in rows]
+
+    def parse_cursor(value):
+        try:
+            cur = int(value or 0)
+        except ValueError:
+            raise ServiceError('VALIDATION', 'cursor must be an integer event sequence number')
+        if cur < 0:
+            raise ServiceError('VALIDATION', 'cursor')
+        return cur
+
+    @app.get(API + '/events')
+    async def events_poll(request: Request):
+        q = request.query_params
+        def fn(db, p):
+            p.require('history:read')
+            cur = parse_cursor(q.get('after'))
+            types = {t for t in (q.get('types') or '').split(',') if t}
+            rows = [r for r in event_rows(p.workspace, cur, min(int(q.get('limit') or 100), 500)) if not types or r['event_type'] in types]
+            latest = db.execute('SELECT MAX(seq) FROM events WHERE workspace=?', (p.workspace,)).fetchone()[0] or 0
+            return {'items': rows, 'cursor': rows[-1]['seq'] if rows else cur, 'latest': latest}
+        return await run(request, False, fn)
+
+    @app.get(API + '/events/stream')
+    async def events_stream(request: Request):
+        q = request.query_params
+        cursor = parse_cursor(request.headers.get('last-event-id') or q.get('after'))
+        types = {t for t in (q.get('types') or '').split(',') if t}
+        max_seconds = max(1, min(int(q.get('max_seconds') or 300), 3600))
+        def auth_sync():
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                p.require('history:read')
+                return p.workspace
+        workspace = await run_in_threadpool(auth_sync)
+
+        async def gen():
+            cur, started, last_beat = cursor, time.time(), time.time()
+            yield ': connected cursor=%d\n\n' % cur
+            while time.time() - started < max_seconds:
+                if await request.is_disconnected():
+                    return
+                rows = await run_in_threadpool(event_rows, workspace, cur)
+                for r in rows:
+                    cur = r['seq']
+                    if types and r['event_type'] not in types:
+                        continue
+                    yield 'id: %d\nevent: %s\ndata: %s\n\n' % (r['seq'], r['event_type'], json.dumps(r, separators=(',', ':')))
+                if not rows:
+                    if time.time() - last_beat >= 15:
+                        yield ': heartbeat\n\n'; last_beat = time.time()
+                    await asyncio.sleep(0.25)
+            yield 'event: end\ndata: %s\n\n' % json.dumps({'cursor': cur, 'reason': 'max_seconds reached; reconnect with Last-Event-ID'})
+        return StreamingResponse(gen(), media_type='text/event-stream', headers=dict({'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'}, **SENSITIVE_HEADERS))
+
+    # ---- scheduling: workers, queue, quotas ------------------------------------------
+    @app.get(API + '/queue')
+    async def queue_view(request: Request):
+        return await run(request, False, lambda db, p: scheduling.queue(db, p))
+
+    @app.get(API + '/workers')
+    async def workers_list(request: Request):
+        return await run(request, False, lambda db, p: scheduling.workers(db, p))
+
+    @app.post(API + '/workers/{worker_id}/drain')
+    async def worker_drain(request: Request, worker_id: str):
+        return await run(request, True, lambda db, p: scheduling.set_worker_state(db, p, worker_id, 'draining'))
+
+    @app.post(API + '/workers/{worker_id}/resume')
+    async def worker_resume(request: Request, worker_id: str):
+        return await run(request, True, lambda db, p: scheduling.set_worker_state(db, p, worker_id, 'active'))
+
+    @app.get(API + '/quotas')
+    async def quotas_list(request: Request):
+        return await run(request, False, lambda db, p: scheduling.quotas(db, p))
+
+    @app.put(API + '/quotas/{principal_id}')
+    async def quotas_set(request: Request, principal_id: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: scheduling.set_quota(db, p, principal_id, body.get('max_queued'), body.get('max_per_minute')))
 
     # ---- hierarchical budgets ------------------------------------------------------
     @app.get(API + '/budgets/tree')

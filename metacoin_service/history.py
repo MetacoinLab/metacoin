@@ -8,7 +8,8 @@ import json
 from experiments.private_receipts import receipt as merkle
 from .db import now
 
-CATEGORIES = {'budget.ceiling_set': 'economic', 
+CATEGORIES = {'budget.ceiling_set': 'economic', 'worker.state_set': 'administrative', 'quota.set': 'administrative', 'worker.registered': 'administrative',
+    'sharing.granted': 'administrative', 'sharing.revoked': 'administrative', 
     'contract.created': 'administrative', 'contract.frozen': 'scientific', 'contract.amended': 'administrative',
     'job.queued': 'scientific', 'job.claimed': 'scientific', 'job.result_committed': 'scientific',
     'job.failed': 'scientific', 'job.cancelled': 'administrative', 'job.retry_scheduled': 'scientific',

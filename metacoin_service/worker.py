@@ -7,7 +7,7 @@ import sys
 import time
 from pathlib import Path
 from experiments.private_receipts import receipt as merkle
-from . import history
+from . import history, scheduling
 from .db import now
 from .errors import ServiceError
 
@@ -15,19 +15,40 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Worker:
-    def __init__(self, database, store, settings, worker_id=None):
+    def __init__(self, database, store, settings, worker_id=None, name=None, capabilities=None):
         self.db, self.store, self.settings = database, store, settings
         self.worker_id = worker_id or 'w_' + secrets.token_hex(6)
+        self.name = name or self.worker_id
+        from .contracts import KINDS
+        self.capabilities = sorted(set(capabilities or KINDS))
+        unknown = set(self.capabilities) - set(KINDS)
+        if unknown:
+            raise ServiceError('VALIDATION', {'code': 'unknown_capabilities', 'unknown': sorted(unknown), 'installed': list(KINDS)})
         self.lease = settings.limits['job_lease_seconds']
+        with self.db.tx() as db:
+            scheduling.register(db, self.worker_id, self.name, self.capabilities)
+
+    def heartbeat(self, current_job_id=None):
+        with self.db.tx() as db:
+            return scheduling.heartbeat(db, self.worker_id, current_job_id)
+
+    def offline(self):
+        with self.db.tx() as db:
+            scheduling.go_offline(db, self.worker_id)
 
     def claim(self):
-        """Atomically claim one queued job, or recover one whose lease expired."""
+        """Atomically claim one queued job (fair order within our capabilities), or recover one whose lease expired."""
         with self.db.tx() as db:
-            row = db.execute("SELECT id FROM jobs WHERE state='queued' AND cancel_requested=0 ORDER BY created_at LIMIT 1").fetchone()
+            state = scheduling.heartbeat(db, self.worker_id)
+            if state == 'draining':
+                return None
+            nxt = scheduling.next_job_id(db, self.capabilities)
+            row = db.execute("SELECT id FROM jobs WHERE id=? AND state='queued' AND cancel_requested=0", (nxt,)).fetchone() if nxt else None
             recovered = False
             if row is None:
-                row = db.execute("SELECT id FROM jobs WHERE state='running' AND lease_expires < ? ORDER BY lease_expires LIMIT 1",
-                                 (now(),)).fetchone()
+                placeholders = ','.join('?' * len(self.capabilities))
+                row = db.execute("SELECT id FROM jobs WHERE state='running' AND lease_expires < ? AND kind IN (" + placeholders + ") ORDER BY lease_expires LIMIT 1",
+                                 (now(), *self.capabilities)).fetchone()
                 recovered = row is not None
             if row is None:
                 return None
@@ -43,6 +64,7 @@ class Worker:
                        ('at_' + secrets.token_hex(6), job['id'], generation, self.worker_id, now()))
             history.record(db, job['workspace'], self.worker_id, 'job.claimed', 'job', job['id'],
                            {'generation': generation, 'attempt': job['attempt'], 'recovered_expired_lease': recovered})
+            db.execute('UPDATE workers SET current_job_id=? WHERE id=?', (job['id'], self.worker_id))
             return dict(job)
 
     def _spec(self, db, job):
@@ -131,7 +153,11 @@ class Worker:
         job = self.claim()
         if job is None:
             return None
-        return job['id'], self.execute(job)
+        try:
+            return job['id'], self.execute(job)
+        finally:
+            with self.db.tx() as db:
+                db.execute('UPDATE workers SET current_job_id=NULL, last_heartbeat=? WHERE id=?', (now(), self.worker_id))
 
     def tick_workflows(self):
         """Advance active workflow runs (scheduler tick); errors in one run do not stop the worker."""
@@ -145,10 +171,16 @@ class Worker:
             return None
 
     def run_forever(self, poll_seconds=0.5, stop_file=None):
-        while True:
-            if stop_file and Path(stop_file).exists():
-                return
-            ran = self.run_once()
-            advanced = self.tick_workflows()
-            if ran is None and not advanced:
-                time.sleep(poll_seconds)
+        last_beat = 0
+        try:
+            while True:
+                if stop_file and Path(stop_file).exists():
+                    return
+                ran = self.run_once()
+                advanced = self.tick_workflows()
+                if time.time() - last_beat >= scheduling.HEARTBEAT_SECONDS:
+                    self.heartbeat(); last_beat = time.time()
+                if ran is None and not advanced:
+                    time.sleep(poll_seconds)
+        finally:
+            self.offline()

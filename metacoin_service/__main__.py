@@ -20,6 +20,8 @@ def main(argv=None):
     serve.add_argument('--host')
     work = sub.add_parser('worker', help='start a background worker')
     work.add_argument('--once', action='store_true')
+    work.add_argument('--name', help='worker name shown in the queue view')
+    work.add_argument('--capabilities', help='comma-separated job kinds this worker runs (default: all installed kinds)')
     work.add_argument('--stop-file')
     sub.add_parser('status', help='queue, review, payment and chain status')
     sub.add_parser('health', help='probe a running API over HTTP')
@@ -78,9 +80,13 @@ def run(args, settings):
         from .artifacts import ArtifactStore
         from .db import Database
         from .worker import Worker
-        worker = Worker(Database(settings.db_path), ArtifactStore(settings), settings)
+        caps = [c for c in (args.capabilities or '').split(',') if c] or None
+        worker = Worker(Database(settings.db_path), ArtifactStore(settings), settings, name=args.name, capabilities=caps)
         if args.once:
-            return {'worker_id': worker.worker_id, 'ran': worker.run_once()}
+            try:
+                return {'worker_id': worker.worker_id, 'ran': worker.run_once(), 'capabilities': worker.capabilities}
+            finally:
+                worker.offline()
         settings.run_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         (settings.run_dir / 'worker.pid').write_text(str(os.getpid()))
         signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
