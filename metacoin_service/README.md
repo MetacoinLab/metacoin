@@ -78,6 +78,32 @@ pay-to and a credential file are all configured.
 Migrations 003–011 add every table above; `migrate` applies them after a backup (`backup DIR`). A worker whose code
 does not match the applied schema refuses to register (`schema_mismatch`).
 
+## DGX compute engine (order 2026-09-24)
+
+Compute jobs are ordinary contracts of kind `temporal_batch`, `monte_carlo_reliability` or `heat_diffusion`. The worker
+runs them through `metacoin_service/compute/engine.py`: a task-owned child interpreter (`METACOIN_COMPUTE_PYTHON`, probed
+by default: `/usr/bin/python3` with numpy and, on this DGX, torch 2.10+cu130 for the GB10) executes the allowlisted kernel
+in bounded chunks, publishes encrypted checkpoints atomically, answers pause/cancel at chunk boundaries, and resumes
+under a new fencing generation after interruption. A persisted verification phase runs before acceptance and states
+which mode ran. Schema: migration 012 (`compute_runs`, `compute_checkpoints`, `compute_reservations`,
+`compute_work_units`, `jobs.hold`).
+
+| Operation | Entry point | Evidence | Status | Known limits |
+|---|---|---|---|---|
+| Capability facts: installed / configured / currently available / observed running | `GET /api/v1/compute/capabilities` · `compute-capabilities` · `/console/compute` | test_compute_engine, journeys | implemented-and-verified | `gpu_verified` needs a completed, verified cuda run on this instance |
+| Temporal batches: thousands of scenarios (explicit list or grid) evaluated with exact int64 arithmetic on cpu (numpy) or cuda (torch); overflow bound on the host | kind `temporal_batch` · `compute-submit --kind temporal_batch` · form on `/console/compute/new` | test_compute_science (kernel = temporal-energy/v1 reference on 400 random + edge scenarios, both backends), journeys 1-2 | implemented-and-verified; cuda observed | batch shares one duration schedule; ≤ 4096 listed or ≤ 200 000 grid scenarios |
+| Monte Carlo reliability: fixed sample count, indexed Philox stream, Wilson interval, point model + declared finite/uniform distributions | kind `monte_carlo_reliability` | test_compute_science (chunk invariance, per-sample reference agreement, marginals), journey 5 | implemented-and-verified | modulo mapping bias < range/2^64; probability is conditional on the declared model |
+| 2-D heat diffusion (FTCS, float64, fixed Dirichlet): exact rational stability check, snapshots, field/plot export | kind `heat_diffusion` | test_compute_science (scalar reference, eigenmode factor, refinement trend), journey 6 | implemented-and-verified; cuda observed | explicit scheme only; not a physical validation |
+| Checkpoints: encrypted containers, generations, retention, corrupted/foreign refusal; pause/resume/cancel; fenced recovery after worker loss | `POST /api/v1/compute/jobs/{id}/pause|resume|cancel`, `GET …/checkpoints` · `compute-pause|resume|cancel|watch` · job page | test_compute_engine, journeys 3-4 | implemented-and-verified | resume replays the uncommitted chunk (never billed twice) |
+| Device reservations and slots (gpu 1, cpu 2 by default), waiting reasons, gpu-required waits without a cuda worker | `GET /api/v1/queue` | test_compute_engine, journey 7 | implemented-and-verified | slots are application reservations, not a hardware sandbox |
+| Telemetry: child CPU/RSS from /proc, device-wide nvidia-smi readings, NVML total-energy counter delta | run view (owner) | journeys 2 | implemented-and-verified | energy is device-wide; memory unsupported on GB10 |
+| Useful-work accounting: quotes bound to work units, usage = committed units | `POST /api/v1/services/{id}/quote`, `GET /api/v1/usage` | test_compute_engine, journey 9 (x402) | implemented-and-verified | fixed-price bundles; `upto` unsupported by the local double |
+| Private outputs (npy/json), reproducibility bundle, heat SVG; workflow nodes and campaign candidates | `GET …/outputs[/name]`, `…/reproducibility`, `…/plot.svg` | test_compute_integration, journeys 8, 12 | implemented-and-verified | outputs readable by owner and assigned reviewer only |
+
+Verify: `PYTHONPATH=. python3 -m unittest metacoin_service.tests.test_compute_science` (kernels, needs numpy/torch) and
+`PYTHONPATH=. .venv-service/bin/python -m unittest metacoin_service.tests.test_compute_engine metacoin_service.tests.test_compute_integration`.
+Journeys: `python -m metacoin_service.tests.journeys_compute`. Benchmarks: `python -m metacoin_service.benchmark_compute [--engine]`.
+
 ## Capability matrix (installed / configured / available / externally validated)
 
 Machine-readable: `GET /api/v1/capabilities`. Three classes:

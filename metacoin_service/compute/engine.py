@@ -19,6 +19,10 @@ from ..db import now
 
 ROOT = Path(__file__).resolve().parents[2]
 PROBE_CACHE = {}
+# Evidence-based automatic backend selection (benchmark_compute on this DGX, 2026-09-24): the cuda path wins only for
+# large heat grids (512^2: 9x, 1024^2: 10x warm), while temporal batches and Monte Carlo chunks are transfer/host-bound
+# and run 1.3-4x faster on numpy. 'auto' therefore prefers cuda only above these work thresholds; 'gpu' always uses it.
+AUTO_CUDA_MIN_WORK = {'heat_diffusion': 100, 'temporal_batch': None, 'monte_carlo_reliability': None}   # work units (heat: millions of cell updates)
 
 
 def compute_interpreter(settings):
@@ -77,6 +81,14 @@ class ComputeEngine:
             return None
         policy = run['device_policy']
         wanted = {'cpu': ['cpu'], 'gpu': ['cuda'], 'auto': ['cuda', 'cpu']}[policy]
+        auto_note = ''
+        if policy == 'auto':
+            threshold = AUTO_CUDA_MIN_WORK.get(run['kind'])
+            if threshold is None or run['work_total'] < threshold:
+                wanted = ['cpu', 'cuda']
+                auto_note = '; measured evidence prefers cpu for this service at %d work units' % run['work_total']
+            else:
+                auto_note = '; measured evidence prefers cuda above %d work units (job has %d)' % (threshold, run['work_total'])
         db.execute('DELETE FROM compute_reservations WHERE expires_at < ?', (now(),))
         for device in wanted:
             if device not in self.devices:
@@ -87,8 +99,8 @@ class ComputeEngine:
                 continue
             db.execute('INSERT OR REPLACE INTO compute_reservations (job_id, worker_id, device, slots, expires_at, created_at) VALUES (?,?,?,?,?,?)',
                        (job_id, self.worker.worker_id, device, 1, now() + self.limits['job_lease_seconds'], now()))
-            reason = {'cpu': 'policy requires cpu', 'gpu': 'policy requires gpu', 'auto': 'automatic: first available device in preference order cuda, cpu'}[policy]
-            db.execute("UPDATE compute_runs SET selected_backend=?, backend_reason=?, updated_at=? WHERE job_id=?", (device, reason + ' (worker devices: %s)' % ','.join(self.devices), now(), job_id))
+            reason = {'cpu': 'policy requires cpu', 'gpu': 'policy requires gpu', 'auto': 'automatic: first free device in the evidence-based preference order ' + ','.join(wanted)}[policy]
+            db.execute("UPDATE compute_runs SET selected_backend=?, backend_reason=?, updated_at=? WHERE job_id=?", (device, reason + auto_note + ' (worker devices: %s)' % ','.join(self.devices), now(), job_id))
             return device
         return None
 

@@ -179,7 +179,9 @@ class Journeys:
                     {'job': jid, 'killed_after_generation': gen, 'committed_before_kill': committed, 'generation_before': old_gen, 'generation_after': new_gen, 'work_units_contiguous': contiguous, 'units': units, 'final_verification': v2['verification']['mode']})
 
     def j5_monte_carlo_chunk_and_resume_invariance(self):
-        base = mc_spec(samples=150000, seed=2026, private_label='J5_SYNTHETIC')
+        from metacoin_service.tests.test_compute_science import base_temporal
+        long_base = base_temporal(initial_low=6000, initial_high=6000, segments=[{'duration': 5, 'harvest_low': 500 + (i % 7) * 40, 'harvest_high': 500 + (i % 7) * 40, 'load_low': 480 + (i % 5) * 30, 'load_high': 480 + (i % 5) * 30, 'leakage_low': 0, 'leakage_high': 0} for i in range(64)])
+        base = mc_spec(base=long_base, samples=1_000_000, seed=2026, private_label='J5_SYNTHETIC')
         ja = self.submit('monte_carlo_reliability', base, 'j5a')
         self.worker_once('w-j5')
         va = self.view(ja)
@@ -193,7 +195,7 @@ class Journeys:
         vb = self.wait(jb, lambda v: v['state'] in ('succeeded', 'failed', 'cancelled'), timeout=300)
         self.stop_workers()
         sb = self.http.get('/api/v1/jobs/' + jb, headers=self.H()).json()['summary']
-        ok = va['verification']['passed'] and vb['verification']['passed'] and sa['events'] == sb['events'] and sa['samples'] == sb['samples'] == 150000 and vb_p['phase'] == 'paused'
+        ok = va['verification']['passed'] and vb['verification']['passed'] and sa['events'] == sb['events'] and sa['samples'] == sb['samples'] == base['samples'] and vb_p['phase'] == 'paused'
         self.record(5, 'monte carlo with a fixed seed and sample count: pause/resume across chunks reuses or skips no sample identifier', 'passed' if ok else 'failed',
                     {'uninterrupted': {'job': ja, 'events': sa['events'], 'estimate': sa['probability_estimate'], 'interval': sa['interval']},
                      'resumed': {'job': jb, 'paused_at_committed': vb_p['work']['committed'], 'events': sb['events'], 'checkpoints': len(vb['checkpoints'])}, 'audit_mode': vb['verification']['mode']})
@@ -231,12 +233,13 @@ class Journeys:
         q = self.http.get('/api/v1/queue', headers=self.H()).json()
         reason = next((x['waiting_reason'] for x in q['queued'] if x['job_id'] == jb), None)
         self.wait(ja, lambda v: v['state'] in ('succeeded', 'failed'), timeout=300)
+        vb = self.wait(jb, lambda v: v['state'] in ('succeeded', 'failed'), timeout=120)          # once the slot is released, any live worker may take it
         stop_a.write_text('stop'); wa.wait(timeout=60)
-        p2 = subprocess.run([PY, '-m', 'metacoin_service', '--home', str(self.inst.home), '--provider-mode', 'test-http', 'worker', '--once', '--name', 'w-j7-b2'], cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
-        ran_b2 = json.loads(p2.stdout)['ran'] if p2.returncode == 0 else 'error'
-        ok = ran_b is None and reason == 'waiting for a free cpu compute slot' and ran_b2 and ran_b2[0] == jb
+        with database.Database(self.inst.settings.db_path).read() as db:
+            who = db.execute("SELECT worker_id FROM attempts WHERE job_id=? ORDER BY generation DESC LIMIT 1", (jb,)).fetchone()['worker_id']
+        ok = ran_b is None and reason == 'waiting for a free cpu compute slot' and vb['state'] == 'succeeded'
         self.record(7, 'two jobs race for one cpu compute slot: admission preserves the configured headroom and explains the wait', 'passed' if ok else 'failed',
-                    {'first': ja, 'second': jb, 'second_claimed_while_first_running': ran_b is not None, 'waiting_reason': reason, 'second_ran_after_release': ran_b2})
+                    {'first': ja, 'second': jb, 'second_claimed_while_first_running': ran_b is not None, 'waiting_reason': reason, 'second_state_after_release': vb['state'], 'second_run_by_worker': who})
 
     def j8_unauthorized_access(self):
         jid = self.submit('heat_diffusion', heat_spec(nx=64, ny=64, steps=200, private_label='J8_SYNTHETIC'), 'j8')
@@ -353,10 +356,12 @@ class Journeys:
         self.record(12, 'multi-step scientific workflow (batch -> monte carlo -> review gate -> export) and a heat refinement campaign through normal gates', 'passed' if ok else 'failed',
                     {'run': rid, 'state_before_review': st['state'], 'state_after_review': st2['state'], 'campaign': camp.get('campaign_id'), 'campaign_state': cs['state'], 'candidates': [(r['params'], r['state']) for r in rows]})
 
-    def run_all(self):
+    def run_all(self, only=None):
         for fn in (self.j1_temporal_batch_cpu, self.j2_gpu_batch_vs_cpu, self.j3_long_job_progress_pause_resume, self.j4_kill_worker_recover_fenced, self.j5_monte_carlo_chunk_and_resume_invariance,
                    self.j6_heat_reject_unstable_verify_export, self.j7_capacity_race, self.j8_unauthorized_access, self.j9_purchase_over_x402, self.j10_lost_response_idempotent_recovery,
                    self.j11_cancel_with_unresolved_economic_state, self.j12_workflow_and_refinement_campaign):
+            if only and int(fn.__name__[1:].split('_')[0]) not in only:
+                continue
             try:
                 fn()
             except Exception as exc:
@@ -367,10 +372,10 @@ class Journeys:
 
 
 def main():
-    p = argparse.ArgumentParser(); p.add_argument('--out'); a = p.parse_args()
+    p = argparse.ArgumentParser(); p.add_argument('--out'); p.add_argument('--only', help='comma-separated journey numbers'); a = p.parse_args()
     j = Journeys()
     try:
-        results = j.run_all(); health = j.http.get('/api/health').json()
+        results = j.run_all([int(x) for x in a.only.split(',')] if a.only else None); health = j.http.get('/api/health').json()
     finally:
         j.close()
     out = {'provider_mode': 'test-http', 'revision': health.get('revision'), 'compute_interpreter': RUNTIME, 'results': results,

@@ -7,7 +7,7 @@ from .. import history
 from ..db import now
 from ..errors import ServiceError
 
-PLOT_MAX_CELLS = 128 * 128
+PLOT_MAX_CELLS = 64 * 64
 
 
 def capabilities(db, settings):
