@@ -58,7 +58,7 @@ def main(argv=None):
     c.add_argument('--title', required=True); c.add_argument('--inputs', required=True, help='path to inputs JSON (read locally, sent over the API)')
     c.add_argument('--reviewer', required=True); c.add_argument('--policy', help='JSON object of policy overrides')
     f = sub.add_parser('freeze'); f.add_argument('contract_id')
-    s = sub.add_parser('submit'); s.add_argument('contract_id'); s.add_argument('--idempotency-key')
+    s = sub.add_parser('submit'); s.add_argument('contract_id'); s.add_argument('--idempotency-key'); s.add_argument('--reuse', action='store_true', help='reuse an identical committed result if the policy allows')
     p = sub.add_parser('poll', help='wait until the job is terminal'); p.add_argument('job_id'); p.add_argument('--timeout', type=int, default=120)
     st = sub.add_parser('status'); st.add_argument('job_id')
     r = sub.add_parser('result'); r.add_argument('job_id')
@@ -88,6 +88,11 @@ def main(argv=None):
     lg = sub.add_parser('lineage'); lg.add_argument('object_type'); lg.add_argument('object_id')
     sh = sub.add_parser('share'); sh.add_argument('job_id'); sh.add_argument('--grantee', required=True); sh.add_argument('--fields', required=True, help='comma-separated projectable fields')
     pj = sub.add_parser('projection'); pj.add_argument('job_id')
+    ac = sub.add_parser('action', help='create (or dry-run) the bounded next-step payment action of an accepted job'); ac.add_argument('job_id'); ac.add_argument('--request-id', required=True); ac.add_argument('--dry-run', action='store_true')
+    sub.add_parser('budget-tree'); sub.add_parser('status-ops', help='operational status counters')
+    se = sub.add_parser('search'); se.add_argument('--type'); se.add_argument('--status'); se.add_argument('--model'); se.add_argument('--limit', type=int)
+    rl = sub.add_parser('reuse-lookup'); rl.add_argument('contract_id')
+    ar = sub.add_parser('artifacts'); ar.add_argument('job_id')
     args = parser.parse_args(argv)
     token = load_token(args.credential_file)
     go = lambda *a, **k: call(args.base, token, *a, **k)
@@ -99,7 +104,7 @@ def main(argv=None):
     elif args.command == 'freeze':
         status, out = go('POST', '/api/v1/contracts/' + args.contract_id + '/freeze', {})
     elif args.command == 'submit':
-        status, out = go('POST', '/api/v1/jobs', {'contract_id': args.contract_id}, idempotency_key=args.idempotency_key)
+        status, out = go('POST', '/api/v1/jobs', {'contract_id': args.contract_id, 'reuse': bool(args.reuse)}, idempotency_key=args.idempotency_key)
     elif args.command == 'poll':
         deadline = time.time() + args.timeout
         while True:
@@ -206,6 +211,19 @@ def main(argv=None):
         status, out = go('GET', '/api/v1/events?after=%d%s' % (args.after, '&types=' + args.types if args.types else ''))
     elif args.command == 'lineage':
         status, out = go('GET', '/api/v1/lineage/' + args.object_type + '/' + args.object_id)
+    elif args.command == 'action':
+        status, out = go('POST', '/api/v1/actions', {'job_id': args.job_id, 'request_id': args.request_id, 'dry_run': args.dry_run}, idempotency_key='cli-action-' + args.request_id)
+    elif args.command == 'budget-tree':
+        status, out = go('GET', '/api/v1/budgets/tree')
+    elif args.command == 'status-ops':
+        status, out = go('GET', '/api/v1/status')
+    elif args.command == 'search':
+        qs = '&'.join(k + '=' + str(v) for k, v in (('type', args.type), ('status', args.status), ('model', args.model), ('limit', args.limit)) if v)
+        status, out = go('GET', '/api/v1/search' + ('?' + qs if qs else ''))
+    elif args.command == 'reuse-lookup':
+        status, out = go('GET', '/api/v1/reuse/lookup?contract_id=' + args.contract_id)
+    elif args.command == 'artifacts':
+        status, out = go('GET', '/api/v1/jobs/' + args.job_id + '/artifacts')
     elif args.command == 'share':
         status, out = go('POST', '/api/v1/jobs/' + args.job_id + '/shares', {'grantee_id': args.grantee, 'fields': args.fields.split(',')})
     else:

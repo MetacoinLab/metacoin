@@ -25,7 +25,13 @@ class Worker:
         if unknown:
             raise ServiceError('VALIDATION', {'code': 'unknown_capabilities', 'unknown': sorted(unknown), 'installed': list(KINDS)})
         self.lease = settings.limits['job_lease_seconds']
+        from .db import MIGRATIONS
         with self.db.tx() as db:
+            applied = [r[0] for r in db.execute('SELECT name FROM schema_migrations ORDER BY name')]
+            expected = [name for name, _ in MIGRATIONS]
+            if applied != expected:
+                raise ServiceError('CONFLICT', {'code': 'schema_mismatch', 'applied': applied[-1] if applied else None, 'expected': expected[-1],
+                                                'action': 'run `python -m metacoin_service migrate` (API and worker must run the same revision)'})
             scheduling.register(db, self.worker_id, self.name, self.capabilities)
 
     def heartbeat(self, current_job_id=None):

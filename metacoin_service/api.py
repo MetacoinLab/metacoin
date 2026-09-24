@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import agents as agents_mod, budgets, campaigns as campaigns_mod, reuse as reuse_mod, scheduling, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
+from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -443,6 +443,40 @@ def create_app(settings):
                 return status, headers, content
         status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
+
+    # ---- observability, search, result table ---------------------------------------------
+    @app.get(API + '/status')
+    async def status_view(request: Request):
+        def fn(db, p):
+            p.require('history:read')
+            return observability.status(db, p.workspace)
+        return await run(request, False, fn)
+
+    @app.get('/api/metrics')
+    async def metrics(request: Request):
+        def do():
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                p.require('history:read')
+                return observability.metrics_text(db)
+        text = await run_in_threadpool(do)
+        return Response(text, media_type='text/plain; version=0.0.4', headers=SENSITIVE_HEADERS)
+
+    @app.get(API + '/search')
+    async def search_view(request: Request):
+        q = request.query_params
+        return await run(request, False, lambda db, p: search_mod.search(db, p, type=q.get('type'), status=q.get('status'), creator=q.get('creator'), since=q.get('since'),
+                                                                        until=q.get('until'), tag=q.get('tag'), model=q.get('model'), schema=q.get('schema'), limit=q.get('limit'), before=q.get('before')))
+
+    @app.get(API + '/results.csv')
+    async def results_csv(request: Request):
+        q = request.query_params
+        def do():
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                return search_mod.results_csv(db, p, svc.jobs, state=q.get('state'), kind=q.get('kind'), since=q.get('since'), until=q.get('until'), limit=q.get('limit'))
+        text = await run_in_threadpool(do)
+        return Response(text, media_type='text/csv', headers=dict(SENSITIVE_HEADERS, **{'Content-Disposition': 'attachment; filename="results.csv"'}))
 
     # ---- result reuse and selective sharing ----------------------------------------------
     @app.get(API + '/reuse/lookup')
