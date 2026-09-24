@@ -84,7 +84,7 @@ with sync_playwright() as p:
     r = octx.request.get(BASE + '/api/v1/compute/jobs/' + jid + '/outputs')
     check('owner output listing names npy/json files', r.ok and any(f['name'] == 'field.npy' for f in r.json()['files']))
     # a second job: pause from the console while it runs, then resume
-    st, c = api('owner', 'POST', '/api/v1/contracts', {'kind': 'heat_diffusion', 'title': 'browser pause', 'inputs': dict(HEAT, nx=384, ny=384, steps=8000, private_label='BROWSER_PAUSE'), 'policy': {'reviewer_id': ids['reviewer']}})
+    st, c = api('owner', 'POST', '/api/v1/contracts', {'kind': 'heat_diffusion', 'title': 'browser pause', 'inputs': dict(HEAT, nx=384, ny=384, steps=40000, device_policy='cpu', private_label='BROWSER_PAUSE'), 'policy': {'reviewer_id': ids['reviewer']}})
     api('owner', 'POST', '/api/v1/contracts/' + c['id'] + '/freeze'); st, j2 = api('owner', 'POST', '/api/v1/jobs', {'contract_id': c['id']})
     paused = False
     for _ in range(120):
