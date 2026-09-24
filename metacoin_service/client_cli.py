@@ -75,6 +75,8 @@ def main(argv=None):
     wf = sub.add_parser('workflow-create', help='register a workflow definition from a JSON file'); wf.add_argument('--file', required=True)
     wr = sub.add_parser('workflow-run'); wr.add_argument('definition_id'); wr.add_argument('--bindings', help='JSON object slot->dataset version id'); wr.add_argument('--budget-ceiling', type=int); wr.add_argument('--preview', action='store_true')
     wi = sub.add_parser('workflow-instantiate', help='fill a template\'s parameter slots into a new immutable definition'); wi.add_argument('definition_id'); wi.add_argument('--values', required=True, help='JSON object slot->integer'); wi.add_argument('--name')
+    sc = sub.add_parser('schedule-create', help='schedule a bounded workflow at local times in an IANA zone'); sc.add_argument('definition_id'); sc.add_argument('--timezone', required=True); sc.add_argument('--times', required=True, help='comma-separated HH:MM'); sc.add_argument('--bindings'); sc.add_argument('--budget-ceiling', type=int); sc.add_argument('--overlap', choices=('skip', 'queue'), default='skip'); sc.add_argument('--max-runs', type=int, default=30)
+    sub.add_parser('schedules'); sct = sub.add_parser('schedule-control'); sct.add_argument('schedule_id'); sct.add_argument('action', choices=('enable', 'disable', 'run-now', 'delete'))
     rs = sub.add_parser('run-status'); rs.add_argument('run_id'); rs.add_argument('--follow', action='store_true'); rs.add_argument('--timeout', type=int, default=300)
     rc = sub.add_parser('run-cancel'); rc.add_argument('run_id')
     cc = sub.add_parser('campaign-create', help='create a scientific campaign from a JSON definition file'); cc.add_argument('--file', required=True); cc.add_argument('--preview', action='store_true')
@@ -157,6 +159,17 @@ def main(argv=None):
         if args.name:
             body['name'] = args.name
         status, out = go('POST', '/api/v1/workflows/' + args.definition_id + '/instantiate', body)
+    elif args.command == 'schedule-create':
+        body = {'definition_id': args.definition_id, 'timezone': args.timezone, 'times': args.times.split(','), 'overlap': args.overlap, 'max_runs': args.max_runs}
+        if args.bindings:
+            body['bindings'] = json.loads(args.bindings)
+        if args.budget_ceiling is not None:
+            body['budget_ceiling'] = args.budget_ceiling
+        status, out = go('POST', '/api/v1/schedules', body)
+    elif args.command == 'schedules':
+        status, out = go('GET', '/api/v1/schedules')
+    elif args.command == 'schedule-control':
+        status, out = go('POST', '/api/v1/schedules/' + args.schedule_id + '/' + args.action, {})
     elif args.command == 'run-status':
         deadline = time.time() + args.timeout
         while True:

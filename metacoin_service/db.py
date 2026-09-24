@@ -209,6 +209,14 @@ MIGRATIONS = [
         grantee_id TEXT NOT NULL REFERENCES principals(id), fields_json TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER);
     CREATE INDEX shares_job ON shares(job_id, grantee_id);
     """),
+    ('011_schedules', """
+    CREATE TABLE schedules (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, definition_id TEXT NOT NULL REFERENCES workflow_definitions(id), name TEXT NOT NULL,
+        bindings_json TEXT NOT NULL, budget_ceiling INTEGER, timezone TEXT NOT NULL, times_json TEXT NOT NULL, overlap TEXT NOT NULL,
+        max_runs INTEGER NOT NULL, runs_started INTEGER NOT NULL DEFAULT 0, runs_skipped INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1,
+        disabled_reason TEXT, last_run_at INTEGER, next_run_at INTEGER, created_by TEXT NOT NULL REFERENCES principals(id), created_at INTEGER NOT NULL);
+    CREATE INDEX schedules_due ON schedules(enabled, next_run_at);
+    """),
 ]
 
 

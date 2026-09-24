@@ -175,7 +175,7 @@ class Worker:
             svc = getattr(self, '_svc', None) or Services(self.settings)
             self._svc = svc
             with self.db.tx() as db:
-                return svc.workflows.advance_all(db) + svc.campaigns.tick_all(db)
+                return svc.workflows.advance_all(db) + svc.campaigns.tick_all(db) + svc.schedules.tick(db)
         except Exception:
             return None
 

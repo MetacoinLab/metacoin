@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
+from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -36,6 +36,7 @@ class Services:
         self.campaigns = campaigns_mod.Campaigns(self.contracts, self.jobs, self.datasets, self.store, settings)
         self.catalog = catalog_mod.Catalog(settings, self.contracts, self.jobs)
         self.agents = agents_mod.Agents(settings)
+        self.schedules = schedules_mod.Schedules(self.workflows, settings)
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
             metering.ensure_service_key(settings, db)
@@ -279,6 +280,25 @@ def create_app(settings):
             out = svc.workflows.instantiate(db, p, wid, body.get('values'), name=body.get('name'))
             return out, (201 if out['created'] else 200)
         return await run(request, True, fn, 'workflows.instantiate', raw)
+
+    # ---- scheduled local runs (§46 item 4) ---------------------------------------------------
+    @app.post(API + '/schedules', status_code=201)
+    async def schedule_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.schedules.create(db, p, body), 201), 'schedules.create', raw)
+
+    @app.get(API + '/schedules')
+    async def schedule_list(request: Request):
+        return await run(request, False, lambda db, p: svc.schedules.list(db, p))
+
+    @app.get(API + '/schedules/{sid}')
+    async def schedule_view(request: Request, sid: str):
+        return await run(request, False, lambda db, p: svc.schedules.view(db, p, sid))
+
+    @app.post(API + '/schedules/{sid}/{action}')
+    async def schedule_control(request: Request, sid: str, action: str):
+        return await run(request, True, lambda db, p: svc.schedules.control(db, p, sid, action))
 
     @app.get(API + '/runs')
     async def runs_list(request: Request):

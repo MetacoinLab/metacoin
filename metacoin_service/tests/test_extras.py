@@ -166,3 +166,83 @@ class BranchTests(unittest.TestCase):
         self.assertEqual(s['axes'], [{'path': 'reserve', 'values': sorted(results[i]['params']['reserve'] for i in ok_idx)}])
         lineage = self.c.get('/api/v1/lineage/campaign/' + bid, headers=self.H).json()
         self.assertIn({'from': ['campaign', a], 'to': ['campaign', bid], 'relation': 'derived_from'}, [{k: e[k] for k in ('from', 'to', 'relation')} for e in lineage['edges']])
+
+
+class ScheduleTests(unittest.TestCase):
+    """§46(4): scheduled local runs with DST-aware local times, overlap policy, per-run limits, disable control; fake clock."""
+
+    def setUp(self):
+        self.inst = Instance(); self.addCleanup(self.inst.close); self.c = self.inst.client; self.H = self.inst.h('owner')
+        self.vid = self.c.post('/api/v1/datasets', headers=self.H, json={'name': 'series', 'kind': 'temporal_series', 'format': 'csv', 'content': CSV_OK, 'provenance': 'declared'}).json()['version_id']
+        d = definition(); d['nodes'] = d['nodes'][:2]; d['outputs'] = ['temporal']
+        self.wid = self.c.post('/api/v1/workflows', headers=self.H, json={'definition': d}).json()['id']
+
+    def test_dst_semantics_of_next_occurrence(self):
+        from metacoin_service.schedules import next_occurrence
+        import datetime as dt, zoneinfo
+        tz = zoneinfo.ZoneInfo('America/Edmonton')
+        # 2026-03-08: clocks jump 02:00 -> 03:00; a 02:30 schedule skips to 2026-03-09 02:30 MDT
+        after = int(dt.datetime(2026, 3, 8, 1, 0, tzinfo=tz).timestamp())
+        nxt = dt.datetime.fromtimestamp(next_occurrence(after, 'America/Edmonton', ['02:30']), tz)
+        self.assertEqual((nxt.date().isoformat(), nxt.hour, nxt.minute, nxt.utcoffset().total_seconds() / 3600), ('2026-03-09', 2, 30, -6.0))
+        # 2026-11-01: 01:30 happens twice; the first occurrence (MDT, -6) fires
+        after = int(dt.datetime(2026, 11, 1, 0, 0, tzinfo=tz).timestamp())
+        nxt = dt.datetime.fromtimestamp(next_occurrence(after, 'America/Edmonton', ['01:30']), tz)
+        self.assertEqual((nxt.date().isoformat(), nxt.utcoffset().total_seconds() / 3600, nxt.fold), ('2026-11-01', -6.0, 0))
+        # strictly after: a time equal to `after` is not returned
+        at = int(dt.datetime(2026, 6, 1, 9, 0, tzinfo=tz).timestamp())
+        self.assertGreater(next_occurrence(at, 'America/Edmonton', ['09:00']), at)
+
+    def test_schedule_lifecycle_with_fake_clock(self):
+        from metacoin_service import db as database
+        import datetime as dt, zoneinfo
+        tz = zoneinfo.ZoneInfo('Europe/Berlin')
+        svc = self.inst.app.state.services
+        t0 = int(dt.datetime(2026, 6, 1, 8, 0, tzinfo=tz).timestamp())
+        funded = self.c.post('/api/v1/workflows', headers=self.H, json={'definition': __import__('metacoin_service.tests.test_budgets', fromlist=['two_node_definition']).two_node_definition('funded')}).json()['id']
+        with database.Database(self.inst.settings.db_path).tx() as db:
+            from metacoin_service import auth
+            owner = auth.authenticate_bearer(db, self.inst.tok['owner'])
+            # funded kinds are refused; templates are refused; bad zones and times are refused
+            with self.assertRaises(Exception) as ctx:
+                svc.schedules.create(db, owner, {'definition_id': funded, 'timezone': 'Europe/Berlin', 'times': ['09:00']}, clock=t0)
+            self.assertEqual(ctx.exception.detail['code'], 'funded_kind_refused')
+            for body, code in (({'definition_id': self.wid, 'timezone': 'Mars/Olympus', 'times': ['09:00']}, 'timezone'), ({'definition_id': self.wid, 'timezone': 'Europe/Berlin', 'times': ['25:00']}, 'times')):
+                with self.assertRaises(Exception) as ctx:
+                    svc.schedules.create(db, owner, dict(body, bindings={'series': self.vid}), clock=t0)
+                self.assertEqual(ctx.exception.detail['code'], code)
+            s = svc.schedules.create(db, owner, {'definition_id': self.wid, 'timezone': 'Europe/Berlin', 'times': ['09:00', '18:00'], 'bindings': {'series': self.vid}, 'budget_ceiling': 1, 'max_runs': 2, 'overlap': 'skip'}, clock=t0)
+            sid = s['schedule_id']
+            self.assertEqual(s['next_run_local'], '2026-06-01T09:00:00+02:00')
+            # not due yet: nothing starts; due: one run starts and the next occurrence moves to 18:00
+            self.assertEqual(svc.schedules.tick(db, clock=t0 + 1800), [])
+            started = svc.schedules.tick(db, clock=t0 + 3600 + 5)
+            self.assertEqual(len(started), 1)
+            v = svc.schedules.view(db, owner, sid)
+            self.assertEqual((v['runs_started'], v['next_run_local'], v['enabled']), (1, '2026-06-01T18:00:00+02:00', True))
+            self.assertEqual(v['runs'][0]['id'], started[0])
+            # overlap 'skip': the first run is still active at 18:00, so the second due time is skipped and recorded
+            self.assertEqual(svc.schedules.tick(db, clock=t0 + 10 * 3600 + 5), [])
+            v = svc.schedules.view(db, owner, sid)
+            self.assertEqual((v['runs_skipped'], v['next_run_local']), (1, '2026-06-02T09:00:00+02:00'))
+        # complete the first run, then the next due start hits max_runs and disables the schedule
+        self.inst.worker().run_once()
+        self.c.post('/api/v1/runs/' + started[0] + '/advance', headers=self.H)
+        with database.Database(self.inst.settings.db_path).tx() as db:
+            owner = __import__('metacoin_service.auth', fromlist=['authenticate_bearer']).authenticate_bearer(db, self.inst.tok['owner'])
+            second = svc.schedules.tick(db, clock=t0 + 25 * 3600 + 5)
+            self.assertEqual(len(second), 1)
+            v = svc.schedules.view(db, owner, sid)
+            self.assertEqual((v['runs_started'], v['enabled'], v['disabled_reason']), (2, False, 'max_runs reached'))
+            self.assertEqual(svc.schedules.tick(db, clock=t0 + 49 * 3600), [])                     # disabled: never starts again
+        # API controls: disable/enable/delete; viewer cannot control; each scheduled run carried the per-run budget ceiling
+        r = self.c.get('/api/v1/runs/' + started[0], headers=self.H).json()
+        self.assertEqual(r['budget']['run_ceiling'], 1)
+        self.assertEqual(self.c.post('/api/v1/schedules/' + sid + '/enable', headers=self.H).json()['detail']['code'], 'max_runs_reached')
+        self.assertEqual(self.c.post('/api/v1/schedules/' + sid + '/disable', headers=self.inst.h('viewer')).status_code, 403)
+        self.assertEqual(self.c.get('/api/v1/schedules', headers=self.inst.h('viewer')).json()['items'][0]['schedule_id'], sid)
+        self.assertTrue(self.c.post('/api/v1/schedules/' + sid + '/delete', headers=self.H).json()['deleted'])
+        self.assertEqual(self.c.get('/api/v1/schedules/' + sid, headers=self.H).status_code, 404)
+        # queue overlap policy through the API: a second schedule that queues another run while one is active
+        s2 = self.c.post('/api/v1/schedules', headers=self.H, json={'definition_id': self.wid, 'timezone': 'UTC', 'times': ['00:00'], 'bindings': {'series': self.vid}, 'overlap': 'queue', 'max_runs': 5})
+        self.assertEqual(s2.status_code, 201, s2.text)
