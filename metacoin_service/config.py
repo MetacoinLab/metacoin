@@ -18,6 +18,7 @@ LIMITS = {
     'compute_gpu_slots': 1, 'compute_cpu_slots': 2, 'compute_threads': 4, 'compute_cpu_seconds': 7200, 'compute_timeout_seconds': 7200,
     'compute_checkpoint_interval_seconds': 5, 'compute_max_artifact_bytes': 64 * 1024 * 1024, 'compute_lease_renew_seconds': 20,
     'compute_telemetry_interval_seconds': 2, 'compute_checkpoints_retained': 2, 'compute_log_tail_bytes': 16384,
+    'compute_preempt_after_seconds': 10, 'compute_preempt_max_ratio_percent': 10,   # a job may preempt a checkpointed job >= 10x its size that ran >= 10 s
 }
 
 

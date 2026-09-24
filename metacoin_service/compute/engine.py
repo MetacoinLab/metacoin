@@ -104,6 +104,42 @@ class ComputeEngine:
             return device
         return None
 
+    def preempt_if_fair(self, db, waiting_job_id):
+        """§53(4) chunk-aware fair preemption: a small job that cannot get a device slot may ask one much larger, already
+        checkpointed job to pause at its next checkpoint. Accounting is untouched (the paused job keeps its committed units)
+        and the preempted job is resumed automatically once the slot is free again. Returns the preempted job id or None."""
+        run = db.execute('SELECT * FROM compute_runs WHERE job_id=?', (waiting_job_id,)).fetchone()
+        if run is None:
+            return None
+        devices = {'cpu': ['cpu'], 'gpu': ['cuda'], 'auto': ['cpu', 'cuda']}[run['device_policy']]
+        ratio = self.limits['compute_preempt_max_ratio_percent']
+        for device in devices:
+            holders = db.execute("SELECT r.job_id, c.work_total, c.checkpoint_generation, c.started_at, c.control, c.preempted_for FROM compute_reservations r JOIN compute_runs c ON c.job_id=r.job_id "
+                                 "JOIN jobs j ON j.id=r.job_id WHERE r.device=? AND j.state='running' ORDER BY c.work_total DESC", (device,)).fetchall()
+            for h in holders:
+                if h['control'] or h['preempted_for'] or h['checkpoint_generation'] < 1 or not h['started_at']:
+                    continue
+                if h['work_total'] * ratio < run['work_total'] * 100 or now() - h['started_at'] < self.limits['compute_preempt_after_seconds']:
+                    continue
+                db.execute("UPDATE compute_runs SET control='pause', controlled_at=?, preempted_for=?, preempted_at=?, updated_at=? WHERE job_id=?", (now(), waiting_job_id, now(), now(), h['job_id']))
+                history.record(db, run['workspace'], self.worker.worker_id, 'compute.control', 'job', h['job_id'], {'preempted_for': waiting_job_id, 'at_next_checkpoint': True})
+                return h['job_id']
+        return None
+
+    def resume_preempted(self, db):
+        """Release the hold of preempted jobs whose device slot is free again (called from the claim loop)."""
+        for r in db.execute("SELECT c.job_id, c.device_policy, c.selected_backend, c.preempted_for FROM compute_runs c JOIN jobs j ON j.id=c.job_id WHERE c.preempted_for IS NOT NULL AND j.hold=1 AND j.state='queued'").fetchall():
+            waiter = db.execute("SELECT state, hold FROM jobs WHERE id=?", (r['preempted_for'],)).fetchone()
+            if waiter and waiter['state'] == 'queued' and not waiter['hold']:
+                continue                                   # the job that asked for the slot has not had its turn yet
+            device = r['selected_backend'] or 'cpu'
+            slots = self.limits['compute_gpu_slots'] if device == 'cuda' else self.limits['compute_cpu_slots']
+            used = db.execute('SELECT COALESCE(SUM(slots),0) FROM compute_reservations WHERE device=? AND expires_at > ?', (device, now())).fetchone()[0]
+            if used < slots:
+                db.execute("UPDATE jobs SET hold=0, updated_at=? WHERE id=?", (now(), r['job_id']))
+                db.execute("UPDATE compute_runs SET phase='admitted', preempted_for=NULL, updated_at=? WHERE job_id=?", (now(), r['job_id']))
+                history.record(db, db.execute('SELECT workspace FROM jobs WHERE id=?', (r['job_id'],)).fetchone()[0], self.worker.worker_id, 'compute.control', 'job', r['job_id'], {'auto_resumed_after_preemption': True})
+
     def waiting_reason(self, db, job_id):
         run = db.execute('SELECT device_policy FROM compute_runs WHERE job_id=?', (job_id,)).fetchone()
         if run is None:

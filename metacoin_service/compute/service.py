@@ -45,6 +45,7 @@ def view(db, principal, jobs, job_id):
                                                                            'unit': manifests.MANIFESTS[job['kind']]['work_unit'],
                                                                            'percent_committed': (100 * run['work_committed'] // run['work_total']) if run['work_total'] else None},
            'checkpoint_generation': run['checkpoint_generation'], 'checkpoints': ckpts, 'control': run['control'], 'hold': bool(job['hold']),
+           'preempted_for': run['preempted_for'] if 'preempted_for' in run.keys() else None,
            'progress': json.loads(run['progress_json']) if run['progress_json'] else None, 'versions': json.loads(run['versions_json']) if run['versions_json'] else None,
            'verification': json.loads(run['verification_json']) if run['verification_json'] else None, 'started_at': run['started_at'], 'updated_at': run['updated_at'],
            'allowed_actions': allowed_actions(job, run, principal), 'economic_state': jobs.payment_view(db, principal, job)['state'], 'outcome': job['outcome'] if private else None}

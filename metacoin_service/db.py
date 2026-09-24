@@ -237,6 +237,10 @@ MIGRATIONS = [
         attempt_generation INTEGER NOT NULL, committed_at INTEGER NOT NULL, PRIMARY KEY (job_id, unit_from));
     ALTER TABLE jobs ADD COLUMN hold INTEGER NOT NULL DEFAULT 0;
     """),
+    ('013_compute_preemption', """
+    ALTER TABLE compute_runs ADD COLUMN preempted_for TEXT;
+    ALTER TABLE compute_runs ADD COLUMN preempted_at INTEGER;
+    """),
 ]
 
 

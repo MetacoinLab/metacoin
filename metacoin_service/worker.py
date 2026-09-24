@@ -58,8 +58,10 @@ class Worker:
                 return None
             kinds = [c for c in self.capabilities if not c.startswith('device:')]
             row = None
+            self.compute.resume_preempted(db)
             for cand in scheduling.fair_order(db, kinds):
                 if cand['kind'] in compute_manifests.KINDS and self.compute.try_reserve(db, cand['id']) is None:
+                    self.compute.preempt_if_fair(db, cand['id'])
                     continue                               # no compatible device slot for this job right now; try the next fair candidate
                 row = db.execute("SELECT id FROM jobs WHERE id=? AND state='queued' AND cancel_requested=0 AND hold=0", (cand['id'],)).fetchone()
                 if row:

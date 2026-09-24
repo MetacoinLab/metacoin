@@ -95,6 +95,8 @@ def queue(db, principal):
         crun = db.execute('SELECT device_policy, phase FROM compute_runs WHERE job_id=?', (r['id'],)).fetchone()
         if r['cancel_requested']:
             reason = 'cancel requested; will not be claimed'
+        elif r['hold'] and crun and db.execute('SELECT preempted_for FROM compute_runs WHERE job_id=?', (r['id'],)).fetchone()['preempted_for']:
+            reason = 'preempted at a durable checkpoint for a much smaller job; resumes automatically when the slot is free'
         elif r['hold']:
             reason = 'paused at a durable checkpoint; resume to continue'
         elif crun and crun['device_policy'] == 'gpu' and not any('device:cuda' in json.loads(w['capabilities_json']) for w in live_workers):

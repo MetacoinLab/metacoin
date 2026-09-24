@@ -285,3 +285,41 @@ class ComputeEngineTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_RUNTIME, 'no numpy-capable compute interpreter on this host')
+class PreemptionTests(unittest.TestCase):
+    """§53(4): a small job waiting on the only cpu slot preempts a large checkpointed job at its next checkpoint; the large
+    job resumes automatically afterwards; committed work units stay contiguous and the final result is verified."""
+
+    def test_small_job_preempts_large_checkpointed_job_and_both_complete(self):
+        inst = ComputeInstance(); self.addCleanup(inst.close); c = inst.client; H = inst.h('owner')
+        inst.settings.limits['compute_cpu_slots'] = 1; inst.settings.limits['compute_preempt_after_seconds'] = 2
+        big = inst.compute_job('heat_diffusion', heat_spec(steps=30000))                      # ~4400 units, ~25 s on cpu
+        wa, wb = inst.worker(), inst.worker()
+        ta = threading.Thread(target=wa.run_once); ta.start()
+        inst.wait_phase(big, lambda v: v['checkpoint_generation'] >= 1, timeout=60)
+        small = inst.compute_job('heat_diffusion', heat_spec(nx=64, ny=64, steps=300))         # 2 units: eligible to preempt (>= 10x smaller)
+        time.sleep(2.5)
+        self.assertIsNone(wb.run_once())                                                       # first attempt: no slot; preemption requested
+        v = inst.view(big)
+        self.assertEqual((v['control'], v['preempted_for']), ('pause', small), v)
+        ta.join(timeout=120)                                                                   # the big job pauses at its next checkpoint
+        v = inst.view(big)
+        self.assertEqual((v['state'], v['phase'], v['hold']), ('queued', 'paused', True), v)
+        reasons = {x['job_id']: x['waiting_reason'] for x in c.get('/api/v1/queue', headers=H).json()['queued']}
+        self.assertEqual(reasons.get(big), 'preempted at a durable checkpoint for a much smaller job; resumes automatically when the slot is free', reasons)
+        res = wb.run_once()
+        self.assertEqual(res[0], small)                                                        # the small job runs in the freed slot
+        self.assertEqual(inst.view(small)['state'], 'succeeded')
+        res = wb.run_once()                                                                    # the slot is free: the preempted job is auto-resumed and claimed
+        self.assertEqual(res[0], big, res)
+        v = inst.view(big)
+        self.assertEqual((v['state'], v['verification']['passed'], v['preempted_for'], v['work']['committed']), ('succeeded', True, None, v['work']['total']))
+        units = c.get('/api/v1/compute/jobs/' + big + '/checkpoints', headers=H).json()['committed_work_units']
+        self.assertTrue(all(units[i]['unit_to'] == units[i + 1]['unit_from'] for i in range(len(units) - 1)), units)
+        self.assertEqual(units[-1]['unit_to'], v['work']['total'])
+        hist = c.get('/api/v1/jobs/' + big + '/history', headers=H).json()
+        rows = hist if isinstance(hist, list) else next(x for x in hist.values() if isinstance(x, list))
+        refs = [json.loads(e['ref_json']) if 'ref_json' in e else e['ref'] for e in rows if e['event_type'] == 'compute.control']
+        self.assertTrue(any(r.get('preempted_for') == small for r in refs) and any(r.get('auto_resumed_after_preemption') for r in refs), refs)
