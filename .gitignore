@@ -243,3 +243,5 @@ work/nine-hour-session/
 # service environment and the real-features session working directory — never tracked
 .venv-service/
 work/real-features-session/
+
+work/workflow-services-session/
