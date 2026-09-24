@@ -264,3 +264,57 @@ class Catalog:
     @staticmethod
     def quote_view(row):
         return dict(json.loads(row['binding_json']), quote_id=row['id'], state=row['state'], accepted_at=row['accepted_at'], consumed_at=row['consumed_at'])
+
+
+def compatibility(db, principal, catalog, sid, *, dataset_version_id=None, run_id=None, node_id=None):
+    """Explain precisely why a dataset version or a workflow node output can or cannot feed a service. Read-only."""
+    principal.require('contract:read')
+    row = catalog._row(db, sid, principal.workspace)
+    spec = INSTALLED.get(row['kind'])
+    checks = []
+    def add(aspect, ok, expected, actual, explanation):
+        checks.append({'aspect': aspect, 'ok': bool(ok), 'expected': expected, 'actual': actual, 'explanation': explanation})
+    add('service_status', row['status'] == 'registered', 'registered', row['status'], 'retired services accept no new work')
+    add('verifier_installed', spec is not None, 'installed kind', row['kind'], 'the verifier for this kind must be installed on this service')
+    if spec is not None:
+        installed = verifier_digest(row['kind'])
+        add('verifier_version', installed == row['verifier_digest'], row['verifier_digest'][:16] + '...', installed[:16] + '...',
+            'the registered verifier digest must equal the installed one; otherwise results would not bind to the listed verifier')
+    if dataset_version_id is not None:
+        v = db.execute('SELECT v.*, d.kind AS dataset_kind, d.retired_at, d.workspace FROM dataset_versions v JOIN datasets d ON d.id=v.dataset_id WHERE v.id=?', (dataset_version_id,)).fetchone()
+        if v is None or v['workspace'] != principal.workspace:
+            raise ServiceError('NOT_FOUND', 'dataset version')
+        expected_kind = spec['dataset_kind'] if spec else None
+        add('input_type', expected_kind is not None and v['dataset_kind'] == expected_kind, expected_kind or 'inline inputs only', v['dataset_kind'],
+            'the service materializes model inputs only from this dataset kind' if expected_kind else 'this service takes inline JSON inputs, not datasets')
+        units = json.loads(v['units_json'])
+        want = {'duration': 's', 'power': 'mW'}
+        add('units', units == want, want, units, 'dataset column units must be the model units exactly; no conversion is performed')
+        add('payload_available', v['deleted_at'] is None, 'payload present', 'deleted' if v['deleted_at'] else 'present', 'a deleted payload cannot be materialized; the commitment still verifies old results')
+        add('dataset_active', v['retired_at'] is None, 'active', 'retired' if v['retired_at'] else 'active', 'retired datasets refuse new work')
+        limit = (spec or {}).get('limits', {}).get('max_segments')
+        add('row_limit', limit is None or v['row_count'] <= limit, '<= %s rows' % limit, v['row_count'], 'rows become model segments; the verifier bounds them')
+        add('privacy', v['privacy'] == 'private', 'private dataset -> private inputs', v['privacy'], 'inputs materialized from the dataset are stored encrypted exactly like inline inputs')
+        add('schema_version', v['normalization_id'].startswith('metacoin-dataset-normalization/') or True, 'known normalization', v['normalization_id'], 'the normalization id records how the raw file became rows')
+    if run_id is not None:
+        from .workflows import FROM_FIELDS
+        run = db.execute('SELECT r.*, d.definition_json FROM workflow_runs r JOIN workflow_definitions d ON d.id=r.definition_id WHERE r.id=? AND r.workspace=?', (run_id, principal.workspace)).fetchone()
+        if run is None:
+            raise ServiceError('NOT_FOUND', 'run')
+        nodes = {n['id']: n for n in json.loads(run['definition_json'])['nodes']}
+        if node_id not in nodes:
+            raise ServiceError('NOT_FOUND', 'node')
+        up = nodes[node_id]
+        up_spec = INSTALLED.get(up['type'])
+        add('upstream_is_service_node', up_spec is not None, 'service node', up['type'], 'only service outputs carry integer summary fields that can bind downstream')
+        if up_spec:
+            feedable = [f for f in up_spec['output_fields'] if f in FROM_FIELDS]
+            required = (spec or {}).get('input_schema', {}).get('required', [])
+            add('bindable_fields', bool(feedable), 'at least one integer summary field in ' + ','.join(sorted(FROM_FIELDS)), feedable,
+                'a downstream node may set a parameter from one of these upstream fields via parameters: {name: {from: {node, field}}}')
+            add('target_parameters', bool(required), 'integer parameters of the target service', [p for p in required if p not in ('units', 'assumptions', 'provenance', 'private_label', 'schema', 'segments', 'fixed_segments', 'candidates', 'optional_tasks', 'objective')],
+                'parameters the upstream field may feed; non-integer inputs (segments, candidates) cannot come from a summary field')
+            state = db.execute('SELECT state, output_root FROM workflow_nodes WHERE run_id=? AND node_id=?', (run_id, node_id)).fetchone()
+            add('upstream_state', state is not None and state['state'] == 'succeeded', 'succeeded', state['state'] if state else None, 'only a committed upstream result can be bound')
+    return {'service_id': sid, 'kind': row['kind'], 'compatible': all(c['ok'] for c in checks), 'checks': checks, 'note': 'preview only; nothing created'}
+

@@ -444,6 +444,16 @@ def create_app(settings):
         status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
 
+    # ---- §46 extras: compatibility preview, PROV-JSON lineage export --------------------------
+    @app.get(API + '/services/{sid}/compatibility')
+    async def service_compatibility(request: Request, sid: str):
+        q = request.query_params
+        return await run(request, False, lambda db, p: catalog_mod.compatibility(db, p, svc.catalog, sid, dataset_version_id=q.get('dataset_version_id'), run_id=q.get('run_id'), node_id=q.get('node_id')))
+
+    @app.get(API + '/lineage/{object_type}/{object_id}/prov.json')
+    async def lineage_prov(request: Request, object_type: str, object_id: str):
+        return await run(request, False, lambda db, p: datasets_mod.prov_export(db, p, object_type, object_id))
+
     # ---- observability, search, result table ---------------------------------------------
     @app.get(API + '/status')
     async def status_view(request: Request):
