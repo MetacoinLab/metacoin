@@ -82,6 +82,18 @@ MIGRATIONS = [
         provider_mode TEXT NOT NULL, state TEXT NOT NULL, transaction_ref TEXT, payer TEXT, requirements_digest TEXT NOT NULL,
         created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     """),
+    ('002_batches_templates', """
+    CREATE TABLE batches (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, created_by TEXT NOT NULL REFERENCES principals(id),
+        size INTEGER NOT NULL, total_amount INTEGER NOT NULL, created_at INTEGER NOT NULL);
+    ALTER TABLE jobs ADD COLUMN batch_id TEXT REFERENCES batches(id);
+    CREATE INDEX jobs_batch ON jobs(batch_id);
+    CREATE TABLE templates (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES principals(id),
+        name TEXT NOT NULL, kind TEXT NOT NULL, policy_json TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    ALTER TABLE contracts ADD COLUMN template_id TEXT REFERENCES templates(id);
+    """),
 ]
 
 

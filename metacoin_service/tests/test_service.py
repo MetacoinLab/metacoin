@@ -674,3 +674,33 @@ class X402SocketTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class BacklogTests(unittest.TestCase):
+    def setUp(self):
+        self.inst = Instance()
+        self.addCleanup(self.inst.close)
+        self.c = self.inst.client
+
+    def test_batch_submission_is_all_or_nothing_with_aggregate_budget(self):
+        good = [self.inst.contract(policy={'amount': 4}) for _ in range(2)]        # 8 of cap 10
+        draft = self.inst.contract(freeze=False)
+        r = self.c.post('/api/v1/jobs/batch', headers=self.inst.h('owner'), json={'contract_ids': good + [draft]})
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual([d['code'] for d in r.json()['items']], [None, None, 'CONFLICT'])
+        self.assertEqual(self.c.get('/api/v1/jobs', headers=self.inst.h('owner')).json()['items'], [])   # nothing queued
+        third = self.inst.contract(policy={'amount': 4})                              # 12 > cap 10
+        r = self.c.post('/api/v1/jobs/batch', headers=self.inst.h('owner'), json={'contract_ids': good + [third]})
+        self.assertEqual((r.status_code, {d['code'] for d in r.json()['items']}), (409, {'BUDGET_EXHAUSTED'}))
+        r = self.c.post('/api/v1/jobs/batch', headers=self.inst.h('owner', **{'Idempotency-Key': 'batch-1'}), json={'contract_ids': good})
+        self.assertEqual(r.status_code, 202)
+        bid = r.json()['batch_id']
+        self.assertEqual(self.c.post('/api/v1/jobs/batch', headers=self.inst.h('owner', **{'Idempotency-Key': 'batch-1'}), json={'contract_ids': good}).json()['batch_id'], bid)
+        progress = self.c.get('/api/v1/batches/' + bid, headers=self.inst.h('owner')).json()
+        self.assertEqual((progress['size'], progress['by_state'], progress['done']), (2, {'queued': 2}, False))
+        w = self.inst.worker(); w.run_once(); w.run_once()
+        progress = self.c.get('/api/v1/batches/' + bid, headers=self.inst.h('viewer')).json()
+        self.assertEqual((progress['by_state'], progress['done']), ({'succeeded': 2}, True))
+        self.assertTrue(all(j['outcome'] is None for j in progress['jobs']))          # viewer projection
+        self.assertEqual(self.c.post('/api/v1/jobs/batch', headers=self.inst.h('viewer'), json={'contract_ids': good}).status_code, 403)
+        self.assertEqual(self.c.post('/api/v1/jobs/batch', headers=self.inst.h('owner'), json={'contract_ids': ['x'] * 21}).status_code, 422)

@@ -63,7 +63,8 @@ class Contracts:
         aid = self.store.store(db, workspace=principal.workspace, kind='draft_input', owner_id=principal.id,
                                plaintext=merkle.canonical(inputs), recipients=[], intended_use='draft-input;owner-and-worker',
                                contract_id=None)
-        db.execute('INSERT INTO contracts VALUES (?,?,?,?,?,1,?,NULL,?,?,?,?,NULL,NULL,NULL,?,NULL,?,NULL)',
+        db.execute('INSERT INTO contracts (id, workspace, owner_id, kind, state, version, lineage_id, title, policy_json, params_json, '
+                   'input_artifact_id, reviewer_id, created_at) VALUES (?,?,?,?,?,1,?,?,?,?,?,?,?)',
                    (cid, principal.workspace, principal.id, kind, 'draft', cid, title, json.dumps(pol), json.dumps({}),
                     aid, pol['reviewer_id'], now()))
         db.execute('UPDATE artifacts SET contract_id=? WHERE id=?', (cid, aid))

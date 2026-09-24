@@ -218,6 +218,19 @@ def create_app(settings):
             return svc.jobs.view(db, p, svc.jobs.get(db, p, jid)), 202
         return await run(request, True, fn, 'jobs.submit', raw)
 
+    @app.post(API + '/jobs/batch', status_code=202)
+    async def submit_batch(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            out = svc.jobs.submit_batch(db, p, body.get('contract_ids'))
+            return out, (202 if out['submitted'] else 409)
+        return await run(request, True, fn, 'jobs.batch', raw)
+
+    @app.get(API + '/batches/{batch_id}')
+    async def batch_progress(request: Request, batch_id: str):
+        return await run(request, False, lambda db, p: svc.jobs.batch_progress(db, p, batch_id))
+
     @app.get(API + '/jobs')
     async def list_jobs(request: Request):
         q = request.query_params
