@@ -176,6 +176,9 @@ class Campaigns:
 
     def create(self, db, principal, definition):
         pv = self.preview(db, principal, definition)
+        from .agents import guard
+        adaptive_def = definition.get('adaptive')
+        guard(db, principal, 'campaign:run', workflows=1, jobs=pv['total'] if adaptive_def is None else min(adaptive_def['max_evaluations'], LIMITS['max_adaptive_evaluations']))
         cid = 'cmp_' + secrets.token_hex(8)
         base_id = self.store.store(db, workspace=principal.workspace, kind='draft_input', owner_id=principal.id, plaintext=merkle.canonical(pv['base']),
                                    recipients=[], intended_use='campaign-base-input;owner-worker')

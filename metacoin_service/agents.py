@@ -5,9 +5,10 @@ exactly one scoped credential. Every server mutation performed with that credent
 `guard()`, which checks state, expiry, permitted services, allowed operations, and atomically
 increments counters inside the caller's transaction. Counting is conservative: a job counts when
 submitted (never decremented on failure or cancellation), amounts count when reserved (quote
-accepted or action dispatched). Sub-objects (batches, campaigns, workflows) count every job they
-create, so ceilings cannot be evaded by nesting. Stop prevents new mutations and dispatches only;
-it never deletes evidence or pretends a submitted payment is cancelled.
+accepted or action dispatched). Workflows and campaigns are charged their estimated job count
+at start (the workflow estimate or the campaign candidate/evaluation total), so ceilings cannot be
+evaded by nesting. Stop prevents new mutations and dispatches only; it never deletes evidence or
+pretends a submitted payment is cancelled.
 """
 import hashlib
 import json
@@ -19,8 +20,9 @@ from .errors import ServiceError
 
 POLICY_SCHEMA = 'metacoin-agent-policy/v1'
 AGENT_OPERATIONS = ('services:read', 'quote', 'invoke', 'job:submit', 'job:read', 'workflow:run', 'campaign:run', 'dataset:read', 'usage:read', 'action:create')
-OPERATION_TO_PERMISSION = {'services:read': 'contract:read', 'quote': 'contract:create', 'invoke': 'job:submit', 'job:submit': 'job:submit', 'job:read': 'job:read',
-                           'workflow:run': 'job:submit', 'campaign:run': 'job:submit', 'dataset:read': 'contract:read', 'usage:read': 'budget:read', 'action:create': 'action:create'}
+OPERATION_TO_PERMISSION = {'services:read': ['contract:read'], 'quote': ['contract:create'], 'invoke': ['contract:create', 'contract:freeze', 'job:submit'], 'job:submit': ['job:submit'],
+                           'job:read': ['job:read'], 'workflow:run': ['job:submit', 'contract:create', 'contract:freeze'], 'campaign:run': ['job:submit', 'contract:create', 'contract:freeze'],
+                           'dataset:read': ['contract:read'], 'usage:read': ['budget:read'], 'action:create': ['action:create']}
 
 
 def validate_policy(policy):
@@ -51,7 +53,7 @@ class Agents:
         """Owner issues a grant + scoped credential. The agent can never widen it (no admin:credentials)."""
         issuer.require('admin:credentials')
         digest = validate_policy(policy)
-        needed = sorted({OPERATION_TO_PERMISSION[o] for o in policy['allowed_operations']} | {'job:read', 'contract:read'})
+        needed = sorted({p for o in policy['allowed_operations'] for p in OPERATION_TO_PERMISSION[o]} | {'job:read', 'contract:read'})
         if not all(issuer.can(p) for p in needed):
             raise ServiceError('FORBIDDEN', 'grant would exceed the issuer')
         gid = 'g_' + secrets.token_hex(8)
@@ -75,9 +77,8 @@ class Agents:
         g = self.get(db, principal, gid)
         counters = json.loads(g['counters_json'])
         policy = json.loads(g['policy_json'])
-        jobs = db.execute("SELECT id, state, review_state FROM jobs WHERE submitted_by=? AND workspace=? AND id IN (SELECT id FROM jobs WHERE json_extract(coalesce(summary_json,'{}'),'$') IS NOT NULL) ORDER BY created_at", (g['issuer_id'], g['workspace'])).fetchall()
         agent_jobs = [dict(r) for r in db.execute("SELECT j.id, j.state, j.review_state FROM jobs j JOIN events e ON e.object_id=j.id AND e.event_type='job.queued' "
-                                                    "WHERE j.workspace=? AND e.ref_json LIKE ? ORDER BY j.created_at", (g['workspace'], '%"grant_id": "' + gid + '"%')).fetchall()]
+                                                    "WHERE j.workspace=? AND e.ref_json LIKE ? ORDER BY j.created_at", (g['workspace'], '%' + gid + '%')).fetchall()]
         unresolved = [dict(r) for r in db.execute("SELECT request_id, job_id FROM payment_actions WHERE workspace=? AND request_json LIKE ?", (g['workspace'], '%' + gid + '%')).fetchall()]
         return {'grant_id': gid, 'state': g['state'], 'issuer_id': g['issuer_id'], 'credential_id': g['credential_id'], 'policy': policy, 'policy_digest': g['digest'],
                 'counters': counters, 'remaining': {'jobs': max(0, policy['ceilings']['max_jobs'] - counters['jobs_created']),
@@ -99,8 +100,43 @@ class Agents:
         history.record(db, principal.workspace, principal.id, 'credential.revoked', 'agent_grant', gid, {'state': state})
         return self.view(db, principal, gid)
 
-    def guard(self, db, principal, operation, *, service_id=None, service_kind=None, amount=0, jobs=0, workflows=0):
-        """No-op for non-agent principals. For agents: enforce and count atomically in the caller's transaction."""
+    def guard(self, db, principal, operation, **kw):
+        return guard(db, principal, operation, **kw)
+
+    def list(self, db, principal):
+        principal.require('budget:read')
+        rows = db.execute('SELECT id, state, issuer_id, credential_id, digest, counters_json, created_at, expires_at, stopped_at FROM policy_grants WHERE workspace=? ORDER BY created_at DESC LIMIT 200', (principal.workspace,)).fetchall()
+        return {'items': [dict(dict(r), counters=json.loads(r['counters_json'])) for r in rows]}
+
+
+    def simulate(self, db, principal, gid, operations):
+        """Evaluate example operations against a grant without creating anything."""
+        principal.require('budget:read')
+        g = self.get(db, principal, gid)
+        policy = json.loads(g['policy_json']); counters = json.loads(g['counters_json'])
+        out = []
+        for op in operations[:50]:
+            if type(op) is not dict:
+                out.append({'operation': op, 'allowed': False, 'reason': 'malformed'}); continue
+            name = op.get('operation'); reason = None
+            if g['state'] != 'active': reason = 'grant ' + g['state']
+            elif name not in policy['allowed_operations']: reason = 'operation not allowed'
+            elif op.get('service') and op['service'] not in policy['permitted_services']: reason = 'service not permitted'
+            elif op.get('amount', 0) > policy['ceilings']['per_action_amount']: reason = 'per-action amount ceiling'
+            elif counters['amount_reserved'] + op.get('amount', 0) > policy['ceilings']['total_amount']: reason = 'total amount ceiling'
+            elif counters['jobs_created'] + op.get('jobs', 0) > policy['ceilings']['max_jobs']: reason = 'job ceiling'
+            out.append({'operation': op, 'allowed': reason is None, 'reason': reason})
+        return {'grant_id': gid, 'decisions': out, 'note': 'simulation only; nothing created or signed'}
+
+
+def grant_of(principal):
+    scope = getattr(principal, 'scope', None)
+    return scope.get('grant_id') if scope else None
+
+
+def guard(db, principal, operation, *, service_id=None, service_kind=None, amount=0, jobs=0, workflows=0, precheck_jobs=0):
+    """No-op for non-agent principals. For agents: enforce and count atomically in the caller's transaction."""
+    if True:
         scope = getattr(principal, 'scope', None)
         if not scope or 'grant_id' not in scope:
             return None
@@ -122,35 +158,16 @@ class Agents:
             raise ServiceError('BUDGET_EXHAUSTED', 'per-action amount exceeds the agent ceiling')
         if counters['amount_reserved'] + amount > c['total_amount']:
             raise ServiceError('BUDGET_EXHAUSTED', 'agent total amount ceiling')
-        if counters['jobs_created'] + jobs > c['max_jobs']:
+        if counters['jobs_created'] + max(jobs, precheck_jobs) > c['max_jobs']:
             raise ServiceError('RATE_LIMITED', 'agent job ceiling reached')
         if counters['workflows_started'] + workflows > c['max_workflows']:
             raise ServiceError('RATE_LIMITED', 'agent workflow ceiling reached')
         if jobs:
             inflight = db.execute("SELECT COUNT(*) FROM jobs j JOIN events e ON e.object_id=j.id AND e.event_type='job.queued' WHERE j.workspace=? AND j.state IN ('queued','running') AND e.ref_json LIKE ?",
-                                  (g['workspace'], '%"grant_id": "' + g['id'] + '"%')).fetchone()[0]
+                                  (g['workspace'], '%' + g['id'] + '%')).fetchone()[0]
             if inflight + jobs > c['concurrency']:
                 raise ServiceError('RATE_LIMITED', 'agent concurrency ceiling')
         counters['amount_reserved'] += amount; counters['jobs_created'] += jobs; counters['workflows_started'] += workflows
         counters['invocations'] += 1 if operation in ('invoke', 'quote') else 0
         db.execute('UPDATE policy_grants SET counters_json=? WHERE id=?', (json.dumps(counters), g['id']))
         return g['id']
-
-    def simulate(self, db, principal, gid, operations):
-        """Evaluate example operations against a grant without creating anything."""
-        principal.require('budget:read')
-        g = self.get(db, principal, gid)
-        policy = json.loads(g['policy_json']); counters = json.loads(g['counters_json'])
-        out = []
-        for op in operations[:50]:
-            if type(op) is not dict:
-                out.append({'operation': op, 'allowed': False, 'reason': 'malformed'}); continue
-            name = op.get('operation'); reason = None
-            if g['state'] != 'active': reason = 'grant ' + g['state']
-            elif name not in policy['allowed_operations']: reason = 'operation not allowed'
-            elif op.get('service') and op['service'] not in policy['permitted_services']: reason = 'service not permitted'
-            elif op.get('amount', 0) > policy['ceilings']['per_action_amount']: reason = 'per-action amount ceiling'
-            elif counters['amount_reserved'] + op.get('amount', 0) > policy['ceilings']['total_amount']: reason = 'total amount ceiling'
-            elif counters['jobs_created'] + op.get('jobs', 0) > policy['ceilings']['max_jobs']: reason = 'job ceiling'
-            out.append({'operation': op, 'allowed': reason is None, 'reason': reason})
-        return {'grant_id': gid, 'decisions': out, 'note': 'simulation only; nothing created or signed'}

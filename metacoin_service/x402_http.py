@@ -188,10 +188,6 @@ class SaleService:
             if not got or not ns.pi.is_valid_payment_id(got):
                 return ns.schemas.AbortResult(reason='work_contract_payment_identifier_required')
             seen['identifier'] = got
-            if quote['state'] == 'consumed':
-                prior = db.execute("SELECT state FROM invoke_sales WHERE payment_id=? AND quote_id=?", (got, quote['id'])).fetchone()
-                if prior is None or prior['state'] != 'CONFIRMED':
-                    return ns.schemas.AbortResult(reason='work_contract_quote_consumed')
             if (accepted.amount != str(price_amount) or accepted.pay_to != pay_to or accepted.network != network
                     or accepted.asset != asset or any(accepted.extra.get(k) != v for k, v in expected.items())):
                 return ns.schemas.AbortResult(reason=ERR_BINDING)

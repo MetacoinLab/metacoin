@@ -171,6 +171,14 @@ MIGRATIONS = [
         resource TEXT NOT NULL, amount TEXT NOT NULL, asset TEXT NOT NULL, network TEXT NOT NULL, pay_to TEXT NOT NULL, provider_mode TEXT NOT NULL,
         state TEXT NOT NULL, transaction_ref TEXT, payer TEXT, requirements_digest TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     """),
+    ('007_agent_policy_grants', """
+    CREATE TABLE policy_grants (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, issuer_id TEXT NOT NULL REFERENCES principals(id),
+        credential_id TEXT NOT NULL UNIQUE REFERENCES credentials(id), policy_json TEXT NOT NULL, digest TEXT NOT NULL,
+        state TEXT NOT NULL, counters_json TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+        stopped_at INTEGER, last_denial_json TEXT);
+    CREATE INDEX policy_grants_ws ON policy_grants(workspace, created_at);
+    """),
 ]
 
 

@@ -190,6 +190,8 @@ class Catalog:
     def quote(self, db, principal, sid, inputs, quantity_max=1, provider_mode=None):
         principal.require('contract:create')
         row, digest = self.validate_request(db, principal, sid, inputs)
+        from .agents import guard
+        guard(db, principal, 'quote', service_id=sid, service_kind=row['kind'])
         if type(quantity_max) is not int or not 1 <= quantity_max <= 1000:
             raise ServiceError('VALIDATION', 'quantity_max 1..1000')
         mode = provider_mode or self.settings.provider_mode
@@ -229,6 +231,9 @@ class Catalog:
         if row['expires_at'] <= now():
             db.execute("UPDATE quotes SET state='expired' WHERE id=?", (qid,))
             raise ServiceError('EXPIRED', 'quote expired; request a new one')
+        from .agents import guard
+        kind = db.execute('SELECT kind FROM services WHERE id=?', (row['service_id'],)).fetchone()['kind']
+        guard(db, principal, 'invoke', service_id=row['service_id'], service_kind=kind, amount=row['amount_max'], precheck_jobs=1)   # reservation counts against the agent ceiling; refused early if no job could follow
         db.execute("UPDATE quotes SET state='accepted', accepted_at=? WHERE id=? AND state='offered'", (now(), qid))
         history.record(db, principal.workspace, principal.id, 'payment.reserved', 'quote', qid, {'accepted': True, 'amount_max': row['amount_max']})
         return self.quote_view(self.get_quote(db, principal, qid))

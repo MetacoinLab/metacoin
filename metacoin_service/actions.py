@@ -76,6 +76,9 @@ class Actions:
             raise ServiceError('ENTITLEMENT_CONSUMED', 'an action with another request id or provider mode already exists')
         request = journal.request(contract['id'], request_id)
         adapter, session = provider_for(provider_mode, self.settings, doc['action']['capability'], doc['action']['actor'])
+        if not dry_run and existing is None:
+            from .agents import guard
+            guard(db, principal, 'action:create', amount=int(request['amount']))
         if dry_run:
             return dict(journal.preview(request, doc['action']['actor'], adapter, now()), provider_mode=provider_mode, **session)
         if existing is None:

@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import campaigns as campaigns_mod, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
+from . import agents as agents_mod, campaigns as campaigns_mod, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -33,6 +33,7 @@ class Services:
         self.workflows = workflows_mod.Workflows(self.contracts, self.jobs, self.reviews, self.datasets, self.store, settings)
         self.campaigns = campaigns_mod.Campaigns(self.contracts, self.jobs, self.datasets, self.store, settings)
         self.catalog = catalog_mod.Catalog(settings, self.contracts, self.jobs)
+        self.agents = agents_mod.Agents(settings)
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
             metering.ensure_service_key(settings, db)
@@ -440,6 +441,38 @@ def create_app(settings):
                 return status, headers, content
         status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
+
+    # ---- agent policy grants ------------------------------------------------------
+    @app.post(API + '/agents/grants', status_code=201)
+    async def agent_grant_issue(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.agents.issue(db, p, body.get('policy')), 201))
+
+    @app.get(API + '/agents/grants')
+    async def agent_grant_list(request: Request):
+        return await run(request, False, lambda db, p: svc.agents.list(db, p))
+
+    @app.get(API + '/agents/grants/{gid}')
+    async def agent_grant_view(request: Request, gid: str):
+        return await run(request, False, lambda db, p: svc.agents.view(db, p, gid))
+
+    @app.post(API + '/agents/grants/{gid}/stop')
+    async def agent_grant_stop(request: Request, gid: str):
+        return await run(request, True, lambda db, p: svc.agents.stop(db, p, gid, revoke=False))
+
+    @app.post(API + '/agents/grants/{gid}/revoke')
+    async def agent_grant_revoke(request: Request, gid: str):
+        return await run(request, True, lambda db, p: svc.agents.stop(db, p, gid, revoke=True))
+
+    @app.post(API + '/agents/grants/{gid}/simulate')
+    async def agent_grant_simulate(request: Request, gid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        ops = body.get('operations')
+        if type(ops) is not list:
+            raise ServiceError('VALIDATION', 'operations list')
+        return await run(request, False, lambda db, p: svc.agents.simulate(db, p, gid, ops))
 
     @app.get(API + '/usage')
     async def usage_list(request: Request):
@@ -875,6 +908,8 @@ def compare_jobs(svc, db, principal, job_a, job_b):
 def invoke_under_quote(svc, db, principal, sid, quote_id, inputs):
     """Consume the quote atomically, then create the bound contract and job (reviewer = first workspace reviewer)."""
     quote, service = svc.catalog.consume(db, principal, quote_id, inputs)
+    agents_mod.guard(db, principal, 'invoke', service_id=sid, service_kind=service['kind'], jobs=1)
+    principal.agent_counted = True                     # the job below is already counted against the grant
     reviewer = db.execute("SELECT id FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL ORDER BY created_at LIMIT 1", (principal.workspace,)).fetchone()
     policy = {'reviewer_id': reviewer['id'] if reviewer else None}
     cid = svc.contracts.create_draft(db, principal, kind=service['kind'], title=service['name'] + ' invocation', inputs=inputs, policy=policy, datasets=svc.datasets)

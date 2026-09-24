@@ -215,6 +215,8 @@ class Workflows:
             raise ServiceError('RATE_LIMITED', 'active workflow quota')
         if preview:
             return {'preview': True, 'definition_id': wid, 'digest': drow['digest'], 'estimate': est, 'bindings': bindings, 'budget_ceiling': budget_ceiling}
+        from .agents import guard
+        guard(db, principal, 'workflow:run', workflows=1, jobs=est['service_nodes'])
         rid = 'run_' + secrets.token_hex(8)
         db.execute('INSERT INTO workflow_runs VALUES (?,?,?,?,?,?,?,?,?,0,?,?,NULL)',
                    (rid, principal.workspace, wid, principal.id, 'created', budget_ceiling, json.dumps(bindings), json.dumps(est), None, now(), now()))

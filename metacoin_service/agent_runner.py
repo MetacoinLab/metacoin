@@ -60,7 +60,8 @@ def save_checkpoint(path, state):
 class Runner:
     def __init__(self, base, token, policy, checkpoint_path):
         self.base, self.token, self.policy, self.cp_path = base, token, policy, checkpoint_path
-        self.cp = load_private_json(checkpoint_path) if os.path.exists(checkpoint_path) else {'schema': 'metacoin-agent-checkpoint/v1', 'policy_digest': None, 'steps': {}}
+        self.cp = load_private_json(checkpoint_path) if os.path.exists(checkpoint_path) else {'schema': 'metacoin-agent-checkpoint/v1', 'policy_digest': None, 'steps': {},
+                                                                                              'attempt': hashlib.sha256(os.urandom(16)).hexdigest()[:12]}   # keys idempotency to this checkpoint, never to another attempt
         digest = hashlib.sha256(json.dumps(policy, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
         if self.cp['policy_digest'] not in (None, digest):
             raise SystemExit('checkpoint belongs to a different policy; refusing to continue')
@@ -94,7 +95,7 @@ class Runner:
             return {'plan': False, 'stage': 'validate', 'refusal': v}
         quote = self.cp['steps'].get('quote')
         if quote is None:
-            status, quote = self.api('POST', '/api/v1/services/' + service['id'] + '/quote', {'inputs': inputs, 'quantity_max': 1}, key='agent-quote-' + v['request_digest'][:16])
+            status, quote = self.api('POST', '/api/v1/services/' + service['id'] + '/quote', {'inputs': inputs, 'quantity_max': 1}, key='agent-quote-' + self.cp['attempt'] + '-' + v['request_digest'][:16])
             if status != 201:
                 return {'plan': False, 'stage': 'quote', 'refusal': quote}
             self.remember('quote', quote)
@@ -138,10 +139,10 @@ class Runner:
         status, view = self.api('GET', '/api/v1/jobs/' + job['job_id'])
         out = {'job_id': job['job_id'], 'status': status, 'state': view.get('state'), 'review_state': view.get('review_state'), 'outcome': view.get('outcome')}
         if view.get('state') == 'succeeded' and 'job:read' in self.policy['allowed_operations']:
+            # the outcome is disclosed only after the review gate (or under a private-read permission the agent normally lacks)
+            out['result_available'] = view.get('outcome') not in (None, 'withheld-by-policy-or-not-yet-reviewed')
             status, result = self.api('GET', '/api/v1/jobs/' + job['job_id'] + '/result')
-            out['result_available'] = status == 200
-            if status == 200:
-                out['bindings'] = result['bindings']
+            out['bindings'] = result['bindings'] if status == 200 else {k: view.get(k) for k in ('contract_digest', 'verifier_digest', 'model_id', 'evidence_root')}
         return out
 
     def follow(self, timeout=120):
@@ -176,7 +177,8 @@ def main(argv=None):
     else:
         out = runner.follow()
     print(json.dumps(out, indent=1))
-    return 0 if (out.get('plan') or out.get('executed') or out.get('state')) else 2
+    ok = {'plan': out.get('plan'), 'execute': out.get('executed'), 'status': out.get('state') is not None, 'follow': out.get('state') is not None}[args.command]
+    return 0 if ok else 2
 
 
 if __name__ == '__main__':
