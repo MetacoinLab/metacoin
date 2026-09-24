@@ -8,7 +8,7 @@ import resource
 import sys
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import acceptance, energy_analysis as energy, explanation
-from metacoin_service import science
+from metacoin_service import science, temporal
 
 
 def run(spec):
@@ -35,14 +35,19 @@ def run(spec):
     elif kind == 'task_selection':
         result = science.select_tasks(inputs)
         outcome = result['status']
+    elif kind == 'temporal_energy':
+        result = temporal.analyze(inputs)
+        outcome = result['outcome']
     else:
         raise merkle.Invalid('unsupported adapter capability or destination')
+    verifier_id, verifier_digest = (('temporal-energy-verifier/v1', temporal.bundle_digest()) if kind == 'temporal_energy'
+                                    else ('service-science/v1', science.bundle_digest()))
     evidence = {'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'],
-                'verifier_id': 'service-science/v1', 'verifier_digest': science.bundle_digest(),
+                'verifier_id': verifier_id, 'verifier_digest': verifier_digest,
                 'result_schema': result['result_schema'], 'model_id': result['model_id'], 'result': result,
                 'scope': 'service-private-recomputation'}
     _, vault = merkle.commit(evidence)
-    return {'evidence_vault': vault, 'outcome': outcome, 'summary': {k: v for k, v in result.items() if k != 'candidates'}
+    return {'evidence_vault': vault, 'outcome': outcome, 'summary': {k: v for k, v in result.items() if k not in ('candidates', 'envelope_low', 'envelope_high', 'uncertainty_contributions')}
             | ({'candidates': [{k: c[k] for k in ('id', 'outcome', 'worst_margin', 'best_margin', 'duration', 'utility')} for c in result['candidates']]} if 'candidates' in result else {})}
 
 

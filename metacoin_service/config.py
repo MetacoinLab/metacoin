@@ -13,6 +13,7 @@ LIMITS = {
     'worker_address_space_bytes': 1024 * 1024 * 1024, 'max_queued_per_workspace': 200,
     'session_seconds': 8 * 3600, 'credential_seconds': 90 * 24 * 3600, 'max_envelope_bytes': 64 * 1024,
     'facilitator_timeout_seconds': 10, 'batch_max_items': 20,
+    'max_dataset_bytes': 1024 * 1024, 'max_dataset_rows': 512, 'max_line_chars': 4096, 'max_dataset_versions_per_workspace': 500, 'max_active_workflows': 20,
 }
 
 

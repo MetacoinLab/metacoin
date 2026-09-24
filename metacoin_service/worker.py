@@ -108,6 +108,8 @@ class Worker:
                            (aid, root, result['outcome'], json.dumps(result['summary']), now(), now(), job['id']))
                 history.record(db, job['workspace'], self.worker_id, 'job.result_committed', 'job', job['id'],
                                {'evidence_root': root, 'artifact_id': aid, 'generation': job['lease_generation']})
+                from .datasets import add_edge
+                add_edge(db, job['workspace'], 'job', job['id'], 'artifact', aid, 'produced')
                 return 'succeeded'
             retryable = error in ('COMPUTATION_ERROR', 'TIMEOUT') and current['retries_left'] > 0
             if error == 'CANCELLED' or not retryable:
@@ -129,9 +131,22 @@ class Worker:
             return None
         return job['id'], self.execute(job)
 
+    def tick_workflows(self):
+        """Advance active workflow runs (scheduler tick); errors in one run do not stop the worker."""
+        try:
+            from .api import Services
+            svc = getattr(self, '_svc', None) or Services(self.settings)
+            self._svc = svc
+            with self.db.tx() as db:
+                return svc.workflows.advance_all(db)
+        except Exception:
+            return None
+
     def run_forever(self, poll_seconds=0.5, stop_file=None):
         while True:
             if stop_file and Path(stop_file).exists():
                 return
-            if self.run_once() is None:
+            ran = self.run_once()
+            advanced = self.tick_workflows()
+            if ran is None and not advanced:
                 time.sleep(poll_seconds)

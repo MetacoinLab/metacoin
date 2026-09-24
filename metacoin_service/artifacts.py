@@ -12,7 +12,8 @@ from . import crypto
 from .db import now
 from .errors import ServiceError
 
-KINDS = ('draft_input', 'input_vault', 'evidence_vault', 'public_bundle', 'review_envelope', 'comparison_input', 'export')
+KINDS = ('draft_input', 'input_vault', 'evidence_vault', 'public_bundle', 'review_envelope', 'comparison_input', 'export',
+         'dataset_raw', 'dataset_normalized')
 
 
 class ArtifactStore:

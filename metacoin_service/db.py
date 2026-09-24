@@ -94,6 +94,45 @@ MIGRATIONS = [
         created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     ALTER TABLE contracts ADD COLUMN template_id TEXT REFERENCES templates(id);
     """),
+    ('003_datasets_lineage', """
+    CREATE TABLE datasets (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES principals(id),
+        name TEXT NOT NULL, kind TEXT NOT NULL, tags TEXT NOT NULL DEFAULT '[]', created_at INTEGER NOT NULL, retired_at INTEGER);
+    CREATE INDEX datasets_ws ON datasets(workspace, created_at);
+    CREATE TABLE dataset_versions (
+        id TEXT PRIMARY KEY, dataset_id TEXT NOT NULL REFERENCES datasets(id), version INTEGER NOT NULL,
+        raw_artifact_id TEXT REFERENCES artifacts(id), normalized_artifact_id TEXT NOT NULL REFERENCES artifacts(id),
+        raw_sha256 TEXT NOT NULL, normalized_commitment TEXT NOT NULL, normalization_id TEXT NOT NULL,
+        row_count INTEGER NOT NULL, byte_count INTEGER NOT NULL, columns_json TEXT NOT NULL, units_json TEXT NOT NULL,
+        provenance TEXT NOT NULL, provenance_source TEXT NOT NULL DEFAULT '', license TEXT NOT NULL DEFAULT '',
+        privacy TEXT NOT NULL DEFAULT 'private', retention_deadline INTEGER, parent_version_id TEXT REFERENCES dataset_versions(id),
+        transformation TEXT NOT NULL DEFAULT 'upload', created_at INTEGER NOT NULL, deleted_at INTEGER,
+        UNIQUE (dataset_id, version));
+    CREATE TABLE lineage_edges (
+        seq INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, from_type TEXT NOT NULL, from_id TEXT NOT NULL,
+        to_type TEXT NOT NULL, to_id TEXT NOT NULL, relation TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE INDEX lineage_from ON lineage_edges(workspace, from_type, from_id);
+    CREATE INDEX lineage_to ON lineage_edges(workspace, to_type, to_id);
+    ALTER TABLE contracts ADD COLUMN dataset_version_id TEXT REFERENCES dataset_versions(id);
+    """),
+    ('004_workflows', """
+    CREATE TABLE workflow_definitions (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES principals(id), name TEXT NOT NULL,
+        version INTEGER NOT NULL, digest TEXT NOT NULL, definition_json TEXT NOT NULL, limits_json TEXT NOT NULL, created_at INTEGER NOT NULL,
+        UNIQUE (workspace, digest));
+    CREATE TABLE workflow_runs (
+        id TEXT PRIMARY KEY, workspace TEXT NOT NULL, definition_id TEXT NOT NULL REFERENCES workflow_definitions(id),
+        started_by TEXT NOT NULL REFERENCES principals(id), state TEXT NOT NULL, budget_ceiling INTEGER, bindings_json TEXT NOT NULL,
+        estimate_json TEXT NOT NULL, summary_json TEXT, cancel_requested INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL, finished_at INTEGER);
+    CREATE INDEX workflow_runs_ws ON workflow_runs(workspace, state, updated_at);
+    CREATE TABLE workflow_nodes (
+        run_id TEXT NOT NULL REFERENCES workflow_runs(id), node_id TEXT NOT NULL, type TEXT NOT NULL, state TEXT NOT NULL,
+        job_id TEXT REFERENCES jobs(id), contract_id TEXT REFERENCES contracts(id), attempts INTEGER NOT NULL DEFAULT 0,
+        blocked_reason TEXT, output_artifact_id TEXT REFERENCES artifacts(id), output_root TEXT, binding_json TEXT, updated_at INTEGER NOT NULL,
+        PRIMARY KEY (run_id, node_id));
+    ALTER TABLE jobs ADD COLUMN run_id TEXT REFERENCES workflow_runs(id);
+    """),
 ]
 
 

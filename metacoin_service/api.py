@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from . import jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, x402_http
+from . import datasets as datasets_mod, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
 
@@ -29,6 +29,8 @@ class Services:
         self.actions = actions_mod.Actions(settings, self.jobs)
         self.sales = x402_http.SaleService(settings, self.store, self.jobs)
         self.templates = templates_svc.Templates(self.contracts)
+        self.datasets = datasets_mod.Datasets(self.store, settings)
+        self.workflows = workflows_mod.Workflows(self.contracts, self.jobs, self.reviews, self.datasets, self.store, settings)
 
 
 def read_body(request, raw):
@@ -166,9 +168,130 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         def fn(db, p):
-            cid = svc.contracts.create_draft(db, p, kind=body.get('kind'), title=body.get('title'), inputs=body.get('inputs'), policy=body.get('policy') or {})
+            cid = svc.contracts.create_draft(db, p, kind=body.get('kind'), title=body.get('title'), inputs=body.get('inputs'), policy=body.get('policy') or {},
+                                             datasets=svc.datasets)
             return svc.contracts.public_view(svc.contracts.get(db, p, cid)), 201
         return await run(request, True, fn, 'contracts.create', raw)
+
+    # ---- datasets ---------------------------------------------------------------
+    @app.post(API + '/datasets', status_code=201)
+    async def create_dataset(request: Request):
+        raw = await request.body()
+        if len(raw) > settings.limits['max_dataset_bytes'] + 4096:
+            raise ServiceError('PAYLOAD_TOO_LARGE', 'dataset')
+        body = merkle.parse(raw) if raw else {}
+        if type(body) is not dict:
+            raise ServiceError('VALIDATION', 'body must be an object')
+        content = body.get('content')
+        if type(content) is not str:
+            raise ServiceError('VALIDATION', 'content must be a string (CSV text or JSON text)')
+        def fn(db, p):
+            return svc.datasets.create(db, p, name=body.get('name'), kind=body.get('kind'), fmt=body.get('format', 'csv'), content=content.encode('utf-8'),
+                                       provenance=body.get('provenance', 'declared'), source=body.get('source', ''), license=body.get('license', ''),
+                                       tags=body.get('tags'), dataset_id=body.get('dataset_id'), parent_version_id=body.get('parent_version_id')), 201
+        return await run(request, True, fn, 'datasets.create', raw)
+
+    @app.get(API + '/datasets')
+    async def list_datasets(request: Request):
+        q = request.query_params
+        return await run(request, False, lambda db, p: {'items': svc.datasets.list(db, p, kind=q.get('kind'), tag=q.get('tag'), limit=q.get('limit', 50))})
+
+    @app.get(API + '/datasets/{dataset_id}')
+    async def dataset_detail(request: Request, dataset_id: str):
+        return await run(request, False, lambda db, p: svc.datasets.detail(db, p, dataset_id))
+
+    @app.post(API + '/datasets/{dataset_id}/retire')
+    async def dataset_retire(request: Request, dataset_id: str):
+        return await run(request, True, lambda db, p: svc.datasets.retire(db, p, dataset_id))
+
+    @app.get(API + '/dataset-versions/{version_id}')
+    async def dataset_version(request: Request, version_id: str):
+        return await run(request, False, lambda db, p: svc.datasets.version_view(svc.datasets.version(db, p, version_id)))
+
+    @app.get(API + '/dataset-versions/{version_id}/rows')
+    async def dataset_rows(request: Request, version_id: str):
+        def fn(db, p):
+            rows, v = svc.datasets.rows(db, p, version_id)
+            return {'version_id': version_id, 'private': True, 'columns': json.loads(v['columns_json']), 'rows': rows}
+        return await run(request, False, fn)
+
+    @app.delete(API + '/dataset-versions/{version_id}/payload')
+    async def dataset_delete(request: Request, version_id: str):
+        return await run(request, True, lambda db, p: svc.datasets.delete_payload(db, p, version_id))
+
+    # ---- workflows ----------------------------------------------------------------
+    @app.post(API + '/workflows/validate')
+    async def workflow_validate(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('contract:read')
+            digest, order = workflows_mod.validate_definition(body.get('definition'))
+            return {'valid': True, 'digest': digest, 'order': order, 'estimate': workflows_mod.estimate(body['definition'], settings.limits)}
+        return await run(request, False, fn)
+
+    @app.post(API + '/workflows', status_code=201)
+    async def workflow_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            wid, digest, created = svc.workflows.create(db, p, body.get('definition'))
+            return svc.workflows.definition_view(svc.workflows.get_definition(db, p, wid)), (201 if created else 200)
+        return await run(request, True, fn, 'workflows.create', raw)
+
+    @app.get(API + '/workflows')
+    async def workflow_list(request: Request):
+        def fn(db, p):
+            p.require('contract:read')
+            rows = db.execute('SELECT id, name, version, digest, created_at FROM workflow_definitions WHERE workspace=? ORDER BY created_at DESC LIMIT 100', (p.workspace,)).fetchall()
+            return {'items': [dict(r) for r in rows]}
+        return await run(request, False, fn)
+
+    @app.get(API + '/workflows/{wid}')
+    async def workflow_get(request: Request, wid: str):
+        return await run(request, False, lambda db, p: svc.workflows.definition_view(svc.workflows.get_definition(db, p, wid)))
+
+    @app.post(API + '/workflows/{wid}/runs', status_code=202)
+    async def workflow_run(request: Request, wid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            out = svc.workflows.start_run(db, p, wid, bindings=body.get('bindings'), budget_ceiling=body.get('budget_ceiling'), preview=bool(body.get('preview')))
+            if out.get('preview'):
+                return out, 200
+            svc.workflows.advance(db, out['run_id'])
+            return out, 202
+        return await run(request, True, fn, 'workflows.run', raw)
+
+    @app.get(API + '/runs')
+    async def runs_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.workflows.list(db, p, request.query_params.get('limit', 50))})
+
+    @app.get(API + '/runs/{run_id}')
+    async def run_get(request: Request, run_id: str):
+        return await run(request, False, lambda db, p: svc.workflows.view(db, p, run_id))
+
+    @app.post(API + '/runs/{run_id}/advance')
+    async def run_advance(request: Request, run_id: str):
+        def fn(db, p):
+            p.require('job:read')
+            svc.workflows._run(db, run_id, p.workspace)
+            return svc.workflows.advance(db, run_id)
+        return await run(request, True, fn)
+
+    @app.post(API + '/runs/{run_id}/cancel')
+    async def run_cancel(request: Request, run_id: str):
+        return await run(request, True, lambda db, p: svc.workflows.cancel(db, p, run_id))
+
+    @app.get(API + '/lineage/{object_type}/{object_id}')
+    async def lineage_query(request: Request, object_type: str, object_id: str):
+        q = request.query_params
+        def fn(db, p):
+            p.require('history:read')
+            if object_type not in ('dataset_version', 'contract', 'job', 'artifact', 'review', 'workflow_run', 'campaign', 'quote', 'usage'):
+                raise ServiceError('VALIDATION', 'object_type')
+            return datasets_mod.lineage(db, p, object_type, object_id, depth=int(q.get('depth', 4)), limit=min(int(q.get('limit', 200)), 500))
+        return await run(request, False, fn)
 
     @app.get(API + '/contracts')
     async def list_contracts(request: Request):

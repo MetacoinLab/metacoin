@@ -12,7 +12,7 @@ import json
 import secrets
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import acceptance, contract as terms
-from . import crypto, history, science
+from . import crypto, history, science, temporal
 from .db import now
 from .errors import ServiceError
 
@@ -82,10 +82,12 @@ class Reviews:
             else:
                 values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
                 inputs = acceptance.full_values(input_vault, contract['input_root'])['inputs']
-                fresh = {'safe_runtime': science.safe_runtime, 'plan_comparison': science.compare_plans, 'task_selection': science.select_tasks}[job['kind']](inputs)
+                fresh = {'safe_runtime': science.safe_runtime, 'plan_comparison': science.compare_plans, 'task_selection': science.select_tasks,
+                         'temporal_energy': temporal.analyze}[job['kind']](inputs)
+                expected_digest = temporal.bundle_digest() if job['kind'] == 'temporal_energy' else science.bundle_digest()
                 matches = (merkle.canonical(fresh) == merkle.canonical(values['result'])
                            and values['contract_digest'] == contract['contract_digest']
-                           and values['verifier_digest'] == science.bundle_digest())
+                           and values['verifier_digest'] == expected_digest)
                 out.update(recomputation='matches' if matches else 'mismatch', scientific_outcome=job['outcome'],
                            policy_satisfied=matches, private_details=values['result'], verifier_status='current')
         except merkle.Invalid as exc:
@@ -139,6 +141,8 @@ class Reviews:
         db.execute('UPDATE jobs SET review_state=?, updated_at=? WHERE id=?', (decision, now(), job_id))
         history.record(db, principal.workspace, principal.id, 'review.' + decision, 'job', job_id,
                        {'review_id': rid, 'envelope_digest': digest, 'key_id': key['key_id'], 'evidence_root': job['evidence_root']})
+        from .datasets import add_edge
+        add_edge(db, principal.workspace, 'job', job_id, 'review', rid, 'reviewed')
         return self.view(db.execute('SELECT * FROM reviews WHERE id=?', (rid,)).fetchone())
 
     @staticmethod

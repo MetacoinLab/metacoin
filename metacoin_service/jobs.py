@@ -46,6 +46,8 @@ class Jobs:
                                                   self.settings.limits['job_max_retries'], principal.id, now(), now(), batch_id))
         history.record(db, principal.workspace, principal.id, 'job.queued', 'job', jid,
                        {'contract_id': row['id'], 'contract_digest': row['contract_digest'], 'kind': row['kind'], 'batch_id': batch_id})
+        from .datasets import add_edge
+        add_edge(db, principal.workspace, 'contract', row['id'], 'job', jid, 'used_input')
         return jid
 
     def submit(self, db, principal, contract_id):

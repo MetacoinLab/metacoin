@@ -3,17 +3,19 @@ import json
 import secrets
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy
-from . import history, science
+from . import history, science, temporal
 from .db import now
 from .errors import ServiceError
 
-KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection')
+KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy')
 DEFAULT_EXPIRY_SECONDS = 7 * 86400
 SERVICE_CONTRACT_SCHEMA = 'metacoin-service-contract/v1'
 VALIDATORS = {'energy_audit': energy.validate, 'safe_runtime': science.validate_safe_runtime,
-              'plan_comparison': science.validate_comparison, 'task_selection': science.validate_selection}
+              'plan_comparison': science.validate_comparison, 'task_selection': science.validate_selection,
+              'temporal_energy': temporal.validate}
 MODEL_IDS = {'safe_runtime': science.SAFE_RUNTIME_MODEL, 'plan_comparison': science.COMPARISON_MODEL,
-             'task_selection': science.SELECTION_MODEL}
+             'task_selection': science.SELECTION_MODEL, 'temporal_energy': temporal.MODEL_ID}
+VERIFIER_OF = {'temporal_energy': ('temporal-energy-verifier/v1', temporal.bundle_digest)}
 
 
 DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loopback_test', 'production': 'x402_http_buyer'}
@@ -59,10 +61,26 @@ class Contracts:
         # so a job created in the console can actually be dispatched on this instance.
         self.default_capability = DEFAULT_CAPABILITY[settings.provider_mode] if settings else 'legacy_simulation'
 
-    def create_draft(self, db, principal, *, kind, title, inputs, policy):
+    def create_draft(self, db, principal, *, kind, title, inputs, policy, datasets=None):
         principal.require('contract:create')
         if type(title) is not str or not 1 <= len(title) <= 128:
             raise ServiceError('VALIDATION', 'title')
+        dataset_version_id = None
+        if type(inputs) is dict and 'dataset_version_id' in inputs:
+            # Materialize an immutable model input from a dataset version + explicit parameters.
+            if datasets is None or set(inputs) != {'dataset_version_id', 'parameters'}:
+                raise ServiceError('VALIDATION', 'dataset-backed inputs: {dataset_version_id, parameters}')
+            rows, v = datasets.rows(db, principal, inputs['dataset_version_id'])
+            ds = db.execute('SELECT retired_at FROM datasets WHERE id=?', (v['dataset_id'],)).fetchone()
+            if ds['retired_at'] is not None:
+                raise ServiceError('CONFLICT', 'dataset retired; new work refused')
+            if kind == 'temporal_energy' and v['kind'] == 'temporal_series':
+                inputs = datasets.temporal_input(rows, inputs['parameters'], v)
+            elif kind == 'energy_audit' and v['kind'] == 'energy_intervals':
+                inputs = datasets.interval_input(rows, inputs['parameters'], v)
+            else:
+                raise ServiceError('VALIDATION', 'dataset kind incompatible with contract kind')
+            dataset_version_id = v['id']
         validate_inputs(kind, inputs)
         pol = validate_policy(kind, policy, self.default_capability)
         if pol['reviewer_id'] is not None:
@@ -76,7 +94,11 @@ class Contracts:
                    (cid, principal.workspace, principal.id, kind, 'draft', cid, title, json.dumps(pol), json.dumps({}),
                     aid, pol['reviewer_id'], now()))
         db.execute('UPDATE artifacts SET contract_id=? WHERE id=?', (cid, aid))
-        history.record(db, principal.workspace, principal.id, 'contract.created', 'contract', cid, {'kind': kind, 'version': 1})
+        if dataset_version_id:
+            db.execute('UPDATE contracts SET dataset_version_id=? WHERE id=?', (dataset_version_id, cid))
+            from .datasets import add_edge
+            add_edge(db, principal.workspace, 'dataset_version', dataset_version_id, 'contract', cid, 'used_input')
+        history.record(db, principal.workspace, principal.id, 'contract.created', 'contract', cid, {'kind': kind, 'version': 1, 'dataset_version_id': dataset_version_id})
         return cid
 
     def _reviewer(self, db, workspace, reviewer_id):
@@ -138,7 +160,8 @@ class Contracts:
             doc = {'schema': SERVICE_CONTRACT_SCHEMA, 'kind': row['kind'], 'job_id': contract_id, 'workspace': principal.workspace,
                    'owner': principal.id, 'auditor': pol['reviewer_id'], 'input_root': receipt['root'],
                    'commitment_schema': merkle.SCHEMA, 'model_id': MODEL_IDS[row['kind']],
-                   'verifier_id': 'service-science/v1', 'verifier_digest': science.bundle_digest(),
+                   'verifier_id': VERIFIER_OF.get(row['kind'], ('service-science/v1', science.bundle_digest))[0],
+                   'verifier_digest': VERIFIER_OF.get(row['kind'], ('service-science/v1', science.bundle_digest))[1](),
                    'accepted_outcomes': pol['accepted_outcomes'], 'disclose_outcome': pol['disclose_outcome'],
                    'expires_at': expires_at, 'retention_seconds': pol['retention_seconds'],
                    'lineage_id': row['lineage_id'], 'version': row['version']}
@@ -180,4 +203,5 @@ class Contracts:
                 'lineage_id': row['lineage_id'], 'previous_id': row['previous_id'], 'title': row['title'],
                 'policy': pol, 'contract_digest': row['contract_digest'], 'input_root': row['input_root'],
                 'reviewer_id': row['reviewer_id'], 'expires_at': row['expires_at'], 'created_at': row['created_at'],
+                'dataset_version_id': row['dataset_version_id'] if 'dataset_version_id' in row.keys() else None,
                 'frozen_at': row['frozen_at'], 'terms': merkle.parse(row['contract_json']) if row['contract_json'] else None}
