@@ -19,9 +19,18 @@ SHOTS, OUT = sys.argv[1], sys.argv[2]
 os.makedirs(SHOTS, exist_ok=True)
 creds = json.load(open(HOME + '/credentials/bootstrap.json'))['principals']; tok = {r: e['token'] for r, e in creds.items()}; ids = {r: e['principal_id'] for r, e in creds.items()}
 results = []
-sys.path.insert(0, ROOT)
-from metacoin_service.tests.test_service import own_inputs
-from metacoin_service.tests.test_agents import TEMPORAL, policy
+# fixtures inlined: this script runs in the Playwright venv, which has no fastapi
+TEMPORAL = {'schema': 'temporal-energy-input/v1', 'capacity': 10_000, 'initial_low': 6_000, 'initial_high': 6_000, 'reserve': 2_000,
+            'segments': [{'duration': 10, 'harvest_low': 600, 'harvest_high': 800, 'load_low': 500, 'load_high': 500, 'leakage_low': 0, 'leakage_high': 0}],
+            'units': {'energy': 'mJ', 'power': 'mW', 'duration': 's'},
+            'assumptions': ['piecewise_constant_power_bounds', 'independent_interval_bounds', 'powers_at_usable_energy_boundary', 'saturation_at_capacity', 'constant_reserve',
+                            'virtual_energy_below_reserve_for_diagnostics', 'no_unmodeled_loads', 'no_recharge_physics'], 'provenance': 'synthetic', 'private_label': 'AGENT_PRIVATE_BROWSER'}
+
+
+def policy():
+    return {'schema': 'metacoin-agent-policy/v1', 'permitted_services': ['temporal_energy'], 'allowed_operations': ['services:read', 'quote', 'invoke', 'job:read'],
+            'ceilings': {'total_amount': 3, 'per_action_amount': 2, 'max_jobs': 2, 'max_workflows': 1, 'concurrency': 2}, 'validity_seconds': 3600,
+            'review_gate_mandatory': True, 'input_visibility': 'own'}
 
 
 def check(name, ok, detail=''):
