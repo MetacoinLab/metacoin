@@ -277,6 +277,16 @@ MIGRATIONS = [
     CREATE TABLE knowledge_answers (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, collection_id TEXT NOT NULL, index_id TEXT, job_id TEXT NOT NULL, principal_id TEXT NOT NULL, mode TEXT NOT NULL,
         question_sha256 TEXT NOT NULL, status TEXT NOT NULL, sources_json TEXT NOT NULL, citations_json TEXT NOT NULL, invalidated_at INTEGER, invalidation_reason TEXT, created_at INTEGER NOT NULL);
     """),
+    ('016_calibration', """
+    ALTER TABLE compute_runs ADD COLUMN duration_ms INTEGER;
+    ALTER TABLE compute_runs ADD COLUMN compute_ms INTEGER;
+    CREATE TABLE calibration_datasets (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_id TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, target TEXT NOT NULL, columns_json TEXT NOT NULL,
+        units_json TEXT NOT NULL, rows_artifact_id TEXT NOT NULL REFERENCES artifacts(id), row_count INTEGER NOT NULL, digest TEXT NOT NULL, policy_json TEXT NOT NULL, scope_json TEXT, created_at INTEGER NOT NULL);
+    CREATE TABLE calibration_models (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, dataset_id TEXT NOT NULL, job_id TEXT NOT NULL REFERENCES jobs(id), kind TEXT NOT NULL, state TEXT NOT NULL, target TEXT NOT NULL,
+        features_json TEXT NOT NULL, scope_json TEXT, manifest_artifact_id TEXT NOT NULL REFERENCES artifacts(id), metrics_json TEXT NOT NULL, domain_json TEXT NOT NULL, warnings_json TEXT NOT NULL,
+        implementation_digest TEXT NOT NULL, verification_passed INTEGER NOT NULL, approved_by TEXT, approved_at INTEGER, retired_at INTEGER, created_at INTEGER NOT NULL);
+    CREATE TABLE calibration_defaults (scope TEXT PRIMARY KEY, workspace TEXT NOT NULL, model_id TEXT NOT NULL REFERENCES calibration_models(id), set_by TEXT NOT NULL, previous_model_id TEXT, evidence_json TEXT, updated_at INTEGER NOT NULL);
+    """),
 ]
 
 

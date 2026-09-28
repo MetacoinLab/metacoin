@@ -177,6 +177,9 @@ class Worker:
                 done = db.execute('SELECT * FROM jobs WHERE id=?', (job['id'],)).fetchone()
                 metering.record_for_job(self.settings, db, done)
                 reuse.record(db, done, contract)
+                if job['kind'] == 'calibration_fit':
+                    from .calibration import Calibration
+                    Calibration(self.store, self.settings).register_from_job(db, done, self.store)
                 return 'succeeded'
             retryable = error in ('COMPUTATION_ERROR', 'TIMEOUT') and current['retries_left'] > 0
             if error == 'CANCELLED' or not retryable:

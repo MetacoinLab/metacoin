@@ -22,7 +22,7 @@ PROBE_CACHE = {}
 # Evidence-based automatic backend selection (benchmark_compute on this DGX, 2026-09-24): the cuda path wins only for
 # large heat grids (512^2: 9x, 1024^2: 10x warm), while temporal batches and Monte Carlo chunks are transfer/host-bound
 # and run 1.3-4x faster on numpy. 'auto' therefore prefers cuda only above these work thresholds; 'gpu' always uses it.
-AUTO_CUDA_MIN_WORK = {'heat_diffusion': 100, 'temporal_batch': None, 'monte_carlo_reliability': None}   # work units (heat: millions of cell updates)
+AUTO_CUDA_MIN_WORK = {'heat_diffusion': 100, 'temporal_batch': None, 'monte_carlo_reliability': None, 'calibration_fit': None}   # work units (heat: millions of cell updates)
 
 
 def compute_interpreter(settings):
@@ -89,6 +89,21 @@ class ComputeEngine:
                 auto_note = '; measured evidence prefers cpu for this service at %d work units' % run['work_total']
             else:
                 auto_note = '; measured evidence prefers cuda above %d work units (job has %d)' % (threshold, run['work_total'])
+            # optional calibrated ranking signal (advisory): only among devices this worker offers, only inside the calibration domain
+            try:
+                from ..calibration import Calibration
+                calib = Calibration(self.worker.store, self.settings)
+                preds = {d: calib.estimate(db, run['workspace'], run['kind'], run['work_total'], d) for d in ('cpu', 'cuda') if d in self.devices}
+                usable = {d: v[0] for d, v in preds.items() if v[0] is not None}
+                if len(usable) == 2:
+                    ordered = sorted(usable, key=usable.get)
+                    if ordered != wanted:
+                        wanted = ordered
+                    auto_note = '; calibrated: predicted %s' % ', '.join('%s=%d ms' % (d, int(usable[d])) for d in ordered) + ' (%s)' % preds[ordered[0]][1]
+                elif preds:
+                    auto_note += '; calibration ignored: ' + '; '.join('%s: %s' % (d, v[1]) for d, v in preds.items() if v[0] is None)
+            except Exception as exc:
+                auto_note += '; calibration unavailable (%s)' % type(exc).__name__
         db.execute('DELETE FROM compute_reservations WHERE expires_at < ?', (now(),))
         for device in wanted:
             if device not in self.devices:
@@ -183,7 +198,12 @@ class ComputeEngine:
                         (resume_dir / name).write_bytes(data)
                 except Exception as exc:
                     return self._fail(job, 'CHECKPOINT_INVALID', {'generation': latest['generation'], 'reason': type(exc).__name__ + ': ' + str(exc)[:80]})
-            child_spec = {'job_id': job['id'], 'kind': kind, 'inputs': spec['inputs'], 'manifest': man, 'backend': backend, 'precision': run['precision'],
+            aux = None
+            if kind == 'calibration_fit':                  # the child has no database: the bound dataset rows travel in the private spec
+                from .. import calibration as calibration_svc
+                with self.worker.db.read() as db:
+                    aux = calibration_svc.rows_for_fit(db, self.worker.store, job['workspace'], spec['inputs'])
+            child_spec = {'job_id': job['id'], 'kind': kind, 'inputs': spec['inputs'], 'aux': aux, 'manifest': man, 'backend': backend, 'precision': run['precision'],
                           'attempt_generation': job['lease_generation'], 'input_digest': run['input_digest'], 'chunk': None,
                           'checkpoint_interval_seconds': self.limits['compute_checkpoint_interval_seconds'], 'resume_dir': str(resume_dir) if resume_dir else None,
                           'limits': {'cpu_seconds': self.limits['compute_cpu_seconds'], 'fsize_bytes': self.limits['compute_max_artifact_bytes'], 'threads': self.limits['compute_threads']}}
@@ -206,6 +226,7 @@ class ComputeEngine:
         history.record_safe(self.worker.db, job['workspace'], self.worker.worker_id, 'compute.control', 'job', job['id'], {'attempt': job['lease_generation'], 'backend': backend, 'resumed_from_generation': latest['generation'] if latest else None})
         last_lease, last_tele, last_progress_event = time.time(), 0.0, 0.0
         samples, control_sent, control_pending = [], None, None
+        child_started = None
         outcome = None
         buf = b''
         try:
@@ -248,6 +269,7 @@ class ComputeEngine:
                         continue
                     et = ev.get('event')
                     if et == 'started':
+                        child_started = time.time()
                         self._update(job, phase='running', versions_json=json.dumps({'backend': ev['backend'], 'versions': ev['versions'], 'threads': ev.get('threads'), 'energy_counter_start_mJ': ev.get('energy_counter_mJ')}))
                     elif et == 'resumed':
                         self._update(job, phase='running', work_committed=ev['committed'], work_computed=ev['committed'], checkpoint_generation=ev['generation'])
@@ -284,7 +306,8 @@ class ComputeEngine:
                 proc.kill(); proc.wait(timeout=10)
             log_file.close()
             tail = log_path.read_bytes()[-self.limits['compute_log_tail_bytes']:].decode(errors='replace') if log_path.exists() else ''
-            self._update(job, telemetry_json=json.dumps(self._telemetry_summary(samples, backend)), log_tail=tail, child_pid=None)
+            self._update(job, telemetry_json=json.dumps(self._telemetry_summary(samples, backend)), log_tail=tail, child_pid=None,
+                         duration_ms=int((time.time() - started) * 1000), compute_ms=int((time.time() - child_started) * 1000) if child_started else None)
         kind, code, ev = outcome
         if kind == 'fenced':
             return 'fenced'
@@ -419,7 +442,12 @@ class ComputeEngine:
         files = {p.name: p.read_bytes() for p in out_dir.iterdir() if p.is_file()}
         self._update(job, phase='verifying', work_computed=ev['committed'])
         try:
-            verification = verify.run(job['kind'], spec['inputs'], files, man, ev['summary'])
+            aux = None
+            if job['kind'] == 'calibration_fit':
+                from .. import calibration as calibration_svc
+                with self.worker.db.read() as db:
+                    aux = calibration_svc.rows_for_fit(db, self.worker.store, job['workspace'], spec['inputs'])
+            verification = verify.run(job['kind'], spec['inputs'], files, man, ev['summary'], aux)
         except Exception as exc:
             verification = {'mode': 'error', 'passed': False, 'mismatches': [{'reason': 'verifier raised ' + type(exc).__name__}]}
         blob = container.pack({k: v for k, v in files.items()})

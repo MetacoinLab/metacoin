@@ -14,6 +14,7 @@ from . import actions as actions_mod, artifacts as artifacts_mod, auth, contract
 from .compute import service as compute_svc
 from .models import service as model_svc, registry as model_registry
 from .knowledge import service as knowledge_mod, retrieval as retrieval_mod, engine as knowledge_engine
+from .calibration import Calibration
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -42,6 +43,7 @@ class Services:
         self.schedules = schedules_mod.Schedules(self.workflows, settings)
         self.models = model_registry.ModelRegistry(settings)
         self.knowledge = knowledge_mod.Knowledge(self.store, settings)
+        self.calibration = Calibration(self.store, settings)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -1335,6 +1337,92 @@ def create_app(settings):
                 raise ServiceError('NOT_FOUND', 'no answer record for this job (not finished, or not an answer job)')
             return svc.knowledge.answer(db, p, row['id'], svc.store)
         return await run(request, True, fn)
+
+    # ---- calibration ------------------------------------------------------------------------------------------
+    @app.post(API + '/calibration/datasets', status_code=201)
+    async def cal_dataset(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            if body.get('kind', 'numeric') == 'performance':
+                return svc.calibration.create_performance_dataset(db, p, body), 201
+            return svc.calibration.create_numeric_dataset(db, p, body), 201
+        return await run(request, True, fn, 'calibration.dataset', raw)
+
+    @app.get(API + '/calibration/datasets')
+    async def cal_datasets(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.calibration.list_datasets(db, p)})
+
+    @app.get(API + '/calibration/datasets/{did}')
+    async def cal_dataset_view(request: Request, did: str):
+        def fn(db, p):
+            p.require('job:read')
+            return svc.calibration.dataset_view(svc.calibration.dataset(db, p, did))
+        return await run(request, False, fn)
+
+    @app.get(API + '/calibration/datasets/{did}/rows')
+    async def cal_dataset_rows(request: Request, did: str):
+        return await run(request, False, lambda db, p: svc.calibration.rows(db, p, did))
+
+    @app.post(API + '/calibration/fits', status_code=202)
+    async def cal_fit(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('calibration:write')
+            inputs = dict(body.get('inputs') or {}, schema='calibration-fit-input/v1')
+            inputs.setdefault('device_policy', 'cpu')
+            return quick_submit(svc, db, p, 'calibration_fit', inputs, body.get('title') or 'calibration fit'), 202
+        return await run(request, True, fn, 'calibration.fit', raw)
+
+    @app.get(API + '/calibration/models')
+    async def cal_models(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.calibration.list_models(db, p)})
+
+    @app.get(API + '/calibration/scheduling')
+    async def cal_sched_get(request: Request):
+        return await run(request, False, lambda db, p: {'calibrated_scheduling_enabled': svc.calibration.scheduling_enabled(db), 'defaults': [dict(r) for r in db.execute('SELECT scope, model_id, set_by, updated_at FROM calibration_defaults WHERE workspace=?', (p.workspace,)).fetchall()]})
+
+    @app.post(API + '/calibration/scheduling')
+    async def cal_sched_set(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.calibration.set_scheduling(db, p, bool(body.get('enabled', True))), 'calibration.scheduling', raw)
+
+    @app.post(API + '/calibration/plan')
+    async def cal_plan(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.calibration.plan(db, p, body.get('task_kind'), body.get('inputs')))
+
+    @app.get(API + '/calibration/replay/{task_kind}')
+    async def cal_replay(request: Request, task_kind: str):
+        return await run(request, False, lambda db, p: svc.calibration.replay(db, p, task_kind))
+
+    @app.get(API + '/calibration/models/{mid}')
+    async def cal_model_view(request: Request, mid: str):
+        def fn(db, p):
+            p.require('job:read')
+            return svc.calibration.model_view(db, svc.calibration.model(db, p, mid), full=p.can('job:read_private'))
+        return await run(request, False, fn)
+
+    @app.get(API + '/calibration/models/{mid}/comparison')
+    async def cal_model_comparison(request: Request, mid: str):
+        return await run(request, False, lambda db, p: svc.calibration.comparison(db, p, mid))
+
+    @app.post(API + '/calibration/models/{mid}/{action}')
+    async def cal_model_action(request: Request, mid: str, action: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            if action == 'predict':
+                return svc.calibration.predict(db, p, mid, body.get('features'))
+            if action == 'approve':
+                return svc.calibration.approve(db, p, mid, body.get('evidence'))
+            if action == 'retire':
+                return svc.calibration.retire(db, p, mid)
+            raise ServiceError('NOT_FOUND', 'action')
+        return await run(request, action != 'predict', fn, 'calibration.' + action if action != 'predict' else None, raw)
 
     from . import console
     console.mount(app, svc)

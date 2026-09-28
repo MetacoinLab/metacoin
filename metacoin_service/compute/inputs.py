@@ -348,7 +348,62 @@ def heat_work_units(data):
     return -(-(data['nx'] * data['ny'] * data['steps']) // 1_000_000)
 
 
-VALIDATORS = {'temporal_batch': validate_temporal_batch, 'monte_carlo_reliability': validate_monte_carlo, 'heat_diffusion': validate_heat}
+CALIBRATION_SCHEMA = 'calibration-fit-input/v1'
+CALIBRATION_LIMITS = {'max_rows': 5000, 'max_features': 16, 'max_ridge': '1e6', 'min_rows': 3}
+SPLIT_METHODS = ('chronological', 'random', 'index')
+
+
+def validate_calibration(data):
+    """Fit request: dataset binding by id (rows are attached by the engine), feature/target names, intercept, ridge
+    lambda as a decimal string, split policy, scaling and the interval level. Numeric policy is fixed by the manifest."""
+    if type(data) is not dict or data.get('schema') != CALIBRATION_SCHEMA:
+        raise ComputeInvalid('schema must be ' + CALIBRATION_SCHEMA)
+    allowed = {'schema', 'dataset_id', 'features', 'target', 'intercept', 'ridge_lambda', 'split', 'scaling', 'interval_percent', 'device_policy', 'private_label', 'scope'}
+    unknown = set(data) - allowed
+    if unknown:
+        raise ComputeInvalid('unknown fields are refused: ' + ','.join(sorted(unknown)))
+    if type(data.get('dataset_id')) is not str or not data['dataset_id'].startswith('cd_') or len(data['dataset_id']) > 32:
+        raise ComputeInvalid('dataset_id')
+    feats = data.get('features')
+    if type(feats) is not list or not 1 <= len(feats) <= CALIBRATION_LIMITS['max_features'] or len(set(feats)) != len(feats) \
+            or not all(type(f) is str and re.match(r'^[a-z][a-z0-9_]{0,31}$', f) for f in feats):
+        raise ComputeInvalid('features: 1..%d distinct snake_case names' % CALIBRATION_LIMITS['max_features'])
+    if type(data.get('target')) is not str or not re.match(r'^[a-z][a-z0-9_]{0,31}$', data['target']) or data['target'] in feats:
+        raise ComputeInvalid('target: a snake_case name distinct from the features')
+    if type(data.get('intercept', True)) is not bool:
+        raise ComputeInvalid('intercept: boolean')
+    lam = data.get('ridge_lambda', '0')
+    if type(lam) is not str or not DECIMAL_RE.match(lam) or Fraction(lam) < 0 or Fraction(lam) > Fraction(CALIBRATION_LIMITS['max_ridge']):
+        raise ComputeInvalid('ridge_lambda: non-negative decimal string up to %s' % CALIBRATION_LIMITS['max_ridge'])
+    split = data.get('split', {'method': 'chronological', 'train_fraction_percent': 80})
+    if type(split) is not dict or split.get('method') not in SPLIT_METHODS:
+        raise ComputeInvalid('split.method: ' + '|'.join(SPLIT_METHODS))
+    if split['method'] == 'index':
+        for key in ('train', 'eval'):
+            v = split.get(key)
+            if type(v) is not list or not v or not all(type(i) is int and i >= 0 for i in v) or len(set(v)) != len(v):
+                raise ComputeInvalid('split.%s: distinct non-negative row indexes' % key)
+        if set(split['train']) & set(split['eval']):
+            raise ComputeInvalid('split: train and eval overlap')
+    else:
+        pct = split.get('train_fraction_percent', 80)
+        if type(pct) is not int or not 50 <= pct <= 95:
+            raise ComputeInvalid('split.train_fraction_percent: 50..95')
+        if split['method'] == 'random' and (type(split.get('seed', 0)) is not int or split.get('seed', 0) < 0):
+            raise ComputeInvalid('split.seed')
+    if data.get('scaling', 'standardize') not in ('standardize', 'none'):
+        raise ComputeInvalid('scaling: standardize | none')
+    lvl = data.get('interval_percent', 90)
+    if type(lvl) is not int or not 50 <= lvl <= 99:
+        raise ComputeInvalid('interval_percent: 50..99')
+    if data.get('device_policy', 'cpu') != 'cpu':
+        raise ComputeInvalid('calibration runs on cpu only')
+    if data.get('scope') is not None and (type(data['scope']) is not dict or not set(data['scope']) <= {'task_kind', 'backend'} or not all(type(v) is str and len(v) <= 40 for v in data['scope'].values())):
+        raise ComputeInvalid('scope: {task_kind, backend}')
+    return data
+
+
+VALIDATORS = {'temporal_batch': validate_temporal_batch, 'monte_carlo_reliability': validate_monte_carlo, 'heat_diffusion': validate_heat, 'calibration_fit': validate_calibration}
 
 
 def work_units(kind, data):
@@ -356,4 +411,6 @@ def work_units(kind, data):
         return batch_total(data)
     if kind == 'monte_carlo_reliability':
         return data['samples']
+    if kind == 'calibration_fit':
+        return 1
     return heat_work_units(data)

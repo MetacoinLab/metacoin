@@ -102,9 +102,53 @@ def heat(data, files, manifest, summary):
             'statement': 'invariants and an independent scalar recomputation' + (' of the whole run' if mode == 'exact_reference' else ' of the final step') + '; evidence under the FTCS model assumptions, not a physical validation'}
 
 
-def run(kind, data, files, manifest, summary):
+def calibration(data, files, manifest, summary, aux=None):
+    """Independent refit with the pure-Python Householder QR on the same standardized training design (from the
+    stored manifest), compared through training predictions; reported metrics recomputed from stored predictions."""
+    from fractions import Fraction
+    from . import calibration as cal
+    m = json.loads(files['model.json']); preds = json.loads(files['predictions.json'])
+    tol = manifest['verification_policy']['tolerance']
+    checks, passed = [], True
+    def add(name, ok, detail):
+        nonlocal passed
+        checks.append({'check': name, 'ok': bool(ok), 'detail': detail}); passed = passed and bool(ok)
+    tr = preds['train']; ev = preds['eval']
+    ytr = [float(r['actual']) for r in tr]; ptr = [float(r['predicted']) for r in tr]
+    yev = [float(r['actual']) for r in ev]; pev = [float(r['predicted']) for r in ev]
+    mt, me = cal.metrics(ytr, ptr), cal.metrics(yev, pev)
+    f = lambda v: float(v) if isinstance(v, str) else v
+    close = lambda a, b: (a is None and b is None) or (a is not None and b is not None and abs(f(a) - f(b)) <= tol['abs'] + tol['rel'] * max(abs(f(a)), abs(f(b)), 1.0))
+    add('metrics_reproducible', all(close(mt.get(k), m['metrics']['train'].get(k)) for k in ('rmse', 'mae', 'max_abs_error')) and all(close(me.get(k), m['metrics']['eval'].get(k)) for k in ('rmse', 'mae', 'max_abs_error')),
+        {'train_rmse_recomputed': mt.get('rmse'), 'eval_rmse_recomputed': me.get('rmse')})
+    if aux is not None:
+        columns, rows = aux['columns'], aux['rows']
+        fi = [columns.index(x) for x in m['features']]
+        X = [[cal.to_float(rows[i][j]) for j in fi] for i in m['train_indexes']]
+        kept = [m['features'].index(n) for n in m['kept_columns']]
+        stats = [(float(a), float(b)) for a, b in m['scaling_stats']]
+        Z = cal.design(X, kept, stats, m['intercept'], m['scaling'])
+        lam = float(Fraction(m['ridge_lambda']))
+        x, rank, _ = cal.householder_lstsq(Z, ytr, ridge=lam, n_pen=len(kept))
+        ref_pred = cal.predict_rows(Z, x)
+        stored_pred = cal.predict_rows(Z, [float(c) for c in m['coefficients']])
+        diff = max((abs(a - b) for a, b in zip(ref_pred, stored_pred)), default=0.0)
+        scale = max(1.0, max(abs(v) for v in ytr))
+        full_rank = bool(Z) and rank == len(Z[0])
+        if full_rank:
+            add('reference_refit_predictions', diff <= tol['abs'] + tol['rel'] * scale, {'max_abs_diff': diff, 'reference': 'householder QR (pure Python)', 'rank': rank})
+        else:
+            add('reference_refit_rank_deficient', True, {'note': 'rank-deficient design: the minimum-norm solution is not compared coefficient-wise; stored predictions reproduce the stored metrics', 'rank': rank})
+        add('stored_predictions_from_coefficients', max((abs(a - b) for a, b in zip(stored_pred, ptr)), default=0.0) <= tol['abs'] + tol['rel'] * scale, {'rows': len(ptr)})
+    return {'mode': 'reference_refit', 'passed': passed, 'checks': checks, 'tolerance': tol,
+            'statement': 'metrics reproduced from stored predictions and an independent pure-Python QR refit on the training design agreed within tolerance; this checks the fit, not whether the model describes unseen jobs'}
+
+
+def run(kind, data, files, manifest, summary, aux=None):
     if kind == 'temporal_batch':
         return temporal_batch(data, files, manifest)
     if kind == 'monte_carlo_reliability':
         return monte_carlo(data, files, manifest, summary)
+    if kind == 'calibration_fit':
+        return calibration(data, files, manifest, summary, aux)
     return heat(data, files, manifest, summary)

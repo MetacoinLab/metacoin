@@ -6,7 +6,7 @@ from pathlib import Path
 from . import inputs
 
 HERE = Path(__file__).parent
-KERNEL_FILES = ('kernels.py', 'inputs.py', 'reference.py', 'npy.py', 'exec.py')
+KERNEL_FILES = ('kernels.py', 'inputs.py', 'reference.py', 'npy.py', 'exec.py', 'calibration.py')
 
 
 def implementation_digest():
@@ -51,6 +51,17 @@ MANIFESTS = {
                                 'invariants': ['finite', 'boundary fixed', 'discrete maximum principle', 'last step recomputed independently from the stored penultimate field']},
         'outputs': ['field.npy (float64, [ny, nx])', 'field_prev.npy', 'snapshots.npy (float64, [k, ny, nx])', 'summary'],
         'resource_controls': {'chunk_cell_steps': inputs.HEAT_LIMITS['chunk_cell_steps'], 'device_slots': 1},
+    },
+    'calibration_fit': {
+        'manifest_id': 'calibration-linear/v1', 'version': 1, 'model_id': 'linear-least-squares-calibration/v1', 'result_schema': 'calibration-fit-result/v1',
+        'input_schema': inputs.CALIBRATION_SCHEMA, 'devices': ['cpu'], 'precision': ['float64'],
+        'numerical_policy': 'ordinary least squares or ridge (augmented rows, unpenalized intercept) solved by numpy.linalg.lstsq (LAPACK gelsd, SVD-based; no explicit inverse) '
+                            'on features standardized with training-split statistics; rank and singular values reported; verification refits with an independent Householder QR in pure Python',
+        'limits': dict(inputs.CALIBRATION_LIMITS), 'work_unit': 'one fit', 'price_basis': 'per fit',
+        'checkpoint_format': 'none (single chunk)', 'verification_modes': ['reference_refit'],
+        'verification_policy': {'tolerance': {'rel': 1e-6, 'abs': 1e-9}, 'rule': 'training predictions from the stored coefficients must match the Householder QR reference within tolerance; reported metrics must be reproducible from stored predictions'},
+        'outputs': ['model.json (manifest: coefficients, scaling, split, metrics, domain, warnings)', 'predictions.json (train/eval rows: actual, predicted, residual)'],
+        'resource_controls': {'threads': 'bounded per worker', 'device_slots': 1},
     },
 }
 KINDS = tuple(MANIFESTS)

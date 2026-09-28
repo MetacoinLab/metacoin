@@ -288,7 +288,105 @@ class HeatTask(Task):
                 'interpretation': 'explicit FTCS solution of the constant-diffusivity heat equation with fixed Dirichlet boundaries; a numerical model, not a validated thermal model of any device'}
 
 
-TASKS = {'temporal_batch': TemporalBatchTask, 'monte_carlo_reliability': MonteCarloTask, 'heat_diffusion': HeatTask}
+class CalibrationFitTask(Task):
+    """One-chunk fit: numpy.linalg.lstsq on the standardized training design (ridge by augmentation); metrics on both
+    splits; empirical evaluation-residual interval; training domain; warnings. Rows come from spec['aux']."""
+
+    def __init__(self, spec, be, workdir):
+        super().__init__(spec, be, workdir)
+        self.aux = spec.get('aux') or {}
+        self.result = None
+
+    def boundary(self):
+        return {'fits_committed': self.committed}
+
+    def save_state(self, d):
+        return {}
+
+    def load_state(self, d, meta):
+        self.committed = meta['committed_units']; self.chunk_id = meta['chunk_id']
+
+    def run_chunk(self):
+        import numpy as np
+        from fractions import Fraction
+        from . import calibration as cal
+        d = self.data
+        columns, rows = self.aux['columns'], self.aux['rows']
+        if not rows or len(rows) < inputs.CALIBRATION_LIMITS['min_rows']:
+            raise ValueError('dataset has fewer than %d usable rows' % inputs.CALIBRATION_LIMITS['min_rows'])
+        feats, target = d['features'], d['target']
+        missing = [f for f in feats + [target] if f not in columns]
+        if missing:
+            raise ValueError('columns absent from the dataset: ' + ','.join(missing))
+        fi = [columns.index(f) for f in feats]; ti = columns.index(target)
+        X = [[cal.to_float(r[j]) for j in fi] for r in rows]
+        y = [cal.to_float(r[ti]) for r in rows]
+        train_idx, eval_idx, split = cal.split_rows(len(rows), d.get('split', {'method': 'chronological', 'train_fraction_percent': 80}))
+        if max(train_idx + eval_idx) >= len(rows):
+            raise ValueError('split indexes exceed the dataset')
+        Xtr, ytr = [X[i] for i in train_idx], [y[i] for i in train_idx]
+        scaling = d.get('scaling', 'standardize')
+        kept, stats, dropped = cal.standardize_stats(Xtr, feats)
+        if scaling == 'none':
+            kept, stats = list(range(len(feats))), [(0.0, 1.0)] * len(feats)
+        intercept = d.get('intercept', True)
+        Ztr = cal.design(Xtr, kept, stats, intercept, scaling)
+        lam = float(Fraction(d.get('ridge_lambda', '0')))
+        A = np.array(Ztr, dtype=np.float64); b = np.array(ytr, dtype=np.float64)
+        n_pen = len(kept)
+        if lam > 0:
+            aug = np.zeros((n_pen, A.shape[1])); aug[np.arange(n_pen), np.arange(n_pen)] = np.sqrt(lam)
+            A = np.vstack([A, aug]); b = np.concatenate([b, np.zeros(n_pen)])
+        coef, residuals, rank, sv = np.linalg.lstsq(A, b, rcond=None)
+        coef = [float(c) for c in coef]
+        cond = float(sv[0] / sv[-1]) if len(sv) and sv[-1] > 0 else None
+        warnings = []
+        if dropped:
+            warnings.append('zero-variance features dropped: ' + ','.join(dropped))
+        if rank < A.shape[1]:
+            warnings.append('rank-deficient design (rank %d < %d columns): coefficients are the minimum-norm solution and are not individually identifiable' % (rank, A.shape[1]))
+        if cond is not None and cond > 1e8:
+            warnings.append('ill-conditioned design (condition number %.3g): coefficients are sensitive to small data changes' % cond)
+        if len(train_idx) < 5 * max(1, A.shape[1]):
+            warnings.append('few training rows relative to parameters (%d rows, %d parameters)' % (len(train_idx), A.shape[1]))
+        yhat_tr = cal.predict_rows(Ztr, coef)
+        Xev, yev = [X[i] for i in eval_idx], [y[i] for i in eval_idx]
+        Zev = cal.design(Xev, kept, stats, intercept, scaling)
+        yhat_ev = cal.predict_rows(Zev, coef)
+        mtr, mev = cal.metrics(ytr, yhat_tr), cal.metrics(yev, yhat_ev)
+        interval = cal.empirical_interval([a - b for a, b in zip(yev, yhat_ev)], d.get('interval_percent', 90))
+        if interval is None:
+            warnings.append('fewer than 5 evaluation rows: no prediction interval is claimed')
+        domain = cal.domain_of(Xtr, feats)
+        unit = self.aux.get('units', {}).get(target)
+        self.result = {'schema': 'calibration-model/v1', 'model_id': 'linear-least-squares-calibration/v1', 'dataset_id': d['dataset_id'], 'dataset_digest': self.aux.get('digest'), 'rows': len(rows),
+                       'features': feats, 'target': target, 'target_unit': unit, 'feature_units': {f: self.aux.get('units', {}).get(f) for f in feats}, 'intercept': intercept, 'ridge_lambda': d.get('ridge_lambda', '0'),
+                       'scaling': scaling, 'kept_columns': [feats[j] for j in kept], 'scaling_stats': [[repr(m), repr(s)] for (m, s) in stats], 'dropped_columns': dropped,
+                       'coefficients': [repr(c) for c in coef], 'coefficient_names': [feats[j] for j in kept] + (['intercept'] if intercept else []),
+                       'rank': int(rank), 'singular_values': [repr(float(v)) for v in sv], 'condition_number': repr(cond) if cond is not None else None,
+                       'split': split, 'train_indexes': train_idx, 'eval_indexes': eval_idx, 'metrics': {'train': mtr, 'eval': mev}, 'prediction_interval': interval, 'domain': domain,
+                       'warnings': warnings, 'solver': 'numpy.linalg.lstsq (gelsd) ' + np.__version__,
+                       'meaning': 'a fitted linear relationship on the training rows; not causation, not a guaranteed bound; predictions outside the domain are extrapolation'}
+        self.predictions = {'train': [{'row': i, 'actual': repr(a), 'predicted': repr(p), 'residual': repr(a - p)} for i, a, p in zip(train_idx, ytr, yhat_tr)],
+                            'eval': [{'row': i, 'actual': repr(a), 'predicted': repr(p), 'residual': repr(a - p)} for i, a, p in zip(eval_idx, yev, yhat_ev)]}
+        self.committed = 1; self.chunk_id += 1
+        return 1
+
+    def finish(self, out):
+        def exactable(o):
+            if isinstance(o, float): return repr(o)
+            if isinstance(o, dict): return {k: exactable(v) for k, v in o.items()}
+            if isinstance(o, list): return [exactable(v) for v in o]
+            return o
+        (out / 'model.json').write_bytes(canonical(exactable(self.result)))
+        (out / 'predictions.json').write_bytes(canonical(self.predictions))
+        m = self.result
+        return exactable({'model_id': m['model_id'], 'rows': m['rows'], 'features': m['features'], 'target': m['target'], 'rank': m['rank'], 'warnings': m['warnings'],
+                          'metrics_eval_rmse': m['metrics']['eval'].get('rmse'), 'metrics_train_rmse': m['metrics']['train'].get('rmse'), 'eval_rows': m['metrics']['eval'].get('n'), 'train_rows': m['metrics']['train'].get('n'),
+                          'split': m['split'], 'precision': 'float64'})
+
+
+TASKS = {'temporal_batch': TemporalBatchTask, 'monte_carlo_reliability': MonteCarloTask, 'heat_diffusion': HeatTask, 'calibration_fit': CalibrationFitTask}
 
 
 def main():
