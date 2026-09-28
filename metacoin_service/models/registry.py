@@ -311,4 +311,5 @@ class ModelRegistry:
 def runtime_view(r):
     return {'host': r['host'], 'revision_id': r['revision_id'], 'state': r['state'], 'device': r['device'], 'dtype': r['dtype'], 'estimated_bytes': r['estimated_bytes'],
             'loaded_at': r['loaded_at'], 'load_ms': r['load_ms'], 'last_used_at': r['last_used_at'], 'requests': r['requests'], 'desired': r['desired'], 'error': r['error'],
-            'versions': json.loads(r['versions_json']) if r['versions_json'] else None, 'updated_at': r['updated_at']}
+            'versions': json.loads(r['versions_json']) if r['versions_json'] else None, 'updated_at': r['updated_at'],
+            'warm': bool(r['warm']) if 'warm' in r.keys() else False, 'drain_reason': r['drain_reason'] if 'drain_reason' in r.keys() else None, 'drained_at': r['drained_at'] if 'drained_at' in r.keys() else None}

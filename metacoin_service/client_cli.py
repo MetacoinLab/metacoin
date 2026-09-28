@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'model-warmup', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -74,6 +74,11 @@ def expansion(args, go):
         return go('GET', '/api/v1/models')
     if c == 'models-runtime':
         return go('GET', '/api/v1/models/runtime')
+    if c == 'model-warmup':
+        body = {'enabled': not args.disable, 'revision_ids': [x for x in (args.revisions or '').split(',') if x]}
+        if args.ceiling_bytes is not None:
+            body['ceiling_bytes'] = args.ceiling_bytes
+        return go('POST', '/api/v1/models/warmup', body)
     if c == 'model-register':
         return go('POST', '/api/v1/models', {'model_id': args.model_id, 'hub_repo': args.hub_repo, 'revision': args.revision, 'operations': args.operations.split(','), 'license': args.license})
     if c == 'model-action':
@@ -367,6 +372,7 @@ def main(argv=None):
     sub.add_parser('verification-policies')
     esc = sub.add_parser('eval-suite-create', help='immutable evaluation suite from a JSON file {name, threshold_percent, items:[...]}'); esc.add_argument('--file', required=True); esc.add_argument('--name'); esc.add_argument('--threshold', type=int)
     sub.add_parser('eval-suites'); er = sub.add_parser('eval-run', help='run a suite under a generation revision (default: the promoted one) through ordinary jobs'); er.add_argument('suite_id'); er.add_argument('--revision'); er.add_argument('--wait', action='store_true'); er.add_argument('--timeout', type=int, default=600)
+    mw = sub.add_parser('model-warmup', help='operator warmup policy: ordered revisions kept resident under a byte ceiling; --disable releases them'); mw.add_argument('--revisions'); mw.add_argument('--ceiling-bytes', type=int); mw.add_argument('--disable', action='store_true')
     cdz = sub.add_parser('calibration-design', help='rank candidate measurements (JSON file {candidates:[{features,cost,label}], objective, cost_policy, targets}) by predicted utility; nothing is executed'); cdz.add_argument('model_id'); cdz.add_argument('--file', required=True)
     nc = sub.add_parser('notebook-create', help='private experiment notebook from a JSON file {name, note, blocks:[{id,type:text|link,...}]}; nothing is executed'); nc.add_argument('--file', required=True); nc.add_argument('--name')
     sub.add_parser('notebooks'); nv_ = sub.add_parser('notebook'); nv_.add_argument('notebook_id'); nv_.add_argument('--version', type=int)

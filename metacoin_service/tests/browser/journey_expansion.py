@@ -43,7 +43,7 @@ def no_overflow(page):
     return page.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1')
 
 
-with sync_playwright() as p:
+def run(p):
     browser = p.chromium.launch()
     octx, page = login(browser, 'owner')
     page.goto(BASE + '/console/models'); page.wait_for_load_state(); html = page.content()
@@ -130,5 +130,13 @@ with sync_playwright() as p:
     check('keyboard focus moves to a control', focused in ('A', 'INPUT', 'BUTTON', 'SELECT', 'TEXTAREA'), focused)
     browser.close()
 
-out = {'base': BASE, 'checks': results, 'passed': sum(r['ok'] for r in results), 'failed': sum(not r['ok'] for r in results), 'total': len(results), 'screenshots': sorted(os.listdir(SHOTS))}
+crash = None
+try:
+    with sync_playwright() as p:
+        run(p)
+except Exception as exc:                                   # a crashed step is reported as a failed check with its cause, never as missing output
+    import traceback
+    crash = traceback.format_exc()[-1200:]
+    results.append({'check': 'browser journey completed without an exception', 'ok': False, 'detail': repr(exc)[:300]})
+out = {'base': BASE, 'checks': results, 'passed': sum(r['ok'] for r in results), 'failed': sum(not r['ok'] for r in results), 'total': len(results), 'screenshots': sorted(os.listdir(SHOTS)), 'crash': crash}
 print(json.dumps(out))

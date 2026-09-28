@@ -114,6 +114,11 @@ class Worker:
     def execute(self, job):
         """Run one attempt in a child process; publish only if the lease is still ours."""
         if job['kind'] in compute_manifests.KINDS:
+            if self.models.available() and self.models.host.children:
+                try:
+                    self.models.host.drain_for_compute(self.settings.limits['compute_drain_min_available_bytes'], 'numerical compute job ' + job['id'])
+                except Exception:
+                    pass
             return self.compute.run(job)
         if job['kind'] in model_engine.KINDS:
             return self.models.run(job)
@@ -273,7 +278,7 @@ class Worker:
                     self.heartbeat(); last_beat = time.time()
                     if self.models.available():
                         try:
-                            self.models.host.apply_desired(self.models.registry); self.models.host.idle_cleanup()
+                            self.models.host.apply_desired(self.models.registry); self.models.host.apply_warmup(self.models.registry); self.models.host.idle_cleanup()
                         except Exception:
                             pass
                 if ran is None and not advanced:

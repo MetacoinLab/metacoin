@@ -341,6 +341,7 @@ class Journeys(BaseJourneys):
         if not pw or not script.exists():
             self.record(19, 'connected console journeys with owner/reviewer/viewer roles at desktop and narrow widths', 'blocked', {'reason': 'METACOIN_PLAYWRIGHT_PYTHON not set (isolated Playwright venv) or browser script missing'}); return
         outdir = Path(self.inst.temp.name) / 'shots'
+        self.worker_bg('w-j19')                          # the console answer form submits a real job; a worker must exist for it to complete
         p = subprocess.run([pw, str(script), self.base, str(self.creds['owner']), str(self.creds['reviewer']), str(self.creds['viewer']), str(outdir)], cwd=ROOT, env=dict(os.environ, PYTHONPATH=str(ROOT)), capture_output=True, text=True, timeout=900)
         try:
             out = json.loads(p.stdout.strip().splitlines()[-1])

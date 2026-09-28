@@ -321,6 +321,11 @@ MIGRATIONS = [
     CREATE TABLE notebook_versions (id TEXT PRIMARY KEY, notebook_id TEXT NOT NULL REFERENCES notebooks(id), version INTEGER NOT NULL, blocks_json TEXT NOT NULL, links_json TEXT NOT NULL, digest TEXT NOT NULL,
         note TEXT NOT NULL DEFAULT '', created_by TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (notebook_id, version));
     """),
+    ('023_warmup_batching', """
+    ALTER TABLE model_runtimes ADD COLUMN warm INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE model_runtimes ADD COLUMN drain_reason TEXT;
+    ALTER TABLE model_runtimes ADD COLUMN drained_at INTEGER;
+    """),
 ]
 
 

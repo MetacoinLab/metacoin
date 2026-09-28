@@ -1146,6 +1146,12 @@ def create_app(settings):
             return model_svc.runtime_facts(db, settings, api_host=svc._model_host)
         return await run(request, False, fn)
 
+    @app.post(API + '/models/warmup')
+    async def models_warmup(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: model_svc.set_warmup(db, p, settings, body), 'models.warmup', raw)
+
     @app.get(API + '/models/promotions')
     async def models_promotions(request: Request):
         return await run(request, False, lambda db, p: {'items': svc.models.promotions(db, p)})
@@ -1786,13 +1792,21 @@ def artifact_view(row, principal, db):
             'retention_deadline': row['retention_deadline'], 'deleted_at': row['deleted_at'], 'created_at': row['created_at']}
 
 
+_REVISION_AT_START = None
+
+
 def _revision():
-    import subprocess
-    from pathlib import Path
-    try:
-        return subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=Path(__file__).resolve().parents[1], text=True, stderr=subprocess.DEVNULL).strip()
-    except Exception:
-        return 'unavailable'
+    """The source revision this process loaded: read once at first use (process start), never re-read, so a long-running
+    service reports the code it runs rather than whatever the working tree's HEAD has moved to since."""
+    global _REVISION_AT_START
+    if _REVISION_AT_START is None:
+        import subprocess
+        from pathlib import Path
+        try:
+            _REVISION_AT_START = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=Path(__file__).resolve().parents[1], text=True, stderr=subprocess.DEVNULL).strip()
+        except Exception:
+            _REVISION_AT_START = 'unavailable'
+    return _REVISION_AT_START
 
 
 def capability_table(svc, db):

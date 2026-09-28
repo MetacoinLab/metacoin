@@ -123,10 +123,14 @@ def search(db, store, principal, knowledge, cid, query, *, mode='hybrid', k=8, i
     timing['load_ms'] = int((time.time() - t0) * 1000)
     ranked = {}
     lexical_scores = None
+    coverage = None
     if mode in ('lexical', 'hybrid'):
         t1 = time.time()
         q = text_mod.query_tokens(query)
-        lexical_scores = bm25(q, [text_mod.tokens(t) for t in texts])
+        chunk_tokens = [text_mod.tokens(t) for t in texts]
+        lexical_scores = bm25(q, chunk_tokens)
+        qset = set(q)
+        coverage = [(len(qset & set(ct)), len(qset)) for ct in chunk_tokens]        # informative query terms present in the chunk (corpus-size independent)
         order = sorted(range(len(chunks)), key=lambda i: (-lexical_scores[i], i))
         order = [i for i in order if lexical_scores[i] > 0]
         for rank, i in enumerate(order):
@@ -167,10 +171,11 @@ def search(db, store, principal, knowledge, cid, query, *, mode='hybrid', k=8, i
         c = chunks[i]
         results.append({'chunk_id': c['version_id'] + ':' + str(c['ordinal']), 'version_id': c['version_id'], 'document_id': c['document_id'], 'document_name': c['document_name'], 'version': c['version'],
                         'ordinal': c['ordinal'], 'heading': c['heading'], 'score': s, 'lexical_score': lexical_scores[i] if lexical_scores else None, 'cosine': semantic_scores[i] if semantic_scores else None,
+                        'matched_terms': coverage[i][0] if coverage else None, 'query_terms': coverage[i][1] if coverage else None,
                         'superseded_version': c['version_id'] != c['current_version_id'], 'text': texts[i], 'sha256': c['sha256'], 'location': {'start_byte': c['start_byte'], 'end_byte': c['end_byte']}})
     timing['total_ms'] = int((time.time() - t0) * 1000)
     return {'collection_id': cid, 'mode': mode, 'index_id': index_row['id'] if index_row else None, 'candidates': len(chunks), 'results': results, 'notes': notes, 'timing_ms': timing,
-            'score_meaning': {'lexical': 'BM25 (k1=1.2, b=0.75) over lowercase alphanumeric tokens, query stopwords removed; 0 = no informative query term present', 'semantic': 'cosine similarity in the index model space; not a probability',
+            'score_meaning': {'lexical': 'BM25 (k1=1.2, b=0.75) over lowercase alphanumeric tokens, query stopwords removed; 0 = no informative query term present; matched_terms/query_terms = coverage of informative query terms (independent of corpus size)', 'semantic': 'cosine similarity in the index model space; not a probability',
                               'hybrid': 'reciprocal rank fusion, k=60, over the two ranked lists; ordering only', 'stale': 'superseded_version marks chunks of a version that is no longer the document head'}}
 
 

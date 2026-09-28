@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from experiments.private_receipts import receipt as merkle
-from .. import history
+from .. import history, scheduling
 from ..compute.engine import compute_interpreter, exactable
 from ..db import now
 from ..errors import ServiceError
@@ -57,6 +57,7 @@ class Child:
         self.ready = None
         self.last_used = time.time()
         self.requests = 0
+        self.drain_after = None                         # set while busy when numerical compute needs the memory: released after the current request
 
     def send(self, cmd):
         try:
@@ -118,6 +119,7 @@ class ModelHost:
         self.limits = settings.limits
         self.runtime = compute_interpreter(settings)
         self.children = {}
+        self.warm = set()                               # revisions the warmup policy keeps resident on this host (intent; actual state is in model_runtimes)
         self.lock = threading.RLock()
         self.log_dir = settings.home / 'models'
 
@@ -232,20 +234,89 @@ class ModelHost:
         return acted
 
     def idle_cleanup(self):
-        """Unload runtimes idle longer than model_idle_unload_seconds (0 disables)."""
+        """Unload runtimes idle longer than model_idle_unload_seconds (0 disables); warm (policy-resident) runtimes are exempt."""
         idle = self.limits.get('model_idle_unload_seconds') or 0
         if not idle:
             return 0
         n = 0
         for rid, c in list(self.children.items()):
-            if not c.lock.locked() and time.time() - c.last_used > idle:
+            if rid not in self.warm and not c.lock.locked() and time.time() - c.last_used > idle:
                 self.unload(rid, 'idle'); n += 1
         return n
+
+    # ---- §65-5 warmup policy and drain ----------------------------------------------------------------
+    def warmup_policy(self):
+        with self.db.read() as db:
+            row = db.execute("SELECT value FROM meta WHERE key='model_warmup'").fetchone()
+        return json.loads(row['value']) if row else None
+
+    def apply_warmup(self, registry):
+        """Pre-load the explicitly listed revisions, in order, while their estimated bytes stay under the operator ceiling;
+        release runtimes the policy no longer lists (idle ones only). Actual state is recorded per host, never inferred."""
+        policy = self.warmup_policy() or {}
+        wanted = list(policy.get('revision_ids') or []) if policy.get('enabled') else []
+        ceiling = int(policy.get('ceiling_bytes') or 0)
+        acted = {'loaded': [], 'refused': [], 'released': []}
+        for rid in [r for r in self.warm if r not in wanted]:
+            child = self.children.get(rid)
+            if child is None or not child.lock.locked():
+                if child:
+                    self.unload(rid, 'warmup policy no longer lists this revision')
+                self.warm.discard(rid); self._record(rid, warm=0); acted['released'].append(rid)
+        for rid in wanted:
+            with self.db.read() as db:
+                row = db.execute('SELECT * FROM model_revisions WHERE id=?', (rid,)).fetchone()
+            if row is None or row['status'] != 'registered' or not row['installed']:
+                acted['refused'].append({'revision_id': rid, 'reason': 'not an installed registered revision'}); continue
+            child = self.children.get(rid)
+            if child and child.alive():
+                if rid not in self.warm:
+                    self.warm.add(rid); self._record(rid, warm=1)
+                continue
+            warm_bytes = sum((c.ready or {}).get('estimated_bytes', 0) for r2, c in self.children.items() if c.alive() and r2 in self.warm)
+            est = row['resource_estimate_bytes'] or 0
+            if warm_bytes + est > ceiling:
+                reason = 'warmup refused: ceiling %d bytes (warm %d + estimate %d)' % (ceiling, warm_bytes, est)
+                self._record(rid, warm=0, error=reason); self.warm.discard(rid); acted['refused'].append({'revision_id': rid, 'reason': reason}); continue
+            try:
+                self.ensure(row); self.warm.add(rid); self._record(rid, warm=1, error=None); acted['loaded'].append(rid)
+            except ServiceError as exc:
+                self.warm.discard(rid); acted['refused'].append({'revision_id': rid, 'reason': json.dumps(exc.body())[:200]})
+        return acted
+
+    def drain_for_compute(self, min_available_bytes, reason):
+        """Release resident runtimes (least recently used first) until MemAvailable reaches the requested floor; a busy
+        runtime is never killed under a request: it is flagged and released when its current request ends."""
+        drained, flagged = [], []
+        while self.children:
+            avail = mem_available_bytes()
+            if avail is None or avail >= min_available_bytes:
+                break
+            idle = [c for c in self.children.values() if c.alive() and not c.lock.locked()]
+            if not idle:
+                for c in self.children.values():
+                    c.drain_after = reason; flagged.append(c.revision_id)
+                break
+            victim = min(idle, key=lambda c: c.last_used)
+            self.unload(victim.revision_id, 'drained: ' + reason); drained.append(victim.revision_id)
+            self._record(victim.revision_id, drain_reason=reason, drained_at=now())
+        return {'drained': drained, 'flagged_busy': flagged}
+
+    def _after_request(self, child):
+        if child.drain_after and not child.lock.locked():
+            reason = child.drain_after; child.drain_after = None
+            self.unload(child.revision_id, 'drained: ' + reason); self._record(child.revision_id, drain_reason=reason, drained_at=now())
 
     # ---- requests --------------------------------------------------------------------------------
     def generate(self, row, request, on_segment=None, should_cancel=None, timeout=None):
         """Run one bounded generation. on_segment(seq, text) is called per streamed piece; should_cancel() polled."""
         child = self.ensure(row)
+        try:
+            return self._generate(child, row, request, on_segment, should_cancel, timeout)
+        finally:
+            self._after_request(child)
+
+    def _generate(self, child, row, request, on_segment, should_cancel, timeout):
         rid = 'r' + secrets.token_hex(6)
         with child.lock:
             child.requests += 1; child.last_used = time.time()
@@ -278,6 +349,12 @@ class ModelHost:
 
     def embed(self, row, texts, truncate=False, timeout=None):
         child = self.ensure(row)
+        try:
+            return self._embed(child, row, texts, truncate, timeout)
+        finally:
+            self._after_request(child)
+
+    def _embed(self, child, row, texts, truncate, timeout):
         rid = 'r' + secrets.token_hex(6)
         with child.lock:
             child.requests += 1; child.last_used = time.time()
@@ -298,7 +375,7 @@ class ModelHost:
 
     def status(self):
         return {'host': self.host, 'runtime_available': self.available(), 'interpreter': (self.runtime or {}).get('python'), 'cuda': bool((self.runtime or {}).get('cuda')),
-                'loaded': [{'revision_id': rid, 'pid': c.proc.pid, 'busy': c.lock.locked(), 'requests': c.requests, 'idle_seconds': round(time.time() - c.last_used, 1), 'estimated_bytes': (c.ready or {}).get('estimated_bytes')} for rid, c in self.children.items() if c.alive()],
+                'loaded': [{'revision_id': rid, 'pid': c.proc.pid, 'busy': c.lock.locked(), 'requests': c.requests, 'idle_seconds': round(time.time() - c.last_used, 1), 'estimated_bytes': (c.ready or {}).get('estimated_bytes'), 'warm': rid in self.warm, 'drain_pending': bool(c.drain_after)} for rid, c in self.children.items() if c.alive()],
                 'policy': {'max_loaded': self.limits['model_max_loaded'], 'memory_budget_bytes': self.limits['model_memory_budget_bytes'], 'headroom_bytes': self.limits['model_memory_headroom_bytes'],
                            'mem_available_bytes': mem_available_bytes(), 'enforced': 'application-level (load refused / idle runtime unloaded); no hardware memory limit on unified memory'}}
 
@@ -383,7 +460,7 @@ class ModelEngine:
         try:
             if job['kind'] == 'text_generation':
                 return self._generate(job, contract, spec, row, child, inputs, should_cancel, state)
-            return self._embed(job, contract, spec, row, inputs, should_cancel, state)
+            return self._embed(job, contract, spec, row, inputs, should_cancel, state, members=self._claim_companions(job, inputs, row))
         except ServiceError as exc:
             body = exc.body()
             self._update(job, phase='failed', error=json.dumps(body)[:300])
@@ -432,20 +509,89 @@ class ModelEngine:
                                                                              'segments': nsegs, 'inference_ms': done['ms'], 'tokens_per_second': done.get('tokens_per_second'), 'text_sha256': done['text_sha256'],
                                                                              'output_chars': len(text)})
 
-    def _embed(self, job, contract, spec, row, inputs, should_cancel, state):
+    # ---- §65-4 inference batching (embeddings): compatible queued requests of the same submitter share one forward pass --
+    def _claim_companions(self, job, inputs, row):
+        """Queued text_embedding jobs from the same workspace AND submitter, same revision and truncate flag, that fit under the
+        batch item/char limits; each is claimed with the ordinary lease fencing. No waiting: only work already queued joins."""
+        if not self.limits.get('model_batch_enabled', 1) or job['kind'] != 'text_embedding':
+            return []
+        max_items, max_chars = self.limits['model_batch_max_items'], self.limits['model_batch_max_chars']
+        items, chars, members = len(inputs['texts']), sum(len(t) for t in inputs['texts']), []
+        with self.worker.db.tx() as db:
+            cands = db.execute("SELECT j.* FROM jobs j JOIN model_requests r ON r.job_id=j.id WHERE j.state='queued' AND j.cancel_requested=0 AND j.hold=0 AND j.kind='text_embedding' AND j.workspace=? AND j.submitted_by=? AND r.revision_id=? AND j.id!=? ORDER BY j.created_at LIMIT 16",
+                               (job['workspace'], job['submitted_by'], row['id'], job['id'])).fetchall()
+            for cand in cands:
+                if not scheduling.local_allowed(cand['location_policy']):
+                    continue
+                contract, spec = self.worker._spec(db, cand)
+                ci = spec['inputs']
+                n, c = len(ci['texts']), sum(len(t) for t in ci['texts'])
+                if bool(ci.get('truncate')) != bool(inputs.get('truncate')) or items + n > max_items or chars + c > max_chars:
+                    continue
+                generation = cand['lease_generation'] + 1
+                changed = db.execute("UPDATE jobs SET state='running', lease_owner=?, lease_expires=?, lease_generation=?, attempt=attempt+1, updated_at=? WHERE id=? AND lease_generation=? AND state='queued'",
+                                     (self.worker.worker_id, now() + self.worker.lease, generation, now(), cand['id'], cand['lease_generation'])).rowcount
+                if changed != 1:
+                    continue
+                cj = dict(db.execute('SELECT * FROM jobs WHERE id=?', (cand['id'],)).fetchone())
+                db.execute('INSERT INTO attempts VALUES (?,?,?,?,?,NULL,NULL)', ('at_' + secrets.token_hex(6), cj['id'], generation, self.worker.worker_id, now()))
+                history.record(db, cj['workspace'], self.worker.worker_id, 'job.claimed', 'job', cj['id'], {'generation': generation, 'attempt': cj['attempt'], 'batched_with': job['id']})
+                db.execute('UPDATE model_requests SET phase=?, host=?, attempt_generation=?, started_at=?, queue_seconds=?, updated_at=? WHERE job_id=?', ('running', self.host.host, generation, now(), now() - cj['created_at'], now(), cj['id']))
+                members.append((cj, contract, spec)); items += n; chars += c
+        return members
+
+    def _cancel_requested(self, job):
+        with self.worker.db.read() as db:
+            return bool(db.execute('SELECT cancel_requested FROM jobs WHERE id=?', (job['id'],)).fetchone()[0])
+
+    def _embed(self, job, contract, spec, row, inputs, should_cancel, state, members=()):
         if should_cancel():
+            for (mj, mc, ms) in members:                 # companions go back to the queue untouched (their lease expires) rather than being cancelled by proxy
+                self._requeue(mj)
             return 'fenced' if state['fenced'] else self.worker._finish(job, None, 'CANCELLED')
-        ev = self.host.embed(row, inputs['texts'], truncate=bool(inputs.get('truncate')))
+        batch = [(job, contract, spec, inputs)]
+        for (mj, mc, ms) in members:
+            if self._cancel_requested(mj):
+                self._update(mj, phase='cancelled'); self.worker._finish(mj, None, 'CANCELLED')
+            else:
+                batch.append((mj, mc, ms, ms['inputs']))
+        texts = [t for (_, _, _, mi) in batch for t in mi['texts']]
+        ev = self.host.embed(row, texts, truncate=bool(inputs.get('truncate')))
         from ..compute import npy
-        flat = [x for v in ev['vectors'] for x in v]
-        blob = npy.encode(flat, '<f8', (len(ev['vectors']), ev['dim']))
-        meta = {'schema': RESULT_SCHEMAS['text_embedding'], 'items': len(ev['vectors']), 'dim': ev['dim'], 'pooling': ev['pooling'], 'normalized': ev['normalized'], 'max_seq_length': ev['max_seq_length'],
-                'tokens': ev['tokens'], 'tokens_before_truncation': ev['tokens_before_truncation'], 'truncated': ev['truncated'], 'model_revision_id': row['id'], 'model_id': row['model_id'], 'revision': row['revision'],
-                'weight_digest': row['weight_digest'], 'tokenizer_digest': row['tokenizer_digest'], 'dtype': '<f8 (float32 model output widened; not extra precision)', 'vector_sha256': hashlib.sha256(blob).hexdigest(),
-                'similarity_policy': 'cosine = dot product of the L2-normalized vectors; comparable only within the same revision/pooling/normalization', 'inference_ms': ev['ms']}
-        self._update(job, items=len(ev['vectors']), inference_ms=ev['ms'], usage_json=json.dumps({'items': len(ev['vectors']), 'tokens': sum(ev['tokens'])}), input_tokens=sum(ev['tokens']))
-        return self._complete(job, contract, spec, row, meta, 'EMBEDDED', {'items': len(ev['vectors']), 'dim': ev['dim'], 'tokens': sum(ev['tokens']), 'truncated_items': sum(1 for t in ev['truncated'] if t), 'inference_ms': ev['ms']},
-                              extra_files={'vectors.npy': blob})
+        batch_id = 'mb_' + secrets.token_hex(6) if len(batch) > 1 else None
+        composition = None
+        if batch_id:
+            with self.worker.db.read() as db:
+                digests = [db.execute('SELECT request_digest FROM model_requests WHERE job_id=?', (mj['id'],)).fetchone()[0] for (mj, _, _, _) in batch]
+            composition = hashlib.sha256('\n'.join(digests).encode()).hexdigest()
+        total_tokens = max(1, sum(ev['tokens']))
+        result, offset = None, 0
+        for position, (mj, mc, ms, mi) in enumerate(batch):
+            n = len(mi['texts'])
+            sl = slice(offset, offset + n); offset += n
+            vectors, tokens, before, trunc = ev['vectors'][sl], ev['tokens'][sl], ev['tokens_before_truncation'][sl], ev['truncated'][sl]
+            if mj is not job and self._cancel_requested(mj):
+                self._update(mj, phase='cancelled'); self.worker._finish(mj, None, 'CANCELLED'); continue          # cancelled while the batch ran: its vectors are discarded, never stored
+            share_ms = ev['ms'] if not batch_id else int(ev['ms'] * sum(tokens) / total_tokens)
+            flat = [x for v in vectors for x in v]
+            blob = npy.encode(flat, '<f8', (len(vectors), ev['dim']))
+            meta = {'schema': RESULT_SCHEMAS['text_embedding'], 'items': len(vectors), 'dim': ev['dim'], 'pooling': ev['pooling'], 'normalized': ev['normalized'], 'max_seq_length': ev['max_seq_length'],
+                    'tokens': tokens, 'tokens_before_truncation': before, 'truncated': trunc, 'model_revision_id': row['id'], 'model_id': row['model_id'], 'revision': row['revision'],
+                    'weight_digest': row['weight_digest'], 'tokenizer_digest': row['tokenizer_digest'], 'dtype': '<f8 (float32 model output widened; not extra precision)', 'vector_sha256': hashlib.sha256(blob).hexdigest(),
+                    'similarity_policy': 'cosine = dot product of the L2-normalized vectors; comparable only within the same revision/pooling/normalization', 'inference_ms': share_ms,
+                    'batch': ({'id': batch_id, 'members': len(batch), 'position': position, 'composition_sha256': composition, 'batch_inference_ms': ev['ms'], 'inference_ms_basis': 'token-proportional share of the batch',
+                               'isolation': 'members share workspace and submitter; each item is attended in isolation by its attention mask; padding to the batch shape may change the last floating-point bits versus solo execution'} if batch_id else None)}
+            self._update(mj, items=len(vectors), inference_ms=share_ms, usage_json=json.dumps({'items': len(vectors), 'tokens': sum(tokens), 'batch_id': batch_id}), input_tokens=sum(tokens))
+            out = self._complete(mj, mc, ms, row, meta, 'EMBEDDED', {'items': len(vectors), 'dim': ev['dim'], 'tokens': sum(tokens), 'truncated_items': sum(1 for t in trunc if t), 'inference_ms': share_ms, 'batch_id': batch_id, 'batch_members': len(batch)},
+                                 extra_files={'vectors.npy': blob})
+            if mj is job:
+                result = out
+        return result
+
+    def _requeue(self, job):
+        with self.worker.db.tx() as db:
+            db.execute("UPDATE jobs SET state='queued', lease_owner=NULL, lease_expires=NULL, updated_at=? WHERE id=? AND state='running' AND lease_owner=? AND lease_generation=?", (now(), job['id'], self.worker.worker_id, job['lease_generation']))
+            db.execute("UPDATE model_requests SET phase='admitted', updated_at=? WHERE job_id=?", (now(), job['id']))
 
     def _complete(self, job, contract, spec, row, output, outcome, summary_extra, extra_files=None, on_commit=None, scope='local-model-inference'):
         from ..compute import container

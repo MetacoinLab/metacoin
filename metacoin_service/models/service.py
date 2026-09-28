@@ -200,8 +200,33 @@ def runtime_facts(db, settings, api_host=None):
             'defaults': {r['operation']: r['revision_id'] for r in db.execute('SELECT operation, revision_id FROM model_defaults').fetchall()},
             'currently': {'runtimes': rows, 'mem_available_bytes': mem_available_bytes(), 'api_host': api_host.status() if api_host else None},
             'observed': {'completed_requests_by_revision': completed},
+            'warmup': {'policy': json.loads(db.execute("SELECT value FROM meta WHERE key='model_warmup'").fetchone()['value']) if db.execute("SELECT value FROM meta WHERE key='model_warmup'").fetchone() else None,
+                       'resident': [{'host': r['host'], 'revision_id': r['revision_id'], 'state': r['state'], 'warm': r['warm'], 'drain_reason': r['drain_reason'], 'drained_at': r['drained_at']} for r in rows if r['warm'] or r['drain_reason']],
+                       'batching': {'enabled': bool(settings.limits.get('model_batch_enabled', 1)), 'max_items': settings.limits.get('model_batch_max_items'), 'max_chars': settings.limits.get('model_batch_max_chars'), 'scope': 'text_embedding jobs of one submitter in one workspace, same revision and truncate flag; no accumulation wait'},
+                       'drain_floor_bytes': settings.limits.get('compute_drain_min_available_bytes'), 'meaning': 'warm = policy intent recorded per host; state = observed runtime state (a warm revision may be unloaded after a drain)'},
             'privacy': 'prompts, retrieved context, outputs and vectors stay on this host; the runtime child runs offline (HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, no proxy) and no hosted fallback exists',
             'note': 'a revision is callable only when a runtime host reports state=ready for it; readiness is observed, not inferred from installation'}
+
+
+def set_warmup(db, principal, settings, body):
+    """§65-5 operator warmup policy: an explicit ordered list of revisions kept resident under a byte ceiling (applied by each live host on its loop)."""
+    principal.require('model:admin')
+    if type(body) is not dict:
+        raise ServiceError('VALIDATION', 'body')
+    enabled = bool(body.get('enabled', True))
+    ids = body.get('revision_ids', [])
+    ceiling = body.get('ceiling_bytes', settings.limits['model_memory_budget_bytes'])
+    if type(ids) is not list or len(ids) > 8 or not all(type(x) is str for x in ids) or len(set(ids)) != len(ids) or type(ceiling) is not int or not 0 <= ceiling <= settings.limits['model_memory_budget_bytes']:
+        raise ServiceError('VALIDATION', {'code': 'warmup', 'reason': 'revision_ids: up to 8 distinct ids; ceiling_bytes: 0..model_memory_budget_bytes'})
+    reg = registry_mod.ModelRegistry(settings)
+    for rid in ids:
+        row = reg.row(db, rid)
+        if row['status'] != 'registered' or not row['installed']:
+            raise ServiceError('CONFLICT', {'code': 'not_loadable', 'revision_id': rid})
+    policy = {'enabled': enabled, 'revision_ids': ids, 'ceiling_bytes': ceiling, 'updated_by': principal.id, 'updated_at': now()}
+    db.execute('INSERT INTO meta (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', ('model_warmup', json.dumps(policy)))
+    history.record(db, principal.workspace, principal.id, 'model.runtime', 'policy', 'model_warmup', policy)
+    return {'policy': policy, 'note': 'applied by each live worker host on its next loop iteration; residency is reported per host under /models/runtime'}
 
 
 def request_load(db, principal, settings, rid, desired):

@@ -23,6 +23,15 @@ SYSTEM_PROMPT = ('Answer the question using only the facts in the sources below.
                  'Reply in one or two short sentences that repeat the relevant facts and numbers from the sources. If the sources do not contain the answer, reply: The sources do not say.')
 DECLINE_PATTERNS = ('do not say', 'does not say', 'not provided', 'not mentioned', 'not specified', 'not contain', 'no information', INSUFFICIENT.lower())
 MIN_COSINE, MIN_LEXICAL = 0.30, 1.0      # evidence thresholds fixed before evaluation: cosine of the best chunk, or BM25 of an informative term
+MIN_COVERAGE = 0.5                       # lexical evidence independent of corpus size: BM25 idf saturates near log(4/3) in a one-document collection, so a
+                                         # chunk holding at least half (and at least two, or all of a one-term query) of the informative query terms also counts
+
+
+def lexical_evidence(top):
+    if top.get('lexical_score') is not None and top['lexical_score'] >= MIN_LEXICAL:
+        return True
+    m, q = top.get('matched_terms'), top.get('query_terms')
+    return bool(q) and m is not None and m / q >= MIN_COVERAGE and m >= min(2, q)
 ATTRIBUTION_MIN_TOKENS, ATTRIBUTION_MIN_FRACTION = 2, 0.3
 _SENT = re.compile(r'(?<=[.!?])\s+')
 
@@ -156,7 +165,7 @@ class KnowledgeEngine:
         results = found['results']
         sources = [{'marker': 'S%d' % (i + 1), 'chunk_id': r['chunk_id'], 'document_id': r['document_id'], 'version_id': r['version_id'], 'document_name': r['document_name'], 'version': r['version'],
                     'ordinal': r['ordinal'], 'sha256': r['sha256'], 'cosine': r['cosine'], 'lexical_score': r['lexical_score'], 'superseded_version': r['superseded_version']} for i, r in enumerate(results)]
-        evidence_ok = bool(results) and ((results[0]['cosine'] is not None and results[0]['cosine'] >= MIN_COSINE) or (results[0]['lexical_score'] is not None and results[0]['lexical_score'] >= MIN_LEXICAL))
+        evidence_ok = bool(results) and ((results[0]['cosine'] is not None and results[0]['cosine'] >= MIN_COSINE) or lexical_evidence(results[0]))
         usage, model_info, answer, grounding, citations = None, None, None, None, []
         if mode == 'extractive':
             status = 'answered' if evidence_ok else 'insufficient_evidence'
@@ -167,7 +176,7 @@ class KnowledgeEngine:
             passages = None
             if not evidence_ok:
                 status, outcome, answer = 'insufficient_evidence', 'INSUFFICIENT_EVIDENCE', None
-                grounding = {'reason': 'no source passed the retrieval thresholds (cosine >= %.2f or BM25 >= %.1f); generation skipped' % (MIN_COSINE, MIN_LEXICAL)}
+                grounding = {'reason': 'no source passed the retrieval thresholds (cosine >= %.2f, BM25 >= %.1f, or informative-term coverage >= %.1f); generation skipped' % (MIN_COSINE, MIN_LEXICAL, MIN_COVERAGE)}
             else:
                 src_block = '\n\n'.join('[%s] %s (version %d):\n%s' % (s['marker'], s['document_name'], s['version'], r['text']) for s, r in zip(sources, results))
                 messages = [{'role': 'system', 'content': SYSTEM_PROMPT}, {'role': 'user', 'content': 'Sources:\n\n' + src_block + '\n\nQuestion: ' + question}]
