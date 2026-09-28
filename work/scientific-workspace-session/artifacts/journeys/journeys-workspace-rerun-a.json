@@ -1,0 +1,158 @@
+{
+ "schema": "metacoin-journeys-workspace/v1",
+ "provider_mode": "test-http",
+ "revision": "6fd67e7a9284887be358557fb9c7ff7ca3ad7011",
+ "dependencies": {
+  "compute_interpreter": {
+   "python": "/usr/bin/python3",
+   "numpy": "2.2.6",
+   "python_version": "3.12.3",
+   "cuda": true,
+   "torch": "2.10.0+cu130",
+   "device": "NVIDIA GB10",
+   "capability": "12.1"
+  },
+  "models_present": true,
+  "python": "3.12.3",
+  "local_chain_artifacts": true
+ },
+ "started_at": 1790584295,
+ "finished_at": 1790584626,
+ "results": [
+  {
+   "journey": 13,
+   "title": "optimizer time limit: checked feasible incumbent, no candidate and established optimality are distinguished truthfully",
+   "status": "passed",
+   "evidence": {
+    "job": "j_a8bd9e3cb606c909",
+    "main_status": "feasible_incumbent_no_optimality_claim",
+    "statuses_observed": [
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim"
+    ],
+    "mip_gaps": [
+     "0.8809505562185016",
+     "0.08695576968510492",
+     "4.140754352318005e-07",
+     "0.012820686774945736",
+     "0.6321822367289174"
+    ],
+    "limit_outcomes": 7,
+    "optimal_outcomes": 0,
+    "binary_variables": 1820,
+    "runtime_s": "1.0236"
+   },
+   "caveat": null,
+   "started_at": 1790584295.0584228,
+   "ended_at": 1790584307.2097468
+  },
+  {
+   "journey": 17,
+   "title": "restricted signed report projection exported, verified independently, undisclosed fields absent",
+   "status": "blocked",
+   "evidence": {
+    "reason": "journey 16 produced no report"
+   },
+   "caveat": null,
+   "started_at": 1790584307.3248687,
+   "ended_at": 1790584307.324872
+  },
+  {
+   "journey": 18,
+   "title": "parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs",
+   "status": "failed",
+   "evidence": {
+    "package": "pk_78b778db8567",
+    "imported_as": "pk_1ceaee177d67",
+    "compat_blocking": [
+     "operation.resource_plan.device"
+    ],
+    "compat_items": 7,
+    "quote_amount_max": 23,
+    "run": "pr_cd8c04154136",
+    "delivery_state": "delivered",
+    "cross_workspace_read": 404
+   },
+   "caveat": null,
+   "started_at": 1790584307.3249195,
+   "ended_at": 1790584309.9801288
+  },
+  {
+   "journey": 19,
+   "title": "j19_paid_verified_package",
+   "status": "failed",
+   "error": "TimeoutExpired(['/home/zhangd2/projects/metacoin/.venv-service/bin/python', '-m', 'metacoin_service.tests.x402_upto_client', 'http://127.0.0.1:37035', 's_930ba13dad68', '/tmp/tmp5e7df713/cred-owner.json', '{\"inputs\": {\"base_high\": [200, 200, 200, 200, 200, 200], \"base_low\": [100, 100, 100, 100, 100, 100], \"capacity\": 100000, \"initial_low\": 50000, \"objectives\": {\"cost_ceilings\": [0, 3, 6], \"mode\": ",
+   "trace": "e7df713/cred-owner.json', '{\"inputs\": {\"base_high\": [200, 200, 200, 200, 200, 200], \"base_low\": [100, 100, 100, 100, 100, 100], \"capacity\": 100000, \"initial_low\": 50000, \"objectives\": {\"cost_ceilings\": [0, 3, 6], \"mode\": \"cost_sweep\"}, \"private_label\": \"J19_PAID\", \"reserve\": 20000, \"resources\": {\"cpu\": 2}, \"schema\": \"robust-resource-plan-input/v1\", \"sensitivity\": [{\"parameter\": \"reserve\", \"value\": 60000}, {\"parameter\": \"capacity\", \"value\": 200000}], \"slot_seconds\": 60, \"slots\": 6, \"supply_high\": [600, 600, 600, 600, 600, 600], \"supply_low\": [500, 500, 500, 500, 500, 500], \"tasks\": [{\"cost\": 3, \"duration\": 2, \"id\": \"a\", \"power_high\": 400, \"resources\": {\"cpu\": 1}, \"utility\": 5}, {\"cost\": 2, \"dependencies\": [\"a\"], \"duration\": 1, \"id\": \"b\", \"power_high\": 300, \"resources\": {\"cpu\": 2}, \"utility\": 4}, {\"cost\": 1, \"duration\": 3, \"exclusive_with\": [\"a\"], \"id\": \"c\", \"power_high\": 100, \"resources\": {\"cpu\": 1}, \"utility\": 3}, {\"duration\": 1, \"earliest_start\": 4, \"id\": \"m\", \"latest_start\": 5, \"mandatory\": true, \"power_high\": 50, \"utility\": 0}], \"uncertainty_interpretation\": \"specification_bound\"}, \"quote_id\": \"q_0f8c8204bf82707c\"}', 'j19-paid-eeeeeeeeeeeeeeeeeeee']' timed out after 300 seconds\n",
+   "started_at": 1790584310.2464125,
+   "ended_at": 1790584610.3993683
+  },
+  {
+   "journey": 21,
+   "title": "revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access",
+   "status": "failed",
+   "evidence": {
+    "document": "kd_90123c000fd6",
+    "retrievable_before": true,
+    "retrievable_after": false,
+    "answer_job_state": null,
+    "answer_submit_status": 409,
+    "answer_submit_error": {
+     "error": true,
+     "code": "LOCAL_OPERATION_FAILED",
+     "action": "a local file/database operation failed (no details echoed)",
+     "detail": null
+    },
+    "answer_status": null,
+    "answer_used_revoked_source": false,
+    "preview_status_after_revocation": 403
+   },
+   "caveat": null,
+   "started_at": 1790584610.3994327,
+   "ended_at": 1790584610.516286
+  },
+  {
+   "journey": 22,
+   "title": "bounded concurrent workload (import, generation, optimization, verification) with a responsive API and consistent accounting",
+   "status": "passed",
+   "evidence": {
+    "jobs": 9,
+    "states": {
+     "di_1ba561f5aae1": "ready",
+     "di_98d9a00cd474": "ready",
+     "di_07853ca0ec25": "ready",
+     "j_b76ef1d73242b8bf": "succeeded",
+     "j_c637766ca7679d5b": "succeeded",
+     "j_b018ee42d0d6baa2": "succeeded",
+     "j_8369a5131d52511c": "succeeded",
+     "j_7c6a2f7771948e73": "succeeded",
+     "j_0aff28b784e93013": "succeeded"
+    },
+    "health_probes": 22,
+    "max_health_latency_s": 0.006,
+    "duplicate_usage_records": 0,
+    "usage_records": 1,
+    "succeeded_quoted_jobs": 1,
+    "verifications": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "workers": 2
+   },
+   "caveat": null,
+   "started_at": 1790584611.5869663,
+   "ended_at": 1790584624.968433
+  }
+ ],
+ "browser": null,
+ "passed": 2,
+ "failed": 3,
+ "blocked": 1,
+ "not_run": 0,
+ "total": 6
+}

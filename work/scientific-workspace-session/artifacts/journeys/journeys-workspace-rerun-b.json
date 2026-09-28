@@ -1,0 +1,86 @@
+{
+ "schema": "metacoin-journeys-workspace/v1",
+ "provider_mode": "test-http",
+ "revision": "79c9f3cece745962db3ee577a2082c38326a21f4",
+ "dependencies": {
+  "compute_interpreter": {
+   "python": "/usr/bin/python3",
+   "numpy": "2.2.6",
+   "python_version": "3.12.3",
+   "cuda": true,
+   "torch": "2.10.0+cu130",
+   "device": "NVIDIA GB10",
+   "capability": "12.1"
+  },
+  "models_present": true,
+  "python": "3.12.3",
+  "local_chain_artifacts": true
+ },
+ "started_at": 1790584772,
+ "finished_at": 1790585389,
+ "results": [
+  {
+   "journey": 18,
+   "title": "parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs",
+   "status": "failed",
+   "evidence": {
+    "package": "pk_bc81185385ab",
+    "imported_as": "pk_48b08edf560a",
+    "compat_blocking": [],
+    "compat_items": 7,
+    "quote_amount_max": 23,
+    "run": "pr_b7ff4dad5882",
+    "delivery_state": "delivered",
+    "cross_workspace_read": 404
+   },
+   "caveat": null,
+   "started_at": 1790584772.7817552,
+   "ended_at": 1790584776.02735
+  },
+  {
+   "journey": 19,
+   "title": "paid verified package on the private local chain; settlement withheld until verification; lost response reconciled; no duplicate settlement",
+   "status": "failed",
+   "evidence": {
+    "job": "j_80c6d6acf0be54a9",
+    "payment": "j19-paid-eeeeeeeeeeeeeeeeeeee",
+    "gate_before_verification": "awaiting_verification",
+    "delivery": "delivered",
+    "settlement": "SETTLEMENT_FAILED",
+    "final_amount": "23",
+    "replay_same_job": true,
+    "lost_response_scenario_rc": 0,
+    "local_chain_suite_tail": "ons\n  warnings.warn(  # deprecated in 14.0 - 2024-11-09\n......\n----------------------------------------------------------------------\nRan 6 tests in 0.893s\n\nOK\n",
+    "settlements_recorded": 1
+   },
+   "caveat": "private py-evm chain in this process: local protocol validation, not production settlement; the lost-response reconciliation is the SDK-level scenario of the local-chain test suite",
+   "started_at": 1790584776.5452933,
+   "ended_at": 1790585382.9981818
+  },
+  {
+   "journey": 21,
+   "title": "revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access",
+   "status": "failed",
+   "evidence": {
+    "document": "kd_048c54ed046b",
+    "retrievable_before": true,
+    "retrievable_after": false,
+    "answer_job_state": "succeeded",
+    "answer_submit_status": 202,
+    "answer_submit_error": null,
+    "answer_status": "insufficient_evidence",
+    "answer_used_revoked_source": false,
+    "preview_status_after_revocation": 403
+   },
+   "caveat": null,
+   "started_at": 1790585382.9983063,
+   "ended_at": 1790585389.0795546
+  }
+ ],
+ "browser": null,
+ "passed": 0,
+ "failed": 3,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 3
+}

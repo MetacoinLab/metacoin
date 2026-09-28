@@ -1,0 +1,79 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmphocajtq_/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmphhuqli8e/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpj7i1196r/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpv7skxso6/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp20z5eu4e/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmppvyl0hfv/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155281/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155281/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:211: ResourceWarning: unclosed file <_io.BufferedReader name=6>
+  return self._supervise(job, contract, spec, run, man, workdir, backend, latest)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155289/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155289/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155297/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155297/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155320/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155320/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155328/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155328/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpgrwse8jr/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155365/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2155365/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/compute/engine.py:211: ResourceWarning: unclosed file <_io.BufferedReader name=6>
+  return self._supervise(job, contract, spec, run, man, workdir, backend, latest)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/starlette/testclient.py:463: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+  return super().request(
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpsj779bom/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp8wq2e6h1/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.
+----------------------------------------------------------------------
+Ran 10 tests in 45.497s
+
+OK
+rc=0

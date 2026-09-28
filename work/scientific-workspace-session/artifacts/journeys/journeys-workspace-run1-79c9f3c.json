@@ -1,0 +1,666 @@
+{
+ "schema": "metacoin-journeys-workspace/v1",
+ "provider_mode": "test-http",
+ "revision": "6fd67e7a9284887be358557fb9c7ff7ca3ad7011",
+ "dependencies": {
+  "compute_interpreter": {
+   "python": "/usr/bin/python3",
+   "numpy": "2.2.6",
+   "python_version": "3.12.3",
+   "cuda": true,
+   "torch": "2.10.0+cu130",
+   "device": "NVIDIA GB10",
+   "capability": "12.1"
+  },
+  "models_present": true,
+  "python": "3.12.3",
+  "local_chain_artifacts": true
+ },
+ "started_at": 1790583997,
+ "finished_at": 1790584074,
+ "results": [
+  {
+   "journey": 1,
+   "title": "native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page",
+   "status": "passed",
+   "evidence": {
+    "document": "di_720e58ce8540",
+    "state": "ready",
+    "parser": "metacoin-pdf-extractor/v1",
+    "page_method": "native",
+    "console_page_status": 200,
+    "hit_page": 1,
+    "citation_valid": [
+     true
+    ],
+    "all_valid": true
+   },
+   "caveat": null,
+   "started_at": 1790583997.711579,
+   "ended_at": 1790583999.8767796
+  },
+  {
+   "journey": 2,
+   "title": "scanned PDF through the local OCR path with provenance; numeric field confirmed against the fixture",
+   "status": "passed",
+   "evidence": {
+    "document": "di_24554acea018",
+    "method": "ocr",
+    "engine": "rapidocr_onnxruntime",
+    "dpi": 200,
+    "confidence_meaning": "engine diagnostic per text box; not a probability that the statement is correct",
+    "fixture_value_found": true,
+    "serial_found": true
+   },
+   "caveat": null,
+   "started_at": 1790584000.2970076,
+   "ended_at": 1790584003.4326918
+  },
+  {
+   "journey": 3,
+   "title": "mixed native/scanned document: per-page extraction method shown, no duplicate indexing of the same content",
+   "status": "passed",
+   "evidence": {
+    "document": "di_d0ac1cd2d822",
+    "methods": [
+     "native",
+     "ocr"
+    ],
+    "ocr_pages": 1,
+    "hits_for_page2_passage": 1
+   },
+   "caveat": null,
+   "started_at": 1790584003.797904,
+   "ended_at": 1790584006.9815369
+  },
+  {
+   "journey": 4,
+   "title": "regular table extracted, unit mapping reviewed, dataset committed, one output value traced to its source cell",
+   "status": "passed",
+   "evidence": {
+    "table": "dt_6940882992a7",
+    "rows_converted": 14,
+    "dataset_version": "dv_f84d9fcbc4920e25",
+    "first_row": {
+     "duration_s": 60,
+     "power_high_mW": 101,
+     "power_low_mW": 82
+    },
+    "trace": {
+     "source_row": 1,
+     "page_index": 0,
+     "table_id": "dt_6940882992a7"
+    }
+   },
+   "caveat": null,
+   "started_at": 1790584007.0960267,
+   "ended_at": 1790584009.4534795
+  },
+  {
+   "journey": 5,
+   "title": "ambiguous locale: conversion waits for an authorized interpretation (declared locale + recorded exclusion) instead of guessing",
+   "status": "passed",
+   "evidence": {
+    "undeclared_errors": [
+     "unparseable",
+     "unparseable"
+    ],
+    "comma_errors_rows": [
+     3
+    ],
+    "explicit_exclusion_valid": true,
+    "undeclared_mapping_state": "invalid",
+    "confirm_undeclared_status": 409
+   },
+   "caveat": null,
+   "started_at": 1790584009.7193513,
+   "ended_at": 1790584011.8762295
+  },
+  {
+   "journey": 6,
+   "title": "three real generation requests as one supported batch: independent outputs, token counts, terminal states",
+   "status": "passed",
+   "evidence": {
+    "batch_id": [
+     "mb_104269d25102"
+    ],
+    "positions": [
+     0,
+     1,
+     2
+    ],
+    "output_tokens": [
+     10,
+     6,
+     24
+    ],
+    "states": [
+     "succeeded",
+     "succeeded",
+     "succeeded"
+    ]
+   },
+   "caveat": null,
+   "started_at": 1790584012.1923807,
+   "ended_at": 1790584022.4553385
+  },
+  {
+   "journey": 7,
+   "title": "cancel one batch member while another completes; reconnect to the survivor stream without new work",
+   "status": "passed",
+   "evidence": {
+    "survivor": "succeeded",
+    "cancelled": "cancelled",
+    "cancelled_tokens": 50,
+    "same_batch": true,
+    "reconnected_bytes_equal": true,
+    "jobs_added_by_reconnect": 0
+   },
+   "caveat": null,
+   "started_at": 1790584023.5772414,
+   "ended_at": 1790584035.2679691
+  },
+  {
+   "journey": 8,
+   "title": "natural-language scientific request compiled into an authorized typed plan and executed through the normal service path",
+   "status": "passed",
+   "evidence": {
+    "intent": "in_a3cb59a6633d",
+    "disposition": "plan",
+    "service_kind": "temporal_batch",
+    "plan": "pl_85ff49282fb9",
+    "accept_status": "executed",
+    "job": "j_eb54db8cdf52ca2d",
+    "job_state": "succeeded"
+   },
+   "caveat": null,
+   "started_at": 1790584036.4938428,
+   "ended_at": 1790584045.800192
+  },
+  {
+   "journey": 9,
+   "title": "missing units: clarification, same draft continued after the answer; no paid work before resolution",
+   "status": "passed",
+   "evidence": {
+    "intent": "in_c123c0c51fc2",
+    "unresolved": [
+     "inputs",
+     "units"
+    ],
+    "jobs_before_answer": 0,
+    "continued_state": "plan",
+    "jobs_after_plan": 0,
+    "assumptions": {
+     "units": "mJ"
+    }
+   },
+   "caveat": null,
+   "started_at": 1790584046.1704812,
+   "ended_at": 1790584047.0533724
+  },
+  {
+   "journey": 10,
+   "title": "instruction-like passage in a retrieved document is displayed as content and cannot change tools, source scope or spending authority",
+   "status": "passed",
+   "evidence": {
+    "disposition": "clarification",
+    "service_kind": "energy_audit",
+    "passage_retrievable_as_content": true,
+    "grants_unchanged": true,
+    "budget_unchanged": true,
+    "jobs_added": 0
+   },
+   "caveat": null,
+   "started_at": 1790584047.0534265,
+   "ended_at": 1790584047.3454278
+  },
+  {
+   "journey": 11,
+   "title": "small robust resource plan solved, witness verified independently through the verification service, objective equals the exhaustive oracle",
+   "status": "passed",
+   "evidence": {
+    "job": "j_ba6d944995a9ebf5",
+    "status": "optimal_within_tolerance",
+    "objective": 12,
+    "oracle": 12,
+    "verification": "passed",
+    "checks": {
+     "status_declared": true,
+     "summary_matches_plan": true,
+     "assignments_replay_feasible": true,
+     "objective_replayed": true,
+     "trajectory_replayed": true,
+     "status_consistent_with_solver": true,
+     "oracle_reproduced": true,
+     "optimum_matches_oracle": true,
+     "alternative_replay_0": true,
+     "alternative_replay_3": true,
+     "alternative_replay_6": true
+    }
+   },
+   "caveat": null,
+   "started_at": 1790584047.345474,
+   "ended_at": 1790584049.4396772
+  },
+  {
+   "journey": 12,
+   "title": "positive total energy but an early reserve violation: the early schedule is rejected by the exact simulator and a valid later start is selected",
+   "status": "passed",
+   "evidence": {
+    "job": "j_2029f38a59f4d382",
+    "selected_start": 2,
+    "min_margin": 4000,
+    "early_schedule_violation": [
+     {
+      "code": "reserve_violated",
+      "boundary": 1,
+      "energy": 9000,
+      "reserve": 20000,
+      "slot": 0,
+      "active": [
+       "a"
+      ]
+     }
+    ],
+    "total_net_energy_positive": true
+   },
+   "caveat": "the early-schedule rejection is the shipped simulator called in-process; the selected plan came through the worker and the full_reference verifier path",
+   "started_at": 1790584049.807244,
+   "ended_at": 1790584051.35602
+  },
+  {
+   "journey": 13,
+   "title": "j13_time_limit_statuses",
+   "status": "failed",
+   "error": "AssertionError({'error': True, 'code': 'VALIDATION', 'action': 'request fields are invalid; see details', 'detail': {'code': 'compute_input', 'reason': 'start variables 2184 exceed 2000'}})",
+   "trace": "Traceback (most recent call last):\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_workspace.py\", line 641, in run_all\n    fn()\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_workspace.py\", line 300, in j13_time_limit_statuses\n    jid = self.plan_job(spec, 'j13'); job = self.wait_job(jid, 900)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_workspace.py\", line 78, in plan_job\n    assert st == 202, out\n           ^^^^^^^^^\nAssertionError: {'error': True, 'code': 'VALIDATION', 'action': 'request fields are invalid; see details', 'detail': {'code': 'compute_input', 'reason': 'start variables 2184 exceed 2000'}}\n",
+   "started_at": 1790584051.7745876,
+   "ended_at": 1790584051.7802796
+  },
+  {
+   "journey": 14,
+   "title": "bounded trade-off comparison with at least two incomparable alternatives, their assumptions and verified trajectories",
+   "status": "passed",
+   "evidence": {
+    "job": "j_746155b1fa9a66eb",
+    "alternatives": [
+     [
+      0,
+      0,
+      0,
+      30000,
+      true
+     ],
+     [
+      3,
+      5,
+      3,
+      18000,
+      true
+     ],
+     [
+      6,
+      12,
+      6,
+      18000,
+      true
+     ]
+    ],
+    "alternative_replays": {
+     "alternative_replay_0": true,
+     "alternative_replay_3": true,
+     "alternative_replay_6": true
+    },
+    "console_shows_alternatives": true
+   },
+   "caveat": null,
+   "started_at": 1790584052.6997337,
+   "ended_at": 1790584054.846918
+  },
+  {
+   "journey": 15,
+   "title": "branch an analysis by one changed reviewed value: affected nodes identified, only they regenerate, unaffected results reused",
+   "status": "passed",
+   "evidence": {
+    "analysis": "an_025079fd403e",
+    "impact_direct": [
+     "runA"
+    ],
+    "impact_unaffected": [
+     "operation",
+     "runC"
+    ],
+    "plan": {
+     "a": "rerun",
+     "b": "rerun",
+     "c": "reuse",
+     "out": "keep"
+    },
+    "regeneration_run": "run_77375425ccc69cb0",
+    "c_reused_from": "j_ea5e827e4ad86c8e",
+    "original_run_state": "completed"
+   },
+   "caveat": null,
+   "started_at": 1790584055.265769,
+   "ended_at": 1790584057.9400847
+  },
+  {
+   "journey": 16,
+   "title": "report assembled from source, dataset, assumptions, plan, run and verification; evidence references opened through the console",
+   "status": "passed",
+   "evidence": {
+    "analysis": "an_025079fd403e",
+    "version": 4,
+    "report": "rp_64f79a5a66f2",
+    "artifacts": [
+     [
+      "operation_draft",
+      "workflow_definition"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "comparison",
+      "workflow_run"
+     ],
+     [
+      "source_note",
+      "knowledge_document_version"
+     ],
+     [
+      "dataset_ref",
+      "dataset_version"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "verification",
+      "verification"
+     ]
+    ],
+    "claim_checks": [
+     {
+      "block": "concl",
+      "claim": 0,
+      "key": "plan.objective",
+      "expected": 12,
+      "actual": 12,
+      "ok": true,
+      "reason": null
+     }
+    ],
+    "flags": [],
+    "console_report_status": 200
+   },
+   "caveat": null,
+   "started_at": 1790584058.3577335,
+   "ended_at": 1790584058.48294
+  },
+  {
+   "journey": 17,
+   "title": "restricted signed report projection exported, verified independently, undisclosed fields absent",
+   "status": "failed",
+   "evidence": {
+    "report": "rp_64f79a5a66f2",
+    "included": [
+     "plan",
+     "concl"
+    ],
+    "omitted": 8,
+    "warnings_acknowledged": 0,
+    "verify": {
+     "signature_valid": true,
+     "issuer_is_this_service": true,
+     "projected_text_matches_statement": true
+    },
+    "hidden_field_absent": false
+   },
+   "caveat": null,
+   "started_at": 1790584059.3049467,
+   "ended_at": 1790584059.5134847
+  },
+  {
+   "journey": 18,
+   "title": "j18_package_import_other_workspace",
+   "status": "failed",
+   "error": "KeyError('id')",
+   "trace": "Traceback (most recent call last):\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_workspace.py\", line 641, in run_all\n    fn()\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_workspace.py\", line 427, in j18_package_import_other_workspace\n    rc, pk = self.cli('owner', 'package-create', '--file', self.tmpjson('pkg.json', {'name': 'robust-plan', 'workflow_id': wf['id'], 'description': 'synthetic example', 'example': {'plan': plan_sample()}, 'delivery_policy': {'gate': 'required_verification', 'required_class': 'full_reference'}}))\n                                                                                                                           ~~^^^^^^\nKeyError: 'id'\n",
+   "started_at": 1790584059.5135295,
+   "ended_at": 1790584059.517902
+  },
+  {
+   "journey": 19,
+   "title": "paid verified package on the private local chain; settlement withheld until verification; lost response reconciled; no duplicate settlement",
+   "status": "failed",
+   "evidence": {
+    "job": "j_13a3ced29f8d78b4",
+    "payment": "j19-paid-eeeeeeeeeeeeeeeeeeee",
+    "gate_before_verification": null,
+    "delivery": "delivered",
+    "settlement": "SETTLED",
+    "final_amount": "23",
+    "replay_same_job": true,
+    "lost_response_scenario_rc": 1,
+    "settlements_recorded": 1
+   },
+   "caveat": "private py-evm chain in this process: local protocol validation, not production settlement; the lost-response reconciliation is the SDK-level scenario of the local-chain test suite",
+   "started_at": 1790584060.4366431,
+   "ended_at": 1790584064.086576
+  },
+  {
+   "journey": 20,
+   "title": "the same analysis operations through a real MCP client and the CLI with consistent policy outcomes",
+   "status": "passed",
+   "evidence": {
+    "mcp_protocol": "2025-11-25",
+    "mcp_tools": 32,
+    "mcp_analysis": "an_ba3e28f1dc0a",
+    "mcp_report_refusal": "CONFLICT",
+    "mcp_viewer_refusal": "FORBIDDEN",
+    "cli_owner": "an_62c10b709e93",
+    "cli_viewer_refusal": "FORBIDDEN",
+    "compat_refusal": "VALIDATION"
+   },
+   "caveat": null,
+   "started_at": 1790584064.5553885,
+   "ended_at": 1790584067.7768927
+  },
+  {
+   "journey": 21,
+   "title": "revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access",
+   "status": "failed",
+   "evidence": {
+    "document": "kd_366c567a9894",
+    "retrievable_before": true,
+    "retrievable_after": false,
+    "answer_job_state": null,
+    "answer_status": null,
+    "answer_used_revoked_source": false,
+    "preview_status_after_revocation": 403
+   },
+   "caveat": null,
+   "started_at": 1790584067.7769296,
+   "ended_at": 1790584067.8678474
+  },
+  {
+   "journey": 22,
+   "title": "j22_concurrent_workload",
+   "status": "failed",
+   "error": "TypeError(\"httpx._client.Client.post() got multiple values for keyword argument 'headers'\")",
+   "trace": "call last):\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_workspace.py\", line 641, in run_all\n    fn()\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_workspace.py\", line 532, in j22_concurrent_workload\n    st, out = self.req('post', '/api/v1/documents/import?name=%s&collection_id=%s' % (name, cid), content=(FX / 'dev' / name).read_bytes(), headers=dict(self.H(), **{'Content-Type': 'application/pdf'}))\n              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_workspace.py\", line 50, in req\n    return self.api_json(method, path, role, **kw)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_expansion.py\", line 38, in api_json\n    r = getattr(self.http, method)(path, headers=self.H(role), **kw)\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: httpx._client.Client.post() got multiple values for keyword argument 'headers'\n",
+   "started_at": 1790584068.7845843,
+   "ended_at": 1790584068.7859251
+  },
+  {
+   "journey": 23,
+   "title": "upgrade and restore an isolated copy of the prior live state: old artifacts, credentials and workflows preserved",
+   "status": "passed",
+   "evidence": {
+    "source_schema": "025_metered_upto",
+    "destination_schema": "030_packages",
+    "migrations_applied": [
+     "026_document_intelligence",
+     "027_generation_batching",
+     "028_agent_intents",
+     "029_analyses",
+     "030_packages"
+    ],
+    "loaded_revision": "6fd67e7a9284887be358557fb9c7ff7ca3ad7011",
+    "counts": {
+     "jobs": 23,
+     "artifacts": 92,
+     "principals": 4,
+     "workflow_definitions": 1,
+     "credentials": 5
+    },
+    "artifacts_copied": 90,
+    "old_artifact_read": "a_da180911f8213b086ba24604",
+    "workflows_listed": 1
+   },
+   "caveat": "the live service itself is upgraded by the \u00a764 step with its own backup record; this journey exercises the migration on a consistent SQLite-backup copy",
+   "started_at": 1790584069.755774,
+   "ended_at": 1790584070.9281013
+  },
+  {
+   "journey": 24,
+   "title": "reproduce the packaged candidate in a fresh environment and complete representative journeys",
+   "status": "not-run",
+   "evidence": {
+    "reason": "executed by the packaging step against the final archive (clean-export-logs/, journeys-from-clean-export.json); merged into this record by the packaging step"
+   },
+   "started_at": null,
+   "ended_at": null
+  }
+ ],
+ "browser": {
+  "passed": 19,
+  "failed": 0,
+  "checks": [
+   {
+    "check": "documents page lists imports with stages",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "document page shows extraction provenance and pages",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "page inspector shows method, spans and the preview image",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "knowledge search result shows the page number of the hit",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "analyses list renders",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "analysis page shows typed blocks with status badges and the impact form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "impact result rendered from the form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "report page shows the evidence sections and flags",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "report links back to its frozen analysis revision",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "plan job page shows status, alternatives, sensitivity and the schedule SVG",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "schedule SVG carries the reserve line, labelled boundaries and a task legend",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "resource plan sample validates in the compute form with a work-unit estimate",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "packages list renders",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "scenario comparison page shows the changed assumption path and side-by-side columns",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot open Analyses",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer job page carries no private plan values",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot create or export packages (read allowed, mutation refused)",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer package creation refused",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "narrow width: no horizontal page overflow on the workspace pages",
+    "ok": true,
+    "detail": "{'/console/documents': True, '/console/analyses': True, '/console/packages': True, '/console/compute/new?kind=resource_plan': True, '/console/jobs/j_746155b1fa9a66eb': True, '/console/reports/rp_64f79a5a66f2': True}"
+   }
+  ],
+  "screenshots": [
+   "01-documents.png",
+   "02-document.png",
+   "03-page-inspector.png",
+   "04-search-page-citation.png",
+   "05-analysis.png",
+   "06-analysis-impact.png",
+   "07-report.png",
+   "08-plan-job.png",
+   "09-compute-new-plan.png",
+   "11-scenario-compare.png",
+   "12-narrow-plan-job.png",
+   "13-narrow-analyses.png"
+  ],
+  "crash": null,
+  "rc": 0,
+  "status": "passed"
+ },
+ "passed": 17,
+ "failed": 6,
+ "blocked": 0,
+ "not_run": 1,
+ "total": 24
+}
