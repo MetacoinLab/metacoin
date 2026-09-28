@@ -22,6 +22,8 @@ from . import statements as statements_mod, tracing
 from .evaluation import Evaluation
 from .notebooks import Notebooks
 from .planner import Planner
+from .bundles import Bundles
+from .disagreements import Disagreements
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -57,6 +59,8 @@ class Services:
         self.evaluation = Evaluation(settings, self)
         self.notebooks = Notebooks(settings, self)
         self.planner = Planner(settings, self)
+        self.bundles = Bundles(settings, self)
+        self.disagreements = Disagreements(settings, self)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -1538,6 +1542,17 @@ def create_app(settings):
     async def vf_policy_retire(request: Request, pid: str):
         return await run(request, True, lambda db, p: svc.verification.retire_policy(db, p, pid))
 
+    # ---- disagreement review (§65-9) -------------------------------------------------------------------------------
+    @app.get(API + '/verification/disagreements')
+    async def disagreements(request: Request):
+        return await run(request, False, lambda db, p: {'groups': svc.disagreements.groups(db, p)})
+
+    @app.post(API + '/verification/{vid}/decide')
+    async def disagreement_decide(request: Request, vid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.disagreements.decide(db, p, vid, body.get('decision'), body.get('note', ''), body.get('evidence')), 'verification.decide', raw)
+
     @app.get(API + '/verification/{vid}')
     async def vf_view(request: Request, vid: str):
         return await run(request, False, lambda db, p: svc.verification.view(db, p, vid))
@@ -1740,6 +1755,25 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         return await run(request, True, lambda db, p: svc.evaluation.set_gate(db, p, body.get('suite_id')), 'evaluation.gate', raw)
+
+    # ---- service bundles (§65-7/8) ---------------------------------------------------------------------------------
+    @app.post(API + '/bundles/export')
+    async def bundle_export(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.bundles.export(db, p, body), 'bundles.export', raw)
+
+    @app.post(API + '/bundles/check')
+    async def bundle_check(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.bundles.check(db, p, body.get('bundle')))
+
+    @app.post(API + '/bundles/import')
+    async def bundle_import(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.bundles.import_bundle(db, p, body.get('bundle'), bool(body.get('apply', False))), 'bundles.import', raw)
 
     # ---- structured planning (§51) --------------------------------------------------------------------------------
     @app.post(API + '/agents/plans', status_code=201)

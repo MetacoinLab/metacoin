@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'plan', 'plans', 'plan-accept', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'model-warmup', 'plan', 'plans', 'plan-accept', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -270,6 +270,19 @@ def expansion(args, go):
         if args.action == 'rotate' and st == 200:
             out = {'node_id': out['node_id'], 'note': 'new credential returned by the API; not printed. Re-run node-enroll for a fresh identity file, or read the API response programmatically.'}
         return st, out
+    if c == 'bundle-export':
+        st, out = go('POST', '/api/v1/bundles/export', {'name': args.name, 'services': args.services.split(',') if args.services else None, 'models': args.models.split(',') if args.models else [], 'verification_policies': args.policies.split(',') if args.policies else []})
+        if st == 200 and args.out:
+            Path(args.out).write_text(json.dumps(out, indent=1))
+        return st, out
+    if c == 'bundle-check':
+        return go('POST', '/api/v1/bundles/check', {'bundle': json.load(open(args.file))})
+    if c == 'bundle-import':
+        return go('POST', '/api/v1/bundles/import', {'bundle': json.load(open(args.file)), 'apply': bool(args.apply)})
+    if c == 'disagreements':
+        return go('GET', '/api/v1/verification/disagreements')
+    if c == 'disagreement-decide':
+        return go('POST', '/api/v1/verification/' + args.verification_id + '/decide', {'decision': args.decision, 'note': args.note, 'evidence': json.loads(args.evidence)})
     if c == 'plan':
         body = {'goal': args.goal}
         if args.kind: body['kind'] = args.kind
@@ -394,6 +407,10 @@ def main(argv=None):
     ec = sub.add_parser('eval-compare'); ec.add_argument('run_a'); ec.add_argument('run_b'); eg = sub.add_parser('eval-gate', help='require a passing scored run of this suite before promotion (empty clears)'); eg.add_argument('--suite-id', default='')
     ne = sub.add_parser('node-enroll', help='generate a node keypair, enroll it, and write a private identity file'); ne.add_argument('--name', required=True); ne.add_argument('--out', required=True); ne.add_argument('--devices', default='cpu'); ne.add_argument('--capabilities')
     sub.add_parser('nodes'); nv = sub.add_parser('node'); nv.add_argument('node_id'); na = sub.add_parser('node-action'); na.add_argument('node_id'); na.add_argument('action', choices=('drain', 'enable', 'disable', 'revoke', 'rotate')); na.add_argument('--reason', default='')
+    be = sub.add_parser('bundle-export', help='portable data-only bundle: services, pinned model identities, verification templates, approval/warmup policies'); be.add_argument('--name', required=True); be.add_argument('--services'); be.add_argument('--models'); be.add_argument('--policies'); be.add_argument('--out')
+    bc = sub.add_parser('bundle-check', help='compatibility check of a bundle against this instance (nothing changes)'); bc.add_argument('--file', required=True)
+    bi = sub.add_parser('bundle-import', help='import compatible items (no promotion, load, grant or execution); --apply performs it, otherwise a dry run'); bi.add_argument('--file', required=True); bi.add_argument('--apply', action='store_true')
+    sub.add_parser('disagreements', help='failed/incomplete/disputed audits grouped per target with producer/auditor environment differences'); dd = sub.add_parser('disagreement-decide'); dd.add_argument('verification_id'); dd.add_argument('decision', choices=('producer_upheld', 'auditor_upheld', 'environment_difference', 'inconclusive')); dd.add_argument('--note', required=True); dd.add_argument('--evidence', required=True, help='JSON list of {kind: job|verification|artifact, id}')
     pl = sub.add_parser('plan', help='typed plan draft for a goal (validated, stored, not executed); --assist lets the local model pick the service kind'); pl.add_argument('--goal', required=True); pl.add_argument('--kind'); pl.add_argument('--inputs', help='JSON file'); pl.add_argument('--verify'); pl.add_argument('--assist', action='store_true'); pl.add_argument('--collection')
     sub.add_parser('plans'); pa = sub.add_parser('plan-accept', help='execute a valid plan once (idempotent)'); pa.add_argument('plan_id')
     apr = sub.add_parser('approval-propose'); apr.add_argument('--action', required=True); apr.add_argument('--content', required=True, help='JSON object'); apr.add_argument('--note', default='')

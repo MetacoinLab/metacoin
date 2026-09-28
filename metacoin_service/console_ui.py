@@ -716,8 +716,17 @@ def mount(app, svc):
     async def verification_page(request: Request):
         def fn(db, p):
             p.require('job:read')
-            return render(request, 'verification.html', principal=p, items=svc.verification.list(db, p), classes=list(verification_mod.CLASSES), preview=None)
+            return render(request, 'verification.html', principal=p, items=svc.verification.list(db, p), classes=list(verification_mod.CLASSES), preview=None, groups=[g for g in svc.disagreements.groups(db, p) if g['open']])
         return await page(request, fn)
+
+    @app.post('/console/verification/{vid}/decide', response_class=HTMLResponse)
+    async def verification_decide_form(request: Request, vid: str):
+        f = await form(request)
+        def fn(db, p):
+            evidence = [{'kind': k, 'id': i} for k, i in (x.split(':', 1) for x in (f.get('evidence') or '').split() if ':' in x)]
+            svc.disagreements.decide(db, p, vid, f.get('decision'), f.get('note', ''), evidence)
+            return RedirectResponse('/console/verification', status_code=303)
+        return await page(request, fn, mutating=True)
 
     @app.post('/console/verification', response_class=HTMLResponse)
     async def verification_form(request: Request):
@@ -728,7 +737,7 @@ def mount(app, svc):
                 params['sample_count'] = int(f['sample_count'])
             if f.get('preview'):
                 pv = svc.verification.preview(db, p, f.get('job_id'), f.get('class'), params)
-                return render(request, 'verification.html', principal=p, items=svc.verification.list(db, p), classes=list(verification_mod.CLASSES), preview=pv)
+                return render(request, 'verification.html', principal=p, items=svc.verification.list(db, p), classes=list(verification_mod.CLASSES), preview=pv, groups=[])
             svc.verification.request(db, p, f.get('job_id'), f.get('class'), params)
             return RedirectResponse('/console/verification', status_code=303)
         return await page(request, fn, mutating=True)

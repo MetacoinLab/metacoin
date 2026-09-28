@@ -324,27 +324,44 @@
   },
   {
    "section": "\u00a765-7",
-   "feature": "Per-workspace local service bundles",
-   "status": "not-started",
-   "entry_points": [],
-   "evidence": [],
-   "known_limits": ""
+   "feature": "Per-workspace local service bundles: data-only export of services, pinned model identities, verification templates, approval and warmup policies with the runtime identity; no credentials, grants, quotes, documents, vectors, weights or keys",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /api/v1/bundles/export",
+    "CLI bundle-export"
+   ],
+   "evidence": [
+    "test_bundles_disagreements.BundleTests"
+   ],
+   "known_limits": "knowledge collections and datasets are not bundled (private data)"
   },
   {
    "section": "\u00a765-8",
-   "feature": "Export/import compatibility checks",
-   "status": "not-started",
-   "entry_points": [],
-   "evidence": [],
+   "feature": "Export/import compatibility checks: digest, runtime identity (torch, implementation digests), installed kinds and verifier digests, weights present with matching digests, policy classes; dry-run import; apply registers only compatible items and never promotes, loads, grants or executes",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /api/v1/bundles/check",
+    "POST /api/v1/bundles/import",
+    "CLI bundle-check/bundle-import"
+   ],
+   "evidence": [
+    "test_bundles_disagreements.BundleTests (two instances, tampered bundle, absent weights)"
+   ],
    "known_limits": ""
   },
   {
    "section": "\u00a765-9",
-   "feature": "Advanced disagreement review",
-   "status": "not-started",
-   "entry_points": [],
-   "evidence": [],
-   "known_limits": "disputes exist per verification record; grouping and comparison across records not built"
+   "feature": "Advanced disagreement review: failed/incomplete/disputed audits grouped per target with producer vs auditor/replica implementation, backend, precision and version differences; evidence-linked reviewer decisions bound to commitments; no automatic truth adjudication and no gate change",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "GET /api/v1/verification/disagreements",
+    "POST /api/v1/verification/{id}/decide",
+    "CLI disagreements/disagreement-decide"
+   ],
+   "evidence": [
+    "test_bundles_disagreements.DisagreementTests"
+   ],
+   "known_limits": ""
   }
  ]
 }
