@@ -205,7 +205,7 @@ def runtime_facts(db, settings, api_host=None):
             'generation_batching': {'mode': 'static', 'policy': (json.loads(db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone()['value']) if db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone() else
                                                               {'enabled': bool(settings.limits['model_batch_generation_enabled']), 'max_sequences': settings.limits['model_batch_max_sequences'], 'max_tokens': settings.limits['model_batch_max_tokens'], 'wait_ms': settings.limits['model_batch_wait_ms'], 'modes': ['static'], 'kv_budget_bytes': settings.limits['model_batch_kv_budget_bytes']}),
                                     'recent_batches': [dict(r) for r in db.execute('SELECT id, host, members, decode_steps, padded_prompt_length, ms, kv_estimate_bytes, cuda_peak_delta_bytes, cancelled_members, started_at FROM model_batches ORDER BY started_at DESC LIMIT 10').fetchall()],
-                                    'cohort': 'requests of one submitter in one workspace, same revision, greedy only; sampled requests run as singletons', 'continuous': 'not enabled: the installed transformers exposes a continuous-batching manager (probed on this host); static padded batching is the supported mode'},
+                                    'cohort': 'requests of one submitter in one workspace, same revision, greedy only; sampled requests run as singletons', 'continuous': ('enabled: continuous admission and removal (transformers ContinuousBatchingManager) with static padded batching as the explicit fallback' if 'continuous' in ((json.loads(db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone()['value']) if db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone() else {}).get('modes') or []) else 'not enabled: the installed transformers exposes a continuous-batching manager (probed on this host); static padded batching is the active mode; enable with modes ["static","continuous"]')},
             'warmup': {'policy': json.loads(db.execute("SELECT value FROM meta WHERE key='model_warmup'").fetchone()['value']) if db.execute("SELECT value FROM meta WHERE key='model_warmup'").fetchone() else None,
                        'resident': [{'host': r['host'], 'revision_id': r['revision_id'], 'state': r['state'], 'warm': r['warm'], 'drain_reason': r['drain_reason'], 'drained_at': r['drained_at']} for r in rows if r['warm'] or r['drain_reason']],
                        'batching': {'enabled': bool(settings.limits.get('model_batch_enabled', 1)), 'max_items': settings.limits.get('model_batch_max_items'), 'max_chars': settings.limits.get('model_batch_max_chars'), 'scope': 'text_embedding jobs of one submitter in one workspace, same revision and truncate flag; no accumulation wait'},
@@ -214,7 +214,7 @@ def runtime_facts(db, settings, api_host=None):
             'note': 'a revision is callable only when a runtime host reports state=ready for it; readiness is observed, not inferred from installation'}
 
 
-BATCH_MODES = ('static',)
+BATCH_MODES = ('static', 'continuous')             # continuous = runtime-supported admission/removal during a session (opt-in); static stays the default and the fallback
 
 
 def set_batching(db, principal, settings, body):

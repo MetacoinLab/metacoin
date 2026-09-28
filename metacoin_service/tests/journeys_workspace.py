@@ -490,7 +490,7 @@ class Journeys(ExpansionJourneys):
         ok = ex.get('second_status') == 202 and job.get('state') == 'succeeded' and gate1.get('state') == 'AUTHORIZED' and (gate1.get('delivery_gate') or {}).get('state') == 'awaiting_verification' and run.get('state') == 'delivered' and settled.get('state') == 'SETTLED' and again.get('transaction') == settled.get('transaction') \
             and (rp_out.get('body') or {}).get('replayed') is True and lost.returncode == 0
         self.rec(19, 'paid verified package on the private local chain; settlement withheld until verification; lost response reconciled; no duplicate settlement', ok,
-                 {'job': jid, 'payment': pid, 'gate_before_verification': (gate1.get('delivery_gate') or {}).get('state'), 'delivery': run.get('state'), 'settlement': settled.get('state'), 'final_amount': settled.get('final_amount'), 'replay_same_job': (rp_out.get('body') or {}).get('job_id') == jid, 'lost_response_scenario_rc': lost.returncode, 'local_chain_suite_tail': lost.stderr[-160:], 'settlements_recorded': len(items.get('items', []))},
+                 {'job': jid, 'payment': pid, 'gate_before_verification': (gate1.get('delivery_gate') or {}).get('state'), 'delivery': run.get('state'), 'settlement': settled.get('state'), 'settlement_error': settled.get('error'), 'authorized_at': ((ex.get('body') or {}).get('settlement') or {}).get('created_at'), 'settled_at': settled.get('settled_at'), 'final_amount': settled.get('final_amount'), 'replay_same_job': (rp_out.get('body') or {}).get('job_id') == jid, 'lost_response_scenario_rc': lost.returncode, 'local_chain_suite_tail': lost.stderr[-160:], 'settlements_recorded': len(items.get('items', []))},
                  caveat='private py-evm chain in this process: local protocol validation, not production settlement; the lost-response reconciliation is the SDK-level scenario of the local-chain test suite', t0=t0)
 
     # ---- 20–22 clients, revocation, concurrency ---------------------------------------------------------------------------
@@ -533,7 +533,7 @@ class Journeys(ExpansionJourneys):
         hit_after = any('7331' in r.get('text', '') for r in s2.get('results', []))
         st, v = self.req('get', '/api/v1/knowledge/versions/' + doc['id'] + '/preview')
         used = '7331' in json.dumps(a.get('answer') or '') or any(src.get('document_id') == doc['document_id'] for src in (a.get('sources') or []))
-        ok = hit_before and not hit_after and job.get('state') in ('succeeded', 'failed', 'cancelled') and not used and (a.get('status') in ('insufficient', 'invalidated', 'answered') and not used) and st in (403, 404, 409, 200)
+        ok = hit_before and not hit_after and job.get('state') in ('succeeded', 'failed', 'cancelled') and not used and a.get('status') in ('insufficient', 'insufficient_evidence', 'invalidated', 'answered') and st in (403, 404, 409)
         self.rec(21, 'revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access', ok,
                  {'document': doc.get('document_id'), 'retrievable_before': hit_before, 'retrievable_after': hit_after, 'answer_job_state': job.get('state'), 'answer_submit_status': submit_status, 'answer_submit_error': submit_body, 'answer_status': a.get('status'), 'answer_used_revoked_source': used, 'preview_status_after_revocation': st}, t0=t0)
 

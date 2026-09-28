@@ -69,6 +69,8 @@ class Services:
         self.disagreements = Disagreements(settings, self)
         from .packages import Packages
         self.packages = Packages(settings, self)
+        from .reconciliation import Reconciliations
+        self.reconciliations = Reconciliations(settings, self)
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
@@ -2165,6 +2167,47 @@ def create_app(settings):
             history.record(db, p.workspace, p.id, 'ops.fault', 'job', body['job_id'], {'fault': 'verification_fail', 'cleared': bool(body.get('clear'))})
             return {'fault': 'verification_fail', 'job_id': body['job_id'], 'active': not body.get('clear'), 'scope': 'this disposable instance only'}
         return await run(request, True, fn, 'ops.fault', raw)
+
+    # ---- backlog 3/4: reconciliation and measurement requests; backlog 8/9: upgrade preview and review queue ----------
+    @app.post(API + '/reconciliations', status_code=201)
+    async def reconciliation_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.reconciliations.create(db, p, body), 201), 'reconciliation.create', raw)
+
+    @app.get(API + '/reconciliations')
+    async def reconciliation_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.reconciliations.list(db, p)})
+
+    @app.get(API + '/reconciliations/{rid}')
+    async def reconciliation_view(request: Request, rid: str):
+        return await run(request, False, lambda db, p: svc.reconciliations.view(db, p, rid))
+
+    @app.post(API + '/measurement-requests', status_code=201)
+    async def measurement_request_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.reconciliations.create_request(db, p, body), 201), 'measurement.request', raw)
+
+    @app.get(API + '/measurement-requests')
+    async def measurement_request_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.reconciliations.list_requests(db, p)})
+
+    @app.get(API + '/measurement-requests/{rid}')
+    async def measurement_request_view(request: Request, rid: str):
+        return await run(request, False, lambda db, p: svc.reconciliations.request_view(db, p, rid))
+
+    @app.get(API + '/measurement-requests/{rid}/export')
+    async def measurement_request_export(request: Request, rid: str):
+        return await run(request, True, lambda db, p: svc.reconciliations.export_request(db, p, rid))
+
+    @app.get(API + '/packages/{pid}/upgrade-preview/{new_pid}')
+    async def package_upgrade_preview(request: Request, pid: str, new_pid: str):
+        return await run(request, False, lambda db, p: svc.packages.upgrade_preview(db, p, pid, new_pid))
+
+    @app.get(API + '/review-queue')
+    async def review_queue(request: Request):
+        return await run(request, False, lambda db, p: svc.analyses.review_queue(db, p))
 
     # ---- Group E: analysis sessions, impact, regeneration, reports, projections ----------------------------------
     @app.post(API + '/analyses', status_code=201)

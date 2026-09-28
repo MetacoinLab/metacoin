@@ -386,6 +386,60 @@ class ModelHost:
                     raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'model_runtime_' + et})
         raise ServiceError('CAPABILITY_UNAVAILABLE', 'model runtime produced no batch completion')
 
+    def generate_continuous(self, row, initial, admit, on_segment=None, cancel_check=None, idle_seconds=1.0, timeout=None):
+        """A continuous-batching session on the child: `initial` requests are admitted first; `admit()` is polled while the
+        session runs and returns further requests to admit; `cancel_check()` returns request ids to cancel. The session ends
+        when every admitted request finished and `admit()` returned nothing for `idle_seconds`. Returns per-request results,
+        admission records and the session summary. Raises CAPABILITY_UNAVAILABLE when the runtime cannot run the session."""
+        child = self.ensure(row)
+        try:
+            return self._generate_continuous(child, row, initial, admit, on_segment, cancel_check, idle_seconds, timeout)
+        finally:
+            self._after_request(child)
+
+    def _generate_continuous(self, child, row, initial, admit, on_segment, cancel_check, idle_seconds, timeout):
+        sid = 'mb_' + secrets.token_hex(6)
+        results, cancelled, admissions = {}, set(), []
+        with child.lock:
+            child.requests += len(initial); child.last_used = time.time()
+            child.send({'op': 'generate_continuous', 'session_id': sid})
+            for r in initial:
+                child.send(dict(r, op='cb_add'))
+            outstanding = {r['request_id'] for r in initial}
+            last_poll = time.time(); last_new = time.time(); ended = False
+            for ev in child.events(timeout or self.limits['model_request_timeout_seconds']):
+                if time.time() - last_poll > 0.25:
+                    last_poll = time.time()
+                    if cancel_check:
+                        for rid in (cancel_check() or set()) - cancelled:
+                            child.send({'op': 'cancel', 'request_id': rid}); cancelled.add(rid)
+                    if not ended and admit:
+                        for r in (admit() or []):
+                            child.send(dict(r, op='cb_add')); outstanding.add(r['request_id']); child.requests += 1; last_new = time.time()
+                    if not ended and not outstanding and time.time() - last_new >= idle_seconds:
+                        child.send({'op': 'cb_end'}); ended = True
+                if ev is None:
+                    continue
+                et = ev.get('event')
+                if et == 'segment':
+                    if on_segment:
+                        on_segment(ev['request_id'], ev['seq'], ev['text'])
+                elif et == 'admitted':
+                    admissions.append({'request_id': ev['request_id'], 'position': ev['position'], 'at': now(), 'input_tokens': ev.get('input_tokens')})
+                elif et == 'done':
+                    results[ev['request_id']] = ev; outstanding.discard(ev['request_id']); last_new = time.time()
+                elif et == 'error' and ev.get('request_id'):
+                    results[ev['request_id']] = {'error': {'code': ev.get('code'), 'reason': ev.get('reason')}}; outstanding.discard(ev['request_id']); last_new = time.time()
+                elif et == 'session_done':
+                    child.last_used = time.time()
+                    if ev.get('error'):
+                        raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': ev['error'].get('code', 'continuous_failed'), 'reason': ev['error'].get('reason')})
+                    return {'results': results, 'admissions': admissions, 'batch': dict(ev, id=sid)}
+                elif et in ('exited', 'timeout'):
+                    self.children.pop(row['id'], None); self._record(row['id'], state='failed', error='runtime ' + et, pid=None)
+                    raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'model_runtime_' + et})
+        raise ServiceError('CAPABILITY_UNAVAILABLE', 'model runtime produced no session completion')
+
     def embed(self, row, texts, truncate=False, timeout=None):
         child = self.ensure(row)
         try:
@@ -498,6 +552,11 @@ class ModelEngine:
         inputs = spec['inputs']
         try:
             if job['kind'] == 'text_generation':
+                pol = self.batching_policy()
+                if pol['enabled'] and 'continuous' in pol['modes'] and int(inputs.get('temperature_percent') or 0) == 0 and child.ready and (child.ready.get('versions') or {}).get('continuous_batching'):
+                    res = self._generate_continuous(job, contract, spec, row, inputs, should_cancel, state, pol)
+                    if res is not None:
+                        return res                                                     # None: the session could not start; static fallback below
                 members = self._claim_generation_companions(job, inputs, row)
                 if members:
                     return self._generate_static_batch(job, contract, spec, row, inputs, should_cancel, state, members)
@@ -647,6 +706,115 @@ class ModelEngine:
             with self.worker.db.tx() as db:
                 scan(db)
         return members
+
+    def _admit_generation(self, job, row, pol, budget, exclude):
+        """Admission during a continuous session: the same cohort rule as static batching (one workspace and submitter, same
+        revision, greedy only) under the sequence/token/KV envelope of what is still outstanding; each admitted job is claimed
+        with the ordinary lease fencing. Returns [(job_row, contract, spec)]."""
+        kvb = self.kv_bytes_per_token(row)
+        members = []
+        with self.worker.db.tx() as db:
+            cands = db.execute("SELECT j.* FROM jobs j JOIN model_requests r ON r.job_id=j.id WHERE j.state='queued' AND j.cancel_requested=0 AND j.hold=0 AND j.kind='text_generation' AND j.workspace=? AND j.submitted_by=? AND r.revision_id=? ORDER BY j.created_at LIMIT 16",
+                               (job['workspace'], job['submitted_by'], row['id'])).fetchall()
+            for cand in cands:
+                if cand['id'] in exclude or budget['seqs'] >= pol['max_sequences']:
+                    continue
+                if not scheduling.local_allowed(cand['location_policy']):
+                    continue
+                contract, spec = self.worker._spec(db, cand); ci = spec['inputs']
+                if int(ci.get('temperature_percent') or 0) > 0:
+                    continue
+                need = self.prompt_estimate(ci) + ci['max_output_tokens']
+                if budget['tokens'] + need > pol['max_tokens'] or (budget['tokens'] + need) * kvb > pol['kv_budget_bytes']:
+                    continue
+                generation = cand['lease_generation'] + 1
+                changed = db.execute("UPDATE jobs SET state='running', lease_owner=?, lease_expires=?, lease_generation=?, attempt=attempt+1, updated_at=? WHERE id=? AND lease_generation=? AND state='queued'",
+                                     (self.worker.worker_id, now() + self.worker.lease, generation, now(), cand['id'], cand['lease_generation'])).rowcount
+                if changed != 1:
+                    continue
+                cj = dict(db.execute('SELECT * FROM jobs WHERE id=?', (cand['id'],)).fetchone())
+                db.execute('INSERT INTO attempts VALUES (?,?,?,?,?,NULL,NULL)', ('at_' + secrets.token_hex(6), cj['id'], generation, self.worker.worker_id, now()))
+                history.record(db, cj['workspace'], self.worker.worker_id, 'job.claimed', 'job', cj['id'], {'generation': generation, 'attempt': cj['attempt'], 'admitted_to_session_of': job['id']})
+                db.execute('UPDATE model_requests SET phase=?, host=?, attempt_generation=?, started_at=?, queue_seconds=?, updated_at=? WHERE job_id=?', ('running', self.host.host, generation, now(), now() - cj['created_at'], now(), cj['id']))
+                members.append((cj, contract, spec)); budget['seqs'] += 1; budget['tokens'] += need
+        return members
+
+    def _generate_continuous(self, job, contract, spec, row, inputs, should_cancel, state, pol):
+        """Continuous admission (§66-2): the primary opens a session; compatible queued requests are admitted while it runs and
+        removed as they finish or are cancelled; every member keeps its own lifecycle, segments, usage and accounting. Returns
+        None when the runtime refuses the session so the caller falls back to static batching."""
+        all_members = {}                                   # request id -> (job, contract, spec, inputs, sink, state)
+        by_job = {}
+        budget = {'seqs': 1, 'tokens': self.prompt_estimate(inputs) + inputs['max_output_tokens']}
+        def register(mj, mc, ms, mi, st):
+            rid = 'r' + secrets.token_hex(6)
+            all_members[rid] = (mj, mc, ms, mi, SegmentSink(self, mj, st), st); by_job[mj['id']] = rid
+            self._update(mj, phase='running')
+            return {'request_id': rid, 'messages': mi.get('messages'), 'prompt': mi.get('prompt'), 'max_new_tokens': mi['max_output_tokens'], 'temperature_percent': 0, 'stop': mi.get('stop') or []}
+        initial = [register(job, contract, spec, inputs, state)]
+        last = {'renew': time.time()}
+        def admit():
+            for (mj, mc, ms) in self._admit_generation(job, row, pol, budget, set(by_job)):
+                yield register(mj, mc, ms, ms['inputs'], {'fenced': False})
+        def cancel_check():
+            if time.time() - last['renew'] >= self.limits['compute_lease_renew_seconds']:
+                self._renew_all([m[0] for m in all_members.values()]); last['renew'] = time.time()
+            with self.worker.db.read() as db:
+                ids = list(by_job)
+                rows = db.execute('SELECT id FROM jobs WHERE cancel_requested=1 AND id IN (%s)' % ','.join('?' * len(ids)), ids).fetchall()
+            return {by_job[r['id']] for r in rows}
+        started = now(); kvb = self.kv_bytes_per_token(row)
+        try:
+            out = self.host.generate_continuous(row, initial, lambda: list(admit()), on_segment=lambda rid, seq, text: all_members[rid][4](seq, text), cancel_check=cancel_check, idle_seconds=max(0.2, pol['wait_ms'] / 1000.0 if pol['wait_ms'] else 1.0))
+        except ServiceError as exc:
+            body = exc.body()
+            if len(all_members) == 1 and (body.get('detail') or {}).get('code') in ('CONTINUOUS_UNSUPPORTED', 'CONTINUOUS_START_FAILED'):
+                return None                                                      # explicit static fallback for the primary
+            for rid, (mj, mc, ms, mi, sink, st) in all_members.items():
+                self._update(mj, phase='failed', error=json.dumps(body)[:300])
+                res = self.worker._finish(mj, None, 'COMPUTATION_ERROR')
+                if mj is job:
+                    primary = res
+            return primary
+        batch = out['batch']; bid = batch['id']
+        positions = {a['request_id']: a['position'] for a in out['admissions']}
+        primary = None; cancelled = 0
+        for rid, (mj, mc, ms, mi, sink, st) in all_members.items():
+            sink.flush(force=True)
+            done = out['results'].get(rid); k = positions.get(rid, 0)
+            if st['fenced']:
+                if mj is job:
+                    primary = 'fenced'
+                continue
+            if done is None or 'error' in done:
+                err = (done or {}).get('error') or {'code': 'no_result'}
+                self._update(mj, phase='failed', error=json.dumps(err)[:300])
+                res = self.worker._finish(mj, None, 'INPUT_INVALID' if err.get('code') == 'INPUT_INVALID' else 'COMPUTATION_ERROR')
+            else:
+                text, nsegs = sink.text(); usage = done['usage']
+                self._update(mj, input_tokens=usage['input_tokens'], output_tokens=usage['output_tokens'], finish_reason=done['finish_reason'], inference_ms=done['ms'], usage_json=json.dumps(dict(usage, batch_id=bid, batch_position=k, batch_mode='continuous')), batch_id=bid, batch_position=k)
+                if done['finish_reason'] == 'cancelled':
+                    cancelled += 1; self._update(mj, phase='cancelled')
+                    history.record_safe(self.worker.db, mj['workspace'], self.worker.worker_id, 'model.request', 'job', mj['id'], {'finish_reason': 'cancelled', 'output_tokens': usage['output_tokens'], 'partial_output_preserved': True, 'batch_id': bid, 'mode': 'continuous'})
+                    res = self.worker._finish(mj, None, 'CANCELLED')
+                elif hashlib.sha256(text.encode()).hexdigest() != done['text_sha256']:
+                    self._update(mj, phase='failed', error='persisted segments do not reproduce the runtime output')
+                    res = self.worker._finish(mj, None, 'COMPUTATION_ERROR')
+                else:
+                    output = {'schema': RESULT_SCHEMAS['text_generation'], 'text': text, 'finish_reason': done['finish_reason'], 'usage': usage, 'config': done['config'], 'segments': nsegs,
+                              'model_revision_id': row['id'], 'model_id': row['model_id'], 'revision': row['revision'], 'weight_digest': row['weight_digest'], 'tokenizer_digest': row['tokenizer_digest'],
+                              'versions': self.host.children[row['id']].ready['versions'] if row['id'] in self.host.children and self.host.children[row['id']].ready else None,
+                              'request': {kk: mi.get(kk) for kk in ('messages', 'prompt', 'max_output_tokens', 'temperature_percent', 'top_p_percent', 'seed', 'stop')}}
+                    res = self._complete(mj, mc, ms, row, output, 'GENERATED', {'output_tokens': usage['output_tokens'], 'input_tokens': usage['input_tokens'], 'finish_reason': done['finish_reason'], 'segments': nsegs, 'inference_ms': done['ms'],
+                                                                                'tokens_per_second': done.get('tokens_per_second'), 'text_sha256': done['text_sha256'], 'output_chars': len(text), 'batch_id': bid, 'batch_members': len(all_members), 'batch_position': k, 'batch_mode': 'continuous'})
+            if mj is job:
+                primary = res
+        with self.worker.db.tx() as db:
+            db.execute('INSERT INTO model_batches (id, workspace, host, revision_id, mode, members, member_jobs_json, prompt_tokens, max_new_tokens, decode_steps, padded_prompt_length, ms, kv_estimate_bytes, cuda_peak_delta_bytes, cancelled_members, outcome_json, started_at, finished_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                       (bid, job['workspace'], self.host.host, row['id'], 'continuous', len(all_members), json.dumps([m[0]['id'] for m in all_members.values()]), sum(a.get('input_tokens') or 0 for a in out['admissions']), max(m[3]['max_output_tokens'] for m in all_members.values()), batch.get('steps'), None, batch.get('ms'),
+                        kvb * budget['tokens'], (batch.get('memory') or {}).get('cuda_peak_delta_bytes'), cancelled,
+                        json.dumps({'note': batch.get('note'), 'admissions': out['admissions'], 'admitted_during_session': max(0, len(all_members) - 1)}), started, now()))
+        return primary
 
     def _renew_all(self, jobs):
         with self.worker.db.tx() as db:

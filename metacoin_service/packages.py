@@ -299,7 +299,7 @@ class Packages:
             return dict(report, installed=False)
         if not report['compatible']:
             raise ServiceError('CONFLICT', {'code': 'package_incompatible', 'blocking': report['blocking']})
-        return dict(self._store(db, principal, dict(manifest), imported=True), compatibility=report)
+        return dict(self._store(db, principal, dict(manifest), imported=True), compatibility=report, installed=True)
 
     # ---- instantiation and composite quotes --------------------------------------------------------------------------
     def instantiate(self, db, principal, pid, values=None, inputs=None, name=None):
@@ -664,3 +664,71 @@ class Packages:
         data, manifest = self.result_bundle(db, principal, rid, scope)
         return {'schema': BUNDLE_SCHEMA, 'package_run_id': rid, 'zip_base64': base64.b64encode(data).decode(), 'zip_sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data), 'manifest': manifest,
                 'verify': 'python -m metacoin_service.verify_bundle <bundle.zip> --trusted-key <hex> [--recompute]'}
+
+    # ---- backlog 8: upgrade preview -------------------------------------------------------------------------------------
+    def upgrade_preview(self, db, principal, old_pid, new_pid):
+        """What a newer package changes relative to an installed one: operations (implementation digests, model ids),
+        required models, verification/delivery policy, resource bounds, schemas, slots, and the per-node catalog prices;
+        which runs and analyses carry the old identity. A preview migrates nothing; stored runs keep their package."""
+        principal.require('contract:read')
+        a, b = self.view(db, principal, old_pid), self.view(db, principal, new_pid)
+        ma, mb = a['manifest'], b['manifest']
+        from .catalog import INSTALLED
+        cat = {s['kind']: s for s in self.svc.catalog.list(db, principal)}
+        changes = []
+        def ch(area, path, old, new, requires):
+            changes.append({'area': area, 'path': path, 'old': old, 'new': new, 'requires': requires})
+        for kind in sorted(set(ma['operations']) | set(mb['operations'])):
+            oa, ob = ma['operations'].get(kind), mb['operations'].get(kind)
+            if oa is None:
+                ch('operations', kind, None, 'added', 'new instantiation (new operation)'); continue
+            if ob is None:
+                ch('operations', kind, 'present', 'removed', 'new instantiation (operation removed)'); continue
+            for f in ('verifier_digest', 'model_id', 'manifest_id', 'input_schema', 'precision'):
+                if oa.get(f) != ob.get(f):
+                    ch('operations', kind + '.' + f, oa.get(f), ob.get(f), 'explicit migration: a different implementation, model or schema is not automatically equivalent')
+        old_models = {(m['model_id'], m['revision']) for m in ma.get('required_models', [])}; new_models = {(m['model_id'], m['revision']) for m in mb.get('required_models', [])}
+        for m in sorted(new_models - old_models):
+            ch('required_models', m[0], None, m[1][:12], 'install and register the pinned revision; no automatic download')
+        for m in sorted(old_models - new_models):
+            ch('required_models', m[0], m[1][:12], None, 'none')
+        va, vb = ma['verification_policy'], mb['verification_policy']
+        for f in ('gate', 'required_class', 'metered_failure_charge'):
+            if va.get(f) != vb.get(f):
+                ch('verification_policy', f, va.get(f), vb.get(f), 'policy choice: a weaker verifier or gate changes what delivery means')
+        for f in ('service_nodes', 'max_job_attempts', 'machine_time_upper_bound_seconds', 'nodes'):
+            if ma['resource_bounds'].get(f) != mb['resource_bounds'].get(f):
+                ch('resource_bounds', f, ma['resource_bounds'].get(f), mb['resource_bounds'].get(f), 'quote again')
+        if ma.get('units') != mb.get('units'):
+            ch('units', 'units', ma.get('units'), mb.get('units'), 'explicit migration: a different unit convention is never equivalent')
+        if ma.get('input_schemas') != mb.get('input_schemas'):
+            ch('input_schemas', 'input_schemas', ma.get('input_schemas'), mb.get('input_schemas'), 'new instantiation with inputs in the new schemas')
+        if ma.get('output_schema') != mb.get('output_schema'):
+            ch('output_schema', 'output_schema', ma.get('output_schema'), mb.get('output_schema'), 'downstream consumers of exported fields must be checked')
+        if ma.get('slots') != mb.get('slots'):
+            ch('slots', 'slots', sorted(ma.get('slots') or {}), sorted(mb.get('slots') or {}), 'new instantiation values')
+        if ma.get('disclosure_defaults') != mb.get('disclosure_defaults'):
+            ch('disclosure_defaults', 'disclosure_defaults', ma.get('disclosure_defaults'), mb.get('disclosure_defaults'), 'review before exporting bundles')
+        # costs: catalog price per unit for each operation kind (work units depend on the instance inputs: shown for the example when present)
+        from .compute import inputs as compute_inputs, manifests as compute_manifests
+        costs = []
+        for kind in sorted(set(ma['operations']) | set(mb['operations'])):
+            s = cat.get(kind)
+            per_unit = s['price']['amount_per_unit'] if s else None
+            ex_a = (ma.get('example') or {}); ex_b = (mb.get('example') or {})
+            def wu(ex):
+                for node in (ex or {}).values():
+                    if isinstance(node, dict) and node.get('schema') and kind in compute_manifests.KINDS:
+                        try:
+                            compute_inputs.VALIDATORS[kind](node); return compute_inputs.work_units(kind, node)
+                        except Exception:
+                            return None
+                return None
+            costs.append({'kind': kind, 'amount_per_unit': per_unit, 'in_old': kind in ma['operations'], 'in_new': kind in mb['operations'], 'example_work_units_old': wu(ex_a), 'example_work_units_new': wu(ex_b)})
+        runs = [dict(r) for r in db.execute('SELECT id, state, kind, run_id, job_id FROM package_runs WHERE package_id=? ORDER BY created_at', (old_pid,)).fetchall()]
+        objs, edges, cycle, truncated = self.svc.analyses._forward(db, principal.workspace, [('package', old_pid)])
+        analyses = sorted({o['id'] for o in objs if o['type'] == 'analysis'})
+        migration_required = [c for c in changes if c['requires'].startswith(('explicit', 'new instantiation', 'install'))]
+        return {'old': {'id': old_pid, 'name': a['name'], 'version': a['version'], 'digest': a['digest'], 'state': a['state']}, 'new': {'id': new_pid, 'name': b['name'], 'version': b['version'], 'digest': b['digest'], 'state': b['state']},
+                'same_name': a['name'] == b['name'], 'changes': changes, 'migration_required': migration_required, 'costs': costs, 'affected': {'runs': runs, 'runs_by_state': {s: sum(1 for r in runs if r['state'] == s) for s in {r['state'] for r in runs}}, 'analyses': analyses, 'downstream_objects': len(objs)},
+                'note': 'preview only: existing runs keep their original package identity; nothing is repointed; an authorized migration is a new instantiation under the new package'}

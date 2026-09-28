@@ -16,6 +16,7 @@ commands on stdin, answering with JSON-line events on stdout:
 
 One request runs at a time. Errors for one request are reported as {"event":"error","request_id",code,reason} and the
 child keeps serving; a fatal load error exits with code 3. Nothing here reads anything outside the artifact directory."""
+import hashlib
 import json
 import os
 import queue
@@ -192,6 +193,132 @@ class Runtime:
               'ms': ms, 'tokens_per_second': round(n_out / max(ms / 1000.0, 1e-6), 2)})
 
     # ---- static batched generation (Order 07 group B) ----------------------------------------------
+    def continuous_supported(self):
+        return hasattr(self.model, 'init_continuous_batching') and self.device == 'cuda' and getattr(self.tok, 'chat_template', None) is not None
+
+    def generate_continuous(self, cmd, q):
+        """A continuous-batching session (transformers ContinuousBatchingManager, paged attention): requests are admitted and
+        removed while the session runs. Commands arrive on the child's queue during the session: cb_add {request_id, messages|
+        prompt, max_new_tokens, stop}, cancel {request_id} (via the reader thread's cancel set) and cb_end. Per-request segments
+        are streamed as they are produced (delta of the decoded text), each request reports its own usage on completion;
+        stop strings are enforced by the session (cancel + truncation) because the manager has no stop-string support.
+        Greedy only; sampled requests are refused (session-global random state)."""
+        torch = self.torch
+        sid = cmd['session_id']
+        if not self.continuous_supported():
+            emit({'event': 'session_done', 'session_id': sid, 'members': 0, 'ms': 0, 'error': {'code': 'CONTINUOUS_UNSUPPORTED', 'reason': 'runtime lacks init_continuous_batching, a cuda device or a chat template'}}); return
+        from transformers import GenerationConfig
+        eos = self.tok.eos_token_id
+        gen_eos = getattr(self.model.generation_config, 'eos_token_id', None)
+        eos_ids = set(eos if isinstance(eos, list) else [eos]) | set(gen_eos if isinstance(gen_eos, list) else ([gen_eos] if gen_eos is not None else []))
+        eos_ids.discard(None)
+        cap = int(self.limits['max_output_tokens'])
+        gc = GenerationConfig(max_new_tokens=cap, eos_token_id=sorted(eos_ids), do_sample=False, num_return_sequences=1, pad_token_id=self.tok.pad_token_id if self.tok.pad_token_id is not None else self.tok.eos_token_id)
+        t0 = time.time()
+        if self.device == 'cuda':
+            torch.cuda.reset_peak_memory_stats(); before = int(torch.cuda.memory_allocated())
+        orig_attn = getattr(self.model.config, '_attn_implementation', None)
+        try:
+            manager = self.model.init_continuous_batching(generation_config=gc)
+            manager.start()
+        except Exception as exc:
+            emit({'event': 'session_done', 'session_id': sid, 'members': 0, 'ms': int((time.time() - t0) * 1000), 'error': {'code': 'CONTINUOUS_START_FAILED', 'reason': type(exc).__name__ + ': ' + str(exc)[:160]}}); return
+        rows = {}
+        ended = False; admitted = 0; steps = 0
+        def finish(r, reason, gen_ids, text=None):
+            if r['done']:
+                return
+            text = r['emitted'] if text is None else text
+            r['done'] = True
+            emit({'event': 'done', 'request_id': r['rid'], 'finish_reason': reason, 'usage': {'input_tokens': r['n_in'], 'output_tokens': len(gen_ids), 'total_tokens': r['n_in'] + len(gen_ids)}, 'ms': int((time.time() - r['t0']) * 1000),
+                  'tokens_per_second': round(len(gen_ids) / max(time.time() - r['t0'], 1e-6), 2), 'text_sha256': hashlib.sha256(text.encode()).hexdigest(), 'config': {'do_sample': False, 'max_new_tokens': r['max_new'], 'template': r['template'], 'mode': 'continuous'}, 'stopped_on': r.get('stopped_on')})
+        try:
+            while not (ended and all(r['done'] for r in rows.values())):
+                # 1. commands admitted during the session
+                try:
+                    c = q.get(timeout=0.02)
+                except queue.Empty:
+                    c = None
+                if c is not None:
+                    op = c.get('op')
+                    if op == 'cb_add':
+                        rid = c['request_id']
+                        try:
+                            ids, n_in, template = self.build_prompt(c)
+                            if int(c.get('temperature_percent') or 0) > 0:
+                                raise ValueError('sampled requests are not batched (session-global random state)')
+                        except ValueError as exc:
+                            emit({'event': 'error', 'request_id': rid, 'code': 'INPUT_INVALID', 'reason': str(exc)[:200]}); continue
+                        max_new = min(int(c['max_new_tokens']), cap)
+                        rows[rid] = {'rid': rid, 'n_in': n_in, 'max_new': max_new, 'stop': [x for x in (c.get('stop') or []) if x][:4], 'template': template, 'emitted': '', 'seq': 0, 'done': False, 't0': time.time(), 'stopped_on': None, 'gen': []}
+                        manager.add_request(input_ids=[int(x) for x in ids['input_ids'][0]], request_id=rid, max_new_tokens=max_new, streaming=True)
+                        admitted += 1
+                        emit({'event': 'admitted', 'request_id': rid, 'session_id': sid, 'position': admitted - 1, 'input_tokens': n_in})
+                    elif op == 'cb_end':
+                        ended = True
+                    elif op == 'unload':
+                        ended = True; q.put(c)
+                    else:
+                        emit({'event': 'error', 'request_id': c.get('request_id'), 'code': 'UNSUPPORTED_OPERATION', 'reason': 'op %r not accepted during a continuous session' % op})
+                # 2. cancellations from the reader thread: the member is removed now (its partial output stands); later manager outputs for it are ignored
+                for r in rows.values():
+                    if not r['done'] and r['rid'] in self.cancel:
+                        try:
+                            manager.cancel_request(r['rid'])
+                        except Exception:
+                            pass
+                        r['cancel_sent'] = True; finish(r, 'cancelled', r['gen'])
+                # 3. outputs
+                out = manager.get_result(timeout=0.02)
+                while out is not None:
+                    r = rows.get(out.request_id)
+                    if r is not None and not r['done']:
+                        gen_ids = list(out.generated_tokens)
+                        if len(gen_ids) > len(r['gen']):
+                            steps += 1
+                        r['gen'] = gen_ids
+                        text = self.tok.decode(gen_ids, skip_special_tokens=True)
+                        if r['stop'] and any(s in text for s in r['stop']):
+                            s = next(s for s in r['stop'] if s in text); r['stopped_on'] = s
+                            text = text[:text.index(s)]
+                            delta = text[len(r['emitted']):]
+                            if delta:
+                                emit({'event': 'segment', 'request_id': r['rid'], 'seq': r['seq'], 'text': delta}); r['emitted'] = text; r['seq'] += 1
+                            manager.cancel_request(r['rid']); finish(r, 'stop', gen_ids, text)
+                        else:
+                            if not text.endswith('\ufffd'):
+                                delta = text[len(r['emitted']):]
+                                if delta:
+                                    emit({'event': 'segment', 'request_id': r['rid'], 'seq': r['seq'], 'text': delta}); r['emitted'] = text; r['seq'] += 1
+                            if out.is_finished():
+                                if getattr(out, 'error', None):
+                                    r['done'] = True; emit({'event': 'error', 'request_id': r['rid'], 'code': 'RUNTIME_ERROR', 'reason': str(out.error)[:160], 'partial_segments': r['seq']})
+                                else:
+                                    last = gen_ids[-1] if gen_ids else None
+                                    reason = 'cancelled' if r.get('cancel_sent') or r['rid'] in self.cancel else ('eos' if last in eos_ids else ('length' if len(gen_ids) >= r['max_new'] else 'eos'))
+                                    finish(r, reason, gen_ids, text)
+                    out = manager.get_result(timeout=0.0)
+                if not manager.is_running():
+                    for r in rows.values():
+                        if not r['done']:
+                            r['done'] = True; emit({'event': 'error', 'request_id': r['rid'], 'code': 'RUNTIME_ERROR', 'reason': 'continuous batching thread stopped', 'partial_segments': r['seq']})
+                    ended = True
+        finally:
+            try:
+                manager.stop(block=True, timeout=30)
+            except Exception:
+                pass
+            try:
+                cur = getattr(self.model.config, '_attn_implementation', None)
+                if orig_attn and cur != orig_attn:
+                    self.model.set_attn_implementation(orig_attn)          # the session's paged attention never leaks into later singleton or static generation
+            except Exception:
+                pass
+            for r in rows.values():
+                self.cancel.discard(r['rid'])
+        mem = {'cuda_peak_delta_bytes': int(torch.cuda.max_memory_allocated() - before)} if self.device == 'cuda' else {}
+        emit({'event': 'session_done', 'session_id': sid, 'members': admitted, 'steps': steps, 'ms': int((time.time() - t0) * 1000), 'memory': mem, 'mode': 'continuous', 'note': 'paged-attention continuous batching (transformers ContinuousBatchingManager); admission and removal during the session; outputs may differ from padded static batching at the token level'})
+
     def generate_batch(self, cmd):
         """One padded forward pass for several greedy requests. Left padding + attention mask (positions derive from the
         mask); a per-row stopping criterion returns a bool per sequence so each row stops on ITS OWN end-of-sequence,
@@ -352,7 +479,7 @@ def main():
         emit({'event': 'error', 'code': 'MODEL_LOAD_FAILED', 'reason': type(exc).__name__ + ': ' + str(exc)[:200]})
         sys.exit(EXIT_LOAD)
     ref.append(rt)
-    emit({'event': 'ready', 'revision_id': spec['revision_id'], 'load_ms': int(rt.load_seconds * 1000), 'versions': rt.versions(), 'memory': memory_report(rt.torch, rt.device), 'pid': os.getpid()})
+    emit({'event': 'ready', 'revision_id': spec['revision_id'], 'load_ms': int(rt.load_seconds * 1000), 'versions': dict(rt.versions(), continuous_batching=bool(spec['loader'] == 'causal_lm' and rt.continuous_supported())), 'memory': memory_report(rt.torch, rt.device), 'pid': os.getpid()})
     while True:
         cmd = q.get()
         op = cmd.get('op')
@@ -364,6 +491,8 @@ def main():
             rt.generate(cmd); continue
         if op == 'generate_batch' and spec['loader'] == 'causal_lm':
             rt.generate_batch(cmd); continue
+        if op == 'generate_continuous' and spec['loader'] == 'causal_lm':
+            rt.generate_continuous(cmd, q); continue
         if op == 'embed' and spec['loader'] == 'encoder':
             rt.embed(cmd); continue
         emit({'event': 'error', 'request_id': cmd.get('request_id'), 'code': 'UNSUPPORTED_OPERATION', 'reason': 'op %r not supported by loader %s' % (op, spec['loader'])})

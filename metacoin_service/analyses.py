@@ -950,3 +950,39 @@ class Analyses:
                 'report_known_here': rep is not None and rep['digest'] == st.get('report_digest'),
                 'evidence_scope': {'verified': 'the signature of the issuing service over the statement and the digest of the disclosed projection text', 'disclosed_blocks': st.get('included_blocks'), 'omitted_blocks': st.get('omitted_block_count'),
                                    'not_verified': 'the underlying inputs, results and omitted blocks were not disclosed and are not independently verified by this check'}}
+
+    # ---- backlog 9: decision review queue ------------------------------------------------------------------------------
+    def review_queue(self, db, principal):
+        """Analyses whose CURRENT evidence is stale, contradictory or insufficient for their declared review policy, with the
+        reason and the suggested action. Harmless text edits never queue an analysis: staleness only propagates through
+        declared dependencies and reference drift, and text blocks have no dependents."""
+        principal.require('knowledge:read')
+        items = []
+        for a in self.list(db, principal):
+            v = self.view(db, principal, a['id'])
+            stale_evidence = [b for b in v['blocks'] if b['status'] == 'stale' and b['type'] in ('run_result', 'comparison', 'verification', 'conclusion', 'dataset_ref')]
+            reasons = []
+            if stale_evidence:
+                reasons.append({'code': 'stale_evidence', 'blocks': [{'id': b['id'], 'type': b['type'], 'reason': b['stale']['reason'], 'requires': b['requires']} for b in stale_evidence], 'action': 'regenerate or re-verify, then re-review'})
+            rep = db.execute('SELECT id, version, flags_json, manifest_json FROM analysis_reports WHERE analysis_id=? ORDER BY created_at DESC LIMIT 1', (a['id'],)).fetchone()
+            if rep:
+                flags = json.loads(rep['flags_json'])
+                contra = [f for f in flags if f.get('code') in ('claim_contradicts_structured_result', 'claim_value_unsupported', 'unsupported_reference', 'model_numeric_claim_unsupported', 'model_overclaims_verification')]
+                if contra:
+                    reasons.append({'code': 'contradictory', 'report': rep['id'], 'flags': contra[:10], 'action': 'correct the conclusion or the evidence; rebuild the report'})
+                if rep['version'] != v['version']:
+                    reasons.append({'code': 'report_behind_current_revision', 'report': rep['id'], 'report_version': rep['version'], 'current_version': v['version'], 'action': 'freeze the current revision and rebuild the report if it is meant to be current'})
+            runs = [b for b in v['blocks'] if b['type'] == 'run_result']
+            if v['frozen'] and runs:
+                verified = {d for b in v['blocks'] if b['type'] == 'verification' for d in b.get('depends_on', [])}
+                unverified = [b['id'] for b in runs if b['id'] not in verified]
+                if unverified:
+                    reasons.append({'code': 'insufficient_verification', 'blocks': unverified, 'action': 'attach an independent verification record to each frozen result or state the limit in the report', 'policy': 'declared: frozen revisions with results should carry verification blocks'})
+            concl = [b for b in v['blocks'] if b['type'] == 'conclusion']
+            if v['frozen'] and concl and not runs:
+                reasons.append({'code': 'conclusion_without_results', 'blocks': [b['id'] for b in concl], 'action': 'link the results the conclusion rests on'})
+            if reasons:
+                items.append({'analysis_id': a['id'], 'name': a['name'], 'version': v['version'], 'frozen': v['frozen'], 'reasons': reasons, 'severity': 'high' if any(r['code'] in ('contradictory', 'stale_evidence') for r in reasons) else 'medium'})
+        unaccepted = [dict(r) for r in db.execute("SELECT id, package_id, state, updated_at FROM package_runs WHERE workspace=? AND state='unaccepted' ORDER BY updated_at DESC LIMIT 50", (principal.workspace,)).fetchall()]
+        return {'items': sorted(items, key=lambda x: (x['severity'] != 'high', x['name'])), 'unaccepted_package_runs': unaccepted, 'count': len(items),
+                'rule': 'queued only for stale non-text evidence, contradictory or unsupported claims, reports behind the current revision, or frozen results without verification; text edits alone never queue'}

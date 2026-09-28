@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-compare', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'resource-plan', 'plan-view', 'plan-freeze', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export', 'analysis-create', 'analyses', 'analysis', 'analysis-revise', 'analysis-freeze', 'analysis-impact', 'analysis-regenerate', 'analysis-report', 'report', 'report-projection', 'projection-verify', 'package-create', 'packages', 'package', 'package-compat', 'package-import', 'package-export', 'package-instantiate', 'package-quote', 'package-run', 'package-runs', 'package-run', 'package-retry', 'package-bundle', 'package-retire'}
+                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-compare', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'resource-plan', 'plan-view', 'plan-freeze', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export', 'analysis-create', 'analyses', 'analysis', 'analysis-revise', 'analysis-freeze', 'analysis-impact', 'analysis-regenerate', 'analysis-report', 'report', 'report-projection', 'projection-verify', 'package-create', 'packages', 'package', 'package-compat', 'package-import', 'package-export', 'package-instantiate', 'package-quote', 'package-run', 'package-runs', 'package-run', 'package-retry', 'package-bundle', 'package-retire', 'reconcile', 'reconciliations', 'measurement-request', 'measurement-requests', 'package-upgrade-preview', 'review-queue'}
 
 
 def wait_job(go, job_id, timeout):
@@ -346,6 +346,22 @@ def expansion(args, go):
                 stream.write(base64.b64decode(out['zip_base64']))
             out = {'written': args.out, 'zip_sha256': out['zip_sha256'], 'bytes': out['bytes'], 'verify': out['verify']}
         return st, out
+    if c == 'reconcile':
+        return go('POST', '/api/v1/reconciliations', json.load(open(args.file)))
+    if c == 'reconciliations':
+        return go('GET', '/api/v1/reconciliations' + ('/' + args.id if args.id else ''))
+    if c == 'measurement-request':
+        st, out = go('POST', '/api/v1/measurement-requests', json.load(open(args.file)))
+        if st == 201 and args.out:
+            st2, exp = go('GET', '/api/v1/measurement-requests/' + out['id'] + '/export')
+            Path(args.out).write_text(json.dumps(exp, indent=1)); out = dict(out, written=args.out)
+        return st, out
+    if c == 'measurement-requests':
+        return go('GET', '/api/v1/measurement-requests' + ('/' + args.id if args.id else ''))
+    if c == 'package-upgrade-preview':
+        return go('GET', '/api/v1/packages/%s/upgrade-preview/%s' % (args.package_id, args.new_package_id))
+    if c == 'review-queue':
+        return go('GET', '/api/v1/review-queue')
     if c == 'package-retire':
         return go('POST', '/api/v1/packages/' + args.package_id + '/retire', {})
     if c == 'bundle-export':
@@ -563,6 +579,12 @@ def main(argv=None):
     sub.add_parser('package-runs'); prt = sub.add_parser('package-retry'); prt.add_argument('run_id')
     pb = sub.add_parser('package-bundle', help='signed result bundle of a delivered package run'); pb.add_argument('run_id'); pb.add_argument('--scope'); pb.add_argument('--out')
     pre = sub.add_parser('package-retire'); pre.add_argument('package_id')
+    rc1 = sub.add_parser('reconcile', help='reconcile conflicting sources for one declared quantity under an explicit rule (JSON file {quantity, unit, sources, rule})'); rc1.add_argument('--file', required=True)
+    rc2 = sub.add_parser('reconciliations'); rc2.add_argument('id', nargs='?')
+    mq1 = sub.add_parser('measurement-request', help='local measurement-request artifact (JSON file {quantity, unit, acceptable_format, from:{plan_job_id|reconciliation_id|analysis_id}}); --out writes the export'); mq1.add_argument('--file', required=True); mq1.add_argument('--out')
+    mq2 = sub.add_parser('measurement-requests'); mq2.add_argument('id', nargs='?')
+    pup = sub.add_parser('package-upgrade-preview', help='what a newer package changes (operations, models, verification, bounds, costs) and which runs/analyses are affected'); pup.add_argument('package_id'); pup.add_argument('new_package_id')
+    sub.add_parser('review-queue', help='analyses whose current evidence is stale, contradictory or insufficient for their declared policy')
     be = sub.add_parser('bundle-export', help='portable data-only bundle: services, pinned model identities, verification templates, approval/warmup policies'); be.add_argument('--name', required=True); be.add_argument('--services'); be.add_argument('--models'); be.add_argument('--policies'); be.add_argument('--out')
     bc = sub.add_parser('bundle-check', help='compatibility check of a bundle against this instance (nothing changes)'); bc.add_argument('--file', required=True)
     bi = sub.add_parser('bundle-import', help='import compatible items (no promotion, load, grant or execution); --apply performs it, otherwise a dry run'); bi.add_argument('--file', required=True); bi.add_argument('--apply', action='store_true')

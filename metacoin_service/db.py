@@ -385,6 +385,10 @@ MIGRATIONS = [
         delivery_json TEXT NOT NULL, verification_json TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     CREATE INDEX package_runs_job ON package_runs(job_id);
     """),
+    ('031_reconciliation', """
+    CREATE TABLE reconciliations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, quantity TEXT NOT NULL, unit TEXT NOT NULL, record_json TEXT NOT NULL, digest TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE measurement_requests (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, quantity TEXT NOT NULL, unit TEXT NOT NULL, record_json TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+    """),
 ]
 
 
