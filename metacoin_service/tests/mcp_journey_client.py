@@ -43,6 +43,13 @@ async def run(base, cred, mode):
                     refusals.append({'tool': tool, 'status': r.get('status'), 'code': r.get('code')})
                 out['refusals'] = refusals
                 return out
+            if mode == 'analysis':
+                out['analysis'] = content(await s.call_tool('create_analysis', {'name': 'mcp analysis', 'blocks': [{'id': 'aim', 'type': 'text', 'text': 'created through MCP'}]}))
+                out['status'] = content(await s.call_tool('analysis_status', {'analysis_id': out['analysis'].get('id', 'x')}))
+                out['impact'] = content(await s.call_tool('analysis_impact', {'analysis_id': out['analysis'].get('id', 'x'), 'changed': {'block': 'aim'}}))
+                out['report_refused'] = content(await s.call_tool('build_report', {'analysis_id': out['analysis'].get('id', 'x'), 'version': 1}))
+                out['compat'] = content(await s.call_tool('package_compatibility', {'manifest': {'schema': 'wrong'}}))
+                return out
             sid = next(x['id'] for x in svc['items'] if x['kind'] == 'temporal_batch')
             out['quote'] = content(await s.call_tool('request_quote', {'service_id': sid, 'inputs': batch_spec(private_label='MCP_J16')}))
             out['submitted'] = content(await s.call_tool('submit_job', {'kind': 'temporal_batch', 'inputs': batch_spec(private_label='MCP_J16'), 'title': 'mcp journey', 'idempotency_key': 'j16-1'}))

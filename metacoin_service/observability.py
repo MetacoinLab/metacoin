@@ -25,6 +25,29 @@ def status(db, workspace=None):
     out['agent_grants_by_state'] = {r['state']: r['n'] for r in q("SELECT state, COUNT(*) AS n FROM policy_grants " + where + " GROUP BY state")}
     out['events_latest_seq'] = q("SELECT COALESCE(MAX(seq),0) AS n FROM events " + where)[0]['n']
     out['usage_records'] = q("SELECT COUNT(*) AS n FROM usage_records " + where)[0]['n']
+    # scientific workspace stages (Order 07 §56): document queue, batching occupancy, model residency, optimizer limits, verification backlog, reports, publication, package gates
+    def safe(sql, extra=()):
+        try:
+            return q(sql, extra)
+        except Exception:
+            return []
+    out['documents'] = {'by_stage': {(r['stage'] or r['state']): r['n'] for r in safe("SELECT state, stage, COUNT(*) AS n FROM document_imports " + where + " GROUP BY state, stage")},
+                        'parser_failures': (safe("SELECT COUNT(*) AS n FROM document_imports " + where + (" AND" if where else " WHERE") + " state='failed'") or [{'n': 0}])[0]['n'],
+                        'awaiting_review': (safe("SELECT COUNT(*) AS n FROM document_imports " + where + (" AND" if where else " WHERE") + " state='awaiting_review'") or [{'n': 0}])[0]['n']}
+    batches = safe("SELECT members, cancelled_members, finished_at FROM model_batches ORDER BY started_at DESC LIMIT 20")
+    out['generation_batching'] = {'recent_batches': len(batches), 'recent_members': sum(b['members'] for b in batches), 'recent_cancelled_members': sum(b['cancelled_members'] or 0 for b in batches), 'open_batches': sum(1 for b in batches if b['finished_at'] is None)}
+    out['model_residency'] = {r['state']: r['n'] for r in safe("SELECT state, COUNT(*) AS n FROM model_runtimes GROUP BY state")}
+    out['optimizer'] = {'queued_resource_plans': (safe("SELECT COUNT(*) AS n FROM jobs " + where + (" AND" if where else " WHERE") + " kind='resource_plan' AND state='queued'") or [{'n': 0}])[0]['n'],
+                        'limits': 'per-solve time limit from the input (bounded by the manifest); no candidate on limit is reported as limit_no_candidate, never as infeasible'}
+    out['verification_backlog'] = {r['state']: r['n'] for r in safe("SELECT state, COUNT(*) AS n FROM verification_jobs " + where + " GROUP BY state")}
+    out['reports'] = {'built': (safe("SELECT COUNT(*) AS n FROM analysis_reports " + where) or [{'n': 0}])[0]['n'], 'projections': (safe("SELECT COUNT(*) AS n FROM analysis_projections " + where) or [{'n': 0}])[0]['n']}
+    out['package_runs_by_state'] = {r['state']: r['n'] for r in safe("SELECT state, COUNT(*) AS n FROM package_runs " + where + " GROUP BY state")}
+    stalled = safe("SELECT COUNT(*) AS n FROM jobs " + where + (" AND" if where else " WHERE") + " state='running' AND lease_expires_at < ?", args + (now(),))
+    out['stalled_publication'] = (stalled or [{'n': 0}])[0]['n']
+    out['waiting_reasons'] = {'model_loading': sum(v for k, v in out['model_residency'].items() if k in ('loading',)), 'insufficient_batch_capacity': out['generation_batching']['open_batches'],
+                              'missing_review': out['waiting_review_gates'] + out['review_requested_jobs'], 'budget': out['budget_waits'] + out['budget_blocked'],
+                              'awaiting_verification_delivery': out['package_runs_by_state'].get('awaiting_verification', 0), 'documents_awaiting_review': out['documents']['awaiting_review'],
+                              'meaning': 'each count names why work waits; review, budget and document review need an action; loading, batching and verification resolve on their own'}
     out['note'] = 'counts of local records; not utilization, revenue, customers or environmental impact'
     return out
 
@@ -51,4 +74,9 @@ def metrics_text(db):
           [({'state': k, 'route': 'invoke'}, v) for k, v in sorted(s['invoke_sales_by_state'].items())])
     gauge('metacoin_agent_grants', 'agent grants by state', [({'state': k}, v) for k, v in sorted(s['agent_grants_by_state'].items())])
     gauge('metacoin_events_latest_seq', 'latest event sequence', [({}, s['events_latest_seq'])])
+    gauge('metacoin_documents', 'document imports by stage', [({'stage': str(k)}, v) for k, v in sorted(s['documents']['by_stage'].items())])
+    gauge('metacoin_verification_backlog', 'verification records by state', [({'state': k}, v) for k, v in sorted(s['verification_backlog'].items())])
+    gauge('metacoin_package_runs', 'package runs by delivery state', [({'state': k}, v) for k, v in sorted(s['package_runs_by_state'].items())])
+    gauge('metacoin_model_residency', 'model runtimes by state', [({'state': k}, v) for k, v in sorted(s['model_residency'].items())])
+    gauge('metacoin_stalled_publication', 'running jobs whose lease expired', [({}, s['stalled_publication'])])
     return '\n'.join(lines) + '\n'

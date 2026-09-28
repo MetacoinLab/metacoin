@@ -835,7 +835,7 @@ class Analyses:
         warnings = []
         md = rep['markdown']
         # rebuild from the report's markdown by section-aware filtering is fragile; project from the structured facts instead
-        lines = ['# %s' % v['name'], '', 'Projection of report `%s` (analysis `%s` revision %d). Included blocks: %s. Omitted blocks: %d.' % (rep['id'], v['id'], v['version'], ', '.join(blocks) or 'none', len(omitted)), '']
+        lines = ['# Report projection', '', 'Projection of report `%s` (analysis `%s` revision %d). Included blocks: %s. Omitted blocks: %d.' % (rep['id'], v['id'], v['version'], ', '.join(blocks) or 'none', len(omitted)), '']
         bmap = {b['id']: b for b in v['blocks']}
         included_values = {}
         for bid in blocks:

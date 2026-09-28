@@ -88,6 +88,7 @@ class Packages:
         definition = merkle.parse(drow['definition_json'])
         include_inputs = bool(body.get('include_inline_inputs', False))
         structure = json.loads(json.dumps(definition))
+        structure['name'] = name                          # the source workflow's own label never travels; the package name is the public label
         stripped = []
         for n in structure['nodes']:
             if n['type'] in wf_mod.SERVICE_TYPES and 'inputs' in n and not include_inputs:

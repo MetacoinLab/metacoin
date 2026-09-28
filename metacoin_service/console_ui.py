@@ -337,6 +337,13 @@ def mount(app, svc):
             return render(request, 'campaign.html', principal=p, c=v, rows=rows)
         return await page(request, fn)
 
+    @app.get('/console/campaigns/{a}/compare/{b}', response_class=HTMLResponse)
+    async def campaign_compare_page(request: Request, a: str, b: str):
+        def fn(db, p):
+            cmp = svc.campaigns.compare(db, p, a, b)
+            return render(request, 'campaign_compare.html', principal=p, cmp=cmp)
+        return await page(request, fn)
+
     @app.get('/console/agents', response_class=HTMLResponse)
     async def agents_page(request: Request):
         return await page(request, lambda db, p: render(request, 'agents.html', principal=p, grants=svc.agents.list(db, p)['items'], plans=svc.planner.list(db, p), intents=svc.intents.list(db, p)))
