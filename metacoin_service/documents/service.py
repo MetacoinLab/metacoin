@@ -461,3 +461,98 @@ class Documents:
             add_edge(db, principal.workspace, 'knowledge_version', imp['version_id'], 'dataset_version', dvid, 'derived_from')
         history.record(db, principal.workspace, principal.id, 'document.mapping', 'dataset_mapping', mid, {'confirmed': True, 'dataset_version_id': dvid, 'rows': len(rows), 'provenance_artifact': pid})
         return dict(self.mapping(db, principal, mid), created=created, provenance_artifact_id=pid)
+
+
+# ---- Order 07 §66-1: document revision comparison ----------------------------------------------------------------------
+def compare_imports(svc, db, principal, a_iid, b_iid, max_passages=200):
+    """Compare two immutable extraction revisions (two imports, typically of one logical document) at page, passage and
+    table-cell level and link content changes to the datasets, jobs and analyses that depend on the older revision.
+    Layout movement (a table region or span geometry that moved while the interpreted content is identical) is reported
+    as layout_only, never as a value change."""
+    import difflib
+    import hashlib
+    principal.require('knowledge:read')
+    docs = svc.documents
+    ra, rb = docs._row(db, principal, a_iid), docs._row(db, principal, b_iid)
+    if not ra['extraction_id'] or not rb['extraction_id']:
+        raise ServiceError('CONFLICT', {'code': 'no_extraction', 'a': ra['state'], 'b': rb['state']})
+    pa, pb = docs.pages(db, principal, a_iid), docs.pages(db, principal, b_iid)
+    pages = []
+    def h(t):
+        return hashlib.sha256((t or '').encode()).hexdigest()
+    n = max(len(pa['pages']), len(pb['pages']))
+    passages = []
+    for i in range(n):
+        x = pa['pages'][i] if i < len(pa['pages']) else None; y = pb['pages'][i] if i < len(pb['pages']) else None
+        if x is None or y is None:
+            pages.append({'page_number': i + 1, 'change': 'added' if x is None else 'removed', 'a_method': x and x['method'], 'b_method': y and y['method']}); continue
+        same_text = h(x.get('normalized_text')) == h(y.get('normalized_text'))
+        geom_changed = (x.get('width'), x.get('height'), x.get('rotation')) != (y.get('width'), y.get('height'), y.get('rotation'))
+        change = 'unchanged' if same_text and x['method'] == y['method'] else ('method_changed' if same_text else 'content_changed')
+        if change == 'unchanged' and geom_changed:
+            change = 'layout_only'
+        entry = {'page_number': i + 1, 'change': change, 'a_method': x['method'], 'b_method': y['method'], 'a_text_sha256': h(x.get('normalized_text'))[:16], 'b_text_sha256': h(y.get('normalized_text'))[:16], 'geometry_changed': geom_changed}
+        if change == 'content_changed':
+            la, lb = (x.get('normalized_text') or '').split('\n'), (y.get('normalized_text') or '').split('\n')
+            sm = difflib.SequenceMatcher(None, la, lb, autojunk=False)
+            added = removed = 0
+            for op, i1, i2, j1, j2 in sm.get_opcodes():
+                if op == 'equal':
+                    continue
+                removed += i2 - i1; added += j2 - j1
+                if len(passages) < max_passages:
+                    passages.append({'page_number': i + 1, 'op': op, 'a_lines': la[i1:i2][:6], 'b_lines': lb[j1:j2][:6], 'a_range': [i1, i2], 'b_range': [j1, j2]})
+            entry.update(lines_added=added, lines_removed=removed, similarity=round(sm.ratio(), 4))
+        pages.append(entry)
+    ta = [dict(r) for r in db.execute('SELECT * FROM document_tables WHERE extraction_id=? ORDER BY ordinal', (ra['extraction_id'],)).fetchall()]
+    tb = [dict(r) for r in db.execute('SELECT * FROM document_tables WHERE extraction_id=? ORDER BY ordinal', (rb['extraction_id'],)).fetchall()]
+    tables, changed_tables = [], []
+    def match(t, pool):
+        rows_t = json.loads(t['table_json'])
+        for u in pool:
+            if u.get('_used'):
+                continue
+            rows_u = json.loads(u['table_json'])
+            if (u['page_index'] == t['page_index'] and u['ordinal'] == t['ordinal']) or (rows_t and rows_u and rows_t[0] == rows_u[0]):
+                u['_used'] = True; return u, rows_t, rows_u
+        return None, rows_t, None
+    for t in ta:
+        u, rows_t, rows_u = match(t, tb)
+        if u is None:
+            tables.append({'a_table': t['id'], 'b_table': None, 'page_number': t['page_index'] + 1, 'change': 'removed'}); changed_tables.append(t['id']); continue
+        entry = {'a_table': t['id'], 'b_table': u['id'], 'page_number': t['page_index'] + 1, 'b_page_number': u['page_index'] + 1, 'a_shape': [t['n_rows'], t['n_cols']], 'b_shape': [u['n_rows'], u['n_cols']]}
+        region_moved = (t['region_json'] or '') != (u['region_json'] or '') or t['page_index'] != u['page_index']
+        if rows_t == rows_u:
+            entry['change'] = 'layout_only' if region_moved else 'unchanged'; entry['cells_changed'] = []
+        elif (t['n_rows'], t['n_cols']) != (u['n_rows'], u['n_cols']):
+            entry['change'] = 'shape_changed'; entry['cells_changed'] = None; changed_tables.append(t['id'])
+        else:
+            cells = [{'row': r, 'col': c, 'a': rows_t[r][c], 'b': rows_u[r][c]} for r in range(len(rows_t)) for c in range(len(rows_t[r])) if rows_t[r][c] != rows_u[r][c]]
+            entry['change'] = 'content_changed'; entry['cells_changed'] = cells[:500]; entry['cells_changed_count'] = len(cells); changed_tables.append(t['id'])
+        entry['region_moved'] = region_moved
+        tables.append(entry)
+    for u in tb:
+        if not u.get('_used'):
+            tables.append({'a_table': None, 'b_table': u['id'], 'page_number': u['page_index'] + 1, 'change': 'added'})
+    # what depends on the older revision's changed content: mappings of changed tables -> dataset versions -> downstream; analyses citing the older knowledge version
+    affected = {'mappings': [], 'dataset_versions': [], 'downstream': [], 'analyses': []}
+    for tid in changed_tables:
+        for m in db.execute('SELECT id, state, dataset_version_id FROM dataset_mappings WHERE table_id=?', (tid,)).fetchall():
+            affected['mappings'].append({'mapping': m['id'], 'table': tid, 'state': m['state'], 'dataset_version': m['dataset_version_id']})
+            if m['dataset_version_id']:
+                affected['dataset_versions'].append(m['dataset_version_id'])
+    roots = [('dataset_version', v) for v in sorted(set(affected['dataset_versions']))]
+    if ra['version_id']:
+        roots.append(('knowledge_version', ra['version_id']))
+    if roots:
+        objs, edges, cycle, truncated = svc.analyses._forward(db, principal.workspace, roots)
+        affected['downstream'] = [{'type': o['type'], 'id': o['id'], 'depth': o['depth'], 'via': o['via']} for o in objs if o['type'] != 'analysis'][:200]
+        affected['analyses'] = sorted({o['id'] for o in objs if o['type'] == 'analysis'})
+        affected['truncated'] = truncated
+    content_pages = [p['page_number'] for p in pages if p['change'] == 'content_changed']
+    summary = {'pages': len(pages), 'pages_unchanged': sum(p['change'] == 'unchanged' for p in pages), 'pages_content_changed': len(content_pages), 'pages_layout_only': sum(p['change'] == 'layout_only' for p in pages), 'pages_method_changed': sum(p['change'] == 'method_changed' for p in pages),
+               'pages_added_or_removed': sum(p['change'] in ('added', 'removed') for p in pages), 'tables': len(tables), 'tables_content_changed': sum(t.get('change') in ('content_changed', 'shape_changed', 'added', 'removed') for t in tables), 'tables_layout_only': sum(t.get('change') == 'layout_only' for t in tables),
+               'cells_changed': sum(t.get('cells_changed_count', 0) for t in tables), 'passages': len(passages)}
+    return {'a': {'import_id': a_iid, 'extraction_id': ra['extraction_id'], 'source_sha256': ra['content_sha256'], 'version_id': ra['version_id'], 'name': ra['name']}, 'b': {'import_id': b_iid, 'extraction_id': rb['extraction_id'], 'source_sha256': rb['content_sha256'], 'version_id': rb['version_id'], 'name': rb['name']},
+            'same_source_bytes': ra['content_sha256'] == rb['content_sha256'], 'summary': summary, 'pages': pages, 'passages': passages, 'tables': tables, 'affected_by_content_changes': affected,
+            'interpretation': 'a scientific value changed only where interpreted content differs (content_changed / shape_changed); layout_only means geometry moved with identical interpreted content; method_changed means the same text came from another extraction method'}

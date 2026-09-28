@@ -1868,6 +1868,11 @@ def create_app(settings):
     async def documents_list(request: Request):
         return await run(request, False, lambda db, p: {'items': svc.documents.list(db, p, request.query_params.get('collection_id'))})
 
+    @app.get(API + '/documents/{iid}/compare/{other}')
+    async def document_compare(request: Request, iid: str, other: str):
+        from .documents.service import compare_imports
+        return await run(request, False, lambda db, p: compare_imports(svc, db, p, iid, other))
+
     @app.get(API + '/documents/{iid}')
     async def documents_view(request: Request, iid: str):
         return await run(request, False, lambda db, p: svc.documents.view(db, p, iid))

@@ -578,7 +578,15 @@ def mount(app, svc):
             d = svc.documents.view(db, p, iid)
             pages = svc.documents.pages(db, p, iid)['pages'] if d['extraction'] else []
             pages = [{k: pg[k] for k in ('index', 'display_number', 'method', 'excluded', 'warnings', 'ocr')} for pg in pages]
-            return render(request, 'document.html', principal=p, d=d, pages=pages, removal=None)
+            others = [x for x in svc.documents.list(db, p) if x['id'] != iid and x.get('extraction')]
+            return render(request, 'document.html', principal=p, d=d, pages=pages, removal=None, others=others)
+        return await page(request, fn)
+
+    @app.get('/console/documents/{iid}/compare/{other}', response_class=HTMLResponse)
+    async def document_compare_page(request: Request, iid: str, other: str):
+        from .documents.service import compare_imports
+        def fn(db, p):
+            return render(request, 'document_compare.html', principal=p, cmp=compare_imports(svc, db, p, iid, other))
         return await page(request, fn)
 
     @app.post('/console/documents/{iid}/{action}', response_class=HTMLResponse)
