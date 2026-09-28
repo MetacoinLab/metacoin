@@ -334,7 +334,15 @@ def mount(app, svc):
 
     @app.get('/console/agents', response_class=HTMLResponse)
     async def agents_page(request: Request):
-        return await page(request, lambda db, p: render(request, 'agents.html', principal=p, grants=svc.agents.list(db, p)['items']))
+        return await page(request, lambda db, p: render(request, 'agents.html', principal=p, grants=svc.agents.list(db, p)['items'], plans=svc.planner.list(db, p)))
+
+    @app.post('/console/agents/plans/{pid}/accept', response_class=HTMLResponse)
+    async def plan_accept_form(request: Request, pid: str):
+        await form(request)
+        def fn(db, p):
+            svc.planner.accept(db, p, pid)
+            return RedirectResponse('/console/agents', status_code=303)
+        return await page(request, fn, mutating=True)
 
     @app.post('/console/agents/{gid}/stop', response_class=HTMLResponse)
     async def agent_stop(request: Request, gid: str):

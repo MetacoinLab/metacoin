@@ -21,6 +21,7 @@ from .approvals import Approvals, gate as approval_gate
 from . import statements as statements_mod, tracing
 from .evaluation import Evaluation
 from .notebooks import Notebooks
+from .planner import Planner
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -55,6 +56,7 @@ class Services:
         self.approvals = Approvals(settings, self)
         self.evaluation = Evaluation(settings, self)
         self.notebooks = Notebooks(settings, self)
+        self.planner = Planner(settings, self)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -69,10 +71,16 @@ def model_host_of(svc):
     return svc._model_host
 
 
-def quick_submit(svc, db, principal, kind, inputs, title):
-    """Create, freeze and submit a contract of `kind` for the caller (reviewer = first workspace reviewer). Same rules as the console."""
+QUICK_POLICY_FIELDS = ('execution_locations', 'required_verification', 'verification_policy_id')
+
+
+def quick_submit(svc, db, principal, kind, inputs, title, policy=None):
+    """Create, freeze and submit a contract of `kind` for the caller (reviewer = first workspace reviewer). Same rules as the console.
+    `policy` may carry only the execution-location and verification requirements; everything else keeps the defaults."""
     reviewer = db.execute("SELECT id FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL ORDER BY created_at LIMIT 1", (principal.workspace,)).fetchone()
-    cid = svc.contracts.create_draft(db, principal, kind=kind, title=title, inputs=inputs, policy={'reviewer_id': reviewer['id'] if reviewer else None}, datasets=svc.datasets)
+    if policy is not None and (type(policy) is not dict or set(policy) - set(QUICK_POLICY_FIELDS)):
+        raise ServiceError('VALIDATION', {'code': 'policy', 'allowed': list(QUICK_POLICY_FIELDS)})
+    cid = svc.contracts.create_draft(db, principal, kind=kind, title=title, inputs=inputs, policy=dict(policy or {}, reviewer_id=reviewer['id'] if reviewer else None), datasets=svc.datasets)
     svc.contracts.freeze(db, principal, cid)
     jid = svc.jobs.submit(db, principal, cid)
     return {'job_id': jid, 'contract_id': cid, 'kind': kind, 'state': 'queued'}
@@ -953,7 +961,7 @@ def create_app(settings):
             if kind not in contracts_mod.KINDS or kind in ('verification_audit', 'knowledge_index'):
                 raise ServiceError('VALIDATION', {'code': 'kind', 'allowed': [k for k in contracts_mod.KINDS if k not in ('verification_audit', 'knowledge_index')]})
             title = body.get('title') or (kind + ' job')
-            return quick_submit(svc, db, p, kind, body.get('inputs'), title), 202
+            return quick_submit(svc, db, p, kind, body.get('inputs'), title, policy=body.get('policy')), 202
         return await run(request, True, fn, 'jobs.quick', raw)
 
     @app.get(API + '/jobs')
@@ -1692,7 +1700,8 @@ def create_app(settings):
     async def ev_run_start(request: Request, sid: str):
         raw = await request.body()
         body = read_body(request, raw)
-        return await run(request, True, lambda db, p: (svc.evaluation.start_run(db, p, sid, body.get('model_revision_id')), 202), 'evaluation.run', raw)
+        host = model_host_of(svc)
+        return await run(request, True, lambda db, p: (svc.evaluation.start_run(db, p, sid, body.get('model_revision_id'), host if host.available() else None), 202), 'evaluation.run', raw)
 
     @app.get(API + '/evaluation/runs/{rid}')
     async def ev_run(request: Request, rid: str):
@@ -1707,6 +1716,37 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         return await run(request, True, lambda db, p: svc.evaluation.set_gate(db, p, body.get('suite_id')), 'evaluation.gate', raw)
+
+    # ---- structured planning (§51) --------------------------------------------------------------------------------
+    @app.post(API + '/agents/plans', status_code=201)
+    async def plan_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def do():
+            preselected = None
+            if isinstance(body, dict) and body.get('assist') == 'model' and body.get('draft') is None:
+                # read phase (authorization, catalog, retrieved context), then the model runs outside any transaction, then the write phase stores the draft
+                with svc.db.read() as db:
+                    p = principal_of(request, db, False)
+                    goal = svc.planner.check_goal(body)
+                    cat = svc.planner.catalog(db, p)
+                    row, context = svc.planner.selection_context(db, p, goal, body.get('collection_id'))
+                preselected = svc.planner.select_with_model(model_host_of(svc), row, cat, context, goal)
+            return run_sync(request, True, lambda db, p: (svc.planner.create(db, p, body, None, preselected), 201), 'agents.plan', raw)
+        return await run_in_threadpool(do)
+
+    @app.get(API + '/agents/plans')
+    async def plan_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.planner.list(db, p)})
+
+    @app.get(API + '/agents/plans/{pid}')
+    async def plan_view(request: Request, pid: str):
+        return await run(request, False, lambda db, p: svc.planner.view(db, p, pid))
+
+    @app.post(API + '/agents/plans/{pid}/accept')
+    async def plan_accept(request: Request, pid: str):
+        raw = await request.body()
+        return await run(request, True, lambda db, p: svc.planner.accept(db, p, pid), 'agents.plan_accept', raw)
 
     # ---- experiment notebooks (§65-2) ---------------------------------------------------------------------------
     @app.post(API + '/notebooks', status_code=201)

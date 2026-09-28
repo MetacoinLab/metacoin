@@ -1,0 +1,346 @@
+{
+ "generated": "2026-09-27",
+ "items": [
+  {
+   "section": "A",
+   "feature": "Trusted local model registry (pinned safetensors, allowlisted loaders, promote/rollback/retire/revoke)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST/GET /api/v1/models",
+    "CLI models/model-register/model-action",
+    "/console/models"
+   ],
+   "evidence": [
+    "test_models",
+    "journey 1"
+   ],
+   "known_limits": "single-file safetensors; Qwen2/Llama generate, BERT embed"
+  },
+  {
+   "section": "A",
+   "feature": "Bounded generation jobs with durable segments, cancel, measured usage, memory policy",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /api/v1/models/generate",
+    "GET /api/v1/models/jobs/{id}[/segments|/outputs]",
+    "CLI generate --watch"
+   ],
+   "evidence": [
+    "test_models",
+    "journeys 1, 15",
+    "failure campaign"
+   ],
+   "known_limits": "0.5B model quality; greedy repeatable on one device only"
+  },
+  {
+   "section": "A",
+   "feature": "Embeddings as private npy artifacts",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /api/v1/models/embed"
+   ],
+   "evidence": [
+    "test_models",
+    "journey 2"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "A",
+   "feature": "Runtime lifecycle: operator load/unload, idle unload, LRU make-room, warmup policies (\u00a765-5), drain before numerical compute",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /api/v1/models/{id}/load|unload",
+    "POST /api/v1/models/warmup",
+    "GET /api/v1/models/runtime"
+   ],
+   "evidence": [
+    "test_models",
+    "test_batching_warmup"
+   ],
+   "known_limits": "application-level memory policy on unified memory"
+  },
+  {
+   "section": "A",
+   "feature": "Inference batching for embeddings (\u00a765-4)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "worker-side; facts under /api/v1/models/runtime"
+   ],
+   "evidence": [
+    "test_batching_warmup"
+   ],
+   "known_limits": "generation not batched; padding may change last bits"
+  },
+  {
+   "section": "B",
+   "feature": "Private knowledge: collections, immutable versions, chunks, encrypted index versions, lexical/semantic/hybrid retrieval, byte-checked citations, extractive/generative answers, insufficient evidence, revocation",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/knowledge/*",
+    "CLI knowledge-*",
+    "/console/knowledge"
+   ],
+   "evidence": [
+    "test_knowledge (corpus 10/10 statuses, recall 8/8)",
+    "journeys 2-5",
+    "knowledge-eval.json"
+   ],
+   "known_limits": "no PDF parser; exact search <= 5000 chunks; citation validity mechanical"
+  },
+  {
+   "section": "B",
+   "feature": "Evaluation corpus with held-out unsupported questions and a hostile document",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "tests/knowledge_corpus/corpus.json"
+   ],
+   "evidence": [
+    "test_knowledge"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "C",
+   "feature": "Calibration datasets, OLS/ridge fits as verified jobs, predictions with domain status and intervals, approval as advisory scheduler signal, replay, planning",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/calibration/*",
+    "CLI calibration-*",
+    "/console/calibration"
+   ],
+   "evidence": [
+    "test_calibration",
+    "journeys 6-7"
+   ],
+   "known_limits": "linear models; advisory only"
+  },
+  {
+   "section": "C",
+   "feature": "Bounded experimental-design suggestions (\u00a765-3)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /api/v1/calibration/models/{id}/design",
+    "CLI calibration-design"
+   ],
+   "evidence": [
+    "test_calibration.DesignSuggestionTests",
+    "test_console_expansion"
+   ],
+   "known_limits": "predicted utility only; no instrument contact"
+  },
+  {
+   "section": "D",
+   "feature": "Verification as a service: full/reference/analytical/sampled/replica audits, server challenges, signed statements, disputes, gate before review; policy templates (\u00a765-6)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/verification*",
+    "CLI verification-*",
+    "/console/verification"
+   ],
+   "evidence": [
+    "test_verification",
+    "test_extensions",
+    "journeys 8-10"
+   ],
+   "known_limits": "same operator: not organizational independence"
+  },
+  {
+   "section": "E",
+   "feature": "Worker federation: enrollment, TLS + signed requests, location policy, claim/lease/fencing, chunked transfers, recovery, drain/revoke/rotate",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/nodes*",
+    "/node/v1/*",
+    "CLI node-enroll/node-worker",
+    "serve --tls",
+    "/console/nodes"
+   ],
+   "evidence": [
+    "test_federation",
+    "journeys 11-13",
+    "test_examples (federated example)"
+   ],
+   "known_limits": "one host, loopback; no mutual TLS"
+  },
+  {
+   "section": "F",
+   "feature": "x402 upto variable-price scheme validated on a private py-evm chain with pinned contracts",
+   "status": "local contract behaviour verified",
+   "entry_points": [
+    "integrations/x402/local_chain"
+   ],
+   "evidence": [
+    "test_local_chain (6)",
+    "journey 14",
+    "local-chain.json"
+   ],
+   "known_limits": "application-level metered settlement route NOT implemented; not production settlement"
+  },
+  {
+   "section": "G",
+   "feature": "MCP stdio server with scoped credential, tools with annotations, resources; plan tools",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "python -m metacoin_service.mcp_server",
+    "CLI mcp-connection"
+   ],
+   "evidence": [
+    "test_mcp",
+    "journeys 16-17",
+    "test_examples (MCP example)"
+   ],
+   "known_limits": "stdio only"
+  },
+  {
+   "section": "\u00a751",
+   "feature": "Structured planning: typed drafts, model-assisted kind selection, validation with machine-readable refusals, stored drafts, idempotent acceptance, grant-bound auto execution",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/agents/plans*",
+    "CLI plan/plans/plan-accept",
+    "MCP create_plan/plan_status/accept_plan",
+    "/console/agents"
+   ],
+   "evidence": [
+    "test_planner",
+    "test_planner_model"
+   ],
+   "known_limits": "selection accuracy of a 0.5B model reported, not tuned"
+  },
+  {
+   "section": "\u00a752",
+   "feature": "Versioned evaluation set for agent/model behaviour with held-out items and recorded resource use",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "tests/eval_sets/agent_behavior_v1.json",
+    "/api/v1/evaluation/*"
+   ],
+   "evidence": [
+    "test_planner_model",
+    "eval-set-agent-behavior.json (11/13)"
+   ],
+   "known_limits": "subjective quality not scored"
+  },
+  {
+   "section": "\u00a753",
+   "feature": "Approval policies bound to content and revision, independent approver, expiry, apply",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/approvals*",
+    "/console/approvals"
+   ],
+   "evidence": [
+    "test_approvals_statements",
+    "journey 19"
+   ],
+   "known_limits": "configured identities only"
+  },
+  {
+   "section": "\u00a754",
+   "feature": "Local tracing (OpenTelemetry optional, JSON-line spans)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "METACOIN_TRACING=1",
+    "/api/v1/tracing"
+   ],
+   "evidence": [
+    "test_approvals_statements"
+   ],
+   "known_limits": "runtime child not traced"
+  },
+  {
+   "section": "\u00a755-56",
+   "feature": "Migrations 014-024, backups with inventory/classes, restore with reconciliation gate and model/index recovery report, recovery rehearsal (\u00a765-10)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "CLI migrate/backup/restore/rehearse-recovery"
+   ],
+   "evidence": [
+    "test_ops_search",
+    "test_extensions",
+    "journey 18",
+    "live upgrade record"
+   ],
+   "known_limits": "weights not backed up (pinned manifests)"
+  },
+  {
+   "section": "\u00a757",
+   "feature": "Console pages: Models (+evaluation, warmup facts), Knowledge, Notebooks, Calibration (+design), Verification, Nodes, Approvals, Statement, Agents (+plans)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/console/*"
+   ],
+   "evidence": [
+    "test_console_expansion",
+    "journey 19 (Playwright, 12 screenshots)"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "\u00a758",
+   "feature": "CLI expansion commands, usage statements, five executable examples over public interfaces",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "client_cli.py",
+    "examples/expansion/"
+   ],
+   "evidence": [
+    "test_examples",
+    "journeys (CLI-driven)"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "\u00a765-1",
+   "feature": "Evaluation-run registry with promotion gate",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/evaluation/*",
+    "CLI eval-*"
+   ],
+   "evidence": [
+    "test_evaluation"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "\u00a765-2",
+   "feature": "Private experiment notebooks",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/notebooks/*",
+    "CLI notebook-*",
+    "/console/notebooks"
+   ],
+   "evidence": [
+    "test_notebooks"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "\u00a765-7",
+   "feature": "Per-workspace local service bundles",
+   "status": "not-started",
+   "entry_points": [],
+   "evidence": [],
+   "known_limits": ""
+  },
+  {
+   "section": "\u00a765-8",
+   "feature": "Export/import compatibility checks",
+   "status": "not-started",
+   "entry_points": [],
+   "evidence": [],
+   "known_limits": ""
+  },
+  {
+   "section": "\u00a765-9",
+   "feature": "Advanced disagreement review",
+   "status": "not-started",
+   "entry_points": [],
+   "evidence": [],
+   "known_limits": "disputes exist per verification record; grouping and comparison across records not built"
+  }
+ ]
+}

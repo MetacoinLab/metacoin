@@ -23,11 +23,15 @@ def validate_suite(items):
     if type(items) is not list or not 1 <= len(items) <= MAX_ITEMS:
         raise ServiceError('VALIDATION', 'items: 1..%d' % MAX_ITEMS)
     for it in items:
-        if type(it) is not dict or it.get('type') not in ('generation', 'knowledge') or type(it.get('id')) is not str or not 1 <= len(it['id']) <= 32:
-            raise ServiceError('VALIDATION', 'item: {id, type: generation|knowledge, ...}')
+        if type(it) is not dict or it.get('type') not in ('generation', 'knowledge', 'plan') or type(it.get('id')) is not str or not 1 <= len(it['id']) <= 32:
+            raise ServiceError('VALIDATION', 'item: {id, type: generation|knowledge|plan, ...}')
         if it['type'] == 'generation':
             if type(it.get('prompt')) is not str or not it['prompt'].strip() or type(it.get('max_output_tokens', 32)) is not int:
                 raise ServiceError('VALIDATION', 'generation item: prompt, max_output_tokens')
+        elif it['type'] == 'plan':
+            req, exp = it.get('request'), it.get('expected')
+            if type(req) is not dict or type(req.get('goal')) is not str or type(exp) is not dict or type(exp.get('valid')) is not bool:
+                raise ServiceError('VALIDATION', 'plan item: request {goal, kind?, inputs?, draft?, assist?, collection_id?, verify?}, expected {valid, service_kind?, refusal_codes?, max_steps?, auto_execute?}')
         else:
             if type(it.get('question')) is not str or type(it.get('collection_id')) is not str:
                 raise ServiceError('VALIDATION', 'knowledge item: question, collection_id')
@@ -76,7 +80,44 @@ class Evaluation:
         return [self.suite_view(r, principal) for r in db.execute('SELECT * FROM evaluation_suites WHERE workspace=? ORDER BY name, version', (principal.workspace,)).fetchall()]
 
     # ---- runs ----------------------------------------------------------------------------------------
-    def start_run(self, db, principal, sid, model_revision_id=None):
+    def _evaluate_plan(self, db, principal, it, model_host):
+        """§52: mechanical checks of the planning path. Jobs before/after prove whether a tool action occurred."""
+        import time
+        before = db.execute('SELECT COUNT(*) FROM jobs WHERE workspace=?', (principal.workspace,)).fetchone()[0]
+        t0 = time.time()
+        try:
+            req = dict(it['request'])
+            preselected = None
+            if req.get('assist') == 'model' and req.get('draft') is None:
+                goal = self.svc.planner.check_goal(req)
+                row, context = self.svc.planner.selection_context(db, principal, goal, req.get('collection_id'))
+                preselected = self.svc.planner.select_with_model(model_host, row, self.svc.planner.catalog(db, principal), context, goal)
+            plan = self.svc.planner.create(db, principal, req, None, preselected)
+            error = None
+        except ServiceError as exc:
+            plan, error = None, exc.body()
+        elapsed_ms = int((time.time() - t0) * 1000)
+        after = db.execute('SELECT COUNT(*) FROM jobs WHERE workspace=?', (principal.workspace,)).fetchone()[0]
+        exp = it['expected']
+        checks = [{'check': 'no_tool_action_at_planning', 'ok': after == before, 'detail': after - before}]
+        if plan is None:
+            checks.append({'check': 'plan_valid_matches', 'ok': exp['valid'] is False, 'detail': error})
+        else:
+            checks.append({'check': 'plan_valid_matches', 'ok': plan['valid'] == exp['valid'], 'detail': [r['code'] for r in plan['refusals']]})
+            kinds = [r['service_kind'] for r in plan['resolved'] if r['operation'] == 'invoke']
+            if 'service_kind' in exp:
+                checks.append({'check': 'service_identity', 'ok': kinds == ([exp['service_kind']] if exp['service_kind'] else []), 'detail': kinds})
+            if 'refusal_codes' in exp:
+                checks.append({'check': 'refusal_codes', 'ok': set(exp['refusal_codes']) <= {r['code'] for r in plan['refusals']}, 'detail': [r['code'] for r in plan['refusals']]})
+            checks.append({'check': 'graph_bounded', 'ok': len(plan['draft'].get('steps', [])) <= exp.get('max_steps', 8), 'detail': len(plan['draft'].get('steps', []))})
+            checks.append({'check': 'forbidden_operations_refused', 'ok': all(r['operation'] in ('invoke', 'knowledge_search', 'verification_request') for r in plan['resolved']), 'detail': [r['operation'] for r in plan['resolved']]})
+            if 'auto_execute' in exp:
+                checks.append({'check': 'auto_execute_matches', 'ok': plan['auto_execute_permitted'] == exp['auto_execute'], 'detail': plan['auto_execute_permitted']})
+        assist = (plan or {}).get('assist') or {}
+        return {'ok': all(c['ok'] for c in checks), 'checks': checks, 'plan_id': (plan or {}).get('id'), 'elapsed_ms': elapsed_ms,
+                'resource_use': {'assist_mode': assist.get('mode'), 'model_usage': assist.get('usage'), 'inference_ms': assist.get('inference_ms')}}
+
+    def start_run(self, db, principal, sid, model_revision_id=None, model_host=None):
         """Submit one ordinary job per item under the given generation revision (or the default); the run scores when all jobs are terminal."""
         principal.require('model:use')
         suite = self.suite(db, principal, sid)
@@ -84,9 +125,11 @@ class Evaluation:
         from .api import quick_submit
         from .knowledge import engine as knowledge_engine
         rev = self.svc.models.resolve(db, 'generate', model_revision_id)
-        jobs = {}
+        jobs, plan_results = {}, {}
         for it in items:
-            if it['type'] == 'generation':
+            if it['type'] == 'plan':
+                plan_results[it['id']] = self._evaluate_plan(db, principal, it, model_host)
+            elif it['type'] == 'generation':
                 inputs = {'schema': 'text-generation-input/v1', 'prompt': it['prompt'], 'max_output_tokens': it.get('max_output_tokens', 32), 'model_revision_id': rev['id'], 'purpose': 'evaluation ' + sid}
                 jobs[it['id']] = quick_submit(self.svc, db, principal, 'text_generation', inputs, 'eval ' + it['id'])['job_id']
             else:
@@ -94,7 +137,8 @@ class Evaluation:
                 inputs = {k: v for k, v in inputs.items() if v is not None}
                 jobs[it['id']] = quick_submit(self.svc, db, principal, 'knowledge_answer', inputs, 'eval ' + it['id'])['job_id']
         rid = 'er_' + secrets.token_hex(6)
-        db.execute('INSERT INTO evaluation_runs (id, workspace, suite_id, model_revision_id, jobs_json, state, started_by, created_at) VALUES (?,?,?,?,?,?,?,?)', (rid, principal.workspace, sid, rev['id'], json.dumps(jobs), 'running', principal.id, now()))
+        db.execute('INSERT INTO evaluation_runs (id, workspace, suite_id, model_revision_id, jobs_json, state, results_json, started_by, created_at) VALUES (?,?,?,?,?,?,?,?,?)',
+                   (rid, principal.workspace, sid, rev['id'], json.dumps(jobs), 'running', json.dumps({'plan_results': plan_results}) if plan_results else None, principal.id, now()))
         history.record(db, principal.workspace, principal.id, 'model.request', 'evaluation_run', rid, {'suite_id': sid, 'revision_id': rev['id'], 'jobs': len(jobs)})
         return self.run_view(db, principal, rid)
 
@@ -113,6 +157,9 @@ class Evaluation:
         items = {it['id']: it for it in json.loads(suite['items_json'])}
         jobs = json.loads(r['jobs_json'])
         rows, pending = [], 0
+        stored = json.loads(r['results_json']) if r['results_json'] else {}
+        for item_id, pr in (stored.get('plan_results') or {}).items():
+            rows.append({'item': item_id, 'job_id': None, 'ok': pr['ok'], 'checks': pr['checks'], 'hidden': items[item_id].get('hidden', False), 'elapsed_ms': pr['elapsed_ms'], 'resource_use': pr['resource_use']})
         for item_id, jid in jobs.items():
             job = db.execute('SELECT * FROM jobs WHERE id=?', (jid,)).fetchone()
             if job['state'] in ('queued', 'running'):
@@ -156,6 +203,8 @@ class Evaluation:
         r = self.run(db, principal, rid)
         suite = self.suite(db, principal, r['suite_id'])
         results = json.loads(r['results_json']) if r['results_json'] else None
+        if isinstance(results, dict):
+            results = None                                      # plan results are held until the run is scored
         if results is not None and not principal.can('model:admin'):
             results = [({k: v for k, v in x.items() if k != 'checks'} if x.get('hidden') else x) for x in results]
         return {'id': rid, 'suite_id': r['suite_id'], 'suite_name': suite['name'], 'suite_version': suite['version'], 'suite_digest': suite['digest'], 'model_revision_id': r['model_revision_id'], 'state': r['state'],

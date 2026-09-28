@@ -326,6 +326,10 @@ MIGRATIONS = [
     ALTER TABLE model_runtimes ADD COLUMN drain_reason TEXT;
     ALTER TABLE model_runtimes ADD COLUMN drained_at INTEGER;
     """),
+    ('024_agent_plans', """
+    CREATE TABLE agent_plans (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, principal_id TEXT NOT NULL, grant_id TEXT, goal_sha256 TEXT, draft_json TEXT NOT NULL, digest TEXT, validation_json TEXT NOT NULL,
+        assist_json TEXT NOT NULL, state TEXT NOT NULL, execution_json TEXT, created_at INTEGER NOT NULL, accepted_at INTEGER, accepted_by TEXT);
+    """),
 ]
 
 

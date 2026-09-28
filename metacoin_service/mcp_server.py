@@ -139,6 +139,25 @@ def build(api=None):
         s, b = api.call('POST', '/api/v1/verification', {'job_id': job_id, 'class': verification_class, 'params': params or {}})
         return ok_or_refused(s, b)
 
+    @mcp.tool(name='create_plan', description='Draft a typed plan (allowlisted operations, bounded inputs) for a goal and validate it against services, grants and ceilings. Nothing executes; refusals are machine-readable. assist="model" lets the local model choose only the service kind.', annotations=CREATE)
+    def create_plan(goal: str, service_kind: str | None = None, inputs: dict | None = None, verify: str | None = None, assist: str | None = None, collection_id: str | None = None) -> dict:
+        body = {'goal': goal}
+        for k, v in (('kind', service_kind), ('inputs', inputs), ('verify', verify), ('assist', assist), ('collection_id', collection_id)):
+            if v is not None:
+                body[k] = v
+        s, b = api.call('POST', '/api/v1/agents/plans', body)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='plan_status', description='A stored plan: draft, validation refusals, readable summary, execution bindings.', annotations=READ)
+    def plan_status(plan_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/agents/plans/' + plan_id)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='accept_plan', description='Execute a valid plan exactly once (idempotent). Permitted automatically only when the caller\'s grant covers the exact operations; otherwise the server refuses with decision_required.', annotations=CREATE)
+    def accept_plan(plan_id: str) -> dict:
+        s, b = api.call('POST', '/api/v1/agents/plans/' + plan_id + '/accept', {})
+        return ok_or_refused(s, b)
+
     @mcp.tool(name='verification_status', description='State, result scope and signed statement of a verification.', annotations=READ)
     def verification_status(verification_id: str) -> dict:
         s, b = api.call('GET', '/api/v1/verification/' + verification_id)

@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'model-warmup', 'plan', 'plans', 'plan-accept', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -270,6 +270,18 @@ def expansion(args, go):
         if args.action == 'rotate' and st == 200:
             out = {'node_id': out['node_id'], 'note': 'new credential returned by the API; not printed. Re-run node-enroll for a fresh identity file, or read the API response programmatically.'}
         return st, out
+    if c == 'plan':
+        body = {'goal': args.goal}
+        if args.kind: body['kind'] = args.kind
+        if args.inputs: body['inputs'] = json.load(open(args.inputs))
+        if args.verify: body['verify'] = args.verify
+        if args.assist: body['assist'] = 'model'
+        if args.collection: body['collection_id'] = args.collection
+        return go('POST', '/api/v1/agents/plans', body)
+    if c == 'plans':
+        return go('GET', '/api/v1/agents/plans')
+    if c == 'plan-accept':
+        return go('POST', '/api/v1/agents/plans/' + args.plan_id + '/accept', {})
     if c == 'approval-propose':
         return go('POST', '/api/v1/approvals', {'action': args.action, 'content': json.loads(args.content), 'note': args.note})
     if c == 'approval-decide':
@@ -382,6 +394,8 @@ def main(argv=None):
     ec = sub.add_parser('eval-compare'); ec.add_argument('run_a'); ec.add_argument('run_b'); eg = sub.add_parser('eval-gate', help='require a passing scored run of this suite before promotion (empty clears)'); eg.add_argument('--suite-id', default='')
     ne = sub.add_parser('node-enroll', help='generate a node keypair, enroll it, and write a private identity file'); ne.add_argument('--name', required=True); ne.add_argument('--out', required=True); ne.add_argument('--devices', default='cpu'); ne.add_argument('--capabilities')
     sub.add_parser('nodes'); nv = sub.add_parser('node'); nv.add_argument('node_id'); na = sub.add_parser('node-action'); na.add_argument('node_id'); na.add_argument('action', choices=('drain', 'enable', 'disable', 'revoke', 'rotate')); na.add_argument('--reason', default='')
+    pl = sub.add_parser('plan', help='typed plan draft for a goal (validated, stored, not executed); --assist lets the local model pick the service kind'); pl.add_argument('--goal', required=True); pl.add_argument('--kind'); pl.add_argument('--inputs', help='JSON file'); pl.add_argument('--verify'); pl.add_argument('--assist', action='store_true'); pl.add_argument('--collection')
+    sub.add_parser('plans'); pa = sub.add_parser('plan-accept', help='execute a valid plan once (idempotent)'); pa.add_argument('plan_id')
     apr = sub.add_parser('approval-propose'); apr.add_argument('--action', required=True); apr.add_argument('--content', required=True, help='JSON object'); apr.add_argument('--note', default='')
     apd = sub.add_parser('approval-decide'); apd.add_argument('approval_id'); apd.add_argument('decision', choices=('approve', 'reject', 'apply')); apd.add_argument('--note', default='')
     sub.add_parser('approvals'); app_ = sub.add_parser('approval-policy'); app_.add_argument('--required', help='comma-separated actions (empty string clears)')
