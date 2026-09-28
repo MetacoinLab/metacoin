@@ -15,5 +15,5 @@ run .venv/bin/python -m unittest metacoin_service.tests.test_approvals_statement
 run python3 -m unittest metacoin_service.tests.test_compute_science
 run .venv/bin/python -m unittest integrations.x402.local_chain.test_local_chain
 run .venv/bin/python -m unittest metacoin_service.tests.test_models metacoin_service.tests.test_knowledge
-run .venv/bin/python -m metacoin_service.tests.journeys_expansion --only 1,3,8,11,16 --out "$OUT/journeys-from-clean-export.json"
+run .venv/bin/python -m metacoin_service.tests.journeys_expansion --only 1,2,3,8,11,16 --out "$OUT/journeys-from-clean-export.json"
 echo "CLEAN_EXPORT rc=$rc"

@@ -1,0 +1,93 @@
+{
+ "service": {
+  "version": "0.1.0",
+  "revision": "ead4d687027e9af1bafb0c68ee470c9915495e46",
+  "bind": "127.0.0.1:8402",
+  "dev_http_loopback": true
+ },
+ "authentication": {
+  "installed": true,
+  "configured": true,
+  "available": true,
+  "externally_validated": false,
+  "model": "server-side principals; bearer credentials (peppered hash); server-side sessions with CSRF; no passwords"
+ },
+ "encryption_at_rest": {
+  "installed": true,
+  "configured": true,
+  "available": true,
+  "format": "age-x25519/v1",
+  "externally_validated": false
+ },
+ "signed_reviews": {
+  "installed": true,
+  "configured": true,
+  "available": true,
+  "custody": "server-managed reviewer keys (not non-custodial)",
+  "externally_validated": false
+ },
+ "job_queue": {
+  "installed": true,
+  "available": true,
+  "execution": "child process with rlimits; allowlisted kinds only; not a sandbox for hostile code"
+ },
+ "x402_http_sale": {
+  "installed": true,
+  "configured": true,
+  "available": true,
+  "mode": "test-http",
+  "externally_validated": false,
+  "settlement_observed": "none (test double in test-http; production unexercised)"
+ },
+ "x402_variable_price_upto": {
+  "installed": true,
+  "configured": true,
+  "available": true,
+  "code_readiness": "quote scheme=upto -> 402 upto requirements (Permit2 witness) -> verified authorization creates the job -> settlement of the measured amount after completion; failed jobs leave the authorization unused",
+  "local_protocol_validation": "private py-evm chain with the pinned Permit2 / x402UptoPermit2Proxy / mock token in test-http mode (integrations/x402/local_chain)",
+  "external_production_settlement": "unverified: no external facilitator or public network exercised",
+  "externally_validated": false
+ },
+ "payment_actions": {
+  "modes": {
+   "simulation": "zero-value in-process stub",
+   "test-http": "in-process SDK objects with facilitator double",
+   "production": {
+    "capability": "x402_http_buyer",
+    "code_implemented": true,
+    "sdk_evm_extra_installed": true,
+    "configuration_missing": [
+     "buyer_resource_url",
+     "buyer_key_file",
+     "buyer_network",
+     "buyer_asset",
+     "buyer_max_amount"
+    ],
+    "credential_file_usable": false,
+    "available": false,
+    "externally_validated": false,
+    "note": "real SDK client + EIP-3009 signing + durable submission + re-presentation reconciliation; no funded key, resource or network is configured in this environment"
+   }
+  },
+  "current_mode": "test-http",
+  "externally_validated": false
+ },
+ "retention": {
+  "installed": true,
+  "available": true,
+  "semantics": "deadline per private artifact; cleanup unlinks ciphertext; not secure erasure"
+ },
+ "science": {
+  "models": [
+   "outage-energy-bounds/v0",
+   "safe-runtime/v1",
+   "plan-comparison/v1"
+  ],
+  "verifier_bundles": {
+   "energy_audit": "47c308f5df2cf843037159caf0669830e7135be5a84644c978d694856bca9477",
+   "service_science": "b9df21d9aa7efeadcae6208d4ae0b3b00aecdd1eb3387211fd942f37a3b45c15"
+  }
+ },
+ "external_settlement_observed": false,
+ "external_team_participation": false
+}

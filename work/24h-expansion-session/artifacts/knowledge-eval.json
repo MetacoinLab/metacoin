@@ -18,11 +18,11 @@
     "old-reserve-policy.md",
     "heat-solver-notes.txt"
    ],
-   "ms": 16,
+   "ms": 14,
    "timing": {
-    "load_ms": 1,
+    "load_ms": 0,
     "lexical_ms": 0,
-    "total_ms": 2
+    "total_ms": 0
    }
   },
   {
@@ -34,9 +34,9 @@
     "checkpoint-format.md",
     "temporal-model-spec.md"
    ],
-   "ms": 2327,
+   "ms": 2416,
    "timing": {
-    "load_ms": 1,
+    "load_ms": 0,
     "semantic_ms": 0,
     "total_ms": 1
    }
@@ -50,9 +50,9 @@
     "temporal-model-spec.md",
     "heat-solver-notes.txt"
    ],
-   "ms": 41,
+   "ms": 38,
    "timing": {
-    "load_ms": 2,
+    "load_ms": 1,
     "lexical_ms": 0,
     "semantic_ms": 0,
     "total_ms": 2
@@ -67,11 +67,11 @@
     "hostile-note.md",
     "checkpoint-format.md"
    ],
-   "ms": 16,
+   "ms": 13,
    "timing": {
-    "load_ms": 1,
+    "load_ms": 0,
     "lexical_ms": 0,
-    "total_ms": 2
+    "total_ms": 0
    }
   },
   {
@@ -83,11 +83,11 @@
     "old-reserve-policy.md",
     "heat-solver-notes.txt"
    ],
-   "ms": 38,
+   "ms": 57,
    "timing": {
-    "load_ms": 0,
+    "load_ms": 1,
     "semantic_ms": 0,
-    "total_ms": 1
+    "total_ms": 2
    }
   },
   {
@@ -99,7 +99,7 @@
     "checkpoint-format.md",
     "heat-solver-notes.txt"
    ],
-   "ms": 44,
+   "ms": 55,
    "timing": {
     "load_ms": 2,
     "lexical_ms": 0,
@@ -116,11 +116,11 @@
     "compute-benchmarks-2026-09-24.csv",
     "hostile-note.md"
    ],
-   "ms": 16,
+   "ms": 12,
    "timing": {
-    "load_ms": 1,
+    "load_ms": 0,
     "lexical_ms": 0,
-    "total_ms": 2
+    "total_ms": 1
    }
   },
   {
@@ -132,7 +132,7 @@
     "temporal-model-spec.md",
     "mission-glossary.md"
    ],
-   "ms": 44,
+   "ms": 51,
    "timing": {
     "load_ms": 0,
     "semantic_ms": 0,
@@ -148,12 +148,12 @@
     "compute-benchmarks-2026-09-24.csv",
     "mission-glossary.md"
    ],
-   "ms": 39,
+   "ms": 51,
    "timing": {
-    "load_ms": 2,
+    "load_ms": 0,
     "lexical_ms": 0,
     "semantic_ms": 0,
-    "total_ms": 2
+    "total_ms": 1
    }
   },
   {
@@ -165,11 +165,11 @@
     "mission-glossary.md",
     "compute-benchmarks-2026-09-24.csv"
    ],
-   "ms": 17,
+   "ms": 12,
    "timing": {
-    "load_ms": 1,
+    "load_ms": 0,
     "lexical_ms": 0,
-    "total_ms": 2
+    "total_ms": 0
    }
   },
   {
@@ -181,11 +181,11 @@
     "checkpoint-format.md",
     "compute-benchmarks-2026-09-24.csv"
    ],
-   "ms": 56,
+   "ms": 53,
    "timing": {
-    "load_ms": 1,
+    "load_ms": 0,
     "semantic_ms": 0,
-    "total_ms": 2
+    "total_ms": 1
    }
   },
   {
@@ -193,11 +193,11 @@
    "mode": "hybrid",
    "hit": true,
    "top": [
-    "mission-glossary.md",
     "checkpoint-format.md",
+    "mission-glossary.md",
     "compute-benchmarks-2026-09-24.csv"
    ],
-   "ms": 56,
+   "ms": 58,
    "timing": {
     "load_ms": 1,
     "lexical_ms": 0,
@@ -214,11 +214,11 @@
     "heat-solver-notes.txt",
     "hostile-note.md"
    ],
-   "ms": 12,
+   "ms": 17,
    "timing": {
-    "load_ms": 0,
+    "load_ms": 1,
     "lexical_ms": 0,
-    "total_ms": 1
+    "total_ms": 2
    }
   },
   {
@@ -230,11 +230,11 @@
     "heat-solver-notes.txt",
     "temporal-model-spec.md"
    ],
-   "ms": 50,
+   "ms": 53,
    "timing": {
-    "load_ms": 0,
+    "load_ms": 1,
     "semantic_ms": 0,
-    "total_ms": 1
+    "total_ms": 2
    }
   },
   {
@@ -246,7 +246,7 @@
     "heat-solver-notes.txt",
     "mission-glossary.md"
    ],
-   "ms": 56,
+   "ms": 57,
    "timing": {
     "load_ms": 1,
     "lexical_ms": 0,
@@ -263,7 +263,7 @@
     "temporal-model-spec.md",
     "heat-solver-notes.txt"
    ],
-   "ms": 16,
+   "ms": 15,
    "timing": {
     "load_ms": 1,
     "lexical_ms": 0,
@@ -279,11 +279,11 @@
     "mission-glossary.md",
     "checkpoint-format.md"
    ],
-   "ms": 51,
+   "ms": 53,
    "timing": {
-    "load_ms": 0,
+    "load_ms": 1,
     "semantic_ms": 0,
-    "total_ms": 1
+    "total_ms": 2
    }
   },
   {
@@ -295,12 +295,12 @@
     "temporal-model-spec.md",
     "heat-solver-notes.txt"
    ],
-   "ms": 55,
+   "ms": 50,
    "timing": {
-    "load_ms": 2,
+    "load_ms": 0,
     "lexical_ms": 0,
     "semantic_ms": 0,
-    "total_ms": 2
+    "total_ms": 1
    }
   },
   {
@@ -328,9 +328,9 @@
     "checkpoint-format.md",
     "old-reserve-policy.md"
    ],
-   "ms": 53,
+   "ms": 51,
    "timing": {
-    "load_ms": 2,
+    "load_ms": 1,
     "semantic_ms": 0,
     "total_ms": 2
    }
@@ -344,12 +344,12 @@
     "checkpoint-format.md",
     "monte-carlo-notes.md"
    ],
-   "ms": 52,
+   "ms": 54,
    "timing": {
-    "load_ms": 0,
+    "load_ms": 1,
     "lexical_ms": 0,
     "semantic_ms": 0,
-    "total_ms": 1
+    "total_ms": 2
    }
   },
   {
@@ -359,11 +359,11 @@
    "top": [
     "mission-glossary.md"
    ],
-   "ms": 13,
+   "ms": 16,
    "timing": {
-    "load_ms": 0,
+    "load_ms": 1,
     "lexical_ms": 0,
-    "total_ms": 1
+    "total_ms": 2
    }
   },
   {
@@ -375,11 +375,11 @@
     "hostile-note.md",
     "checkpoint-format.md"
    ],
-   "ms": 51,
+   "ms": 46,
    "timing": {
-    "load_ms": 0,
+    "load_ms": 2,
     "semantic_ms": 0,
-    "total_ms": 1
+    "total_ms": 2
    }
   },
   {
@@ -391,12 +391,12 @@
     "hostile-note.md",
     "checkpoint-format.md"
    ],
-   "ms": 51,
+   "ms": 39,
    "timing": {
-    "load_ms": 0,
+    "load_ms": 2,
     "lexical_ms": 0,
     "semantic_ms": 0,
-    "total_ms": 1
+    "total_ms": 2
    }
   }
  ],

@@ -1,0 +1,13 @@
+files: 452
+venv rc=0
+rc=0 1s :: .venv/bin/python -m metacoin_service --home ./svc-home --provider-mode test-http init
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home status
+rc=0 56s :: .venv/bin/python -m unittest metacoin_service.tests.test_approvals_statements metacoin_service.tests.test_verification metacoin_service.tests.test_calibration metacoin_service.tests.test_federation metacoin_service.tests.test_mcp metacoin_service.tests.test_planner metacoin_service.tests.test_upto_route metacoin_service.tests.test_bundles_disagreements metacoin_service.tests.test_notebooks metacoin_service.tests.test_examples
+rc=0 1s :: python3 -m unittest metacoin_service.tests.test_compute_science
+rc=0 1s :: .venv/bin/python -m unittest integrations.x402.local_chain.test_local_chain
+rc=0 37s :: .venv/bin/python -m unittest metacoin_service.tests.test_models metacoin_service.tests.test_knowledge
+rc=1 149s :: .venv/bin/python -m metacoin_service.tests.journeys_expansion --only 1,3,8,11,16 --out /home/zhangd2/projects/metacoin/work/24h-expansion-session/artifacts/clean-export/journeys-from-clean-export.json
+CLEAN_EXPORT rc=1
+exit 0
+
+CORRECTION: the journeys step was re-run from the same fresh export with --only 1,2,3,8,11,16 (journey 3 builds on journey 2's collection; the first selection omitted 2): all six PASSED (log *_--only_1,2,3,8,11,16.log). Every other step above: rc=0.
