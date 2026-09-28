@@ -148,6 +148,28 @@ def build(api=None):
         s, b = api.call('POST', '/api/v1/agents/plans', body)
         return ok_or_refused(s, b)
 
+    @mcp.tool(name='compile_intent', description='Compile a request into a typed intent: deterministic service eligibility (with reasons), then a bounded local-model choice among eligible kinds only. Result is a plan draft, a clarification (named fields + continuation token) or an abstention. Nothing executes.', annotations=CREATE)
+    def compile_intent(text: str, inputs: dict | None = None, service_kind: str | None = None, collection_id: str | None = None, verify: str | None = None) -> dict:
+        req = {'text': text}
+        for k, v in (('inputs', inputs), ('kind', service_kind), ('collection_id', collection_id), ('verify', verify)):
+            if v is not None:
+                req[k] = v
+        s, b = api.call('POST', '/api/v1/agents/intents', {'request': req})
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='continue_intent', description='Continue a clarification with answers for the named unresolved fields (and typed inputs); only those fields change; the same draft is recompiled.', annotations=CREATE)
+    def continue_intent(intent_id: str, token: str, answers: dict | None = None, inputs: dict | None = None) -> dict:
+        body = {'token': token}
+        if answers is not None: body['answers'] = answers
+        if inputs is not None: body['inputs'] = inputs
+        s, b = api.call('POST', '/api/v1/agents/intents/' + intent_id + '/continue', body)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='intent_status', description='A stored intent: disposition, eligibility explanations, unresolved fields, bound plan id.', annotations=READ)
+    def intent_status(intent_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/agents/intents/' + intent_id)
+        return ok_or_refused(s, b)
+
     @mcp.tool(name='plan_status', description='A stored plan: draft, validation refusals, readable summary, execution bindings.', annotations=READ)
     def plan_status(plan_id: str) -> dict:
         s, b = api.call('GET', '/api/v1/agents/plans/' + plan_id)

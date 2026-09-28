@@ -15,7 +15,7 @@ from .models import service as model_svc
 from .knowledge import retrieval as retrieval_mod, engine as knowledge_engine
 from . import statements as statements_mod, verification as verification_mod
 from .errors import ServiceError, from_exception
-from .api import SENSITIVE_HEADERS
+from .api import SENSITIVE_HEADERS, model_host_of, preloaded_generation_host
 
 _env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(Path(__file__).parent / 'templates')), autoescape=True)
 _env.filters['zip'] = lambda a, b: list(zip(a, b))
@@ -334,7 +334,33 @@ def mount(app, svc):
 
     @app.get('/console/agents', response_class=HTMLResponse)
     async def agents_page(request: Request):
-        return await page(request, lambda db, p: render(request, 'agents.html', principal=p, grants=svc.agents.list(db, p)['items'], plans=svc.planner.list(db, p)))
+        return await page(request, lambda db, p: render(request, 'agents.html', principal=p, grants=svc.agents.list(db, p)['items'], plans=svc.planner.list(db, p), intents=svc.intents.list(db, p)))
+
+    @app.post('/console/agents/intents', response_class=HTMLResponse)
+    async def intent_form(request: Request):
+        f = await form(request)
+        def do():
+            host = preloaded_generation_host(svc)
+            def fn(db, p):
+                req = {'text': f.get('text', '')}
+                if f.get('kind'): req['kind'] = f['kind']
+                if f.get('collection_id'): req['collection_id'] = f['collection_id']
+                svc.intents.compile(db, p, req, host)
+                return RedirectResponse('/console/agents', status_code=303)
+            return page_sync(request, fn, True)
+        return await run_in_threadpool(do)
+
+    @app.post('/console/agents/intents/{iid}/continue', response_class=HTMLResponse)
+    async def intent_continue_form(request: Request, iid: str):
+        f = await form(request)
+        def do():
+            host = preloaded_generation_host(svc)
+            def fn(db, p):
+                answers = {k[2:]: v for k, v in f.items() if k.startswith('a_') and v}
+                svc.intents.continue_intent(db, p, iid, f.get('token'), answers, None, host)
+                return RedirectResponse('/console/agents', status_code=303)
+            return page_sync(request, fn, True)
+        return await run_in_threadpool(do)
 
     @app.post('/console/agents/plans/{pid}/accept', response_class=HTMLResponse)
     async def plan_accept_form(request: Request, pid: str):

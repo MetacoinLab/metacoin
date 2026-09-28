@@ -363,6 +363,10 @@ MIGRATIONS = [
         prompt_tokens INTEGER, max_new_tokens INTEGER, decode_steps INTEGER, padded_prompt_length INTEGER, ms INTEGER, kv_estimate_bytes INTEGER, cuda_peak_delta_bytes INTEGER, cancelled_members INTEGER NOT NULL DEFAULT 0,
         outcome_json TEXT, started_at INTEGER NOT NULL, finished_at INTEGER);
     """),
+    ('028_agent_intents', """
+    CREATE TABLE agent_intents (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, principal_id TEXT NOT NULL, request_sha256 TEXT NOT NULL, request_json TEXT NOT NULL, intent_json TEXT NOT NULL, state TEXT NOT NULL,
+        continuation_token TEXT, plan_id TEXT, attempts INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    """),
 ]
 
 

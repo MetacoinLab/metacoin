@@ -22,6 +22,7 @@ from . import statements as statements_mod, tracing
 from .evaluation import Evaluation
 from .notebooks import Notebooks
 from .planner import Planner
+from .intent import Intents
 from .bundles import Bundles
 from .documents.service import Documents
 from .disagreements import Disagreements
@@ -60,6 +61,7 @@ class Services:
         self.evaluation = Evaluation(settings, self)
         self.notebooks = Notebooks(settings, self)
         self.planner = Planner(settings, self)
+        self.intents = Intents(settings, self)
         self.bundles = Bundles(settings, self)
         self.documents = Documents(settings, self)
         self.disagreements = Disagreements(settings, self)
@@ -75,6 +77,24 @@ def model_host_of(svc):
         from .models.engine import ModelHost
         svc._model_host = ModelHost(svc.settings, svc.db, 'api')
     return svc._model_host
+
+
+def preloaded_generation_host(svc):
+    """The API host with the promoted generation model already resident, or None. Loading writes runtime records in its own
+    transaction, so callers do this BEFORE opening a write transaction that will run a synchronous model step."""
+    host = model_host_of(svc)
+    if not host.available():
+        return None
+    with svc.db.read() as db:
+        d = db.execute("SELECT revision_id FROM model_defaults WHERE operation='generate'").fetchone()
+        row = svc.models.row(db, d['revision_id']) if d else None
+    if row is None:
+        return None
+    try:
+        host.ensure(row)
+    except ServiceError:
+        return None
+    return host
 
 
 QUICK_POLICY_FIELDS = ('execution_locations', 'required_verification', 'verification_policy_id')
@@ -1748,8 +1768,8 @@ def create_app(settings):
     async def ev_run_start(request: Request, sid: str):
         raw = await request.body()
         body = read_body(request, raw)
-        host = model_host_of(svc)
-        return await run(request, True, lambda db, p: (svc.evaluation.start_run(db, p, sid, body.get('model_revision_id'), host if host.available() else None), 202), 'evaluation.run', raw)
+        host = await run_in_threadpool(preloaded_generation_host, svc)
+        return await run(request, True, lambda db, p: (svc.evaluation.start_run(db, p, sid, body.get('model_revision_id'), host), 202), 'evaluation.run', raw)
 
     @app.get(API + '/evaluation/runs/{rid}')
     async def ev_run(request: Request, rid: str):
@@ -1886,6 +1906,33 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         return await run(request, True, lambda db, p: svc.bundles.import_bundle(db, p, body.get('bundle'), bool(body.get('apply', False))), 'bundles.import', raw)
+
+    # ---- typed intent compilation (Order 07 group C) -------------------------------------------------------------
+    @app.post(API + '/agents/intents', status_code=201)
+    async def intent_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def do():
+            host = preloaded_generation_host(svc)                  # loaded (or None) before the write transaction below
+            return run_sync(request, True, lambda db, p: (svc.intents.compile(db, p, body.get('request') or {}, host), 201), 'agents.intent', raw)
+        return await run_in_threadpool(do)
+
+    @app.get(API + '/agents/intents')
+    async def intent_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.intents.list(db, p)})
+
+    @app.get(API + '/agents/intents/{iid}')
+    async def intent_view(request: Request, iid: str):
+        return await run(request, False, lambda db, p: svc.intents.view(db, p, iid))
+
+    @app.post(API + '/agents/intents/{iid}/continue')
+    async def intent_continue(request: Request, iid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def do():
+            host = preloaded_generation_host(svc)
+            return run_sync(request, True, lambda db, p: svc.intents.continue_intent(db, p, iid, body.get('token'), body.get('answers'), body.get('inputs'), host), 'agents.intent_continue', raw)
+        return await run_in_threadpool(do)
 
     # ---- structured planning (§51) --------------------------------------------------------------------------------
     @app.post(API + '/agents/plans', status_code=201)

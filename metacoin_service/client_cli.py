@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -328,6 +328,20 @@ def expansion(args, go):
         return go('GET', '/api/v1/documents/mappings/' + args.mapping_id)
     if c == 'mapping-confirm':
         return go('POST', '/api/v1/documents/mappings/%s/confirm' % args.mapping_id, {})
+    if c == 'intent':
+        req = {'text': args.text}
+        if args.inputs: req['inputs'] = json.load(open(args.inputs))
+        if args.kind: req['kind'] = args.kind
+        if args.collection: req['collection_id'] = args.collection
+        if args.verify: req['verify'] = args.verify
+        return go('POST', '/api/v1/agents/intents', {'request': req})
+    if c == 'intents':
+        return go('GET', '/api/v1/agents/intents')
+    if c == 'intent-continue':
+        body = {'token': args.token}
+        if args.answers: body['answers'] = json.loads(args.answers)
+        if args.inputs: body['inputs'] = json.load(open(args.inputs))
+        return go('POST', '/api/v1/agents/intents/' + args.intent_id + '/continue', body)
     if c == 'plan':
         body = {'goal': args.goal}
         if args.kind: body['kind'] = args.kind
@@ -463,6 +477,8 @@ def main(argv=None):
     tb = sub.add_parser('table'); tb.add_argument('table_id'); ta = sub.add_parser('table-annotate'); ta.add_argument('table_id'); ta.add_argument('--kind', required=True, choices=('header_row', 'ignore_row', 'unit', 'cell_correction', 'locale', 'note')); ta.add_argument('--payload', required=True, help='JSON object')
     mp = sub.add_parser('mapping-preview'); mp.add_argument('table_id'); mp.add_argument('--file', required=True, help='JSON mapping (metacoin-table-mapping/v1)'); mc2 = sub.add_parser('mapping-create'); mc2.add_argument('table_id'); mc2.add_argument('--file', required=True)
     mg = sub.add_parser('mapping'); mg.add_argument('mapping_id'); mcf = sub.add_parser('mapping-confirm', help='explicit confirmation creates an immutable dataset version with row-level provenance'); mcf.add_argument('mapping_id')
+    it = sub.add_parser('intent', help='compile a request into a typed intent (plan | clarification | abstention); nothing executes'); it.add_argument('--text', required=True); it.add_argument('--inputs', help='JSON file'); it.add_argument('--kind'); it.add_argument('--collection'); it.add_argument('--verify')
+    sub.add_parser('intents'); ic = sub.add_parser('intent-continue', help='answer named unresolved fields of a clarification'); ic.add_argument('intent_id'); ic.add_argument('--token', required=True); ic.add_argument('--answers', help='JSON object'); ic.add_argument('--inputs', help='JSON file')
     pl = sub.add_parser('plan', help='typed plan draft for a goal (validated, stored, not executed); --assist lets the local model pick the service kind'); pl.add_argument('--goal', required=True); pl.add_argument('--kind'); pl.add_argument('--inputs', help='JSON file'); pl.add_argument('--verify'); pl.add_argument('--assist', action='store_true'); pl.add_argument('--collection')
     sub.add_parser('plans'); pa = sub.add_parser('plan-accept', help='execute a valid plan once (idempotent)'); pa.add_argument('plan_id')
     apr = sub.add_parser('approval-propose'); apr.add_argument('--action', required=True); apr.add_argument('--content', required=True, help='JSON object'); apr.add_argument('--note', default='')
