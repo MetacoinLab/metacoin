@@ -15,6 +15,7 @@ from .compute import service as compute_svc
 from .models import service as model_svc, registry as model_registry
 from .knowledge import service as knowledge_mod, retrieval as retrieval_mod, engine as knowledge_engine
 from .calibration import Calibration
+from .verification import Verification
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -44,6 +45,7 @@ class Services:
         self.models = model_registry.ModelRegistry(settings)
         self.knowledge = knowledge_mod.Knowledge(self.store, settings)
         self.calibration = Calibration(self.store, settings)
+        self.verification = Verification(self.store, settings, self.contracts, self.jobs)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -1423,6 +1425,43 @@ def create_app(settings):
                 return svc.calibration.retire(db, p, mid)
             raise ServiceError('NOT_FOUND', 'action')
         return await run(request, action != 'predict', fn, 'calibration.' + action if action != 'predict' else None, raw)
+
+    # ---- independent verification -------------------------------------------------------------------------------
+    @app.post(API + '/verification/preview')
+    async def vf_preview(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.verification.preview(db, p, body.get('job_id'), body.get('class'), body.get('params')))
+
+    @app.post(API + '/verification', status_code=202)
+    async def vf_request(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.verification.request(db, p, body.get('job_id'), body.get('class'), body.get('params')), 202), 'verification.request', raw)
+
+    @app.get(API + '/verification')
+    async def vf_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.verification.list(db, p, request.query_params.get('job_id'))})
+
+    @app.post(API + '/verification/verify-statement')
+    async def vf_verify(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: Verification.verify_statement(db, body.get('bundle'), body.get('expected')))
+
+    @app.get(API + '/verification/{vid}')
+    async def vf_view(request: Request, vid: str):
+        return await run(request, False, lambda db, p: svc.verification.view(db, p, vid))
+
+    @app.get(API + '/verification/{vid}/statement')
+    async def vf_statement(request: Request, vid: str):
+        return await run(request, False, lambda db, p: svc.verification.projection(db, p, vid))
+
+    @app.post(API + '/verification/{vid}/resolve')
+    async def vf_resolve(request: Request, vid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.verification.resolve(db, p, vid, body.get('decision'), body.get('note', '')), 'verification.resolve', raw)
 
     from . import console
     console.mount(app, svc)

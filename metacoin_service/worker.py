@@ -117,6 +117,8 @@ class Worker:
             return self.models.run(job)
         if job['kind'] in model_engine.KNOWLEDGE_KINDS:
             return self.knowledge.run(job)
+        if job['kind'] == 'verification_audit':
+            return self._audit(job)
         with self.db.read() as db:
             contract, spec = self._spec(db, job)
         limits = {'cpu': self.settings.limits['worker_cpu_seconds'], 'mem': self.settings.limits['worker_address_space_bytes'],
@@ -141,12 +143,43 @@ class Worker:
             return self._finish(job, None, result.get('code', 'COMPUTATION_ERROR'))
         return self._finish(job, result, None)
 
+    def _audit(self, job):
+        """Independent audit executed in-process (pure Python); the verification record and the job result are
+        published in ONE fenced transaction so a stale worker can never overwrite a newer statement."""
+        from .api import Services
+        svc = getattr(self, '_svc', None) or Services(self.settings)
+        self._svc = svc
+        try:
+            with self.db.read() as db:
+                contract, spec = self._spec(db, job)
+                vrow, result, target, tcontract = svc.verification.compute_audit(db, self, job)
+        except ServiceError as exc:
+            with self.db.tx() as db:
+                db.execute("UPDATE verification_jobs SET state='incomplete', result_json=? WHERE audit_job_id=? AND state='queued'", (json.dumps({'outcome': 'incomplete', 'error': exc.body()}), job['id']))
+            return self._finish(job, None, 'COMPUTATION_ERROR' if exc.code in ('COMPUTATION', 'CAPABILITY_UNAVAILABLE') else 'INPUT_INVALID')
+        with self.db.tx() as db:
+            current = db.execute('SELECT * FROM jobs WHERE id=?', (job['id'],)).fetchone()
+            if not (current['state'] == 'running' and current['lease_owner'] == self.worker_id and current['lease_generation'] == job['lease_generation']):
+                return 'fenced'
+            result, statement = svc.verification.finish_audit(db, vrow, result, target, tcontract)
+            summary = {k: result.get(k) for k in ('outcome', 'checked', 'total', 'coverage', 'statement')}
+            summary['verification_id'] = vrow['id']; summary['target_job_id'] = target['id']; summary['class'] = vrow['class']
+            evidence = {'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'], 'verifier_id': 'metacoin-verification/v1', 'verifier_digest': svc.verification.digest(),
+                        'result_schema': 'verification-audit-result/v1', 'model_id': 'verification-audit/v1', 'result': summary, 'statement_digest': __import__('hashlib').sha256(merkle.canonical(statement)).hexdigest(),
+                        'scope': 'verification-audit'}
+            _, vault = merkle.commit(evidence)
+            return self._finish_in(db, job, {'evidence_vault': vault, 'outcome': {'passed': 'AUDIT_PASSED', 'failed': 'AUDIT_FAILED', 'incomplete': 'AUDIT_INCOMPLETE'}[result['outcome']], 'summary': summary}, None)
+
     def _cancelled(self, job):
         with self.db.read() as db:
             return bool(db.execute('SELECT cancel_requested FROM jobs WHERE id=?', (job['id'],)).fetchone()[0])
 
     def _finish(self, job, result, error):
         with self.db.tx() as db:
+            return self._finish_in(db, job, result, error)
+
+    def _finish_in(self, db, job, result, error):
+        if True:
             current = db.execute('SELECT * FROM jobs WHERE id=?', (job['id'],)).fetchone()
             fence = (current['state'] == 'running' and current['lease_owner'] == self.worker_id
                      and current['lease_generation'] == job['lease_generation'])
@@ -212,7 +245,9 @@ class Worker:
             svc = getattr(self, '_svc', None) or Services(self.settings)
             self._svc = svc
             with self.db.tx() as db:
-                return svc.workflows.advance_all(db) + svc.campaigns.tick_all(db) + svc.schedules.tick(db)
+                advanced = svc.workflows.advance_all(db) + svc.campaigns.tick_all(db) + svc.schedules.tick(db)
+                ticked = svc.verification.tick(db)
+                return advanced + ([{'verification_finalized': ticked}] if ticked else [])
         except Exception:
             return None
 

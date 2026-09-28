@@ -88,6 +88,11 @@ INSTALLED['knowledge_answer'] = {'model_id': model_engine.MODEL_IDS['knowledge_a
                                  'output_fields': ['status', 'answer', 'passages', 'citations', 'sources', 'grounding'], 'limits': {'k': 8, 'max_output_tokens': 1024}, 'action_entitlement': False,
                                  'model': {'work_unit': 'generated token (generative) or answer (extractive)', 'completion': 'an answer with mechanically valid citations, or an explicit insufficient-evidence result; never a factual guarantee', 'privacy': 'question, sources and answer private to the asking principal'}}
 
+INSTALLED['verification_audit'] = {'model_id': 'verification-audit/v1', 'result_schema': 'verification-audit-result/v1', 'verifier': 'metacoin-verification/v1', 'input_type': 'verification',
+                                   'dataset_kind': None, 'input_schema': {'type': 'object', 'schema': 'verification-audit-input/v1', 'note': 'created through POST /api/v1/verification (preview first); classes: full_exact, full_reference, analytical, sampled_reference, replica'},
+                                   'output_fields': ['outcome', 'checked', 'total', 'coverage', 'statement', 'verification_id'], 'limits': {'max_work_by_class': {'full_exact': 200000, 'full_reference': 2000000, 'sampled_reference': 4096}}, 'action_entitlement': False,
+                                   'model': {'work_unit': 'audit', 'completion': 'an honest audit that may legitimately return failed; a signed statement names the class, scope and tolerance', 'privacy': 'private diagnostics; public projection carries commitments and counts only'}}
+
 PRIVACY = {'inputs': 'private (age-encrypted); readable by owner, worker and the designated reviewer',
            'results': 'private by default; public openings only by contract disclosure policy after an accepted signed review',
            'public_verification': 'salted Merkle membership + bindings; no hidden-computation proof'}
@@ -118,7 +123,7 @@ class Catalog:
             row = db.execute("SELECT id FROM services WHERE name=? AND version=1", (name,)).fetchone()
             if row:
                 ids[kind] = row['id']; continue
-            ids[kind] = self.register(db, operator_id, name=name, kind=kind, version=1, price_per_unit=1, description=spec['model_id'] + ' via ' + spec['verifier'])
+            ids[kind] = self.register(db, operator_id, name=name, kind=kind, version=1, price_per_unit=0 if kind == 'verification_audit' else 1, description=spec['model_id'] + ' via ' + spec['verifier'])
         return ids
 
     def register(self, db, operator_id, *, name, kind, version, price_per_unit, description='', visibility='workspace', workspace='*'):

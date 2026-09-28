@@ -44,8 +44,12 @@ class Reviews:
             raise ServiceError('CONFLICT', 'job has no committed result')
         if job['review_state'] != 'none':
             raise ServiceError('CONFLICT', 'review already requested or decided')
+        contract = db.execute('SELECT * FROM contracts WHERE id=?', (job['contract_id'],)).fetchone()
+        from .verification import Verification
+        gate = Verification.gate(db, job, contract)
+        if gate:
+            raise ServiceError('CONFLICT', gate)
         db.execute("UPDATE jobs SET review_state='requested', updated_at=? WHERE id=?", (now(), job_id))
-        contract = db.execute('SELECT reviewer_id FROM contracts WHERE id=?', (job['contract_id'],)).fetchone()
         history.record(db, principal.workspace, principal.id, 'review.requested', 'job', job_id, {'reviewer_id': contract['reviewer_id']})
         return contract['reviewer_id']
 
@@ -96,6 +100,12 @@ class Reviews:
                 out.update(recomputation='matches' if matches else 'mismatch', verification_source='runtime record only: generated output is not recomputed or scientifically verified',
                            scientific_outcome=job['outcome'], policy_satisfied=matches, private_details=values['result'],
                            verifier_status='current' if values['verifier_digest'] == expected else 'superseded')
+            elif job['kind'] == 'verification_audit':
+                from . import verification as verification_mod
+                values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
+                matches = values['contract_digest'] == contract['contract_digest'] and values['verifier_digest'] == verification_mod.implementation_digest()
+                out.update(recomputation='matches' if matches else 'mismatch', verification_source='signed verification statement (see /api/v1/verification)', scientific_outcome=job['outcome'],
+                           policy_satisfied=matches, private_details=values['result'], verifier_status='current' if matches else 'superseded')
             else:
                 values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
                 inputs = acceptance.full_values(input_vault, contract['input_root'])['inputs']
@@ -123,6 +133,10 @@ class Reviews:
                 return self.view(existing)          # idempotent identical decision
             raise ServiceError('CONFLICT', 'a different decision is already recorded; amend to a new contract version')
         evidence = self.evidence(db, principal, job_id)
+        from .verification import Verification
+        gate = Verification.gate(db, job, contract) if decision == 'accepted' else None
+        if gate:
+            raise ServiceError('CONFLICT', gate)
         if decision == 'accepted' and (evidence['recomputation'] != 'matches' or not evidence['policy_satisfied']):
             # A button cannot manufacture acceptance when recomputation failed or policy is unmet.
             raise ServiceError('EVIDENCE_MISMATCH', 'recomputation did not match or policy not satisfied')

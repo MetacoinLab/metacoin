@@ -8,25 +8,27 @@ from . import history, science, temporal
 from .compute import inputs as compute_inputs, manifests as compute_manifests
 from .models import service as model_svc, engine as model_engine
 from .knowledge import engine as knowledge_engine
+from . import verification as verification_mod
 from .db import now
 from .errors import ServiceError
 
 COMPUTE_KINDS = compute_manifests.KINDS
 MODEL_KINDS = model_engine.KINDS
 KNOWLEDGE_KINDS = model_engine.KNOWLEDGE_KINDS
-KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy') + COMPUTE_KINDS + MODEL_KINDS + KNOWLEDGE_KINDS
+KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy') + COMPUTE_KINDS + MODEL_KINDS + KNOWLEDGE_KINDS + ('verification_audit',)
 DEFAULT_EXPIRY_SECONDS = 7 * 86400
 SERVICE_CONTRACT_SCHEMA = 'metacoin-service-contract/v1'
 VALIDATORS = {'energy_audit': energy.validate, 'safe_runtime': science.validate_safe_runtime,
               'plan_comparison': science.validate_comparison, 'task_selection': science.validate_selection,
-              'temporal_energy': temporal.validate, **compute_inputs.VALIDATORS, **model_svc.VALIDATORS, **knowledge_engine.VALIDATORS}
+              'temporal_energy': temporal.validate, **compute_inputs.VALIDATORS, **model_svc.VALIDATORS, **knowledge_engine.VALIDATORS, 'verification_audit': verification_mod.validate_audit_input}
 MODEL_IDS = {'safe_runtime': science.SAFE_RUNTIME_MODEL, 'plan_comparison': science.COMPARISON_MODEL,
              'task_selection': science.SELECTION_MODEL, 'temporal_energy': temporal.MODEL_ID,
-             **{k: m['model_id'] for k, m in compute_manifests.MANIFESTS.items()}, **model_engine.MODEL_IDS}
+             **{k: m['model_id'] for k, m in compute_manifests.MANIFESTS.items()}, **model_engine.MODEL_IDS, 'verification_audit': 'verification-audit/v1'}
 VERIFIER_OF = {'temporal_energy': ('temporal-energy-verifier/v1', temporal.bundle_digest),
                **{k: (m['manifest_id'] + '-verifier', compute_manifests.implementation_digest) for k, m in compute_manifests.MANIFESTS.items()},
                **{k: ('model-runtime/v1', model_engine.implementation_digest) for k in MODEL_KINDS},
-               **{k: ('knowledge-engine/v1', knowledge_engine.implementation_digest) for k in KNOWLEDGE_KINDS}}
+               **{k: ('knowledge-engine/v1', knowledge_engine.implementation_digest) for k in KNOWLEDGE_KINDS},
+               'verification_audit': ('metacoin-verification/v1', verification_mod.implementation_digest)}
 
 
 DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loopback_test', 'production': 'x402_http_buyer'}
@@ -35,13 +37,15 @@ DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loop
 def validate_policy(kind, policy, default_capability='legacy_simulation'):
     merkle.canonical(policy)
     allowed = {'accepted_outcomes', 'disclose_outcome', 'disclose_explanation', 'amount', 'capability',
-               'expires_in_seconds', 'retention_seconds', 'reviewer_id'}
+               'expires_in_seconds', 'retention_seconds', 'reviewer_id', 'required_verification'}
     if type(policy) is not dict or not set(policy) <= allowed:
         raise ServiceError('VALIDATION', 'policy fields')
     out = {'accepted_outcomes': list(energy.OUTCOMES), 'disclose_outcome': True, 'disclose_explanation': False,
            'amount': 1, 'capability': default_capability, 'expires_in_seconds': DEFAULT_EXPIRY_SECONDS,
-           'retention_seconds': 30 * 86400, 'reviewer_id': None}
+           'retention_seconds': 30 * 86400, 'reviewer_id': None, 'required_verification': None}
     out.update(policy)
+    if out['required_verification'] is not None and out['required_verification'] not in verification_mod.CLASSES:
+        raise ServiceError('VALIDATION', {'code': 'required_verification', 'allowed': list(verification_mod.CLASSES)})
     if type(out['accepted_outcomes']) is not list or not out['accepted_outcomes'] \
             or not set(out['accepted_outcomes']) <= set(energy.OUTCOMES) or len(set(out['accepted_outcomes'])) != len(out['accepted_outcomes']):
         raise ServiceError('VALIDATION', 'accepted_outcomes')

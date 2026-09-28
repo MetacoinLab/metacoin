@@ -287,6 +287,11 @@ MIGRATIONS = [
         implementation_digest TEXT NOT NULL, verification_passed INTEGER NOT NULL, approved_by TEXT, approved_at INTEGER, retired_at INTEGER, created_at INTEGER NOT NULL);
     CREATE TABLE calibration_defaults (scope TEXT PRIMARY KEY, workspace TEXT NOT NULL, model_id TEXT NOT NULL REFERENCES calibration_models(id), set_by TEXT NOT NULL, previous_model_id TEXT, evidence_json TEXT, updated_at INTEGER NOT NULL);
     """),
+    ('017_verification', """
+    CREATE TABLE verification_jobs (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, target_job_id TEXT NOT NULL REFERENCES jobs(id), requested_by TEXT NOT NULL, class TEXT NOT NULL, params_json TEXT NOT NULL,
+        state TEXT NOT NULL, preview_json TEXT NOT NULL, audit_job_id TEXT, replica_job_id TEXT, challenge_json TEXT, result_commitment TEXT NOT NULL, result_json TEXT, statement_json TEXT, signature_hex TEXT,
+        key_id TEXT, dispute_json TEXT, resolution_json TEXT, resolved_by TEXT, resolved_at INTEGER, created_at INTEGER NOT NULL, finished_at INTEGER);
+    """),
 ]
 
 
