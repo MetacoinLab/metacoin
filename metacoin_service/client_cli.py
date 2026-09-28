@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'plan', 'plans', 'plan-accept', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -74,6 +74,12 @@ def expansion(args, go):
         return go('GET', '/api/v1/models')
     if c == 'models-runtime':
         return go('GET', '/api/v1/models/runtime')
+    if c == 'model-batching':
+        body = {}
+        if args.enabled is not None: body['enabled'] = args.enabled == 'on'
+        for k in ('max_sequences', 'max_tokens', 'wait_ms', 'kv_budget_bytes'):
+            if getattr(args, k) is not None: body[k] = getattr(args, k)
+        return go('POST', '/api/v1/models/batching', body)
     if c == 'model-warmup':
         body = {'enabled': not args.disable, 'revision_ids': [x for x in (args.revisions or '').split(',') if x]}
         if args.ceiling_bytes is not None:
@@ -436,6 +442,7 @@ def main(argv=None):
     sub.add_parser('verification-policies')
     esc = sub.add_parser('eval-suite-create', help='immutable evaluation suite from a JSON file {name, threshold_percent, items:[...]}'); esc.add_argument('--file', required=True); esc.add_argument('--name'); esc.add_argument('--threshold', type=int)
     sub.add_parser('eval-suites'); er = sub.add_parser('eval-run', help='run a suite under a generation revision (default: the promoted one) through ordinary jobs'); er.add_argument('suite_id'); er.add_argument('--revision'); er.add_argument('--wait', action='store_true'); er.add_argument('--timeout', type=int, default=600)
+    mbt = sub.add_parser('model-batching', help='operator settings for static generation batching (applied at the workers\' next claim)'); mbt.add_argument('--enabled', choices=('on', 'off')); mbt.add_argument('--max-sequences', dest='max_sequences', type=int); mbt.add_argument('--max-tokens', dest='max_tokens', type=int); mbt.add_argument('--wait-ms', dest='wait_ms', type=int); mbt.add_argument('--kv-budget-bytes', dest='kv_budget_bytes', type=int)
     mw = sub.add_parser('model-warmup', help='operator warmup policy: ordered revisions kept resident under a byte ceiling; --disable releases them'); mw.add_argument('--revisions'); mw.add_argument('--ceiling-bytes', type=int); mw.add_argument('--disable', action='store_true')
     cdz = sub.add_parser('calibration-design', help='rank candidate measurements (JSON file {candidates:[{features,cost,label}], objective, cost_policy, targets}) by predicted utility; nothing is executed'); cdz.add_argument('model_id'); cdz.add_argument('--file', required=True)
     nc = sub.add_parser('notebook-create', help='private experiment notebook from a JSON file {name, note, blocks:[{id,type:text|link,...}]}; nothing is executed'); nc.add_argument('--file', required=True); nc.add_argument('--name')

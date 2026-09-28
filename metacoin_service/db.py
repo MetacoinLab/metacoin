@@ -356,6 +356,13 @@ MIGRATIONS = [
     ALTER TABLE knowledge_chunks ADD COLUMN page_index INTEGER;
     ALTER TABLE knowledge_chunks ADD COLUMN region_json TEXT;
     """),
+    ('027_generation_batching', """
+    ALTER TABLE model_requests ADD COLUMN batch_id TEXT;
+    ALTER TABLE model_requests ADD COLUMN batch_position INTEGER;
+    CREATE TABLE model_batches (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, host TEXT NOT NULL, revision_id TEXT NOT NULL, mode TEXT NOT NULL, members INTEGER NOT NULL, member_jobs_json TEXT NOT NULL,
+        prompt_tokens INTEGER, max_new_tokens INTEGER, decode_steps INTEGER, padded_prompt_length INTEGER, ms INTEGER, kv_estimate_bytes INTEGER, cuda_peak_delta_bytes INTEGER, cancelled_members INTEGER NOT NULL DEFAULT 0,
+        outcome_json TEXT, started_at INTEGER NOT NULL, finished_at INTEGER);
+    """),
 ]
 
 

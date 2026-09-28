@@ -347,6 +347,45 @@ class ModelHost:
                     raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'model_runtime_' + et})
         raise ServiceError('CAPABILITY_UNAVAILABLE', 'model runtime produced no completion')
 
+    def generate_batch(self, row, requests, on_segment=None, cancel_check=None, timeout=None):
+        """One static batch. on_segment(request_id, seq, text); cancel_check() -> set of request ids to cancel (polled).
+        Returns {'results': {request_id: done_event | {'error': ...}}, 'batch': batch_done_event}."""
+        child = self.ensure(row)
+        try:
+            return self._generate_batch(child, row, requests, on_segment, cancel_check, timeout)
+        finally:
+            self._after_request(child)
+
+    def _generate_batch(self, child, row, requests, on_segment, cancel_check, timeout):
+        bid = 'mb_' + secrets.token_hex(6)
+        results, cancelled = {}, set()
+        with child.lock:
+            child.requests += len(requests); child.last_used = time.time()
+            child.send({'op': 'generate_batch', 'batch_id': bid, 'requests': requests})
+            last_poll = time.time()
+            for ev in child.events(timeout or self.limits['model_request_timeout_seconds']):
+                if cancel_check and time.time() - last_poll > 0.5:
+                    last_poll = time.time()
+                    for rid in (cancel_check() or set()) - cancelled:
+                        child.send({'op': 'cancel', 'request_id': rid}); cancelled.add(rid)
+                if ev is None:
+                    continue
+                et = ev.get('event')
+                if et == 'segment':
+                    if on_segment:
+                        on_segment(ev['request_id'], ev['seq'], ev['text'])
+                elif et == 'done':
+                    results[ev['request_id']] = ev
+                elif et == 'error' and ev.get('request_id'):
+                    results[ev['request_id']] = {'error': {'code': ev.get('code'), 'reason': ev.get('reason')}}
+                elif et == 'batch_done':
+                    child.last_used = time.time()
+                    return {'results': results, 'batch': dict(ev, id=bid)}
+                elif et in ('exited', 'timeout'):
+                    self.children.pop(row['id'], None); self._record(row['id'], state='failed', error='runtime ' + et, pid=None)
+                    raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'model_runtime_' + et})
+        raise ServiceError('CAPABILITY_UNAVAILABLE', 'model runtime produced no batch completion')
+
     def embed(self, row, texts, truncate=False, timeout=None):
         child = self.ensure(row)
         try:
@@ -459,6 +498,9 @@ class ModelEngine:
         inputs = spec['inputs']
         try:
             if job['kind'] == 'text_generation':
+                members = self._claim_generation_companions(job, inputs, row)
+                if members:
+                    return self._generate_static_batch(job, contract, spec, row, inputs, should_cancel, state, members)
                 return self._generate(job, contract, spec, row, child, inputs, should_cancel, state)
             return self._embed(job, contract, spec, row, inputs, should_cancel, state, members=self._claim_companions(job, inputs, row))
         except ServiceError as exc:
@@ -539,6 +581,148 @@ class ModelEngine:
                 db.execute('UPDATE model_requests SET phase=?, host=?, attempt_generation=?, started_at=?, queue_seconds=?, updated_at=? WHERE job_id=?', ('running', self.host.host, generation, now(), now() - cj['created_at'], now(), cj['id']))
                 members.append((cj, contract, spec)); items += n; chars += c
         return members
+
+    # ---- §20-21 static generation batching: admission, per-member lifecycle -----------------------------------------
+    def batching_policy(self):
+        with self.worker.db.read() as db:
+            row = db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone()
+        pol = json.loads(row['value']) if row else {}
+        L = self.limits
+        return {'enabled': bool(pol.get('enabled', L['model_batch_generation_enabled'])), 'max_sequences': int(pol.get('max_sequences', L['model_batch_max_sequences'])), 'max_tokens': int(pol.get('max_tokens', L['model_batch_max_tokens'])),
+                'wait_ms': int(pol.get('wait_ms', L['model_batch_wait_ms'])), 'modes': pol.get('modes', ['static']), 'kv_budget_bytes': int(pol.get('kv_budget_bytes', L['model_batch_kv_budget_bytes']))}
+
+    @staticmethod
+    def kv_bytes_per_token(row):
+        cfg = json.loads(row['config_json'] or '{}')
+        layers = int(cfg.get('num_hidden_layers') or 24); heads = int(cfg.get('num_attention_heads') or 16); kv = int(cfg.get('num_key_value_heads') or heads)
+        head_dim = int(cfg.get('head_dim') or (int(cfg.get('hidden_size') or 1024) // max(heads, 1)))
+        return 2 * layers * kv * head_dim * 2                   # K and V, bf16/fp16
+
+    @staticmethod
+    def prompt_estimate(inputs):
+        text = ' '.join(m['content'] for m in inputs['messages']) if inputs.get('messages') else inputs.get('prompt', '')
+        return len(text) // 3 + 16                                # conservative pre-tokenization estimate; the runtime counts real tokens
+
+    def _claim_generation_companions(self, job, inputs, row):
+        """Queued greedy text_generation jobs of the same workspace AND submitter on the same revision that fit under the
+        sequence/token/KV envelope; claimed with the ordinary lease fencing. No mixing of unrelated workspaces; sampled
+        requests never join (batch-global random state); a bounded wait window may be configured (default none)."""
+        pol = self.batching_policy()
+        if not pol['enabled'] or 'static' not in pol['modes'] or int(inputs.get('temperature_percent') or 0) > 0:
+            return []
+        kvb = self.kv_bytes_per_token(row)
+        seqs, tokens = 1, self.prompt_estimate(inputs) + inputs['max_output_tokens']
+        members = []
+        def scan(db):
+            nonlocal seqs, tokens
+            cands = db.execute("SELECT j.* FROM jobs j JOIN model_requests r ON r.job_id=j.id WHERE j.state='queued' AND j.cancel_requested=0 AND j.hold=0 AND j.kind='text_generation' AND j.workspace=? AND j.submitted_by=? AND r.revision_id=? AND j.id!=? ORDER BY j.created_at LIMIT 16",
+                               (job['workspace'], job['submitted_by'], row['id'], job['id'])).fetchall()
+            for cand in cands:
+                if seqs >= pol['max_sequences']:
+                    break
+                if not scheduling.local_allowed(cand['location_policy']):
+                    continue
+                contract, spec = self.worker._spec(db, cand); ci = spec['inputs']
+                if int(ci.get('temperature_percent') or 0) > 0:
+                    continue
+                need = self.prompt_estimate(ci) + ci['max_output_tokens']
+                if tokens + need > pol['max_tokens'] or (tokens + need) * kvb > pol['kv_budget_bytes']:
+                    with self.worker.db.tx() as db2:
+                        db2.execute('UPDATE model_requests SET phase=?, updated_at=? WHERE job_id=? AND phase=?', ('admitted', now(), cand['id'], 'admitted'))
+                    continue                                       # too large for this batch: waits for its own turn (reason recorded in the batch outcome)
+                generation = cand['lease_generation'] + 1
+                changed = db.execute("UPDATE jobs SET state='running', lease_owner=?, lease_expires=?, lease_generation=?, attempt=attempt+1, updated_at=? WHERE id=? AND lease_generation=? AND state='queued'",
+                                     (self.worker.worker_id, now() + self.worker.lease, generation, now(), cand['id'], cand['lease_generation'])).rowcount
+                if changed != 1:
+                    continue
+                cj = dict(db.execute('SELECT * FROM jobs WHERE id=?', (cand['id'],)).fetchone())
+                db.execute('INSERT INTO attempts VALUES (?,?,?,?,?,NULL,NULL)', ('at_' + secrets.token_hex(6), cj['id'], generation, self.worker.worker_id, now()))
+                history.record(db, cj['workspace'], self.worker.worker_id, 'job.claimed', 'job', cj['id'], {'generation': generation, 'attempt': cj['attempt'], 'batched_with': job['id']})
+                db.execute('UPDATE model_requests SET phase=?, host=?, attempt_generation=?, started_at=?, queue_seconds=?, updated_at=? WHERE job_id=?', ('loading', self.host.host, generation, now(), now() - cj['created_at'], now(), cj['id']))
+                members.append((cj, contract, spec)); seqs += 1; tokens += need
+        with self.worker.db.tx() as db:
+            scan(db)
+        if not members and pol['wait_ms'] > 0:
+            time.sleep(min(pol['wait_ms'], 5000) / 1000.0)         # bounded waiting window (operator setting; default 0)
+            with self.worker.db.tx() as db:
+                scan(db)
+        return members
+
+    def _renew_all(self, jobs):
+        with self.worker.db.tx() as db:
+            for j in jobs:
+                db.execute("UPDATE jobs SET lease_expires=?, updated_at=? WHERE id=? AND state='running' AND lease_owner=? AND lease_generation=?", (now() + self.limits['job_lease_seconds'], now(), j['id'], self.worker.worker_id, j['lease_generation']))
+
+    def _generate_static_batch(self, job, contract, spec, row, inputs, should_cancel, state, members):
+        all_members = [(job, contract, spec, inputs)] + [(mj, mc, ms, ms['inputs']) for (mj, mc, ms) in members]
+        sinks, requests, by_rid, states = {}, [], {}, {}
+        for k, (mj, mc, ms, mi) in enumerate(all_members):
+            rid = 'r' + secrets.token_hex(6); by_rid[rid] = k
+            states[k] = {'fenced': False} if mj is not job else state
+            sinks[k] = SegmentSink(self, mj, states[k])
+            requests.append({'request_id': rid, 'messages': mi.get('messages'), 'prompt': mi.get('prompt'), 'max_new_tokens': mi['max_output_tokens'], 'temperature_percent': 0, 'stop': mi.get('stop') or []})
+            self._update(mj, phase='running')
+        last = {'renew': time.time()}
+        def cancel_check():
+            if time.time() - last['renew'] >= self.limits['compute_lease_renew_seconds']:
+                self._renew_all([m[0] for m in all_members]); last['renew'] = time.time()
+            with self.worker.db.read() as db:
+                ids = [m[0]['id'] for m in all_members]
+                rows = db.execute('SELECT id FROM jobs WHERE cancel_requested=1 AND id IN (%s)' % ','.join('?' * len(ids)), ids).fetchall()
+            want = {r['id'] for r in rows}
+            return {rid for rid, k in by_rid.items() if all_members[k][0]['id'] in want}
+        started = now(); kvb = self.kv_bytes_per_token(row)
+        try:
+            out = self.host.generate_batch(row, requests, on_segment=lambda rid, seq, text: sinks[by_rid[rid]](seq, text), cancel_check=cancel_check)
+        except ServiceError as exc:
+            body = exc.body()
+            for k, (mj, mc, ms, mi) in enumerate(all_members):
+                self._update(mj, phase='failed', error=json.dumps(body)[:300])
+                res = self.worker._finish(mj, None, 'COMPUTATION_ERROR')
+                if mj is job:
+                    primary = res
+            return primary
+        batch = out['batch']; bid = batch['id']
+        primary = None; cancelled = 0
+        for k, (mj, mc, ms, mi) in enumerate(all_members):
+            rid = next(r for r, kk in by_rid.items() if kk == k)
+            sinks[k].flush(force=True)
+            done = out['results'].get(rid)
+            if states[k]['fenced']:
+                if mj is job:
+                    primary = 'fenced'
+                continue
+            if done is None or 'error' in done:
+                err = (done or {}).get('error') or {'code': 'no_result'}
+                self._update(mj, phase='failed', error=json.dumps(err)[:300])
+                res = self.worker._finish(mj, None, 'INPUT_INVALID' if err.get('code') == 'INPUT_INVALID' else 'COMPUTATION_ERROR')
+            else:
+                text, nsegs = sinks[k].text()
+                usage = done['usage']
+                self._update(mj, input_tokens=usage['input_tokens'], output_tokens=usage['output_tokens'], finish_reason=done['finish_reason'], inference_ms=done['ms'], usage_json=json.dumps(dict(usage, batch_id=bid, batch_position=k)), batch_id=bid, batch_position=k)
+                if done['finish_reason'] == 'cancelled':
+                    cancelled += 1
+                    self._update(mj, phase='cancelled')
+                    history.record_safe(self.worker.db, mj['workspace'], self.worker.worker_id, 'model.request', 'job', mj['id'], {'finish_reason': 'cancelled', 'output_tokens': usage['output_tokens'], 'partial_output_preserved': True, 'batch_id': bid})
+                    res = self.worker._finish(mj, None, 'CANCELLED')
+                elif hashlib.sha256(text.encode()).hexdigest() != done['text_sha256']:
+                    self._update(mj, phase='failed', error='persisted segments do not reproduce the runtime output')
+                    res = self.worker._finish(mj, None, 'COMPUTATION_ERROR')
+                else:
+                    output = {'schema': RESULT_SCHEMAS['text_generation'], 'text': text, 'finish_reason': done['finish_reason'], 'usage': usage, 'config': done['config'], 'segments': nsegs,
+                              'model_revision_id': row['id'], 'model_id': row['model_id'], 'revision': row['revision'], 'weight_digest': row['weight_digest'], 'tokenizer_digest': row['tokenizer_digest'],
+                              'versions': self.host.children[row['id']].ready['versions'] if row['id'] in self.host.children and self.host.children[row['id']].ready else None,
+                              'request': {kk: mi.get(kk) for kk in ('messages', 'prompt', 'max_output_tokens', 'temperature_percent', 'top_p_percent', 'seed', 'stop')}}
+                    res = self._complete(mj, mc, ms, row, output, 'GENERATED', {'output_tokens': usage['output_tokens'], 'input_tokens': usage['input_tokens'], 'finish_reason': done['finish_reason'], 'segments': nsegs, 'inference_ms': done['ms'],
+                                                                                'tokens_per_second': done.get('tokens_per_second'), 'text_sha256': done['text_sha256'], 'output_chars': len(text), 'batch_id': bid, 'batch_members': len(all_members), 'batch_position': k})
+            if mj is job:
+                primary = res
+        with self.worker.db.tx() as db:
+            db.execute('INSERT INTO model_batches (id, workspace, host, revision_id, mode, members, member_jobs_json, prompt_tokens, max_new_tokens, decode_steps, padded_prompt_length, ms, kv_estimate_bytes, cuda_peak_delta_bytes, cancelled_members, outcome_json, started_at, finished_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                       (bid, job['workspace'], self.host.host, row['id'], 'static', len(all_members), json.dumps([m[0]['id'] for m in all_members]), batch.get('prompt_tokens'), max(m[3]['max_output_tokens'] for m in all_members), batch.get('steps'), batch.get('padded_prompt_length'), batch.get('ms'),
+                        kvb * (int(batch.get('padded_prompt_length') or 0) + int(batch.get('steps') or 0)) * len(all_members), (batch.get('memory') or {}).get('cuda_peak_delta_bytes'), cancelled,
+                        json.dumps({'note': batch.get('note'), 'error': batch.get('error')}), started, now()))
+        return primary
 
     def _cancel_requested(self, job):
         with self.worker.db.read() as db:

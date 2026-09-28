@@ -145,7 +145,7 @@ def view(db, principal, jobs, job_id):
     out = {'job_id': job_id, 'kind': job['kind'], 'state': job['state'], 'review_state': job['review_state'], 'phase': req['phase'], 'operation': req['operation'],
            'model': ({'revision_id': req['revision_id'], 'model_id': rev['model_id'], 'revision': rev['revision'], 'status_now': rev['status'], 'weight_digest': rev['weight_digest']} if rev else None),
            'usage': {'input_tokens': req['input_tokens'], 'output_tokens': req['output_tokens'], 'items': req['items'], 'finish_reason': req['finish_reason'],
-                     'max_output_tokens': req['max_output_tokens'], 'max_items': req['max_items'], 'segments': req['segments'], 'output_chars': req['output_chars'],
+                     'max_output_tokens': req['max_output_tokens'], 'max_items': req['max_items'], 'batch_id': req['batch_id'] if 'batch_id' in req.keys() else None, 'batch_position': req['batch_position'] if 'batch_position' in req.keys() else None, 'segments': req['segments'], 'output_chars': req['output_chars'],
                      'counting': 'measured by the runtime tokenizer after execution; the quote reserved max_output_tokens (or items); nothing is billed from an estimate'},
            'timing': {'queue_seconds': req['queue_seconds'], 'load_ms': req['load_ms'], 'inference_ms': req['inference_ms'], 'started_at': req['started_at'], 'updated_at': req['updated_at']},
            'host': req['host'], 'attempt_generation': req['attempt_generation'], 'cancel_requested': bool(job['cancel_requested']), 'error': req['error'] if private else None,
@@ -200,12 +200,41 @@ def runtime_facts(db, settings, api_host=None):
             'defaults': {r['operation']: r['revision_id'] for r in db.execute('SELECT operation, revision_id FROM model_defaults').fetchall()},
             'currently': {'runtimes': rows, 'mem_available_bytes': mem_available_bytes(), 'api_host': api_host.status() if api_host else None},
             'observed': {'completed_requests_by_revision': completed},
+            'generation_batching': {'mode': 'static', 'policy': (json.loads(db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone()['value']) if db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone() else
+                                                              {'enabled': bool(settings.limits['model_batch_generation_enabled']), 'max_sequences': settings.limits['model_batch_max_sequences'], 'max_tokens': settings.limits['model_batch_max_tokens'], 'wait_ms': settings.limits['model_batch_wait_ms'], 'modes': ['static'], 'kv_budget_bytes': settings.limits['model_batch_kv_budget_bytes']}),
+                                    'recent_batches': [dict(r) for r in db.execute('SELECT id, host, members, decode_steps, padded_prompt_length, ms, kv_estimate_bytes, cuda_peak_delta_bytes, cancelled_members, started_at FROM model_batches ORDER BY started_at DESC LIMIT 10').fetchall()],
+                                    'cohort': 'requests of one submitter in one workspace, same revision, greedy only; sampled requests run as singletons', 'continuous': 'not enabled: the installed transformers exposes a continuous-batching manager (probed on this host); static padded batching is the supported mode'},
             'warmup': {'policy': json.loads(db.execute("SELECT value FROM meta WHERE key='model_warmup'").fetchone()['value']) if db.execute("SELECT value FROM meta WHERE key='model_warmup'").fetchone() else None,
                        'resident': [{'host': r['host'], 'revision_id': r['revision_id'], 'state': r['state'], 'warm': r['warm'], 'drain_reason': r['drain_reason'], 'drained_at': r['drained_at']} for r in rows if r['warm'] or r['drain_reason']],
                        'batching': {'enabled': bool(settings.limits.get('model_batch_enabled', 1)), 'max_items': settings.limits.get('model_batch_max_items'), 'max_chars': settings.limits.get('model_batch_max_chars'), 'scope': 'text_embedding jobs of one submitter in one workspace, same revision and truncate flag; no accumulation wait'},
                        'drain_floor_bytes': settings.limits.get('compute_drain_min_available_bytes'), 'meaning': 'warm = policy intent recorded per host; state = observed runtime state (a warm revision may be unloaded after a drain)'},
             'privacy': 'prompts, retrieved context, outputs and vectors stay on this host; the runtime child runs offline (HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, no proxy) and no hosted fallback exists',
             'note': 'a revision is callable only when a runtime host reports state=ready for it; readiness is observed, not inferred from installation'}
+
+
+BATCH_MODES = ('static',)
+
+
+def set_batching(db, principal, settings, body):
+    """Operator settings for generation batching (validated; applied by workers at their next claim)."""
+    principal.require('model:admin')
+    if type(body) is not dict or set(body) - {'enabled', 'max_sequences', 'max_tokens', 'wait_ms', 'modes', 'kv_budget_bytes'}:
+        raise ServiceError('VALIDATION', {'code': 'batching', 'fields': ['enabled', 'max_sequences', 'max_tokens', 'wait_ms', 'modes', 'kv_budget_bytes']})
+    cur = json.loads(db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone()['value']) if db.execute("SELECT value FROM meta WHERE key='model_batching'").fetchone() else {}
+    L = settings.limits
+    pol = {'enabled': bool(body.get('enabled', cur.get('enabled', L['model_batch_generation_enabled']))), 'max_sequences': body.get('max_sequences', cur.get('max_sequences', L['model_batch_max_sequences'])),
+           'max_tokens': body.get('max_tokens', cur.get('max_tokens', L['model_batch_max_tokens'])), 'wait_ms': body.get('wait_ms', cur.get('wait_ms', L['model_batch_wait_ms'])), 'modes': body.get('modes', cur.get('modes', ['static'])),
+           'kv_budget_bytes': body.get('kv_budget_bytes', cur.get('kv_budget_bytes', L['model_batch_kv_budget_bytes']))}
+    if type(pol['max_sequences']) is not int or not 1 <= pol['max_sequences'] <= 16 or type(pol['max_tokens']) is not int or not 256 <= pol['max_tokens'] <= 65536 or type(pol['wait_ms']) is not int or not 0 <= pol['wait_ms'] <= 5000:
+        raise ServiceError('VALIDATION', {'code': 'batching_bounds', 'max_sequences': '1..16', 'max_tokens': '256..65536', 'wait_ms': '0..5000'})
+    if type(pol['modes']) is not list or not pol['modes'] or not set(pol['modes']) <= set(BATCH_MODES):
+        raise ServiceError('VALIDATION', {'code': 'modes', 'allowed': list(BATCH_MODES)})
+    if type(pol['kv_budget_bytes']) is not int or not 64 * 1024 ** 2 <= pol['kv_budget_bytes'] <= 64 * 1024 ** 3:
+        raise ServiceError('VALIDATION', 'kv_budget_bytes: 64 MiB .. 64 GiB (explicit; never all free memory)')
+    pol.update(updated_by=principal.id, updated_at=now())
+    db.execute('INSERT INTO meta (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value', ('model_batching', json.dumps(pol)))
+    history.record(db, principal.workspace, principal.id, 'model.runtime', 'policy', 'model_batching', pol)
+    return {'policy': pol, 'applied': 'at each worker\'s next claim; a running batch keeps its admitted members'}
 
 
 def set_warmup(db, principal, settings, body):

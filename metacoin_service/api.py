@@ -1185,6 +1185,12 @@ def create_app(settings):
             return model_svc.runtime_facts(db, settings, api_host=svc._model_host)
         return await run(request, False, fn)
 
+    @app.post(API + '/models/batching')
+    async def models_batching(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: model_svc.set_batching(db, p, settings, body), 'models.batching', raw)
+
     @app.post(API + '/models/warmup')
     async def models_warmup(request: Request):
         raw = await request.body()

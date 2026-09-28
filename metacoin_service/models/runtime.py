@@ -191,6 +191,98 @@ class Runtime:
                          'determinism': 'greedy decoding is repeatable on this runtime for the same device/dtype/versions; sampled decoding repeats only for the same seed on the same device and versions; no cross-device or cross-version bitwise promise'},
               'ms': ms, 'tokens_per_second': round(n_out / max(ms / 1000.0, 1e-6), 2)})
 
+    # ---- static batched generation (Order 07 group B) ----------------------------------------------
+    def generate_batch(self, cmd):
+        """One padded forward pass for several greedy requests. Left padding + attention mask (positions derive from the
+        mask); a per-row stopping criterion returns a bool per sequence so each row stops on ITS OWN end-of-sequence,
+        stop string, token ceiling or cancellation while the others continue; finished rows receive pad tokens which are
+        never counted or delivered. Streams per-row segments; reports per-row usage and a batch summary."""
+        torch = self.torch
+        bid = cmd['batch_id']
+        rows = []
+        for r in cmd['requests']:
+            rid = r['request_id']
+            try:
+                ids, n_in, template = self.build_prompt(r)
+            except ValueError as exc:
+                emit({'event': 'error', 'request_id': rid, 'code': 'INPUT_INVALID', 'reason': str(exc)[:200]}); continue
+            if int(r.get('temperature_percent') or 0) > 0:
+                emit({'event': 'error', 'request_id': rid, 'code': 'INPUT_INVALID', 'reason': 'sampled requests are not batched (batch-global random state); run as a singleton'}); continue
+            rows.append({'rid': rid, 'ids': ids['input_ids'][0], 'n_in': n_in, 'max_new': min(int(r['max_new_tokens']), int(self.limits['max_output_tokens'])), 'stop': [x for x in (r.get('stop') or []) if x][:4],
+                         'template': template, 'emitted': '', 'seq': 0, 'done': False, 'finish': None, 'n_out': 0, 'stopped_on': None})
+        if not rows:
+            emit({'event': 'batch_done', 'batch_id': bid, 'members': 0, 'steps': 0, 'ms': 0}); return
+        pad = self.tok.pad_token_id if self.tok.pad_token_id is not None else self.tok.eos_token_id
+        n, L = len(rows), max(int(r['ids'].shape[0]) for r in rows)
+        input_ids = torch.full((n, L), pad, dtype=torch.long); attn = torch.zeros((n, L), dtype=torch.long)
+        for i, r in enumerate(rows):
+            k = int(r['ids'].shape[0]); input_ids[i, L - k:] = r['ids']; attn[i, L - k:] = 1
+        eos = self.tok.eos_token_id
+        gen_eos = getattr(self.model.generation_config, 'eos_token_id', None)
+        eos_ids = set(eos if isinstance(eos, list) else [eos]) | set(gen_eos if isinstance(gen_eos, list) else ([gen_eos] if gen_eos is not None else []))
+        runtime, tok = self, self.tok
+        from transformers import StoppingCriteria, StoppingCriteriaList
+
+        class RowStop(StoppingCriteria):
+            def __call__(self, all_ids, scores, **kw):
+                gen = all_ids[:, L:]
+                t = int(gen.shape[1])
+                out = torch.zeros(all_ids.shape[0], dtype=torch.bool, device=all_ids.device)
+                for i, r in enumerate(rows):
+                    if r['done']:
+                        out[i] = True; continue
+                    last = int(gen[i, t - 1])
+                    r['n_out'] = t
+                    text = tok.decode(gen[i, :t], skip_special_tokens=True)
+                    if not text.endswith('\ufffd'):
+                        delta = text[len(r['emitted']):]
+                        if delta:
+                            emit({'event': 'segment', 'request_id': r['rid'], 'seq': r['seq'], 'text': delta}); r['emitted'] = text; r['seq'] += 1
+                    finish = None
+                    if last in eos_ids:
+                        finish = 'eos'
+                    elif r['rid'] in runtime.cancel:
+                        finish = 'cancelled'
+                    elif r['stop'] and any(s in text for s in r['stop']):
+                        finish = 'stop'; r['stopped_on'] = next(s for s in r['stop'] if s in text)
+                    elif t >= r['max_new']:
+                        finish = 'length'
+                    if finish:
+                        r['done'] = True; r['finish'] = finish; out[i] = True
+                return out
+        if self.device == 'cuda':
+            torch.cuda.reset_peak_memory_stats(); before = int(torch.cuda.memory_allocated())
+        t0 = time.time()
+        try:
+            with torch.no_grad():
+                out = self.model.generate(input_ids=input_ids.to(self.device), attention_mask=attn.to(self.device), max_new_tokens=max(r['max_new'] for r in rows), do_sample=False,
+                                          stopping_criteria=StoppingCriteriaList([RowStop()]), pad_token_id=pad, temperature=None, top_p=None, top_k=None)
+        except Exception as exc:
+            for r in rows:
+                emit({'event': 'error', 'request_id': r['rid'], 'code': 'RUNTIME_ERROR', 'reason': type(exc).__name__ + ': ' + str(exc)[:160], 'partial_segments': r['seq']}); runtime.cancel.discard(r['rid'])
+            emit({'event': 'batch_done', 'batch_id': bid, 'members': n, 'steps': 0, 'ms': int((time.time() - t0) * 1000), 'error': type(exc).__name__}); return
+        if self.device == 'cuda':
+            torch.cuda.synchronize()
+        ms = int((time.time() - t0) * 1000)
+        steps = int(out.shape[1]) - L
+        for i, r in enumerate(rows):
+            n_out = r['n_out'] if r['done'] else steps
+            ids_out = out[i, L:L + n_out]
+            text = tok.decode(ids_out, skip_special_tokens=True)
+            finish = r['finish'] or ('length' if n_out >= r['max_new'] else 'eos')
+            runtime.cancel.discard(r['rid'])
+            emit({'event': 'done', 'request_id': r['rid'], 'finish_reason': finish, 'stop_sequence': r['stopped_on'], 'segments': r['seq'], 'text_sha256': __import__('hashlib').sha256(text.encode()).hexdigest(), 'text': text,
+                  'usage': {'input_tokens': r['n_in'], 'output_tokens': n_out, 'counting': 'runtime tokenizer; input = templated prompt tokens of THIS request; output = ids generated for THIS row until its own stop (pad tokens of finished rows are never counted)'},
+                  'config': {'max_new_tokens': r['max_new'], 'do_sample': False, 'temperature': None, 'top_p': None, 'seed': None, 'stop': r['stop'], 'template': r['template'],
+                             'batch': {'id': bid, 'mode': 'static', 'members': n, 'position': i, 'padded_prompt_length': L},
+                             'determinism': 'greedy; static batching pads prompts on the left with an attention mask, so bf16 numerics can diverge from a singleton run late in a sequence; measured on the pinned model, not promised bitwise'},
+                  'ms': ms, 'tokens_per_second': round(n_out / max(ms / 1000.0, 1e-6), 2)})
+        mem = memory_report(torch, self.device)
+        if self.device == 'cuda':
+            mem['cuda_peak_delta_bytes'] = int(torch.cuda.max_memory_allocated()) - before
+        emit({'event': 'batch_done', 'batch_id': bid, 'members': n, 'steps': steps, 'ms': ms, 'padded_prompt_length': L, 'prompt_tokens': sum(r['n_in'] for r in rows), 'output_tokens': sum((r['n_out'] if r['done'] else steps) for r in rows),
+              'memory': mem, 'note': 'one forward pass per decode step for all members; a member that finishes early keeps its slot (padded) until the last member stops; cancellation stops delivery and counting for that member immediately, its slot computation until the batch ends'})
+
     # ---- embeddings ------------------------------------------------------------------------------
     def embed(self, req):
         torch = self.torch
@@ -270,6 +362,8 @@ def main():
             emit({'event': 'pong', 'memory': memory_report(rt.torch, rt.device), 'versions': rt.versions()}); continue
         if op == 'generate' and spec['loader'] == 'causal_lm':
             rt.generate(cmd); continue
+        if op == 'generate_batch' and spec['loader'] == 'causal_lm':
+            rt.generate_batch(cmd); continue
         if op == 'embed' and spec['loader'] == 'encoder':
             rt.embed(cmd); continue
         emit({'event': 'error', 'request_id': cmd.get('request_id'), 'code': 'UNSUPPORTED_OPERATION', 'reason': 'op %r not supported by loader %s' % (op, spec['loader'])})

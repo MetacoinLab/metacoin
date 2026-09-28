@@ -127,3 +127,38 @@ class UptoRouteTests(unittest.TestCase):
         self.assertEqual(st['state'], 'SETTLED', st); self.assertLess(int(st['final_amount']), int(st['authorized_max']))
         self.assertEqual(int(st['final_amount']), view['usage']['output_tokens'] * (q['amount_max'] // q['quantity_max']))
         self.assertEqual(before['payer'] - chain.balances()['payer'], int(st['final_amount']))
+
+
+@unittest.skipUnless(HAVE_RUNTIME and HAVE_CHAIN and HAVE_TORCH, 'needs the compute interpreter, the local-chain artifacts and torch')
+class UptoBatchedGenerationTests(unittest.TestCase):
+    """§24: two separately authorized (upto) generation requests execute in ONE static batch; each settles its own measured
+    amount, a replay of either authorization returns the same job without a second transfer, unused reservation is released."""
+    def test_two_metered_requests_one_batch_separate_settlements(self):
+        inst = UptoInstance(); self.addCleanup(inst.close); c = inst.client; H = inst.h('owner')
+        if not installed(inst.settings, GEN) or not installed(inst.settings, EMB):
+            self.skipTest('models absent')
+        inst.register_defaults(); w = inst.worker(); self.addCleanup(w.offline)
+        c.post('/api/v1/models/batching', headers=H, json={'enabled': True, 'max_sequences': 4})
+        gsid = next(s['id'] for s in c.get('/api/v1/services', headers=H).json()['items'] if s['kind'] == 'text_generation')
+        reqs = []
+        for k, prompt in enumerate(('Reply with exactly one word: hello', 'Reply with exactly one word: goodbye')):
+            inputs = {'schema': 'text-generation-input/v1', 'messages': [{'role': 'user', 'content': prompt}], 'max_output_tokens': 200}
+            q = c.post('/api/v1/services/' + gsid + '/quote', headers=H, json={'inputs': inputs, 'scheme': 'upto'}).json(); c.post('/api/v1/quotes/' + q['quote_id'] + '/accept', headers=H)
+            ex = upto_exchange(inst, gsid, q['quote_id'], inputs, 'upto-batch-%d-' % k + 'z' * 20)
+            self.assertEqual(ex['second_status'], 202, ex); reqs.append((q, inputs, ex))
+        chain = reqs[0][2]['chain']; before = chain.balances()
+        primary, outcome = w.run_once(); self.assertEqual(outcome, 'succeeded')
+        views = [c.get('/api/v1/models/jobs/' + ex['body']['job_id'], headers=H).json() for (_, _, ex) in reqs]
+        self.assertEqual({v['state'] for v in views}, {'succeeded'}); self.assertEqual(len({v['usage']['batch_id'] for v in views}), 1); self.assertIsNotNone(views[0]['usage']['batch_id'])
+        settled = []
+        for (q, inputs, ex), v in zip(reqs, views):
+            st = c.get('/api/v1/x402/settlements/' + ex['body']['settlement']['payment_id'], headers=H).json()
+            self.assertEqual(st['state'], 'SETTLED', st); self.assertEqual(int(st['final_amount']), v['usage']['output_tokens'] * (q['amount_max'] // q['quantity_max'])); self.assertLess(int(st['final_amount']), int(st['authorized_max']))
+            settled.append(int(st['final_amount']))
+        after = chain.balances()
+        self.assertEqual(before['payer'] - after['payer'], sum(settled)); self.assertEqual(after['recipient'] - before['recipient'], sum(settled))          # exactly two transfers, each its own measured amount
+        # replay of the first authorization: same job, no transfer
+        again = upto_exchange(inst, gsid, reqs[0][0]['quote_id'], reqs[0][1], 'upto-batch-0-' + 'z' * 20)
+        self.assertEqual((again['second_status'], again['body'].get('replayed'), again['body'].get('job_id')), (200, True, reqs[0][2]['body']['job_id'])); self.assertEqual(chain.balances(), after)
+        rows = [r for r in c.get('/api/v1/statements', headers=H).json()['statement']['rows'] if r.get('settlement', {}).get('scheme') == 'upto']
+        self.assertEqual(len(rows), 2); self.assertEqual(sorted(int(r['settlement']['settled_amount']) for r in rows), sorted(settled))
