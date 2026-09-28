@@ -13,6 +13,7 @@ from experiments.work_contracts import contract as terms, energy_analysis as ene
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
 from .compute import service as compute_svc
 from .models import service as model_svc, registry as model_registry
+from .knowledge import service as knowledge_mod, retrieval as retrieval_mod, engine as knowledge_engine
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -40,6 +41,7 @@ class Services:
         self.agents = agents_mod.Agents(settings)
         self.schedules = schedules_mod.Schedules(self.workflows, settings)
         self.models = model_registry.ModelRegistry(settings)
+        self.knowledge = knowledge_mod.Knowledge(self.store, settings)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -1197,6 +1199,142 @@ def create_app(settings):
                 return model_svc.request_load(db, p, settings, rid, 'loaded' if action == 'load' else 'unloaded')
             raise ServiceError('NOT_FOUND', 'action')
         return await run(request, True, fn, 'models.' + action, raw)
+
+    # ---- private knowledge ------------------------------------------------------------------------------------
+    def embed_fn_for(db, index_row):
+        """Synchronous query embeddings with this process's own runtime host, bound to the index's revision."""
+        if index_row is None:
+            return None
+        row = svc.models.row(db, index_row['model_revision_id'])
+        host = model_host_of(svc)
+        if not host.available():
+            return None
+        return lambda texts: host.embed(row, texts, truncate=True)['vectors']
+
+    @app.post(API + '/knowledge/collections', status_code=201)
+    async def kc_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.knowledge.create_collection(db, p, body.get('name'), body.get('description', '')), 201), 'knowledge.collection', raw)
+
+    @app.get(API + '/knowledge/collections')
+    async def kc_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.knowledge.list_collections(db, p)})
+
+    @app.get(API + '/knowledge/collections/{cid}')
+    async def kc_detail(request: Request, cid: str):
+        def fn(db, p):
+            p.require('knowledge:read')
+            return dict(svc.knowledge.collection_view(db, svc.knowledge.collection(db, p, cid)), documents_list=svc.knowledge.list_documents(db, p, cid))
+        return await run(request, False, fn)
+
+    @app.post(API + '/knowledge/collections/{cid}/documents', status_code=201)
+    async def kc_add_document(request: Request, cid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        content = body.get('content')
+        if type(content) is not str:
+            raise ServiceError('VALIDATION', 'content must be a string (text/markdown/csv)')
+        def fn(db, p):
+            return svc.knowledge.add_document(db, p, cid, name=body.get('name'), fmt=body.get('format', 'text'), content=content.encode('utf-8'), provenance=body.get('provenance', 'declared'),
+                                              source=body.get('source', ''), license=body.get('license', ''), document_id=body.get('document_id')), 201
+        return await run(request, True, fn, 'knowledge.document', raw)
+
+    @app.post(API + '/knowledge/documents/{did}/revoke')
+    async def kc_revoke(request: Request, did: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.knowledge.revoke_document(db, p, did, body.get('reason', '')), 'knowledge.revoke', raw)
+
+    @app.get(API + '/knowledge/versions/{vid}/preview')
+    async def kc_preview(request: Request, vid: str):
+        q = request.query_params
+        ordinal = int(q['ordinal']) if q.get('ordinal', '').isdigit() else None
+        return await run(request, False, lambda db, p: svc.knowledge.preview(db, p, vid, ordinal))
+
+    @app.delete(API + '/knowledge/versions/{vid}/payload')
+    async def kc_delete_payload(request: Request, vid: str):
+        return await run(request, True, lambda db, p: svc.knowledge.delete_version_payload(db, p, vid))
+
+    @app.post(API + '/knowledge/collections/{cid}/indexes', status_code=202)
+    async def kc_index(request: Request, cid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('knowledge:write')
+            model_row = svc.models.resolve(db, 'embed', body.get('model_revision_id'))
+            iid, versions, total = svc.knowledge.create_index(db, p, cid, model_row)
+            out = quick_submit(svc, db, p, 'knowledge_index', {'schema': knowledge_engine.INDEX_SCHEMA, 'collection_id': cid, 'index_id': iid}, 'index build ' + iid)
+            db.execute('UPDATE knowledge_indexes SET index_job_id=? WHERE id=?', (out['job_id'], iid))
+            return dict(out, index_id=iid, documents=len(versions), chunks=total), 202
+        return await run(request, True, fn, 'knowledge.index', raw)
+
+    @app.get(API + '/knowledge/indexes/{iid}')
+    async def kc_index_view(request: Request, iid: str):
+        def fn(db, p):
+            p.require('knowledge:read')
+            return svc.knowledge.index_view(db, svc.knowledge.index(db, p, iid))
+        return await run(request, False, fn)
+
+    @app.post(API + '/knowledge/collections/{cid}/search')
+    async def kc_search(request: Request, cid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def do():
+            # authorization and index lookup in a read connection; the query embedding runs outside any transaction
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                p.require('knowledge:read')
+                index_row = svc.knowledge.index(db, p, body['index_id']) if body.get('index_id') else svc.knowledge.latest_ready_index(db, cid)
+                mode = body.get('mode', 'hybrid')
+                rev = svc.models.row(db, index_row['model_revision_id']) if (index_row is not None and mode != 'lexical') else None
+            qv = None
+            if rev is not None:
+                host = model_host_of(svc)
+                if not host.available():
+                    raise ServiceError('CAPABILITY_UNAVAILABLE', 'no embedding runtime in the API process; use mode=lexical')
+                q = body.get('query')
+                if type(q) is not str or not q.strip() or len(q) > 2000:
+                    raise ServiceError('VALIDATION', 'query: 1..2000 characters')
+                qv = host.embed(rev, [q], truncate=True)['vectors'][0]
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                out = retrieval_mod.search(db, svc.store, p, svc.knowledge, cid, body.get('query'), mode=mode, k=body.get('k', 8), index_row=index_row, document_ids=body.get('document_ids'),
+                                           embed_fn=(lambda texts: [qv]) if qv is not None else None)
+            with svc.db.tx() as db:
+                history.record(db, p.workspace, p.id, 'knowledge.query', 'collection', cid, {'mode': out['mode'], 'results': len(out['results']), 'ms': out['timing_ms'].get('total_ms')})
+            return out
+        return JSONResponse(await run_in_threadpool(do))
+
+    @app.post(API + '/knowledge/citations/validate')
+    async def kc_citations(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: retrieval_mod.validate_citations(db, svc.store, p, svc.knowledge, body.get('citations')))
+
+    @app.post(API + '/knowledge/collections/{cid}/answers', status_code=202)
+    async def kc_answer(request: Request, cid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('knowledge:read'); p.require('model:use')
+            inputs = dict({k: v for k, v in body.items() if k in ('index_id', 'question', 'mode', 'k', 'max_output_tokens', 'generation_revision_id')}, schema=knowledge_engine.ANSWER_SCHEMA, collection_id=cid)
+            inputs.setdefault('mode', 'extractive')
+            return quick_submit(svc, db, p, 'knowledge_answer', inputs, 'answer'), 202
+        return await run(request, True, fn, 'knowledge.answer', raw)
+
+    @app.get(API + '/knowledge/answers/{aid}')
+    async def kc_answer_view(request: Request, aid: str):
+        return await run(request, True, lambda db, p: svc.knowledge.answer(db, p, aid, svc.store))
+
+    @app.get(API + '/knowledge/answers/by-job/{job_id}')
+    async def kc_answer_by_job(request: Request, job_id: str):
+        def fn(db, p):
+            row = db.execute('SELECT id FROM knowledge_answers WHERE job_id=? AND workspace=?', (job_id, p.workspace)).fetchone()
+            if row is None:
+                raise ServiceError('NOT_FOUND', 'no answer record for this job (not finished, or not an answer job)')
+            return svc.knowledge.answer(db, p, row['id'], svc.store)
+        return await run(request, True, fn)
 
     from . import console
     console.mount(app, svc)

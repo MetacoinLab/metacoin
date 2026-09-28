@@ -16,7 +16,7 @@ import re
 PARSER_ID = 'metacoin-text-normalizer/v1'
 CHUNKER_ID = 'metacoin-chunker/v1'
 FORMATS = ('text', 'markdown', 'csv')
-CHUNK_CHARS = 1200
+CHUNK_CHARS = 800          # ~200 tokens: fits the 256-token window of the pinned embedding model for ordinary prose
 MAX_CHUNKS_PER_DOCUMENT = 400
 _SENTENCE_END = re.compile(r'(?<=[.!?])\s+')
 _TOKEN = re.compile(r'[a-z0-9]+')
@@ -154,8 +154,16 @@ def _split_long(data, s, e):
     return result
 
 
+STOPWORDS = frozenset('a an and are as at be by for from has have in is it its of on or that the this to was were what which who will with does do how when where why under'.split())
+
+
 def tokens(text):
     return _TOKEN.findall(text.lower())
+
+
+def query_tokens(text):
+    """Query terms without stopwords: a query whose only matches are stopwords carries no lexical evidence."""
+    return [t for t in _TOKEN.findall(text.lower()) if t not in STOPWORDS]
 
 
 def chunk_text(text_bytes, c):

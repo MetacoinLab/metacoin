@@ -25,9 +25,10 @@ from . import registry as registry_mod
 ROOT = Path(__file__).resolve().parents[2]
 GENERATION_SCHEMA, EMBEDDING_SCHEMA = 'text-generation-input/v1', 'text-embedding-input/v1'
 KINDS = ('text_generation', 'text_embedding')
-OPERATION_OF = {'text_generation': 'generate', 'text_embedding': 'embed'}
-MODEL_IDS = {'text_generation': 'local-text-generation/v1', 'text_embedding': 'local-text-embedding/v1'}
-RESULT_SCHEMAS = {'text_generation': 'text-generation-result/v1', 'text_embedding': 'text-embedding-result/v1'}
+KNOWLEDGE_KINDS = ('knowledge_index', 'knowledge_answer')
+OPERATION_OF = {'text_generation': 'generate', 'text_embedding': 'embed', 'knowledge_index': 'embed', 'knowledge_answer': 'generate'}
+MODEL_IDS = {'text_generation': 'local-text-generation/v1', 'text_embedding': 'local-text-embedding/v1', 'knowledge_index': 'private-knowledge-index/v1', 'knowledge_answer': 'retrieval-assisted-answer/v1'}
+RESULT_SCHEMAS = {'text_generation': 'text-generation-result/v1', 'text_embedding': 'text-embedding-result/v1', 'knowledge_index': 'knowledge-index-result/v1', 'knowledge_answer': 'knowledge-answer-result/v1'}
 
 
 def implementation_digest():
@@ -302,6 +303,34 @@ class ModelHost:
                            'mem_available_bytes': mem_available_bytes(), 'enforced': 'application-level (load refused / idle runtime unloaded); no hardware memory limit on unified memory'}}
 
 
+class SegmentSink:
+    """Persists streamed output pieces as durable, fenced segments (coalesced to at most ~4 rows per second)."""
+
+    def __init__(self, engine, job, state):
+        self.engine, self.job, self.state = engine, job, state
+        self.seq, self.buf, self.chars, self.last_flush = 0, '', 0, time.time()
+
+    def __call__(self, seq, text):
+        self.buf += text; self.chars += len(text)
+        self.flush()
+
+    def flush(self, force=False):
+        if not self.buf or (not force and time.time() - self.last_flush < 0.25):
+            return
+        with self.engine.worker.db.tx() as db:
+            if self.engine._fenced(db, self.job):
+                self.state['fenced'] = True; return
+            db.execute('INSERT OR IGNORE INTO model_segments (job_id, attempt_generation, seq, text, chars, created_at) VALUES (?,?,?,?,?,?)',
+                       (self.job['id'], self.job['lease_generation'], self.seq, self.buf, len(self.buf), now()))
+            db.execute('UPDATE model_requests SET segments=?, output_chars=?, updated_at=? WHERE job_id=?', (self.seq + 1, self.chars, now(), self.job['id']))
+        self.seq += 1; self.buf = ''; self.last_flush = time.time()
+
+    def text(self):
+        with self.engine.worker.db.read() as db:
+            segs = db.execute('SELECT text FROM model_segments WHERE job_id=? AND attempt_generation=? ORDER BY seq', (self.job['id'], self.job['lease_generation'])).fetchall()
+        return ''.join(s['text'] for s in segs), len(segs)
+
+
 class ModelEngine:
     """Worker-side execution of text_generation / text_embedding jobs through the ordinary job queue and finish path."""
 
@@ -341,6 +370,7 @@ class ModelEngine:
             return self.worker._finish(job, None, 'MANIFEST_MISMATCH')
         t_queue = now() - job['created_at']
         self._update(job, phase='loading', host=self.host.host, attempt_generation=job['lease_generation'], started_at=now(), queue_seconds=t_queue)
+        should_cancel, state = self.poller(job)
         t0 = time.time()
         try:
             child = self.host.ensure(row)
@@ -350,20 +380,6 @@ class ModelEngine:
         load_ms = int((time.time() - t0) * 1000) if child.ready and child.requests == 0 else 0
         self._update(job, phase='running', load_ms=load_ms, versions_json=json.dumps(child.ready['versions']) if child.ready else None)
         inputs = spec['inputs']
-        last_lease = time.time()
-        state = {'fenced': False}
-
-        def should_cancel():
-            nonlocal last_lease
-            if time.time() - last_lease >= self.limits['compute_lease_renew_seconds']:
-                with self.worker.db.tx() as db:
-                    ok = db.execute("UPDATE jobs SET lease_expires=?, updated_at=? WHERE id=? AND state='running' AND lease_owner=? AND lease_generation=?",
-                                    (now() + self.limits['job_lease_seconds'], now(), job['id'], self.worker.worker_id, job['lease_generation'])).rowcount == 1
-                last_lease = time.time()
-                if not ok:
-                    state['fenced'] = True; return True
-            with self.worker.db.read() as db:
-                return bool(db.execute('SELECT cancel_requested FROM jobs WHERE id=?', (job['id'],)).fetchone()[0])
         try:
             if job['kind'] == 'text_generation':
                 return self._generate(job, contract, spec, row, child, inputs, should_cancel, state)
@@ -374,32 +390,32 @@ class ModelEngine:
             code = 'COMPUTATION_ERROR' if exc.code in ('COMPUTATION', 'CAPABILITY_UNAVAILABLE') else 'INPUT_INVALID'
             return self.worker._finish(job, None, code)
 
+    def poller(self, job):
+        """Returns (should_cancel, state): renews the lease periodically and reports cancel requests; sets state['fenced']."""
+        last = {'lease': time.time()}
+        state = {'fenced': False}
+
+        def should_cancel():
+            if time.time() - last['lease'] >= self.limits['compute_lease_renew_seconds']:
+                with self.worker.db.tx() as db:
+                    ok = db.execute("UPDATE jobs SET lease_expires=?, updated_at=? WHERE id=? AND state='running' AND lease_owner=? AND lease_generation=?",
+                                    (now() + self.limits['job_lease_seconds'], now(), job['id'], self.worker.worker_id, job['lease_generation'])).rowcount == 1
+                last['lease'] = time.time()
+                if not ok:
+                    state['fenced'] = True; return True
+            with self.worker.db.read() as db:
+                return bool(db.execute('SELECT cancel_requested FROM jobs WHERE id=?', (job['id'],)).fetchone()[0])
+        return should_cancel, state
+
     def _generate(self, job, contract, spec, row, child, inputs, should_cancel, state):
-        pending = {'seq': 0, 'buf': '', 'tokens_seen': 0, 'last_flush': time.time(), 'chars': 0}
-
-        def flush(force=False):
-            if not pending['buf'] or (not force and time.time() - pending['last_flush'] < 0.25):
-                return
-            with self.worker.db.tx() as db:
-                if self._fenced(db, job):
-                    state['fenced'] = True; return
-                db.execute('INSERT OR IGNORE INTO model_segments (job_id, attempt_generation, seq, text, chars, created_at) VALUES (?,?,?,?,?,?)',
-                           (job['id'], job['lease_generation'], pending['seq'], pending['buf'], len(pending['buf']), now()))
-                db.execute('UPDATE model_requests SET segments=?, output_chars=?, updated_at=? WHERE job_id=?', (pending['seq'] + 1, pending['chars'], now(), job['id']))
-            pending['seq'] += 1; pending['buf'] = ''; pending['last_flush'] = time.time()
-
-        def on_segment(seq, text):
-            pending['buf'] += text; pending['chars'] += len(text)
-            flush()
+        sink = SegmentSink(self, job, state)
         request = {'messages': inputs.get('messages'), 'prompt': inputs.get('prompt'), 'max_new_tokens': inputs['max_output_tokens'], 'temperature_percent': inputs.get('temperature_percent', 0),
                    'top_p_percent': inputs.get('top_p_percent', 100), 'seed': inputs.get('seed'), 'stop': inputs.get('stop') or []}
-        done = self.host.generate(row, request, on_segment=on_segment, should_cancel=should_cancel)
-        flush(force=True)
+        done = self.host.generate(row, request, on_segment=sink, should_cancel=should_cancel)
+        sink.flush(force=True)
         if state['fenced']:
             return 'fenced'
-        with self.worker.db.read() as db:
-            segs = db.execute('SELECT text FROM model_segments WHERE job_id=? AND attempt_generation=? ORDER BY seq', (job['id'], job['lease_generation'])).fetchall()
-        text = ''.join(s['text'] for s in segs)
+        text, nsegs = sink.text()
         if hashlib.sha256(text.encode()).hexdigest() != done['text_sha256']:
             self._update(job, phase='failed', error='persisted segments do not reproduce the runtime output')
             return self.worker._finish(job, None, 'COMPUTATION_ERROR')
@@ -409,11 +425,11 @@ class ModelEngine:
             self._update(job, phase='cancelled')
             history.record_safe(self.worker.db, job['workspace'], self.worker.worker_id, 'model.request', 'job', job['id'], {'finish_reason': 'cancelled', 'output_tokens': usage['output_tokens'], 'partial_output_preserved': True})
             return self.worker._finish(job, None, 'CANCELLED')
-        output = {'schema': RESULT_SCHEMAS['text_generation'], 'text': text, 'finish_reason': done['finish_reason'], 'usage': usage, 'config': done['config'], 'segments': len(segs),
+        output = {'schema': RESULT_SCHEMAS['text_generation'], 'text': text, 'finish_reason': done['finish_reason'], 'usage': usage, 'config': done['config'], 'segments': nsegs,
                   'model_revision_id': row['id'], 'model_id': row['model_id'], 'revision': row['revision'], 'weight_digest': row['weight_digest'], 'tokenizer_digest': row['tokenizer_digest'],
                   'versions': child.ready['versions'] if child.ready else None, 'request': {k: inputs.get(k) for k in ('messages', 'prompt', 'max_output_tokens', 'temperature_percent', 'top_p_percent', 'seed', 'stop')}}
         return self._complete(job, contract, spec, row, output, 'GENERATED', {'output_tokens': usage['output_tokens'], 'input_tokens': usage['input_tokens'], 'finish_reason': done['finish_reason'],
-                                                                             'segments': len(segs), 'inference_ms': done['ms'], 'tokens_per_second': done.get('tokens_per_second'), 'text_sha256': done['text_sha256'],
+                                                                             'segments': nsegs, 'inference_ms': done['ms'], 'tokens_per_second': done.get('tokens_per_second'), 'text_sha256': done['text_sha256'],
                                                                              'output_chars': len(text)})
 
     def _embed(self, job, contract, spec, row, inputs, should_cancel, state):
@@ -431,7 +447,7 @@ class ModelEngine:
         return self._complete(job, contract, spec, row, meta, 'EMBEDDED', {'items': len(ev['vectors']), 'dim': ev['dim'], 'tokens': sum(ev['tokens']), 'truncated_items': sum(1 for t in ev['truncated'] if t), 'inference_ms': ev['ms']},
                               extra_files={'vectors.npy': blob})
 
-    def _complete(self, job, contract, spec, row, output, outcome, summary_extra, extra_files=None):
+    def _complete(self, job, contract, spec, row, output, outcome, summary_extra, extra_files=None, on_commit=None, scope='local-model-inference'):
         from ..compute import container
         files = {'output.json': merkle.canonical(exactable(output))}
         files.update(extra_files or {})
@@ -439,6 +455,8 @@ class ModelEngine:
         with self.worker.db.tx() as db:
             if self._fenced(db, job):
                 return 'fenced'
+            if on_commit:
+                on_commit(db)
             crow = db.execute('SELECT owner_id, reviewer_id FROM contracts WHERE id=?', (job['contract_id'],)).fetchone()
             reviewer_pub = db.execute('SELECT value FROM meta WHERE key=?', ('age_public:' + str(crow['reviewer_id']),)).fetchone()
             aid = self.worker.store.store(db, workspace=job['workspace'], kind='model_output', owner_id=crow['owner_id'], plaintext=blob, recipients=[reviewer_pub['value']] if reviewer_pub else [],
@@ -450,6 +468,6 @@ class ModelEngine:
                                  float_encoding='floats are shortest-repr decimal strings in evidence and summaries'))
         evidence = {'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'], 'verifier_id': 'model-runtime/v1', 'verifier_digest': implementation_digest(),
                     'result_schema': RESULT_SCHEMAS[job['kind']], 'model_id': MODEL_IDS[job['kind']], 'result': summary, 'output_commitments': {n: hashlib.sha256(files[n]).hexdigest() for n in files},
-                    'scope': 'local-model-inference'}
+                    'scope': scope}
         _, vault = merkle.commit(evidence)
         return self.worker._finish(job, {'evidence_vault': vault, 'outcome': outcome, 'summary': summary}, None)

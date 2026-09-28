@@ -78,6 +78,16 @@ INSTALLED['text_embedding'] = {'model_id': model_engine.MODEL_IDS['text_embeddin
                                'output_fields': ['items', 'dim', 'pooling', 'normalized', 'tokens', 'truncated', 'model_revision_id'], 'limits': {'max_items': 256, 'max_text_chars': 8000}, 'action_entitlement': False,
                                'model': {'work_unit': model_svc.WORK_UNIT['text_embedding'], 'completion': 'vectors stored as a private artifact; comparable only within one revision/pooling/normalization', 'privacy': 'vectors are sensitive derived data; never exported by default'}}
 
+INSTALLED['knowledge_index'] = {'model_id': model_engine.MODEL_IDS['knowledge_index'], 'result_schema': model_engine.RESULT_SCHEMAS['knowledge_index'], 'verifier': 'knowledge-engine/v1', 'input_type': 'knowledge',
+                                'dataset_kind': None, 'input_schema': {'type': 'object', 'schema': 'knowledge-index-input/v1', 'required': ['schema', 'collection_id', 'index_id'], 'note': 'created through POST /api/v1/knowledge/collections/{id}/indexes'},
+                                'output_fields': ['index_id', 'chunks', 'dim', 'truncated_chunks'], 'limits': {'max_chunks_per_index': 5000}, 'action_entitlement': False,
+                                'model': {'work_unit': 'index build', 'completion': 'vectors for every authorized chunk of the snapshot published as one encrypted artifact', 'privacy': 'vectors never leave the host'}}
+INSTALLED['knowledge_answer'] = {'model_id': model_engine.MODEL_IDS['knowledge_answer'], 'result_schema': model_engine.RESULT_SCHEMAS['knowledge_answer'], 'verifier': 'knowledge-engine/v1', 'input_type': 'knowledge',
+                                 'dataset_kind': None, 'input_schema': {'type': 'object', 'schema': 'knowledge-answer-input/v1', 'required': ['schema', 'collection_id', 'question', 'mode'],
+                                                                        'properties': {'mode': 'extractive | generative', 'k': 'int 1..8', 'max_output_tokens': 'int 16..1024', 'index_id': 'ki_... or null (latest ready)', 'generation_revision_id': 'mr_... or null'}},
+                                 'output_fields': ['status', 'answer', 'passages', 'citations', 'sources', 'grounding'], 'limits': {'k': 8, 'max_output_tokens': 1024}, 'action_entitlement': False,
+                                 'model': {'work_unit': 'generated token (generative) or answer (extractive)', 'completion': 'an answer with mechanically valid citations, or an explicit insufficient-evidence result; never a factual guarantee', 'privacy': 'question, sources and answer private to the asking principal'}}
+
 PRIVACY = {'inputs': 'private (age-encrypted); readable by owner, worker and the designated reviewer',
            'results': 'private by default; public openings only by contract disclosure policy after an accepted signed review',
            'public_verification': 'salted Merkle membership + bindings; no hidden-computation proof'}
@@ -89,6 +99,9 @@ def verifier_digest(kind):
         return compute_manifests.implementation_digest()
     if kind in model_engine.KINDS:
         return model_engine.implementation_digest()
+    if kind in model_engine.KNOWLEDGE_KINDS:
+        from .knowledge import engine as knowledge_engine
+        return knowledge_engine.implementation_digest()
     return {'energy_audit': terms.verifier_digest, 'temporal_energy': temporal.bundle_digest}.get(kind, science.bundle_digest)()
 
 
@@ -218,12 +231,14 @@ class Catalog:
         row, digest = self.validate_request(db, principal, sid, inputs)
         from .agents import guard
         guard(db, principal, 'quote', service_id=sid, service_kind=row['kind'])
-        if row['kind'] in compute_manifests.KINDS or row['kind'] in model_engine.KINDS:
-            needed = compute_inputs.work_units(row['kind'], inputs) if row['kind'] in compute_manifests.KINDS else model_svc.work_units(row['kind'], inputs)   # deterministic work bound from the validated inputs
+        if row['kind'] in compute_manifests.KINDS or row['kind'] in model_engine.KINDS or row['kind'] in model_engine.KNOWLEDGE_KINDS:
+            from .knowledge import engine as knowledge_engine
+            needed = (compute_inputs.work_units(row['kind'], inputs) if row['kind'] in compute_manifests.KINDS else model_svc.work_units(row['kind'], inputs) if row['kind'] in model_engine.KINDS
+                      else knowledge_engine.work_units(row['kind'], inputs))   # deterministic work bound from the validated inputs
             if quantity_max is None:
                 quantity_max = needed
             if type(quantity_max) is not int or quantity_max < needed:
-                raise ServiceError('VALIDATION', {'code': 'quantity_below_work_estimate', 'work_units': needed, 'unit': compute_manifests.MANIFESTS[row['kind']]['work_unit'] if row['kind'] in compute_manifests.KINDS else model_svc.WORK_UNIT[row['kind']]})
+                raise ServiceError('VALIDATION', {'code': 'quantity_below_work_estimate', 'work_units': needed, 'unit': compute_manifests.MANIFESTS[row['kind']]['work_unit'] if row['kind'] in compute_manifests.KINDS else model_svc.WORK_UNIT.get(row['kind'], INSTALLED[row['kind']]['model']['work_unit'])})
             if quantity_max > 10 ** 9:
                 raise ServiceError('VALIDATION', 'quantity_max')
         else:

@@ -23,6 +23,8 @@ LIMITS = {
     'model_max_weight_bytes': 4 * 1024 ** 3, 'model_max_loaded': 2, 'model_memory_budget_bytes': 24 * 1024 ** 3, 'model_memory_headroom_bytes': 16 * 1024 ** 3,
     'model_load_timeout_seconds': 300, 'model_request_timeout_seconds': 600, 'model_token_timeout_seconds': 120, 'model_max_input_tokens': 4096, 'model_max_output_tokens': 1024,
     'model_max_embed_items': 256, 'model_max_text_chars': 8000, 'model_idle_unload_seconds': 1800, 'model_embed_on_cuda': 0, 'model_max_messages': 32,
+    # private knowledge (bounded collections; exact search)
+    'knowledge_max_collections': 20, 'knowledge_max_documents_per_collection': 200, 'knowledge_max_document_bytes': 200_000, 'knowledge_max_csv_rows': 2000, 'knowledge_max_chunks_per_index': 5000,
 }
 
 

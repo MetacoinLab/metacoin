@@ -141,9 +141,9 @@ def _req(db, principal, jobs, job_id):
 def view(db, principal, jobs, job_id):
     job, req = _req(db, principal, jobs, job_id)
     private = principal.can('job:read_private')
-    rev = db.execute('SELECT model_id, revision, status, weight_digest FROM model_revisions WHERE id=?', (req['revision_id'],)).fetchone()
+    rev = db.execute('SELECT model_id, revision, status, weight_digest FROM model_revisions WHERE id=?', (req['revision_id'],)).fetchone() if req['revision_id'] else None
     out = {'job_id': job_id, 'kind': job['kind'], 'state': job['state'], 'review_state': job['review_state'], 'phase': req['phase'], 'operation': req['operation'],
-           'model': {'revision_id': req['revision_id'], 'model_id': rev['model_id'], 'revision': rev['revision'], 'status_now': rev['status'], 'weight_digest': rev['weight_digest']},
+           'model': ({'revision_id': req['revision_id'], 'model_id': rev['model_id'], 'revision': rev['revision'], 'status_now': rev['status'], 'weight_digest': rev['weight_digest']} if rev else None),
            'usage': {'input_tokens': req['input_tokens'], 'output_tokens': req['output_tokens'], 'items': req['items'], 'finish_reason': req['finish_reason'],
                      'max_output_tokens': req['max_output_tokens'], 'max_items': req['max_items'], 'segments': req['segments'], 'output_chars': req['output_chars'],
                      'counting': 'measured by the runtime tokenizer after execution; the quote reserved max_output_tokens (or items); nothing is billed from an estimate'},

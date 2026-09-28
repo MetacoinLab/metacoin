@@ -253,12 +253,29 @@ MIGRATIONS = [
         host TEXT NOT NULL, revision_id TEXT NOT NULL REFERENCES model_revisions(id), state TEXT NOT NULL, pid INTEGER, device TEXT, dtype TEXT, estimated_bytes INTEGER, versions_json TEXT,
         loaded_at INTEGER, load_ms INTEGER, last_used_at INTEGER, requests INTEGER NOT NULL DEFAULT 0, desired TEXT, error TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY (host, revision_id));
     CREATE TABLE model_requests (
-        job_id TEXT PRIMARY KEY REFERENCES jobs(id), workspace TEXT NOT NULL, kind TEXT NOT NULL, revision_id TEXT NOT NULL REFERENCES model_revisions(id), operation TEXT NOT NULL,
+        job_id TEXT PRIMARY KEY REFERENCES jobs(id), workspace TEXT NOT NULL, kind TEXT NOT NULL, revision_id TEXT REFERENCES model_revisions(id), operation TEXT NOT NULL,
         phase TEXT NOT NULL, host TEXT, request_digest TEXT NOT NULL, max_output_tokens INTEGER, max_items INTEGER, input_tokens INTEGER, output_tokens INTEGER, items INTEGER,
         finish_reason TEXT, queue_seconds INTEGER, load_ms INTEGER, inference_ms INTEGER, versions_json TEXT, segments INTEGER NOT NULL DEFAULT 0, output_chars INTEGER NOT NULL DEFAULT 0,
         output_artifact_id TEXT REFERENCES artifacts(id), attempt_generation INTEGER, usage_json TEXT, error TEXT, started_at INTEGER, updated_at INTEGER NOT NULL);
     CREATE TABLE model_segments (job_id TEXT NOT NULL REFERENCES jobs(id), attempt_generation INTEGER NOT NULL, seq INTEGER NOT NULL, text TEXT NOT NULL, chars INTEGER NOT NULL,
         created_at INTEGER NOT NULL, PRIMARY KEY (job_id, attempt_generation, seq));
+    """),
+    ('015_private_knowledge', """
+    CREATE TABLE knowledge_collections (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, created_at INTEGER NOT NULL, retired_at INTEGER);
+    CREATE TABLE knowledge_documents (id TEXT PRIMARY KEY, collection_id TEXT NOT NULL REFERENCES knowledge_collections(id), workspace TEXT NOT NULL, name TEXT NOT NULL, current_version_id TEXT,
+        created_at INTEGER NOT NULL, revoked_at INTEGER, revocation_reason TEXT);
+    CREATE TABLE knowledge_versions (id TEXT PRIMARY KEY, document_id TEXT NOT NULL REFERENCES knowledge_documents(id), collection_id TEXT NOT NULL, workspace TEXT NOT NULL, version INTEGER NOT NULL,
+        format TEXT NOT NULL, raw_artifact_id TEXT NOT NULL REFERENCES artifacts(id), text_artifact_id TEXT NOT NULL REFERENCES artifacts(id), text_sha256 TEXT NOT NULL, chars INTEGER NOT NULL,
+        parser_id TEXT NOT NULL, warnings_json TEXT, provenance TEXT NOT NULL, source TEXT, license TEXT, chunker_id TEXT NOT NULL, chunk_count INTEGER NOT NULL, created_at INTEGER NOT NULL, deleted_at INTEGER,
+        UNIQUE (document_id, version));
+    CREATE TABLE knowledge_chunks (version_id TEXT NOT NULL REFERENCES knowledge_versions(id), ordinal INTEGER NOT NULL, start_byte INTEGER NOT NULL, end_byte INTEGER NOT NULL, heading TEXT, sha256 TEXT NOT NULL,
+        chars INTEGER NOT NULL, PRIMARY KEY (version_id, ordinal));
+    CREATE TABLE knowledge_indexes (id TEXT PRIMARY KEY, collection_id TEXT NOT NULL REFERENCES knowledge_collections(id), workspace TEXT NOT NULL, version INTEGER NOT NULL, state TEXT NOT NULL,
+        stale_reason TEXT, model_revision_id TEXT NOT NULL REFERENCES model_revisions(id), chunker_id TEXT NOT NULL, embedding_dim INTEGER, normalization TEXT, similarity TEXT,
+        document_versions_json TEXT NOT NULL, chunk_count INTEGER NOT NULL, vectors_artifact_id TEXT REFERENCES artifacts(id), index_job_id TEXT, built_at INTEGER, error TEXT, created_at INTEGER NOT NULL,
+        updated_at INTEGER, UNIQUE (collection_id, version));
+    CREATE TABLE knowledge_answers (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, collection_id TEXT NOT NULL, index_id TEXT, job_id TEXT NOT NULL, principal_id TEXT NOT NULL, mode TEXT NOT NULL,
+        question_sha256 TEXT NOT NULL, status TEXT NOT NULL, sources_json TEXT NOT NULL, citations_json TEXT NOT NULL, invalidated_at INTEGER, invalidation_reason TEXT, created_at INTEGER NOT NULL);
     """),
 ]
 

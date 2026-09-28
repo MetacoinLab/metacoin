@@ -7,23 +7,26 @@ from experiments.work_contracts import contract as terms, energy_analysis as ene
 from . import history, science, temporal
 from .compute import inputs as compute_inputs, manifests as compute_manifests
 from .models import service as model_svc, engine as model_engine
+from .knowledge import engine as knowledge_engine
 from .db import now
 from .errors import ServiceError
 
 COMPUTE_KINDS = compute_manifests.KINDS
 MODEL_KINDS = model_engine.KINDS
-KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy') + COMPUTE_KINDS + MODEL_KINDS
+KNOWLEDGE_KINDS = model_engine.KNOWLEDGE_KINDS
+KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy') + COMPUTE_KINDS + MODEL_KINDS + KNOWLEDGE_KINDS
 DEFAULT_EXPIRY_SECONDS = 7 * 86400
 SERVICE_CONTRACT_SCHEMA = 'metacoin-service-contract/v1'
 VALIDATORS = {'energy_audit': energy.validate, 'safe_runtime': science.validate_safe_runtime,
               'plan_comparison': science.validate_comparison, 'task_selection': science.validate_selection,
-              'temporal_energy': temporal.validate, **compute_inputs.VALIDATORS, **model_svc.VALIDATORS}
+              'temporal_energy': temporal.validate, **compute_inputs.VALIDATORS, **model_svc.VALIDATORS, **knowledge_engine.VALIDATORS}
 MODEL_IDS = {'safe_runtime': science.SAFE_RUNTIME_MODEL, 'plan_comparison': science.COMPARISON_MODEL,
              'task_selection': science.SELECTION_MODEL, 'temporal_energy': temporal.MODEL_ID,
              **{k: m['model_id'] for k, m in compute_manifests.MANIFESTS.items()}, **model_engine.MODEL_IDS}
 VERIFIER_OF = {'temporal_energy': ('temporal-energy-verifier/v1', temporal.bundle_digest),
                **{k: (m['manifest_id'] + '-verifier', compute_manifests.implementation_digest) for k, m in compute_manifests.MANIFESTS.items()},
-               **{k: ('model-runtime/v1', model_engine.implementation_digest) for k in MODEL_KINDS}}
+               **{k: ('model-runtime/v1', model_engine.implementation_digest) for k in MODEL_KINDS},
+               **{k: ('knowledge-engine/v1', knowledge_engine.implementation_digest) for k in KNOWLEDGE_KINDS}}
 
 
 DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loopback_test', 'production': 'x402_http_buyer'}
@@ -102,6 +105,8 @@ class Contracts:
                       'input_digest': hashlib.sha256(merkle.canonical(inputs)).hexdigest()}
         elif kind in MODEL_KINDS:                   # binds the exact model revision (explicit or promoted default) and the runtime implementation
             params = model_svc.bind_params(db, self.settings, kind, inputs)
+        elif kind in KNOWLEDGE_KINDS:               # binds index snapshot + embedding/generation revisions
+            params = knowledge_engine.bind_params(db, self.settings, kind, inputs)
         aid = self.store.store(db, workspace=principal.workspace, kind='draft_input', owner_id=principal.id,
                                plaintext=merkle.canonical(inputs), recipients=[], intended_use='draft-input;owner-and-worker',
                                contract_id=None)

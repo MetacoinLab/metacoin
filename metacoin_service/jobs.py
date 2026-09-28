@@ -59,7 +59,7 @@ class Jobs:
                        'VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', (jid, principal.workspace, row['kind'], params['manifest_id'], params['manifest_version'], params['implementation_digest'],
                                                              params['input_digest'], params['device_policy'], params['precision'], 'admitted', params['work_units'], now()))
         from .models import engine as model_engine, service as model_svc
-        if row['kind'] in model_engine.KINDS:
+        if row['kind'] in model_engine.KINDS or row['kind'] in model_engine.KNOWLEDGE_KINDS:
             model_svc.insert_request(db, jid, principal.workspace, row['kind'], json.loads(row['params_json'] or '{}'))
         from .datasets import add_edge
         add_edge(db, principal.workspace, 'contract', row['id'], 'job', jid, 'used_input')

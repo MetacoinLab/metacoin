@@ -125,7 +125,7 @@ def search(db, store, principal, knowledge, cid, query, *, mode='hybrid', k=8, i
     lexical_scores = None
     if mode in ('lexical', 'hybrid'):
         t1 = time.time()
-        q = text_mod.tokens(query)
+        q = text_mod.query_tokens(query)
         lexical_scores = bm25(q, [text_mod.tokens(t) for t in texts])
         order = sorted(range(len(chunks)), key=lambda i: (-lexical_scores[i], i))
         order = [i for i in order if lexical_scores[i] > 0]
@@ -170,7 +170,7 @@ def search(db, store, principal, knowledge, cid, query, *, mode='hybrid', k=8, i
                         'superseded_version': c['version_id'] != c['current_version_id'], 'text': texts[i], 'sha256': c['sha256'], 'location': {'start_byte': c['start_byte'], 'end_byte': c['end_byte']}})
     timing['total_ms'] = int((time.time() - t0) * 1000)
     return {'collection_id': cid, 'mode': mode, 'index_id': index_row['id'] if index_row else None, 'candidates': len(chunks), 'results': results, 'notes': notes, 'timing_ms': timing,
-            'score_meaning': {'lexical': 'BM25 (k1=1.2, b=0.75) over lowercase alphanumeric tokens; 0 = no query term present', 'semantic': 'cosine similarity in the index model space; not a probability',
+            'score_meaning': {'lexical': 'BM25 (k1=1.2, b=0.75) over lowercase alphanumeric tokens, query stopwords removed; 0 = no informative query term present', 'semantic': 'cosine similarity in the index model space; not a probability',
                               'hybrid': 'reciprocal rank fusion, k=60, over the two ranked lists; ordering only', 'stale': 'superseded_version marks chunks of a version that is no longer the document head'}}
 
 

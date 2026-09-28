@@ -25,6 +25,8 @@ class Worker:
         from .contracts import KINDS
         self.compute = ComputeEngine(self)
         self.models = model_engine.ModelEngine(self)
+        from .knowledge.engine import KnowledgeEngine
+        self.knowledge = KnowledgeEngine(self)
         wanted = set(capabilities or KINDS)
         unknown = {c for c in wanted if c not in KINDS and not c.startswith('device:')}
         if unknown:
@@ -32,7 +34,7 @@ class Worker:
         if not self.compute.runtime:                       # no numpy-capable interpreter: compute kinds are not offered
             wanted -= set(compute_manifests.KINDS)
         if not self.models.available():                    # no torch in the interpreter: model kinds are not offered
-            wanted -= set(model_engine.KINDS)
+            wanted -= set(model_engine.KINDS) | set(model_engine.KNOWLEDGE_KINDS)
         wanted = {c for c in wanted if not c.startswith('device:')} | {'device:' + d for d in self.compute.devices}
         self.capabilities = sorted(wanted)
         self.lease = settings.limits['job_lease_seconds']
@@ -113,6 +115,8 @@ class Worker:
             return self.compute.run(job)
         if job['kind'] in model_engine.KINDS:
             return self.models.run(job)
+        if job['kind'] in model_engine.KNOWLEDGE_KINDS:
+            return self.knowledge.run(job)
         with self.db.read() as db:
             contract, spec = self._spec(db, job)
         limits = {'cpu': self.settings.limits['worker_cpu_seconds'], 'mem': self.settings.limits['worker_address_space_bytes'],

@@ -29,6 +29,9 @@ def verifier_digest_for(kind):
     from .models import engine as model_engine
     if kind in model_engine.KINDS:
         return model_engine.implementation_digest()
+    if kind in model_engine.KNOWLEDGE_KINDS:
+        from .knowledge import engine as knowledge_engine
+        return knowledge_engine.implementation_digest()
     return {'energy_audit': terms.verifier_digest, 'temporal_energy': temporal.bundle_digest}.get(kind, science.bundle_digest)()
 
 

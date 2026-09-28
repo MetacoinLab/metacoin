@@ -87,13 +87,15 @@ class Reviews:
                 out.update(recomputation='matches' if matches else 'mismatch', verification_source='persisted-verification-phase: ' + str(values['result'].get('verification', {}).get('mode')),
                            scientific_outcome=job['outcome'], policy_satisfied=matches, private_details=values['result'],
                            verifier_status='current' if values['verifier_digest'] == compute_manifests.implementation_digest() else 'superseded')
-            elif job['kind'] in __import__('metacoin_service.models.engine', fromlist=['KINDS']).KINDS:
+            elif job['kind'] in __import__('metacoin_service.models.engine', fromlist=['KINDS']).KINDS or job['kind'] in __import__('metacoin_service.models.engine', fromlist=['KNOWLEDGE_KINDS']).KNOWLEDGE_KINDS:
                 from .models import engine as model_engine
+                from .knowledge import engine as knowledge_engine
+                expected = model_engine.implementation_digest() if job['kind'] in model_engine.KINDS else knowledge_engine.implementation_digest()
                 values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
-                matches = values['contract_digest'] == contract['contract_digest'] and values['verifier_digest'] == model_engine.implementation_digest()
+                matches = values['contract_digest'] == contract['contract_digest'] and values['verifier_digest'] == expected
                 out.update(recomputation='matches' if matches else 'mismatch', verification_source='runtime record only: generated output is not recomputed or scientifically verified',
                            scientific_outcome=job['outcome'], policy_satisfied=matches, private_details=values['result'],
-                           verifier_status='current' if values['verifier_digest'] == model_engine.implementation_digest() else 'superseded')
+                           verifier_status='current' if values['verifier_digest'] == expected else 'superseded')
             else:
                 values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
                 inputs = acceptance.full_values(input_vault, contract['input_root'])['inputs']
