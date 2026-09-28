@@ -51,8 +51,9 @@ class Jobs:
         db.execute('INSERT INTO jobs (id, workspace, contract_id, kind, state, retries_left, submitted_by, created_at, updated_at, batch_id, location_policy) '
                    'VALUES (?,?,?,?,?,?,?,?,?,?,?)', (jid, principal.workspace, row['id'], row['kind'], 'queued',
                                                     self.settings.limits['job_max_retries'], principal.id, now(), now(), batch_id, json.dumps(pol.get('execution_locations') or ['local'])))
+        from . import tracing
         history.record(db, principal.workspace, principal.id, 'job.queued', 'job', jid,
-                       {'contract_id': row['id'], 'contract_digest': row['contract_digest'], 'kind': row['kind'], 'batch_id': batch_id, 'grant_id': grant})
+                       {'contract_id': row['id'], 'contract_digest': row['contract_digest'], 'kind': row['kind'], 'batch_id': batch_id, 'grant_id': grant, 'traceparent': tracing.current_traceparent()})
         from .compute import manifests as compute_manifests
         if row['kind'] in compute_manifests.KINDS:
             params = json.loads(row['params_json'] or '{}')

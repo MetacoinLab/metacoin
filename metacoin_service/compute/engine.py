@@ -443,7 +443,9 @@ class ComputeEngine:
 
     def _complete(self, job, contract, spec, run, man, out_dir, ev, backend):
         files = {p.name: p.read_bytes() for p in out_dir.iterdir() if p.is_file()}
-        return self.complete_files(job, contract, spec, run, man, files, ev, backend)
+        from .. import tracing
+        with tracing.span('worker.verify_and_publish', service='metacoin-worker', job_id=job['id'], kind=job['kind'], backend=backend):
+            return self.complete_files(job, contract, spec, run, man, files, ev, backend)
 
     def complete_files(self, job, contract, spec, run, man, files, ev, backend):
         """Verification phase + durable publication from an in-memory output set (local child or federated node)."""

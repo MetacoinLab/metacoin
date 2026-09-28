@@ -302,6 +302,10 @@ MIGRATIONS = [
     CREATE TABLE node_transfers (id TEXT PRIMARY KEY, node_id TEXT NOT NULL REFERENCES nodes(id), job_id TEXT NOT NULL, attempt_generation INTEGER NOT NULL, role TEXT NOT NULL, direction TEXT NOT NULL,
         bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, completed_at INTEGER);
     """),
+    ('019_approvals', """
+    CREATE TABLE approvals (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, action TEXT NOT NULL, content_json TEXT NOT NULL, content_digest TEXT NOT NULL, revision_digest TEXT NOT NULL, state TEXT NOT NULL,
+        proposed_by TEXT NOT NULL, approved_by TEXT, note TEXT, decision_note TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, decided_at INTEGER, applied_at INTEGER, apply_result_json TEXT);
+    """),
 ]
 
 

@@ -231,11 +231,19 @@ class Worker:
             return 'retry'
 
     def run_once(self):
-        job = self.claim()
+        from . import tracing
+        with tracing.span('worker.claim', service='metacoin-worker', worker=self.name):
+            job = self.claim()
         if job is None:
             return None
+        parent = None
+        if tracing.ENABLED:
+            with self.db.read() as db:
+                ev = db.execute("SELECT ref_json FROM events WHERE object_id=? AND event_type='job.queued' ORDER BY seq LIMIT 1", (job['id'],)).fetchone()
+            parent = (json.loads(ev['ref_json']).get('traceparent') if ev else None)
         try:
-            return job['id'], self.execute(job)
+            with tracing.span('worker.execute', service='metacoin-worker', parent_traceparent=parent, job_id=job['id'], kind=job['kind'], worker=self.name):
+                return job['id'], self.execute(job)
         finally:
             with self.db.tx() as db:
                 db.execute('UPDATE workers SET current_job_id=NULL, last_heartbeat=? WHERE id=?', (now(), self.worker_id))

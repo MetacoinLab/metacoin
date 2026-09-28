@@ -236,6 +236,12 @@ experiments/work_contracts/pilot/*
 integrations/x402/*
 !integrations/x402/*.py
 !integrations/x402/README.md
+!integrations/x402/local_chain/
+integrations/x402/local_chain/*
+!integrations/x402/local_chain/*.py
+!integrations/x402/local_chain/*.js
+!integrations/x402/local_chain/artifacts.json
+!integrations/x402/local_chain/README.md
 
 # nine-hour session working directory (SESSION_STATE, logs, scratch) — never tracked
 work/nine-hour-session/

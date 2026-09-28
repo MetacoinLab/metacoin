@@ -11,11 +11,15 @@ import jinja2
 from experiments.work_contracts import energy_analysis as energy, fixtures
 from . import auth, history, metering, scheduling
 from .compute import service as compute_svc, manifests as compute_manifests, inputs as compute_inputs
+from .models import service as model_svc
+from .knowledge import retrieval as retrieval_mod, engine as knowledge_engine
+from . import statements as statements_mod, verification as verification_mod
 from .errors import ServiceError, from_exception
 from .api import SENSITIVE_HEADERS
 
-templates = Jinja2Templates(env=jinja2.Environment(loader=jinja2.FileSystemLoader(str(Path(__file__).parent / 'templates')),
-                                                   autoescape=True))
+_env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(Path(__file__).parent / 'templates')), autoescape=True)
+_env.filters['zip'] = lambda a, b: list(zip(a, b))
+templates = Jinja2Templates(env=_env)
 SAMPLE_ENERGY = dict(fixtures.inputs('INDETERMINATE'), private_label='SAMPLE_SYNTHETIC')
 SAMPLE_TEMPORAL_BASE = {'schema': 'temporal-energy-input/v1', 'capacity': 10_000, 'initial_low': 6_000, 'initial_high': 6_000, 'reserve': 2_000,
                         'segments': [{'duration': 10, 'harvest_low': 600, 'harvest_high': 800, 'load_low': 500, 'load_high': 500, 'leakage_low': 0, 'leakage_high': 0},
@@ -436,6 +440,297 @@ def mount(app, svc):
             compute_svc.control(db, p, svc.jobs, job_id, action)
             return RedirectResponse('/console/jobs/' + job_id, status_code=303)
         return await page(request, fn, mutating=True)
+
+    # ---- 24h expansion pages: Models, Knowledge, Calibration, Verification, Nodes, Approvals, Statement -----------
+    @app.get('/console/models', response_class=HTMLResponse)
+    async def models_page(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            models = svc.models.list(db, p)
+            rows = db.execute('SELECT job_id FROM model_requests WHERE workspace=? ORDER BY updated_at DESC LIMIT 30', (p.workspace,)).fetchall()
+            jobs = [model_svc.view(db, p, svc.jobs, r['job_id']) for r in rows]
+            facts = model_svc.runtime_facts(db, settings, api_host=svc._model_host)
+            return render(request, 'models.html', principal=p, models=models, jobs=jobs, facts=facts, generate_default='generate' in facts['defaults'])
+        return await page(request, fn)
+
+    @app.post('/console/models/generate', response_class=HTMLResponse)
+    async def models_generate_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            p.require('model:use')
+            from .api import quick_submit
+            try:
+                mo = int(f.get('max_output_tokens', '48'))
+            except ValueError:
+                raise ServiceError('VALIDATION', 'max_output_tokens')
+            out = quick_submit(svc, db, p, 'text_generation', {'schema': model_svc.GENERATION_SCHEMA, 'prompt': f.get('prompt', ''), 'max_output_tokens': mo}, 'console generation')
+            return RedirectResponse('/console/jobs/' + out['job_id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/models/{rid}/{action}', response_class=HTMLResponse)
+    async def models_action_form(request: Request, rid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            if action == 'promote':
+                from .approvals import gate as approval_gate
+                approval_gate(svc.approvals, db, p, 'model_promote')
+                svc.models.promote(db, p, rid, f.get('operation'), {'source': 'console'})
+            elif action == 'retire':
+                svc.models.retire(db, p, rid, 'console')
+            elif action in ('load', 'unload'):
+                model_svc.request_load(db, p, settings, rid, 'loaded' if action == 'load' else 'unloaded')
+            else:
+                raise ServiceError('NOT_FOUND', 'action')
+            return RedirectResponse('/console/models', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    def knowledge_ctx(db, p, results=None):
+        cols = svc.knowledge.list_collections(db, p)
+        for c in cols:
+            c['documents_list'] = svc.knowledge.list_documents(db, p, c['id'])
+        answers = [dict(r, citations=json.loads(r['citations_json'])) for r in db.execute('SELECT * FROM knowledge_answers WHERE workspace=? AND principal_id=? ORDER BY created_at DESC LIMIT 30', (p.workspace, p.id)).fetchall()]
+        return dict(principal=p, collections=cols, answers=answers, results=results)
+
+    @app.get('/console/knowledge', response_class=HTMLResponse)
+    async def knowledge_page(request: Request):
+        def fn(db, p):
+            p.require('knowledge:read')
+            return render(request, 'knowledge.html', **knowledge_ctx(db, p))
+        return await page(request, fn)
+
+    @app.post('/console/knowledge/collections', response_class=HTMLResponse)
+    async def knowledge_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            svc.knowledge.create_collection(db, p, f.get('name', ''), '')
+            return RedirectResponse('/console/knowledge', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/knowledge/collections/{cid}/documents', response_class=HTMLResponse)
+    async def knowledge_add(request: Request, cid: str):
+        f = await form(request)
+        def fn(db, p):
+            svc.knowledge.add_document(db, p, cid, name=f.get('name', ''), fmt=f.get('format', 'markdown'), content=(f.get('content') or '').encode('utf-8'), provenance='declared')
+            return RedirectResponse('/console/knowledge', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/knowledge/collections/{cid}/index', response_class=HTMLResponse)
+    async def knowledge_index_form(request: Request, cid: str):
+        await form(request)
+        def fn(db, p):
+            p.require('knowledge:write')
+            from .api import quick_submit
+            model_row = svc.models.resolve(db, 'embed', None)
+            iid, versions, total = svc.knowledge.create_index(db, p, cid, model_row)
+            out = quick_submit(svc, db, p, 'knowledge_index', {'schema': knowledge_engine.INDEX_SCHEMA, 'collection_id': cid, 'index_id': iid}, 'index build ' + iid)
+            db.execute('UPDATE knowledge_indexes SET index_job_id=? WHERE id=?', (out['job_id'], iid))
+            return RedirectResponse('/console/jobs/' + out['job_id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/knowledge/collections/{cid}/search', response_class=HTMLResponse)
+    async def knowledge_search_form(request: Request, cid: str):
+        f = await form(request)
+        def do():
+            from .api import model_host_of
+            with svc.db.tx() as db:
+                p = session_principal(request, db)
+                if p is None:
+                    return RedirectResponse('/console/login?expired=1', status_code=303)
+                try:
+                    auth.check_csrf(p, f.get('csrf'))
+                    p.require('knowledge:read')
+                    index_row = svc.knowledge.latest_ready_index(db, cid)
+                    mode = f.get('mode', 'hybrid')
+                    rev = svc.models.row(db, index_row['model_revision_id']) if (index_row is not None and mode != 'lexical') else None
+                except Exception as exc:
+                    err = from_exception(exc); return render(request, 'error.html', status=err.status, principal=p, error=err.body())
+            qv = None
+            if rev is not None:
+                host = model_host_of(svc)
+                if host.available():
+                    qv = host.embed(rev, [f.get('query', '')], truncate=True)['vectors'][0]
+                else:
+                    mode = 'lexical'
+            with svc.db.tx() as db:
+                p = session_principal(request, db)
+                try:
+                    results = retrieval_mod.search(db, svc.store, p, svc.knowledge, cid, f.get('query'), mode=mode, k=5, index_row=index_row, embed_fn=(lambda t: [qv]) if qv is not None else None)
+                    history.record(db, p.workspace, p.id, 'knowledge.query', 'collection', cid, {'mode': results['mode'], 'results': len(results['results']), 'console': True})
+                    return render(request, 'knowledge.html', **knowledge_ctx(db, p, results))
+                except Exception as exc:
+                    err = from_exception(exc); db.execute('ROLLBACK'); db.execute('BEGIN')
+                    return render(request, 'error.html', status=err.status, principal=p, error=err.body())
+        return await run_in_threadpool(do)
+
+    @app.post('/console/knowledge/collections/{cid}/answer', response_class=HTMLResponse)
+    async def knowledge_answer_form(request: Request, cid: str):
+        f = await form(request)
+        def fn(db, p):
+            p.require('knowledge:read'); p.require('model:use')
+            from .api import quick_submit
+            inputs = {'schema': knowledge_engine.ANSWER_SCHEMA, 'collection_id': cid, 'question': f.get('query', ''), 'mode': f.get('mode_answer', 'extractive'), 'k': 4, 'max_output_tokens': 120}
+            out = quick_submit(svc, db, p, 'knowledge_answer', inputs, 'answer')
+            return RedirectResponse('/console/jobs/' + out['job_id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/knowledge/documents/{did}/revoke', response_class=HTMLResponse)
+    async def knowledge_revoke_form(request: Request, did: str):
+        await form(request)
+        def fn(db, p):
+            svc.knowledge.revoke_document(db, p, did, 'console')
+            return RedirectResponse('/console/knowledge', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/knowledge/answers/{aid}', response_class=HTMLResponse)
+    async def knowledge_answer_page(request: Request, aid: str):
+        return await page(request, lambda db, p: render(request, 'knowledge_answer.html', principal=p, a=svc.knowledge.answer(db, p, aid, svc.store)))
+
+    def calibration_ctx(db, p, **extra):
+        return dict(principal=p, datasets=svc.calibration.list_datasets(db, p), models=svc.calibration.list_models(db, p), scheduling={'calibrated_scheduling_enabled': svc.calibration.scheduling_enabled(db)},
+                    kinds=[k for k in compute_manifests.KINDS if k != 'calibration_fit'], detail=None, prediction=None, comparison=None, values={}, **extra)
+
+    @app.get('/console/calibration', response_class=HTMLResponse)
+    async def calibration_page(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            return render(request, 'calibration.html', **calibration_ctx(db, p))
+        return await page(request, fn)
+
+    @app.get('/console/calibration/models/{mid}', response_class=HTMLResponse)
+    async def calibration_model_page(request: Request, mid: str):
+        def fn(db, p):
+            p.require('job:read')
+            detail = svc.calibration.model_view(db, svc.calibration.model(db, p, mid), full=True)
+            comparison = None
+            if detail['scope'] and p.can('job:read_private'):
+                try:
+                    comparison = svc.calibration.comparison(db, p, mid)
+                except ServiceError:
+                    comparison = None
+            return render(request, 'calibration.html', **calibration_ctx(db, p, detail=detail, comparison=comparison))
+        return await page(request, fn)
+
+    @app.post('/console/calibration/models/{mid}/{action}', response_class=HTMLResponse)
+    async def calibration_action_form(request: Request, mid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            if action == 'predict':
+                detail = svc.calibration.model_view(db, svc.calibration.model(db, p, mid), full=True)
+                feats = {k: f.get('f_' + k, '') for k in detail['features']}
+                pred = svc.calibration.predict(db, p, mid, feats)
+                return render(request, 'calibration.html', **calibration_ctx(db, p, detail=detail, prediction=pred, values=dict(f)))
+            if action == 'approve':
+                from .approvals import gate as approval_gate
+                approval_gate(svc.approvals, db, p, 'calibration_approve')
+                svc.calibration.approve(db, p, mid, {'source': 'console'})
+            elif action == 'retire':
+                svc.calibration.retire(db, p, mid)
+            else:
+                raise ServiceError('NOT_FOUND', 'action')
+            return RedirectResponse('/console/calibration', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/calibration/datasets', response_class=HTMLResponse)
+    async def calibration_dataset_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            svc.calibration.create_performance_dataset(db, p, {'kind': 'performance', 'task_kind': f.get('task_kind')})
+            return RedirectResponse('/console/calibration', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/calibration/fits', response_class=HTMLResponse)
+    async def calibration_fit_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            p.require('calibration:write')
+            from .api import quick_submit
+            inputs = {'schema': compute_inputs.CALIBRATION_SCHEMA, 'dataset_id': f.get('dataset_id'), 'features': ['work_units'], 'target': 'duration_ms', 'split': {'method': 'chronological', 'train_fraction_percent': 80}, 'device_policy': 'cpu'}
+            if f.get('task_kind'):
+                inputs['scope'] = {'task_kind': f['task_kind']}
+            out = quick_submit(svc, db, p, 'calibration_fit', inputs, 'calibration fit')
+            return RedirectResponse('/console/jobs/' + out['job_id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/verification', response_class=HTMLResponse)
+    async def verification_page(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            return render(request, 'verification.html', principal=p, items=svc.verification.list(db, p), classes=list(verification_mod.CLASSES), preview=None)
+        return await page(request, fn)
+
+    @app.post('/console/verification', response_class=HTMLResponse)
+    async def verification_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            params = {}
+            if f.get('class') == 'sampled_reference' and (f.get('sample_count') or '').isdigit():
+                params['sample_count'] = int(f['sample_count'])
+            if f.get('preview'):
+                pv = svc.verification.preview(db, p, f.get('job_id'), f.get('class'), params)
+                return render(request, 'verification.html', principal=p, items=svc.verification.list(db, p), classes=list(verification_mod.CLASSES), preview=pv)
+            svc.verification.request(db, p, f.get('job_id'), f.get('class'), params)
+            return RedirectResponse('/console/verification', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/verification/{vid}/resolve', response_class=HTMLResponse)
+    async def verification_resolve_form(request: Request, vid: str):
+        f = await form(request)
+        def fn(db, p):
+            svc.verification.resolve(db, p, vid, f.get('decision'), f.get('note', ''))
+            return RedirectResponse('/console/verification', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/nodes', response_class=HTMLResponse)
+    async def nodes_page(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            return render(request, 'nodes.html', principal=p, nodes=svc.federation.list(db, p), workers=scheduling.workers(db, p)['items'], trust='authenticated coordination among enrolled nodes in this host\'s trust domain; not a permissionless network')
+        return await page(request, fn)
+
+    @app.post('/console/nodes/{nid}/{action}', response_class=HTMLResponse)
+    async def nodes_action_form(request: Request, nid: str, action: str):
+        await form(request)
+        def fn(db, p):
+            svc.federation.control(db, p, nid, action, 'console')
+            return RedirectResponse('/console/nodes', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/approvals', response_class=HTMLResponse)
+    async def approvals_page(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            from .approvals import ACTIONS
+            return render(request, 'approvals.html', principal=p, items=svc.approvals.list(db, p), policy=dict(svc.approvals.policy(db, p.workspace), actions=list(ACTIONS)))
+        return await page(request, fn)
+
+    @app.post('/console/approvals/policy', response_class=HTMLResponse)
+    async def approvals_policy_form(request: Request):
+        f = await form(request)
+        raw = await request.form()
+        def fn(db, p):
+            svc.approvals.set_policy(db, p, [v for v in raw.getlist('required')])
+            return RedirectResponse('/console/approvals', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/approvals/{pid}/{action}', response_class=HTMLResponse)
+    async def approvals_action_form(request: Request, pid: str, action: str):
+        await form(request)
+        def fn(db, p):
+            if action in ('approve', 'reject'):
+                svc.approvals.decide(db, p, pid, 'approved' if action == 'approve' else 'rejected', 'console')
+            elif action == 'apply':
+                svc.approvals.apply(db, p, pid)
+            else:
+                raise ServiceError('NOT_FOUND', 'action')
+            return RedirectResponse('/console/approvals', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/statement', response_class=HTMLResponse)
+    async def statement_page(request: Request):
+        def fn(db, p):
+            b = statements_mod.build(db, p, settings, 0, None, 1)
+            return render(request, 'statement.html', principal=p, s=b['statement'])
+        return await page(request, fn)
 
     @app.get('/console/history', response_class=HTMLResponse)
     async def history_page(request: Request):

@@ -49,6 +49,201 @@ def call(base, token, method, path, body=None, raw=False, idempotency_key=None):
             return exc.code, {'error': True, 'code': 'HTTP_' + str(exc.code)}
 
 
+EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-action', 'generate', 'embed', 'model-job', 'knowledge-collection-create', 'knowledge-collections', 'knowledge-add', 'knowledge-index',
+                      'knowledge-search', 'knowledge-answer', 'knowledge-revoke', 'knowledge-validate-citations', 'calibration-dataset', 'calibration-fit', 'calibration-models', 'calibration-predict', 'calibration-action',
+                      'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
+                      'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection'}
+
+
+def wait_job(go, job_id, timeout):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        st, j = go('GET', '/api/v1/jobs/' + job_id)
+        if st != 200 or j['state'] in ('succeeded', 'failed', 'cancelled'):
+            return st, j
+        time.sleep(0.5)
+    return 408, {'error': True, 'code': 'CLIENT_TIMEOUT', 'job_id': job_id, 'note': 'the job continues server-side; poll again (no second request was created)'}
+
+
+def expansion(args, go):
+    c = args.command
+    if c == 'models':
+        return go('GET', '/api/v1/models')
+    if c == 'models-runtime':
+        return go('GET', '/api/v1/models/runtime')
+    if c == 'model-register':
+        return go('POST', '/api/v1/models', {'model_id': args.model_id, 'hub_repo': args.hub_repo, 'revision': args.revision, 'operations': args.operations.split(','), 'license': args.license})
+    if c == 'model-action':
+        body = {k: v for k, v in (('operation', args.operation), ('reason', args.reason)) if v}
+        return go('POST', '/api/v1/models/' + args.revision_id + '/' + args.action, body)
+    if c == 'generate':
+        inputs = {'max_output_tokens': args.max_output_tokens, 'temperature_percent': args.temperature_percent}
+        if args.messages:
+            inputs['messages'] = json.load(open(args.messages))
+        else:
+            inputs['prompt'] = args.prompt
+        if args.seed is not None:
+            inputs['seed'] = args.seed
+        if args.model_revision:
+            inputs['model_revision_id'] = args.model_revision
+        st, out = go('POST', '/api/v1/models/generate', {'inputs': inputs})
+        if st != 202 or not args.watch:
+            return st, out
+        jid, after, text, deadline = out['job_id'], -1, '', time.time() + args.timeout
+        while time.time() < deadline:
+            st2, seg = go('GET', '/api/v1/models/jobs/%s/segments?after=%d&wait=10' % (jid, after))
+            if st2 != 200:
+                return st2, seg
+            for s_ in seg['segments']:
+                sys.stdout.write(s_['text']); sys.stdout.flush(); text += s_['text']
+            after = seg['cursor']
+            if seg['done']:
+                sys.stdout.write('\n')
+                st3, view = go('GET', '/api/v1/models/jobs/' + jid)
+                return st3, {'job_id': jid, 'state': view.get('state'), 'usage': view.get('usage'), 'chars': len(text)}
+        return 408, {'error': True, 'code': 'CLIENT_TIMEOUT', 'job_id': jid, 'note': 'delivery resumes with model-job --segments --after N; no second generation was requested'}
+    if c == 'embed':
+        return go('POST', '/api/v1/models/embed', {'inputs': {'texts': json.load(open(args.texts)), 'truncate': bool(args.truncate)}})
+    if c == 'model-job':
+        if args.segments:
+            return go('GET', '/api/v1/models/jobs/%s/segments?after=%d' % (args.job_id, args.after))
+        return go('GET', '/api/v1/models/jobs/' + args.job_id)
+    if c == 'knowledge-collection-create':
+        return go('POST', '/api/v1/knowledge/collections', {'name': args.name, 'description': args.description})
+    if c == 'knowledge-collections':
+        return go('GET', '/api/v1/knowledge/collections')
+    if c == 'knowledge-add':
+        body = {'name': args.name or os.path.basename(args.file), 'format': args.format, 'content': open(args.file, encoding='utf-8').read()}
+        if args.document_id:
+            body['document_id'] = args.document_id
+        return go('POST', '/api/v1/knowledge/collections/' + args.collection_id + '/documents', body)
+    if c == 'knowledge-index':
+        st, out = go('POST', '/api/v1/knowledge/collections/' + args.collection_id + '/indexes', {})
+        if st != 202 or not args.wait:
+            return st, out
+        st2, j = wait_job(go, out['job_id'], 600)
+        st3, idx = go('GET', '/api/v1/knowledge/indexes/' + out['index_id'])
+        return st3, idx
+    if c == 'knowledge-search':
+        return go('POST', '/api/v1/knowledge/collections/' + args.collection_id + '/search', {'query': args.query, 'mode': args.mode, 'k': args.k})
+    if c == 'knowledge-answer':
+        st, out = go('POST', '/api/v1/knowledge/collections/' + args.collection_id + '/answers', {'question': args.question, 'mode': args.mode, 'k': args.k, 'max_output_tokens': args.max_output_tokens})
+        if st != 202 or not args.wait:
+            return st, out
+        st2, j = wait_job(go, out['job_id'], args.timeout)
+        if j.get('state') != 'succeeded':
+            return st2, j
+        return go('GET', '/api/v1/knowledge/answers/by-job/' + out['job_id'])
+    if c == 'knowledge-revoke':
+        return go('POST', '/api/v1/knowledge/documents/' + args.document_id + '/revoke', {'reason': args.reason})
+    if c == 'knowledge-validate-citations':
+        return go('POST', '/api/v1/knowledge/citations/validate', {'citations': json.load(open(args.citations))})
+    if c == 'calibration-dataset':
+        if args.task_kind:
+            return go('POST', '/api/v1/calibration/datasets', {'kind': 'performance', 'task_kind': args.task_kind})
+        return go('POST', '/api/v1/calibration/datasets', json.load(open(args.file)))
+    if c == 'calibration-fit':
+        inputs = {'dataset_id': args.dataset_id, 'features': args.features.split(','), 'target': args.target, 'ridge_lambda': args.ridge, 'split': {'method': args.split, 'train_fraction_percent': 80}}
+        if args.scope_kind:
+            inputs['scope'] = {'task_kind': args.scope_kind, **({'backend': args.scope_backend} if args.scope_backend else {})}
+        st, out = go('POST', '/api/v1/calibration/fits', {'inputs': inputs})
+        if st != 202 or not args.wait:
+            return st, out
+        st2, j = wait_job(go, out['job_id'], 300)
+        st3, models = go('GET', '/api/v1/calibration/models')
+        return st3, {'job': j.get('state'), 'model': next((m for m in models.get('items', []) if m['job_id'] == out['job_id']), None)}
+    if c == 'calibration-models':
+        return go('GET', '/api/v1/calibration/models')
+    if c == 'calibration-predict':
+        return go('POST', '/api/v1/calibration/models/' + args.model_id + '/predict', {'features': json.loads(args.features)})
+    if c == 'calibration-action':
+        if args.action == 'comparison':
+            return go('GET', '/api/v1/calibration/models/' + args.model_id + '/comparison')
+        return go('POST', '/api/v1/calibration/models/' + args.model_id + '/' + args.action, {})
+    if c == 'calibration-plan':
+        return go('POST', '/api/v1/calibration/plan', {'task_kind': args.kind, 'inputs': json.load(open(args.inputs))})
+    if c in ('verification-preview', 'verification-request'):
+        params = {'sample_count': args.sample_count} if args.sample_count else {}
+        if c == 'verification-preview':
+            return go('POST', '/api/v1/verification/preview', {'job_id': args.job_id, 'class': args.cls, 'params': params})
+        st, out = go('POST', '/api/v1/verification', {'job_id': args.job_id, 'class': args.cls, 'params': params})
+        if st != 202 or not args.wait:
+            return st, out
+        deadline = time.time() + args.timeout
+        while time.time() < deadline:
+            st2, v = go('GET', '/api/v1/verification/' + out['id'])
+            if st2 != 200 or v['state'] not in ('queued', 'awaiting_replica'):
+                return st2, v
+            time.sleep(1)
+        return 408, {'error': True, 'code': 'CLIENT_TIMEOUT', 'verification_id': out['id']}
+    if c == 'verification-status':
+        return go('GET', '/api/v1/verification/' + args.verification_id)
+    if c == 'verification-statement':
+        st, proj = go('GET', '/api/v1/verification/' + args.verification_id + '/statement')
+        if st != 200:
+            return st, proj
+        if args.out:
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'w') as f:
+                json.dump(proj, f, indent=1)
+        if args.verify:
+            return go('POST', '/api/v1/verification/verify-statement', {'bundle': proj, 'expected': {'verification_id': args.verification_id}})
+        return st, proj
+    if c == 'verifications':
+        return go('GET', '/api/v1/verification' + ('?job_id=' + args.job if args.job else ''))
+    if c == 'node-enroll':
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+        from cryptography.hazmat.primitives import serialization
+        key = ed25519.Ed25519PrivateKey.generate()
+        pub = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw).hex()
+        body = {'name': args.name, 'public_key_hex': pub, 'devices': args.devices.split(',')}
+        if args.capabilities:
+            body['capabilities'] = args.capabilities.split(',')
+        st, out = go('POST', '/api/v1/nodes', body)
+        if st != 201:
+            return st, out
+        priv = key.private_bytes(serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption()).hex()
+        fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, 'w') as f:
+            json.dump({'node_id': out['node_id'], 'credential': out['credential'], 'private_key_hex': priv, 'devices': args.devices.split(',')}, f)
+        return st, {'node_id': out['node_id'], 'identity_file': args.out, 'expires_at': out['expires_at'], 'note': 'credential and private key written to the identity file only'}
+    if c == 'nodes':
+        return go('GET', '/api/v1/nodes')
+    if c == 'node':
+        return go('GET', '/api/v1/nodes/' + args.node_id)
+    if c == 'node-action':
+        st, out = go('POST', '/api/v1/nodes/' + args.node_id + '/' + args.action, {'reason': args.reason})
+        if args.action == 'rotate' and st == 200:
+            out = {'node_id': out['node_id'], 'note': 'new credential returned by the API; not printed. Re-run node-enroll for a fresh identity file, or read the API response programmatically.'}
+        return st, out
+    if c == 'approval-propose':
+        return go('POST', '/api/v1/approvals', {'action': args.action, 'content': json.loads(args.content), 'note': args.note})
+    if c == 'approval-decide':
+        return go('POST', '/api/v1/approvals/' + args.approval_id + '/' + args.decision, {'note': args.note})
+    if c == 'approvals':
+        return go('GET', '/api/v1/approvals')
+    if c == 'approval-policy':
+        if args.required is None:
+            return go('GET', '/api/v1/approvals/policy')
+        return go('POST', '/api/v1/approvals/policy', {'required': [x for x in args.required.split(',') if x]})
+    if c == 'statement':
+        q = '?since=%d' % args.since + ('&until=%d' % args.until if args.until else '')
+        if args.csv:
+            st, content = go('GET', '/api/v1/statements.csv' + q, raw=True)
+            if st == 200:
+                fd = os.open(args.csv, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'wb') as f:
+                    f.write(content)
+                return st, {'written': args.csv, 'bytes': len(content)}
+            return st, json.loads(content)
+        return go('GET', '/api/v1/statements' + q)
+    if c == 'mcp-connection':
+        return 200, {'server': 'python -m metacoin_service.mcp_server', 'transport': 'stdio', 'env': {'METACOIN_MCP_CREDENTIAL_FILE': '<private 0600 JSON file with {"token": ...}; issue a scoped credential with POST /api/v1/credentials>', 'METACOIN_MCP_BASE_URL': '<this API base URL (loopback http or https)>'},
+                     'client_config_example': {'mcpServers': {'metacoin': {'command': 'python', 'args': ['-m', 'metacoin_service.mcp_server'], 'env': {'METACOIN_MCP_CREDENTIAL_FILE': '/private/path/mcp-credential.json', 'METACOIN_MCP_BASE_URL': 'http://127.0.0.1:8402'}}}},
+                     'trust_boundary': 'the OS process and the credential file; every tool call is authorized server-side under that principal', 'protocol': 'MCP (mcp SDK 1.26.0), stdio; no network MCP transport is exposed'}
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='metacoin-client', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--credential-file', default=DEFAULT_CREDENTIAL)
@@ -95,6 +290,37 @@ def main(argv=None):
     sh = sub.add_parser('share'); sh.add_argument('job_id'); sh.add_argument('--grantee', required=True); sh.add_argument('--fields', required=True, help='comma-separated projectable fields')
     pj = sub.add_parser('projection'); pj.add_argument('job_id')
     # compute engine
+    # ---- 24h expansion: models, knowledge, calibration, verification, nodes, approvals, statements, mcp ----
+    sub.add_parser('models', help='registered local model revisions with readiness'); sub.add_parser('models-runtime', help='model runtime facts per host')
+    mr = sub.add_parser('model-register', help='register a pinned model artifact (hub repo + 40-hex commit) already installed under the model store'); mr.add_argument('--model-id', required=True); mr.add_argument('--hub-repo', required=True); mr.add_argument('--revision', required=True); mr.add_argument('--operations', required=True, help='comma-separated: generate,embed'); mr.add_argument('--license', required=True)
+    ma = sub.add_parser('model-action'); ma.add_argument('revision_id'); ma.add_argument('action', choices=('promote', 'retire', 'revoke', 'recheck', 'load', 'unload', 'rollback-default')); ma.add_argument('--operation'); ma.add_argument('--reason', default='')
+    gen = sub.add_parser('generate', help='bounded local text generation (job); --watch streams persisted segments'); gen.add_argument('--prompt'); gen.add_argument('--messages', help='JSON file with [{role, content}]'); gen.add_argument('--max-output-tokens', type=int, default=64); gen.add_argument('--seed', type=int); gen.add_argument('--temperature-percent', type=int, default=0); gen.add_argument('--model-revision'); gen.add_argument('--watch', action='store_true'); gen.add_argument('--timeout', type=int, default=300)
+    emb = sub.add_parser('embed', help='embedding job for a JSON list of texts'); emb.add_argument('--texts', required=True, help='JSON file with a list of strings'); emb.add_argument('--truncate', action='store_true')
+    mj = sub.add_parser('model-job'); mj.add_argument('job_id'); mj.add_argument('--segments', action='store_true'); mj.add_argument('--after', type=int, default=-1)
+    kc = sub.add_parser('knowledge-collection-create'); kc.add_argument('--name', required=True); kc.add_argument('--description', default='')
+    sub.add_parser('knowledge-collections')
+    kd = sub.add_parser('knowledge-add', help='add a text/markdown/csv document version to a collection'); kd.add_argument('collection_id'); kd.add_argument('--file', required=True); kd.add_argument('--name'); kd.add_argument('--format', default='markdown'); kd.add_argument('--document-id')
+    ki = sub.add_parser('knowledge-index', help='build (or wait for) an embedding index version'); ki.add_argument('collection_id'); ki.add_argument('--wait', action='store_true')
+    ks = sub.add_parser('knowledge-search'); ks.add_argument('collection_id'); ks.add_argument('--query', required=True); ks.add_argument('--mode', default='hybrid', choices=('lexical', 'semantic', 'hybrid')); ks.add_argument('--k', type=int, default=5)
+    ka = sub.add_parser('knowledge-answer', help='retrieval-assisted answer job (extractive or generative)'); ka.add_argument('collection_id'); ka.add_argument('--question', required=True); ka.add_argument('--mode', default='extractive', choices=('extractive', 'generative')); ka.add_argument('--k', type=int, default=4); ka.add_argument('--max-output-tokens', type=int, default=120); ka.add_argument('--wait', action='store_true'); ka.add_argument('--timeout', type=int, default=300)
+    kr = sub.add_parser('knowledge-revoke'); kr.add_argument('document_id'); kr.add_argument('--reason', default='')
+    kv = sub.add_parser('knowledge-validate-citations'); kv.add_argument('--citations', required=True, help='JSON file [{chunk_id, quote}]')
+    cd = sub.add_parser('calibration-dataset', help='create a numeric dataset from a JSON file {name, columns, target, units, rows} or a performance dataset with --task-kind'); cd.add_argument('--file'); cd.add_argument('--task-kind')
+    cf = sub.add_parser('calibration-fit'); cf.add_argument('dataset_id'); cf.add_argument('--features', required=True); cf.add_argument('--target', required=True); cf.add_argument('--ridge', default='0'); cf.add_argument('--split', default='chronological'); cf.add_argument('--scope-kind'); cf.add_argument('--scope-backend'); cf.add_argument('--wait', action='store_true')
+    sub.add_parser('calibration-models'); cpd = sub.add_parser('calibration-predict'); cpd.add_argument('model_id'); cpd.add_argument('--features', required=True, help='JSON object')
+    cma = sub.add_parser('calibration-action'); cma.add_argument('model_id'); cma.add_argument('action', choices=('approve', 'retire', 'comparison'))
+    cpn = sub.add_parser('calibration-plan'); cpn.add_argument('--kind', required=True); cpn.add_argument('--inputs', required=True)
+    vp = sub.add_parser('verification-preview'); vp.add_argument('job_id'); vp.add_argument('--class', dest='cls', required=True); vp.add_argument('--sample-count', type=int)
+    vr = sub.add_parser('verification-request'); vr.add_argument('job_id'); vr.add_argument('--class', dest='cls', required=True); vr.add_argument('--sample-count', type=int); vr.add_argument('--wait', action='store_true'); vr.add_argument('--timeout', type=int, default=600)
+    vs = sub.add_parser('verification-status'); vs.add_argument('verification_id'); vst = sub.add_parser('verification-statement', help='public signed projection; --verify checks it against this service'); vst.add_argument('verification_id'); vst.add_argument('--verify', action='store_true'); vst.add_argument('--out')
+    vl = sub.add_parser('verifications'); vl.add_argument('--job')
+    ne = sub.add_parser('node-enroll', help='generate a node keypair, enroll it, and write a private identity file'); ne.add_argument('--name', required=True); ne.add_argument('--out', required=True); ne.add_argument('--devices', default='cpu'); ne.add_argument('--capabilities')
+    sub.add_parser('nodes'); nv = sub.add_parser('node'); nv.add_argument('node_id'); na = sub.add_parser('node-action'); na.add_argument('node_id'); na.add_argument('action', choices=('drain', 'enable', 'disable', 'revoke', 'rotate')); na.add_argument('--reason', default='')
+    apr = sub.add_parser('approval-propose'); apr.add_argument('--action', required=True); apr.add_argument('--content', required=True, help='JSON object'); apr.add_argument('--note', default='')
+    apd = sub.add_parser('approval-decide'); apd.add_argument('approval_id'); apd.add_argument('decision', choices=('approve', 'reject', 'apply')); apd.add_argument('--note', default='')
+    sub.add_parser('approvals'); app_ = sub.add_parser('approval-policy'); app_.add_argument('--required', help='comma-separated actions (empty string clears)')
+    stm = sub.add_parser('statement', help='consolidated usage statement for an interval'); stm.add_argument('--since', type=int, default=0); stm.add_argument('--until', type=int); stm.add_argument('--csv', help='write CSV to this new file')
+    sub.add_parser('mcp-connection', help='print how to connect an MCP client to this service (no secrets printed)')
     sub.add_parser('compute-capabilities', help='installed / configured / available / observed compute facts')
     cs = sub.add_parser('compute-submit', help='create, freeze and submit a compute job from a bounded JSON input file'); cs.add_argument('--kind', required=True, choices=('temporal_batch', 'monte_carlo_reliability', 'heat_diffusion'))
     cs.add_argument('--inputs', required=True); cs.add_argument('--title', default='compute job'); cs.add_argument('--reviewer', required=True); cs.add_argument('--idempotency-key')
@@ -319,6 +545,8 @@ def main(argv=None):
             out = json.loads(content)
     elif args.command == 'compute-log':
         status, out = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/log')
+    elif args.command in EXPANSION_COMMANDS:
+        status, out = expansion(args, go)
     elif args.command == 'share':
         status, out = go('POST', '/api/v1/jobs/' + args.job_id + '/shares', {'grantee_id': args.grantee, 'fields': args.fields.split(',')})
     else:

@@ -17,6 +17,8 @@ from .knowledge import service as knowledge_mod, retrieval as retrieval_mod, eng
 from .calibration import Calibration
 from .verification import Verification
 from .federation.service import Federation
+from .approvals import Approvals, gate as approval_gate
+from . import statements as statements_mod, tracing
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -48,6 +50,7 @@ class Services:
         self.calibration = Calibration(self.store, settings)
         self.verification = Verification(self.store, settings, self.contracts, self.jobs)
         self.federation = Federation(self.db, self.store, settings)
+        self.approvals = Approvals(settings, self)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -141,10 +144,11 @@ def create_app(settings):
         return response
 
     def run_sync(request, mutating, fn, operation=None, raw=b''):
-        with svc.db.tx() as db:
-            principal = principal_of(request, db, mutating)
-            key = request.headers.get('idempotency-key') if operation else None
-            result = idempotent(db, principal, operation, key, raw, lambda: fn(db, principal)) if operation else fn(db, principal)
+        with tracing.span('api.request', route=request.url.path.split('/api/v1/')[-1][:40], operation=operation or 'read'):
+            with svc.db.tx() as db:
+                principal = principal_of(request, db, mutating)
+                key = request.headers.get('idempotency-key') if operation else None
+                result = idempotent(db, principal, operation, key, raw, lambda: fn(db, principal)) if operation else fn(db, principal)
         if isinstance(result, tuple):
             return JSONResponse(result[0], status_code=result[1])
         return JSONResponse(result)
@@ -935,6 +939,19 @@ def create_app(settings):
     async def batch_progress(request: Request, batch_id: str):
         return await run(request, False, lambda db, p: svc.jobs.batch_progress(db, p, batch_id))
 
+    @app.post(API + '/jobs/quick', status_code=202)
+    async def quick_job(request: Request):
+        """Create, freeze and submit in one authorized step (same rules as the three separate calls; reviewer = first workspace reviewer)."""
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            kind = body.get('kind')
+            if kind not in contracts_mod.KINDS or kind in ('verification_audit', 'knowledge_index'):
+                raise ServiceError('VALIDATION', {'code': 'kind', 'allowed': [k for k in contracts_mod.KINDS if k not in ('verification_audit', 'knowledge_index')]})
+            title = body.get('title') or (kind + ' job')
+            return quick_submit(svc, db, p, kind, body.get('inputs'), title), 202
+        return await run(request, True, fn, 'jobs.quick', raw)
+
     @app.get(API + '/jobs')
     async def list_jobs(request: Request):
         q = request.query_params
@@ -1196,6 +1213,7 @@ def create_app(settings):
             if action == 'recheck':
                 return svc.models.recheck_install(db, p, rid)
             if action == 'promote':
+                approval_gate(svc.approvals, db, p, 'model_promote')
                 return svc.models.promote(db, p, rid, body.get('operation'), body.get('evidence'))
             if action == 'rollback-default':
                 return svc.models.rollback_default(db, p, body.get('operation'))
@@ -1391,7 +1409,10 @@ def create_app(settings):
     async def cal_sched_set(request: Request):
         raw = await request.body()
         body = read_body(request, raw)
-        return await run(request, True, lambda db, p: svc.calibration.set_scheduling(db, p, bool(body.get('enabled', True))), 'calibration.scheduling', raw)
+        def fn(db, p):
+            approval_gate(svc.approvals, db, p, 'scheduling_toggle')
+            return svc.calibration.set_scheduling(db, p, bool(body.get('enabled', True)))
+        return await run(request, True, fn, 'calibration.scheduling', raw)
 
     @app.post(API + '/calibration/plan')
     async def cal_plan(request: Request):
@@ -1422,6 +1443,7 @@ def create_app(settings):
             if action == 'predict':
                 return svc.calibration.predict(db, p, mid, body.get('features'))
             if action == 'approve':
+                approval_gate(svc.approvals, db, p, 'calibration_approve')
                 return svc.calibration.approve(db, p, mid, body.get('evidence'))
             if action == 'retire':
                 return svc.calibration.retire(db, p, mid)
@@ -1470,7 +1492,10 @@ def create_app(settings):
     async def nodes_enroll(request: Request):
         raw = await request.body()
         body = read_body(request, raw)
-        return await run(request, True, lambda db, p: (svc.federation.enroll(db, p, body), 201), 'nodes.enroll', raw)
+        def fn(db, p):
+            approval_gate(svc.approvals, db, p, 'node_enroll')
+            return svc.federation.enroll(db, p, body), 201
+        return await run(request, True, fn, 'nodes.enroll', raw)
 
     @app.get(API + '/nodes')
     async def nodes_list(request: Request):
@@ -1581,6 +1606,71 @@ def create_app(settings):
     async def node_paused(request: Request, job_id: str):
         raw = await request.body()
         return JSONResponse(await run_in_threadpool(node_call, request, raw, lambda node: svc.federation.paused(node, job_id, gen_of(request), json.loads(raw or b'{}'))))
+
+    # ---- approvals ------------------------------------------------------------------------------------------
+    @app.get(API + '/approvals/policy')
+    async def approvals_policy(request: Request):
+        return await run(request, False, lambda db, p: dict(svc.approvals.policy(db, p.workspace), actions=list(__import__('metacoin_service.approvals', fromlist=['ACTIONS']).ACTIONS)))
+
+    @app.post(API + '/approvals/policy')
+    async def approvals_policy_set(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.approvals.set_policy(db, p, body.get('required')), 'approvals.policy', raw)
+
+    @app.post(API + '/approvals', status_code=201)
+    async def approvals_propose(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.approvals.propose(db, p, body.get('action'), body.get('content'), body.get('note', '')), 201), 'approvals.propose', raw)
+
+    @app.get(API + '/approvals')
+    async def approvals_list(request: Request):
+        return await run(request, True, lambda db, p: {'items': svc.approvals.list(db, p)})
+
+    @app.get(API + '/approvals/{pid}')
+    async def approvals_view(request: Request, pid: str):
+        return await run(request, True, lambda db, p: svc.approvals.view(db, p, pid))
+
+    @app.post(API + '/approvals/{pid}/{action}')
+    async def approvals_action(request: Request, pid: str, action: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            if action in ('approve', 'reject'):
+                return svc.approvals.decide(db, p, pid, 'approved' if action == 'approve' else 'rejected', body.get('note', ''))
+            if action == 'apply':
+                return svc.approvals.apply(db, p, pid)
+            raise ServiceError('NOT_FOUND', 'action')
+        return await run(request, True, fn, 'approvals.' + action, raw)
+
+    # ---- usage statements -----------------------------------------------------------------------------------
+    @app.get(API + '/statements')
+    async def statement(request: Request):
+        q = request.query_params
+        def fn(db, p):
+            try:
+                since, until, page = int(q.get('since', '0')), (int(q['until']) if q.get('until') else None), int(q.get('page', '1'))
+            except ValueError:
+                raise ServiceError('VALIDATION', 'since/until/page')
+            b = statements_mod.build(db, p, settings, since, until, page)
+            history.record(db, p.workspace, p.id, 'artifact.exported', 'statement', b['digest'][:16], {'rows': b['statement']['total_rows'], 'page': page})
+            return b
+        return await run(request, True, fn)
+
+    @app.get(API + '/statements.csv')
+    async def statement_csv(request: Request):
+        q = request.query_params
+        def do():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, False)
+                b = statements_mod.build(db, p, settings, int(q.get('since', '0')), (int(q['until']) if q.get('until') else None), int(q.get('page', '1')))
+                return statements_mod.export_csv(b)
+        return Response(content=await run_in_threadpool(do), media_type='text/csv', headers=SENSITIVE_HEADERS)
+
+    @app.get(API + '/tracing')
+    async def tracing_status(request: Request):
+        return await run(request, False, lambda db, p: tracing.status())
 
     from . import console
     console.mount(app, svc)
