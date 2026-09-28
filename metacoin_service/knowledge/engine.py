@@ -164,7 +164,7 @@ class KnowledgeEngine:
             found = retrieval.search(db, self.worker.store, principal, self.knowledge, inputs['collection_id'], question, mode=search_mode, k=k, index_row=index_row, embed_fn=embed_fn)
         results = found['results']
         sources = [{'marker': 'S%d' % (i + 1), 'chunk_id': r['chunk_id'], 'document_id': r['document_id'], 'version_id': r['version_id'], 'document_name': r['document_name'], 'version': r['version'],
-                    'ordinal': r['ordinal'], 'sha256': r['sha256'], 'cosine': r['cosine'], 'lexical_score': r['lexical_score'], 'superseded_version': r['superseded_version']} for i, r in enumerate(results)]
+                    'ordinal': r['ordinal'], 'sha256': r['sha256'], 'cosine': r['cosine'], 'lexical_score': r['lexical_score'], 'superseded_version': r['superseded_version'], 'page_number': r.get('page_number'), 'region': r.get('region')} for i, r in enumerate(results)]
         evidence_ok = bool(results) and ((results[0]['cosine'] is not None and results[0]['cosine'] >= MIN_COSINE) or lexical_evidence(results[0]))
         usage, model_info, answer, grounding, citations = None, None, None, None, []
         if mode == 'extractive':

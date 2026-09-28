@@ -296,9 +296,9 @@ def lineage(db, principal, object_type, object_id, depth=4, limit=200):
             'note': 'internal lineage with a documented PROV mapping; not a claim of full PROV conformance'}
 
 
-PROV_TYPES = {'dataset_version': 'entity', 'artifact': 'entity', 'contract': 'entity', 'quote': 'entity', 'usage': 'entity', 'service': 'entity',
+PROV_TYPES = {'dataset_version': 'entity', 'artifact': 'entity', 'contract': 'entity', 'quote': 'entity', 'usage': 'entity', 'service': 'entity', 'document_table': 'entity', 'dataset_mapping': 'activity', 'knowledge_version': 'entity',
               'workflow_definition': 'entity', 'job': 'activity', 'review': 'activity', 'workflow_run': 'activity', 'campaign': 'activity', 'principal': 'agent'}
-PROV_RELATIONS = {'used_input': 'used', 'produced': 'wasGeneratedBy', 'derived_from': 'wasDerivedFrom', 'normalized_from': 'wasDerivedFrom',
+PROV_RELATIONS = {'used_input': 'used', 'produced': 'wasGeneratedBy', 'derived_from': 'wasDerivedFrom', 'normalized_from': 'wasDerivedFrom', 'interpreted_by': 'used', 'provenance_of': 'wasDerivedFrom', 'chunked_from': 'wasDerivedFrom',
                   'reviewed': 'wasInformedBy', 'reused_result': 'wasInformedBy', 'quoted': 'wasDerivedFrom', 'metered': 'wasGeneratedBy'}
 
 

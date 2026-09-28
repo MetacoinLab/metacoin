@@ -17,9 +17,11 @@ Migration numbers: next unused is 026 (verified: db.py ends at 025_metered_upto)
 
 ## Done
 - baseline inventory, dependency installation (00:22-00:35 MDT)
+- Group A (00:35-01:35 MDT): migration 026; documents package (extract_child under the compute interpreter with CPU/AS limits, pypdf native spans, pdftoppm previews, RapidOCR for pages without adequate text, table candidates with header-matched continuation), Documents service (import from bytes/artifact, stages received→validating→extracting→awaiting_review/ready, cancel, retry with new attempt, review-then-publish, dependency-aware removal, annotations with attribution, validated mappings with declared locale/units/missing policy, confirmation → dataset version with row-level provenance artifact + lineage edges), narrow unit layer (exact rationals, affine temperature, directed rounding), knowledge publish_extraction (page-aware chunks, page_number/region in search results), API routes, console pages (Documents, detail, page inspector, table review/mapping), CLI commands; tests: test_documents (6), test_console_documents (1); evaluation baseline dev 42/42, held-out 14/14 (artifacts/document-extraction-results-baseline.json)
 
 ## Task-owned background producers (identity, log, start, timeout, expected output, exit)
 (none yet)
 
 ## Next action
-Group A: migration 026 (imports/extractions/tables/annotations/mappings + knowledge_chunks page/region columns), documents package with the bounded extraction child, synthetic fixtures generator, API/console/CLI, tests.
+Group B: real static generation batching in the runtime child (padded batch forward, per-row stopping, per-request cancel), batch admission in the worker with reservation accounting, streaming reconnect, usage/upto accounting, benchmark; then
+(Group A original note) Group A: migration 026 (imports/extractions/tables/annotations/mappings + knowledge_chunks page/region columns), documents package with the bounded extraction child, synthetic fixtures generator, API/console/CLI, tests.

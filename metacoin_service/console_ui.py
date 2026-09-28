@@ -502,6 +502,112 @@ def mount(app, svc):
         answers = [dict(r, citations=json.loads(r['citations_json'])) for r in db.execute('SELECT * FROM knowledge_answers WHERE workspace=? AND principal_id=? ORDER BY created_at DESC LIMIT 30', (p.workspace, p.id)).fetchall()]
         return dict(principal=p, collections=cols, answers=answers, results=results)
 
+    # ---- documents (Order 07 group A) --------------------------------------------------------------------------
+    @app.get('/console/documents', response_class=HTMLResponse)
+    async def documents_page(request: Request):
+        def fn(db, p):
+            p.require('knowledge:read')
+            return render(request, 'documents.html', principal=p, imports=svc.documents.list(db, p), collections=svc.knowledge.list_collections(db, p), limits=settings.limits)
+        return await page(request, fn)
+
+    @app.post('/console/documents/import', response_class=HTMLResponse)
+    async def documents_import_form(request: Request):
+        f = await form(request)
+        upload = f.get('file')
+        content = await upload.read() if hasattr(upload, 'read') else b''
+        name = getattr(upload, 'filename', None) or 'upload.pdf'
+        def fn(db, p):
+            v = svc.documents.create_import(db, p, name=name[:120], fmt='pdf', content=content, collection_id=f.get('collection_id') or None, policy={'mode': f.get('mode', 'ocr_needed')})
+            return RedirectResponse('/console/documents/' + v['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/documents/{iid}', response_class=HTMLResponse)
+    async def document_page(request: Request, iid: str):
+        def fn(db, p):
+            d = svc.documents.view(db, p, iid)
+            pages = svc.documents.pages(db, p, iid)['pages'] if d['extraction'] else []
+            pages = [{k: pg[k] for k in ('index', 'display_number', 'method', 'excluded', 'warnings', 'ocr')} for pg in pages]
+            return render(request, 'document.html', principal=p, d=d, pages=pages, removal=None)
+        return await page(request, fn)
+
+    @app.post('/console/documents/{iid}/{action}', response_class=HTMLResponse)
+    async def document_action(request: Request, iid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            if action == 'cancel':
+                svc.documents.cancel(db, p, iid)
+            elif action == 'retry':
+                svc.documents.retry(db, p, iid, {'mode': f.get('mode')} if f.get('mode') else None)
+            elif action == 'publish':
+                svc.documents.publish(db, p, iid, False)
+            elif action == 'remove':
+                rep = svc.documents.remove(db, p, iid, confirm=f.get('confirm') == '1')
+                if not rep['applied']:
+                    d = svc.documents.view(db, p, iid)
+                    pages = [{k: pg[k] for k in ('index', 'display_number', 'method', 'excluded', 'warnings', 'ocr')} for pg in (svc.documents.pages(db, p, iid)['pages'] if d['extraction'] else [])]
+                    return render(request, 'document.html', principal=p, d=d, pages=pages, removal=rep)
+            else:
+                raise ServiceError('NOT_FOUND', 'action')
+            return RedirectResponse('/console/documents/' + iid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/documents/{iid}/pages/{index}', response_class=HTMLResponse)
+    async def document_page_inspector(request: Request, iid: str, index: int):
+        def fn(db, p):
+            d = svc.documents.view(db, p, iid)
+            pg = svc.documents.page(db, p, iid, index)['page']
+            return render(request, 'document_page.html', principal=p, d=d, page=pg, highlight=request.query_params.get('q'))
+        return await page(request, fn)
+
+    @app.get('/console/documents/tables/{tid}', response_class=HTMLResponse)
+    async def document_table_page(request: Request, tid: str):
+        def fn(db, p):
+            t = svc.documents.table(db, p, tid); d = svc.documents.view(db, p, t['import_id']); eff = svc.documents.effective_table(db, p, tid)
+            maps = [svc.documents.mapping(db, p, r['id']) for r in db.execute('SELECT id FROM dataset_mappings WHERE table_id=? ORDER BY created_at', (tid,)).fetchall()]
+            return render(request, 'document_table.html', principal=p, t=t, d=d, eff=eff, mappings=maps, preview=None, values={})
+        return await page(request, fn)
+
+    @app.post('/console/documents/tables/{tid}/annotations', response_class=HTMLResponse)
+    async def document_table_annotate(request: Request, tid: str):
+        f = await form(request)
+        def fn(db, p):
+            kind = f.get('kind'); payload = {'reason': f.get('reason', '')}
+            if f.get('row'): payload['row'] = int(f['row'])
+            if f.get('col'): payload['col'] = int(f['col'])
+            if kind == 'unit': payload['unit'] = f.get('value')
+            elif kind == 'cell_correction': payload['new_value'] = f.get('value', '')
+            elif kind == 'locale': payload['locale'] = f.get('value')
+            svc.documents.annotate(db, p, tid, kind, payload)
+            return RedirectResponse('/console/documents/tables/' + tid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/documents/tables/{tid}/mapping', response_class=HTMLResponse)
+    async def document_table_mapping(request: Request, tid: str):
+        f = await form(request)
+        def fn(db, p):
+            try:
+                columns = json.loads(f.get('columns') or '[]')
+            except ValueError:
+                raise ServiceError('VALIDATION', 'columns: JSON list')
+            mapping = {'schema': 'metacoin-table-mapping/v1', 'target': f.get('target'), 'columns': columns, 'locale': f.get('locale', 'undeclared'), 'missing_policy': f.get('missing_policy', 'reject'), 'rounding': f.get('rounding', 'reject'),
+                       'row_exclusions': [int(x) for x in (f.get('row_exclusions') or '').replace(' ', '').split(',') if x]}
+            if f.get('action') == 'create':
+                svc.documents.create_mapping(db, p, tid, mapping)
+                return RedirectResponse('/console/documents/tables/' + tid, status_code=303)
+            pv = svc.documents.validate_mapping(db, p, tid, mapping)
+            t = svc.documents.table(db, p, tid); d = svc.documents.view(db, p, t['import_id']); eff = svc.documents.effective_table(db, p, tid)
+            maps = [svc.documents.mapping(db, p, r['id']) for r in db.execute('SELECT id FROM dataset_mappings WHERE table_id=? ORDER BY created_at', (tid,)).fetchall()]
+            return render(request, 'document_table.html', principal=p, t=t, d=d, eff=eff, mappings=maps, preview=pv, values=dict(f))
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/documents/mappings/{mid}/confirm', response_class=HTMLResponse)
+    async def document_mapping_confirm(request: Request, mid: str):
+        await form(request)
+        def fn(db, p):
+            m = svc.documents.confirm_mapping(db, p, mid)
+            return RedirectResponse('/console/documents/tables/' + m['table_id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/notebooks', response_class=HTMLResponse)
     async def notebooks_page(request: Request):
         def fn(db, p):

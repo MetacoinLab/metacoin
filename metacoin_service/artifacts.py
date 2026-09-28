@@ -13,7 +13,8 @@ from .db import now
 from .errors import ServiceError
 
 KINDS = ('draft_input', 'input_vault', 'evidence_vault', 'public_bundle', 'review_envelope', 'comparison_input', 'export',
-         'dataset_raw', 'dataset_normalized', 'compute_checkpoint', 'compute_output', 'model_output', 'knowledge_document', 'knowledge_index', 'calibration_model', 'verification_record')
+         'dataset_raw', 'dataset_normalized', 'compute_checkpoint', 'compute_output', 'model_output', 'knowledge_document', 'knowledge_index', 'calibration_model', 'verification_record',
+         'document_source', 'document_pages', 'document_text', 'document_tables', 'document_page_image')
 
 
 class ArtifactStore:

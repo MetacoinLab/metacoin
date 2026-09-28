@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block body %}
+<h1>Page {{ page.display_number }} of <a href="/console/documents/{{ d.id }}">{{ d.name }}</a></h1>
+<p class="note">Method {{ page.method }} · rotation {{ page.rotation }}° · {{ page.width|round(0) }}×{{ page.height|round(0) }} pt · {{ page.geometry }}{% if page.ocr %} · OCR {{ page.ocr.engine }} {{ page.ocr.engine_version }} at {{ page.ocr.dpi }} dpi, {{ page.ocr.boxes }} boxes, mean score {{ page.ocr.mean_score }} ({{ page.ocr.confidence_meaning }}){% endif %}</p>
+{% if highlight %}<p class="note">Selected passage: <mark>{{ highlight }}</mark> — {{ 'present in the normalized text' if highlight in page.normalized_text else ('present in the raw text only' if highlight in page.raw_text else 'NOT found on this page') }}</p>{% endif %}
+<div class="card"><h2>Source page</h2>{% if page.preview %}<img src="/api/v1/documents/{{ d.id }}/pages/{{ page.index }}/preview.png" alt="rendered page {{ page.display_number }} of {{ d.name }}" style="max-width:100%;border:1px solid #ccc">{% else %}<p class="muted">no preview</p>{% endif %}</div>
+<div class="card"><h2>Normalized retrieval text</h2><pre style="white-space:pre-wrap">{{ page.normalized_text }}</pre></div>
+<div class="card"><h2>Raw parser text</h2><pre style="white-space:pre-wrap">{{ page.raw_text }}</pre></div>
+{% for w in page.warnings %}<p class="badge warn">{{ w }}</p>{% endfor %}
+<p class="note">Spans recorded: {{ page.spans|length }} (positions in the extraction revision). A quote is verified against the representation the citation names; normalization never changes digits or minus signs.</p>{% endblock %}

@@ -99,6 +99,60 @@ class Knowledge:
         history.record(db, principal.workspace, principal.id, 'knowledge.document', 'knowledge_version', vid, {'document_id': document_id, 'version': version, 'format': fmt, 'chunks': len(chunks), 'warnings': len(warnings)})
         return self.version_view(db, db.execute('SELECT * FROM knowledge_versions WHERE id=?', (vid,)).fetchone(), private=True)
 
+    def publish_extraction(self, db, principal, cid, *, name, text, page_map, raw_artifact_id, text_artifact_id, parser, warnings, document_id=None, include_excluded=False, source_sha256=None):
+        """A document version from an extraction revision: format pdf, page-aware chunks (page index + page-level region),
+        the original bytes as the raw artifact and the normalized retrieval text as the text artifact."""
+        principal.require('knowledge:write')
+        col = self.collection(db, principal, cid)
+        if col['retired_at'] is not None:
+            raise ServiceError('CONFLICT', 'collection retired')
+        excluded = {p['index'] for p in page_map if p.get('excluded')}
+        if excluded and not include_excluded:
+            # excluded pages contribute only their marker line; their (empty) text never becomes searchable content
+            pass
+        # page-aware chunking: every chunk lies inside one page (chunks never straddle a page boundary), offsets stay relative to the whole text
+        data = text.encode('utf-8'); chunks = []
+        for p in page_map:
+            if p.get('excluded') and not include_excluded:
+                continue
+            page_text = data[p['start_byte']:p['end_byte']].decode('utf-8')
+            for c in text_mod.chunk(page_text):
+                if len(chunks) >= text_mod.MAX_CHUNKS_PER_DOCUMENT:
+                    break
+                c['start'] += p['start_byte']; c['end'] += p['start_byte']; c['ordinal'] = len(chunks)
+                c['page_index'] = p['index']
+                c['region'] = {'kind': 'page', 'page_index': p['index'], 'note': 'page-level location: span geometry is kept in the extraction revision, not per chunk'}
+                chunks.append(c)
+        if not chunks:
+            raise ServiceError('VALIDATION', {'code': 'no_publishable_text', 'note': 'every page was excluded; nothing to index'})
+        if document_id is None:
+            n = db.execute('SELECT COUNT(*) FROM knowledge_documents WHERE collection_id=?', (cid,)).fetchone()[0]
+            if n >= self.settings.limits['knowledge_max_documents_per_collection']:
+                raise ServiceError('RATE_LIMITED', 'document quota for this collection')
+            document_id = 'kd_' + secrets.token_hex(6)
+            db.execute('INSERT INTO knowledge_documents (id, collection_id, workspace, name, created_at) VALUES (?,?,?,?,?)', (document_id, cid, principal.workspace, name, now()))
+            version = 1
+        else:
+            doc = self.document(db, principal, document_id)
+            if doc['collection_id'] != cid or doc['revoked_at'] is not None:
+                raise ServiceError('CONFLICT', 'document not in this collection or revoked')
+            version = db.execute('SELECT COALESCE(MAX(version),0)+1 FROM knowledge_versions WHERE document_id=?', (document_id,)).fetchone()[0]
+        text_bytes = text.encode('utf-8')
+        vid = 'kv_' + secrets.token_hex(6)
+        db.execute('INSERT INTO knowledge_versions (id, document_id, collection_id, workspace, version, format, raw_artifact_id, text_artifact_id, text_sha256, chars, parser_id, warnings_json, provenance, source, license, chunker_id, chunk_count, created_at) '
+                   'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (vid, document_id, cid, principal.workspace, version, 'pdf', raw_artifact_id, text_artifact_id, hashlib.sha256(text_bytes).hexdigest(), len(text), parser.get('id', 'metacoin-pdf-extractor/v1'),
+                                                                    json.dumps(warnings), 'declared', 'document import sha256:' + (source_sha256 or ''), '', text_mod.CHUNKER_ID + '+pages', len(chunks), now()))
+        for c in chunks:
+            db.execute('INSERT INTO knowledge_chunks (version_id, ordinal, start_byte, end_byte, heading, sha256, chars, page_index, region_json) VALUES (?,?,?,?,?,?,?,?,?)', (vid, c['ordinal'], c['start'], c['end'], c['heading'], c['sha256'], c['chars'], c['page_index'], json.dumps(c['region'])))
+        db.execute('UPDATE knowledge_documents SET current_version_id=? WHERE id=?', (vid, document_id))
+        add_edge(db, principal.workspace, 'artifact', raw_artifact_id, 'knowledge_version', vid, 'normalized_from')
+        add_edge(db, principal.workspace, 'artifact', text_artifact_id, 'knowledge_version', vid, 'chunked_from')
+        for idx in db.execute("SELECT id, document_versions_json FROM knowledge_indexes WHERE collection_id=? AND state='ready'", (cid,)).fetchall():
+            if document_id in json.loads(idx['document_versions_json']):
+                db.execute("UPDATE knowledge_indexes SET stale_reason=COALESCE(stale_reason, ?) WHERE id=?", ('document %s has a newer version' % document_id, idx['id']))
+        history.record(db, principal.workspace, principal.id, 'knowledge.document', 'knowledge_version', vid, {'document_id': document_id, 'version': version, 'format': 'pdf', 'chunks': len(chunks), 'pages': len(page_map), 'excluded_pages': len(excluded)})
+        return self.version_view(db, db.execute('SELECT * FROM knowledge_versions WHERE id=?', (vid,)).fetchone(), private=True)
+
     def document(self, db, principal, did):
         row = db.execute('SELECT * FROM knowledge_documents WHERE id=? AND workspace=?', (did, principal.workspace)).fetchone()
         if row is None:

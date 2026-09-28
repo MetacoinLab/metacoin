@@ -23,6 +23,7 @@ from .evaluation import Evaluation
 from .notebooks import Notebooks
 from .planner import Planner
 from .bundles import Bundles
+from .documents.service import Documents
 from .disagreements import Disagreements
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
@@ -60,6 +61,7 @@ class Services:
         self.notebooks = Notebooks(settings, self)
         self.planner = Planner(settings, self)
         self.bundles = Bundles(settings, self)
+        self.documents = Documents(settings, self)
         self.disagreements = Disagreements(settings, self)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
@@ -1756,6 +1758,109 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         return await run(request, True, lambda db, p: svc.evaluation.set_gate(db, p, body.get('suite_id')), 'evaluation.gate', raw)
+
+    # ---- documents (Order 07 group A) ---------------------------------------------------------------------------
+    @app.post(API + '/documents/import', status_code=202)
+    async def documents_import(request: Request):
+        """Raw bytes (Content-Type application/pdf, query: name, collection_id, mode) or JSON {name, format, content_base64 | artifact_id, collection_id, policy}."""
+        raw = await request.body()
+        ctype = request.headers.get('content-type', '')
+        q = request.query_params
+        if ctype.startswith('application/pdf') or ctype.startswith('application/octet-stream'):
+            if len(raw) > settings.limits['document_max_bytes']:
+                raise ServiceError('PAYLOAD_TOO_LARGE', {'code': 'document_too_large', 'limit_bytes': settings.limits['document_max_bytes']})
+            body = {'name': q.get('name', 'upload.pdf'), 'format': q.get('format', 'pdf'), 'content': raw, 'collection_id': q.get('collection_id'), 'policy': {'mode': q.get('mode')} if q.get('mode') else None}
+            digest_for_log = b''
+        else:
+            if len(raw) > settings.limits['document_max_bytes'] * 2:
+                raise ServiceError('PAYLOAD_TOO_LARGE', {'code': 'document_too_large'})
+            body = merkle.parse(raw) if raw else {}
+            if type(body) is not dict:
+                raise ServiceError('VALIDATION', 'body must be an object')
+            if body.get('content_base64') is not None:
+                import base64
+                try:
+                    body['content'] = base64.b64decode(body.pop('content_base64'), validate=True)
+                except Exception:
+                    raise ServiceError('VALIDATION', 'content_base64') from None
+            digest_for_log = raw[:0]
+        def fn(db, p):
+            return svc.documents.create_import(db, p, name=body.get('name'), fmt=body.get('format', 'pdf'), content=body.get('content'), artifact_id=body.get('artifact_id'), collection_id=body.get('collection_id'), policy=body.get('policy')), 202
+        return await run(request, True, fn, 'documents.import', digest_for_log)
+
+    @app.get(API + '/documents')
+    async def documents_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.documents.list(db, p, request.query_params.get('collection_id'))})
+
+    @app.get(API + '/documents/{iid}')
+    async def documents_view(request: Request, iid: str):
+        return await run(request, False, lambda db, p: svc.documents.view(db, p, iid))
+
+    @app.get(API + '/documents/{iid}/pages/{index}')
+    async def documents_page(request: Request, iid: str, index: int):
+        return await run(request, False, lambda db, p: svc.documents.page(db, p, iid, index))
+
+    @app.get(API + '/documents/{iid}/pages/{index}/preview.png')
+    async def documents_preview(request: Request, iid: str, index: int):
+        def do():
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                return svc.documents.preview_png(db, p, iid, index)
+        png = await run_in_threadpool(do)
+        return Response(content=png, media_type='image/png', headers=dict(SENSITIVE_HEADERS, **{'Cache-Control': 'private, no-store'}))
+
+    @app.post(API + '/documents/{iid}/cancel')
+    async def documents_cancel(request: Request, iid: str):
+        return await run(request, True, lambda db, p: svc.documents.cancel(db, p, iid), 'documents.cancel')
+
+    @app.post(API + '/documents/{iid}/retry', status_code=202)
+    async def documents_retry(request: Request, iid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.documents.retry(db, p, iid, body.get('policy')), 202), 'documents.retry', raw)
+
+    @app.post(API + '/documents/{iid}/publish')
+    async def documents_publish(request: Request, iid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.documents.publish(db, p, iid, bool(body.get('include_excluded_pages', False))), 'documents.publish', raw)
+
+    @app.post(API + '/documents/{iid}/remove')
+    async def documents_remove(request: Request, iid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.documents.remove(db, p, iid, bool(body.get('confirm', False))), 'documents.remove', raw)
+
+    @app.get(API + '/documents/tables/{tid}')
+    async def documents_table(request: Request, tid: str):
+        return await run(request, False, lambda db, p: svc.documents.table(db, p, tid))
+
+    @app.post(API + '/documents/tables/{tid}/annotations', status_code=201)
+    async def documents_annotate(request: Request, tid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.documents.annotate(db, p, tid, body.get('kind'), body.get('payload') or {}), 201), 'documents.annotate', raw)
+
+    @app.post(API + '/documents/tables/{tid}/mappings', status_code=201)
+    async def documents_mapping_create(request: Request, tid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.documents.create_mapping(db, p, tid, body.get('mapping')), 201), 'documents.mapping', raw)
+
+    @app.post(API + '/documents/tables/{tid}/mappings/preview')
+    async def documents_mapping_preview(request: Request, tid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.documents.validate_mapping(db, p, tid, body.get('mapping')))
+
+    @app.get(API + '/documents/mappings/{mid}')
+    async def documents_mapping(request: Request, mid: str):
+        return await run(request, False, lambda db, p: svc.documents.mapping(db, p, mid))
+
+    @app.post(API + '/documents/mappings/{mid}/confirm')
+    async def documents_mapping_confirm(request: Request, mid: str):
+        raw = await request.body()
+        return await run(request, True, lambda db, p: svc.documents.confirm_mapping(db, p, mid), 'documents.mapping_confirm', raw)
 
     # ---- service bundles (§65-7/8) ---------------------------------------------------------------------------------
     @app.post(API + '/bundles/export')

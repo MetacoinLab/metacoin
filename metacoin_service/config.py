@@ -23,6 +23,8 @@ LIMITS = {
     'model_max_weight_bytes': 4 * 1024 ** 3, 'model_max_loaded': 2, 'model_memory_budget_bytes': 24 * 1024 ** 3, 'model_memory_headroom_bytes': 16 * 1024 ** 3,
     'model_load_timeout_seconds': 300, 'model_request_timeout_seconds': 600, 'model_token_timeout_seconds': 120, 'model_max_input_tokens': 4096, 'model_max_output_tokens': 1024,
     'model_max_embed_items': 256, 'model_max_text_chars': 8000, 'model_idle_unload_seconds': 1800, 'model_embed_on_cuda': 0, 'model_max_messages': 32,
+    'document_max_bytes': 25 * 1024 * 1024, 'document_max_pages': 60, 'document_max_text_chars': 2_000_000, 'document_max_pixels': 12_000_000, 'document_preview_dpi': 60, 'document_ocr_dpi': 200,
+    'document_child_cpu_seconds': 900, 'document_child_wall_seconds': 1200, 'document_child_address_space_bytes': 32 * 1024 ** 3, 'document_max_table_cells': 20000, 'document_max_imports_per_workspace': 500,
     'model_batch_enabled': 1, 'model_batch_max_items': 128, 'model_batch_max_chars': 400000, 'compute_drain_min_available_bytes': 8 * 1024 ** 3,
     # private knowledge (bounded collections; exact search)
     'calibration_max_age_seconds': 30 * 86400, 'calibrated_scheduling': 1,

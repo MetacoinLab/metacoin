@@ -30,12 +30,12 @@ def load_token(path):
     return token
 
 
-def call(base, token, method, path, body=None, raw=False, idempotency_key=None):
-    data = None if body is None else json.dumps(body).encode()
+def call(base, token, method, path, body=None, raw=False, idempotency_key=None, content_type=None):
+    data = None if body is None else (body if isinstance(body, bytes) else json.dumps(body).encode())
     req = urllib.request.Request(base + path, data=data, method=method)
     req.add_header('Authorization', 'Bearer ' + token)
     if data is not None:
-        req.add_header('Content-Type', 'application/json')
+        req.add_header('Content-Type', content_type or ('application/octet-stream' if isinstance(body, bytes) else 'application/json'))
     if idempotency_key:
         req.add_header('Idempotency-Key', idempotency_key)
     try:
@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'plan', 'plans', 'plan-accept', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'model-warmup', 'plan', 'plans', 'plan-accept', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -283,6 +283,45 @@ def expansion(args, go):
         return go('GET', '/api/v1/verification/disagreements')
     if c == 'disagreement-decide':
         return go('POST', '/api/v1/verification/' + args.verification_id + '/decide', {'decision': args.decision, 'note': args.note, 'evidence': json.loads(args.evidence)})
+    if c == 'document-import':
+        data = open(args.file, 'rb').read()
+        import urllib.parse
+        q = {'name': args.name or os.path.basename(args.file)}
+        if args.collection: q['collection_id'] = args.collection
+        if args.mode: q['mode'] = args.mode
+        st, out = go('POST', '/api/v1/documents/import?' + urllib.parse.urlencode(q), data, content_type='application/pdf')
+        if st != 202 or not args.wait:
+            return st, out
+        deadline = time.time() + args.timeout
+        while time.time() < deadline:
+            st2, v = go('GET', '/api/v1/documents/' + out['id'])
+            if st2 != 200 or v['state'] not in ('received', 'validating', 'extracting'):
+                return st2, v
+            time.sleep(1)
+        return st2, v
+    if c == 'documents':
+        return go('GET', '/api/v1/documents')
+    if c == 'document':
+        return go('GET', '/api/v1/documents/' + args.import_id)
+    if c == 'document-page':
+        return go('GET', '/api/v1/documents/%s/pages/%d' % (args.import_id, args.index))
+    if c == 'document-action':
+        body = {}
+        if args.action == 'retry' and args.mode: body['policy'] = {'mode': args.mode}
+        if args.action == 'remove': body['confirm'] = bool(args.confirm)
+        if args.action == 'publish': body['include_excluded_pages'] = bool(args.include_excluded)
+        return go('POST', '/api/v1/documents/%s/%s' % (args.import_id, args.action), body)
+    if c == 'table':
+        return go('GET', '/api/v1/documents/tables/' + args.table_id)
+    if c == 'table-annotate':
+        return go('POST', '/api/v1/documents/tables/%s/annotations' % args.table_id, {'kind': args.kind, 'payload': json.loads(args.payload)})
+    if c in ('mapping-preview', 'mapping-create'):
+        mapping = json.load(open(args.file))
+        return go('POST', '/api/v1/documents/tables/%s/mappings%s' % (args.table_id, '/preview' if c == 'mapping-preview' else ''), {'mapping': mapping})
+    if c == 'mapping':
+        return go('GET', '/api/v1/documents/mappings/' + args.mapping_id)
+    if c == 'mapping-confirm':
+        return go('POST', '/api/v1/documents/mappings/%s/confirm' % args.mapping_id, {})
     if c == 'plan':
         body = {'goal': args.goal}
         if args.kind: body['kind'] = args.kind
@@ -411,6 +450,12 @@ def main(argv=None):
     bc = sub.add_parser('bundle-check', help='compatibility check of a bundle against this instance (nothing changes)'); bc.add_argument('--file', required=True)
     bi = sub.add_parser('bundle-import', help='import compatible items (no promotion, load, grant or execution); --apply performs it, otherwise a dry run'); bi.add_argument('--file', required=True); bi.add_argument('--apply', action='store_true')
     sub.add_parser('disagreements', help='failed/incomplete/disputed audits grouped per target with producer/auditor environment differences'); dd = sub.add_parser('disagreement-decide'); dd.add_argument('verification_id'); dd.add_argument('decision', choices=('producer_upheld', 'auditor_upheld', 'environment_difference', 'inconclusive')); dd.add_argument('--note', required=True); dd.add_argument('--evidence', required=True, help='JSON list of {kind: job|verification|artifact, id}')
+    di = sub.add_parser('document-import', help='import a PDF (bytes uploaded privately; native text + bounded local OCR in a task-owned child)'); di.add_argument('--file', required=True); di.add_argument('--name'); di.add_argument('--collection'); di.add_argument('--mode', choices=('native', 'ocr_needed', 'ocr_forced')); di.add_argument('--wait', action='store_true'); di.add_argument('--timeout', type=int, default=900)
+    sub.add_parser('documents'); dv = sub.add_parser('document'); dv.add_argument('import_id'); dp = sub.add_parser('document-page'); dp.add_argument('import_id'); dp.add_argument('index', type=int)
+    da = sub.add_parser('document-action'); da.add_argument('import_id'); da.add_argument('action', choices=('cancel', 'retry', 'publish', 'remove')); da.add_argument('--mode'); da.add_argument('--confirm', action='store_true'); da.add_argument('--include-excluded', action='store_true')
+    tb = sub.add_parser('table'); tb.add_argument('table_id'); ta = sub.add_parser('table-annotate'); ta.add_argument('table_id'); ta.add_argument('--kind', required=True, choices=('header_row', 'ignore_row', 'unit', 'cell_correction', 'locale', 'note')); ta.add_argument('--payload', required=True, help='JSON object')
+    mp = sub.add_parser('mapping-preview'); mp.add_argument('table_id'); mp.add_argument('--file', required=True, help='JSON mapping (metacoin-table-mapping/v1)'); mc2 = sub.add_parser('mapping-create'); mc2.add_argument('table_id'); mc2.add_argument('--file', required=True)
+    mg = sub.add_parser('mapping'); mg.add_argument('mapping_id'); mcf = sub.add_parser('mapping-confirm', help='explicit confirmation creates an immutable dataset version with row-level provenance'); mcf.add_argument('mapping_id')
     pl = sub.add_parser('plan', help='typed plan draft for a goal (validated, stored, not executed); --assist lets the local model pick the service kind'); pl.add_argument('--goal', required=True); pl.add_argument('--kind'); pl.add_argument('--inputs', help='JSON file'); pl.add_argument('--verify'); pl.add_argument('--assist', action='store_true'); pl.add_argument('--collection')
     sub.add_parser('plans'); pa = sub.add_parser('plan-accept', help='execute a valid plan once (idempotent)'); pa.add_argument('plan_id')
     apr = sub.add_parser('approval-propose'); apr.add_argument('--action', required=True); apr.add_argument('--content', required=True, help='JSON object'); apr.add_argument('--note', default='')

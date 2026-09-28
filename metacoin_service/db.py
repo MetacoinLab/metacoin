@@ -337,6 +337,25 @@ MIGRATIONS = [
         payload_json TEXT NOT NULL, requirements_json TEXT NOT NULL, extensions_json TEXT, requirements_digest TEXT NOT NULL, transaction_ref TEXT, payer TEXT, error TEXT,
         created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER);
     """),
+    ('026_document_intelligence', """
+    CREATE TABLE document_imports (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_id TEXT NOT NULL REFERENCES principals(id), collection_id TEXT REFERENCES knowledge_collections(id), name TEXT NOT NULL,
+        declared_format TEXT NOT NULL, source_artifact_id TEXT NOT NULL REFERENCES artifacts(id), content_sha256 TEXT NOT NULL, byte_count INTEGER NOT NULL, policy_json TEXT NOT NULL, state TEXT NOT NULL, stage TEXT,
+        progress_json TEXT, attempt INTEGER NOT NULL DEFAULT 0, job_id TEXT REFERENCES jobs(id), extraction_id TEXT, document_id TEXT, version_id TEXT, page_count INTEGER, error_json TEXT,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, removed_at INTEGER);
+    CREATE INDEX document_imports_ws ON document_imports(workspace, created_at);
+    CREATE TABLE document_extractions (id TEXT PRIMARY KEY, import_id TEXT NOT NULL REFERENCES document_imports(id), workspace TEXT NOT NULL, attempt INTEGER NOT NULL, job_id TEXT REFERENCES jobs(id), parser_json TEXT NOT NULL,
+        policy_json TEXT NOT NULL, source_sha256 TEXT NOT NULL, pages_artifact_id TEXT REFERENCES artifacts(id), text_artifact_id TEXT REFERENCES artifacts(id), tables_artifact_id TEXT REFERENCES artifacts(id),
+        page_map_json TEXT NOT NULL, previews_json TEXT NOT NULL, page_count INTEGER NOT NULL, excluded_pages INTEGER NOT NULL, ocr_pages INTEGER NOT NULL, table_count INTEGER NOT NULL, warnings_json TEXT NOT NULL,
+        active_content_json TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE document_tables (id TEXT PRIMARY KEY, extraction_id TEXT NOT NULL REFERENCES document_extractions(id), import_id TEXT NOT NULL, workspace TEXT NOT NULL, ordinal INTEGER NOT NULL, page_index INTEGER NOT NULL,
+        method TEXT NOT NULL, n_rows INTEGER NOT NULL, n_cols INTEGER NOT NULL, header_row INTEGER, region_json TEXT, table_json TEXT NOT NULL, table_sha256 TEXT NOT NULL, ambiguity_json TEXT NOT NULL, supported_form TEXT NOT NULL,
+        continuation_json TEXT, created_at INTEGER NOT NULL);
+    CREATE TABLE table_annotations (id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES document_tables(id), workspace TEXT NOT NULL, author_id TEXT NOT NULL, kind TEXT NOT NULL, payload_json TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE dataset_mappings (id TEXT PRIMARY KEY, table_id TEXT NOT NULL REFERENCES document_tables(id), workspace TEXT NOT NULL, author_id TEXT NOT NULL, mapping_json TEXT NOT NULL, annotations_digest TEXT NOT NULL,
+        state TEXT NOT NULL, preview_json TEXT, digest TEXT NOT NULL, dataset_version_id TEXT, target TEXT NOT NULL, confirmed_by TEXT, confirmed_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    ALTER TABLE knowledge_chunks ADD COLUMN page_index INTEGER;
+    ALTER TABLE knowledge_chunks ADD COLUMN region_json TEXT;
+    """),
 ]
 
 

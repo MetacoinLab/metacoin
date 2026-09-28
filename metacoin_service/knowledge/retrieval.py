@@ -172,6 +172,8 @@ def search(db, store, principal, knowledge, cid, query, *, mode='hybrid', k=8, i
         results.append({'chunk_id': c['version_id'] + ':' + str(c['ordinal']), 'version_id': c['version_id'], 'document_id': c['document_id'], 'document_name': c['document_name'], 'version': c['version'],
                         'ordinal': c['ordinal'], 'heading': c['heading'], 'score': s, 'lexical_score': lexical_scores[i] if lexical_scores else None, 'cosine': semantic_scores[i] if semantic_scores else None,
                         'matched_terms': coverage[i][0] if coverage else None, 'query_terms': coverage[i][1] if coverage else None,
+                        'page_index': c['page_index'] if 'page_index' in c.keys() else None, 'page_number': (c['page_index'] + 1) if ('page_index' in c.keys() and c['page_index'] is not None) else None,
+                        'region': json.loads(c['region_json']) if ('region_json' in c.keys() and c['region_json']) else None,
                         'superseded_version': c['version_id'] != c['current_version_id'], 'text': texts[i], 'sha256': c['sha256'], 'location': {'start_byte': c['start_byte'], 'end_byte': c['end_byte']}})
     timing['total_ms'] = int((time.time() - t0) * 1000)
     return {'collection_id': cid, 'mode': mode, 'index_id': index_row['id'] if index_row else None, 'candidates': len(chunks), 'results': results, 'notes': notes, 'timing_ms': timing,

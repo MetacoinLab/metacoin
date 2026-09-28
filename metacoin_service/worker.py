@@ -25,6 +25,8 @@ class Worker:
         from .contracts import KINDS
         self.compute = ComputeEngine(self)
         self.models = model_engine.ModelEngine(self)
+        from .documents.engine import DocumentEngine
+        self.documents = DocumentEngine(self)
         from .knowledge.engine import KnowledgeEngine
         self.knowledge = KnowledgeEngine(self)
         wanted = set(capabilities or KINDS)
@@ -32,7 +34,7 @@ class Worker:
         if unknown:
             raise ServiceError('VALIDATION', {'code': 'unknown_capabilities', 'unknown': sorted(unknown), 'installed': list(KINDS)})
         if not self.compute.runtime:                       # no numpy-capable interpreter: compute kinds are not offered
-            wanted -= set(compute_manifests.KINDS)
+            wanted -= set(compute_manifests.KINDS) | {'document_import'}          # the extraction child runs under the same interpreter
         if not self.models.available():                    # no torch in the interpreter: model kinds are not offered
             wanted -= set(model_engine.KINDS) | set(model_engine.KNOWLEDGE_KINDS)
         wanted = {c for c in wanted if not c.startswith('device:')} | {'device:' + d for d in self.compute.devices}
@@ -126,6 +128,8 @@ class Worker:
             return self.knowledge.run(job)
         if job['kind'] == 'verification_audit':
             return self._audit(job)
+        if job['kind'] == 'document_import':
+            return self.documents.run(job)
         with self.db.read() as db:
             contract, spec = self._spec(db, job)
         limits = {'cpu': self.settings.limits['worker_cpu_seconds'], 'mem': self.settings.limits['worker_address_space_bytes'],
@@ -252,6 +256,12 @@ class Worker:
         finally:
             with self.db.tx() as db:
                 db.execute('UPDATE workers SET current_job_id=NULL, last_heartbeat=? WHERE id=?', (now(), self.worker_id))
+
+    def documents_service(self):
+        from .api import Services
+        svc = getattr(self, '_svc', None) or Services(self.settings)
+        self._svc = svc
+        return svc.documents
 
     def tick_workflows(self):
         """Advance active workflow runs (scheduler tick); errors in one run do not stop the worker."""

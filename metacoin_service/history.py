@@ -25,6 +25,7 @@ CATEGORIES = {'budget.ceiling_set': 'economic', 'compute.progress': 'scientific'
     'calibration.dataset': 'scientific', 'calibration.fit': 'scientific', 'calibration.promoted': 'administrative',
     'verification.requested': 'scientific', 'verification.completed': 'scientific', 'verification.disputed': 'scientific', 'verification.resolved': 'scientific',
     'node.enrolled': 'administrative', 'node.revoked': 'administrative', 'node.drained': 'administrative', 'node.transfer': 'administrative', 'node.claimed': 'scientific',
+    'document.import': 'administrative', 'document.extracted': 'scientific', 'document.published': 'administrative', 'document.removed': 'administrative', 'document.annotation': 'scientific', 'document.mapping': 'scientific',
     'agent.plan': 'administrative', 'agent.plan_accepted': 'administrative',
     'approval.proposed': 'administrative', 'approval.decided': 'administrative', 'approval.applied': 'administrative', 'approval.expired': 'administrative',
 }
