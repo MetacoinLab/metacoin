@@ -303,7 +303,8 @@ class PreemptionTests(unittest.TestCase):
         time.sleep(2.5)
         self.assertIsNone(wb.run_once())                                                       # first attempt: no slot; preemption requested
         v = inst.view(big)
-        self.assertEqual((v['control'], v['preempted_for']), ('pause', small), v)
+        self.assertEqual(v['preempted_for'], small, v)
+        self.assertTrue(v['control'] == 'pause' or v['phase'] == 'paused', v)              # the pause request lands at the next checkpoint (may already have landed)
         ta.join(timeout=120)                                                                   # the big job pauses at its next checkpoint
         v = inst.view(big)
         self.assertEqual((v['state'], v['phase'], v['hold']), ('queued', 'paused', True), v)

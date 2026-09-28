@@ -59,7 +59,21 @@ def backup(settings, dest, include_keys=False):
         (dest / 'keys').mkdir(mode=0o700)
         for f in Path(settings.keys_dir).glob('*'):
             shutil.copy2(f, dest / 'keys' / f.name); os.chmod(dest / 'keys' / f.name, 0o600)
-    manifest = {'schema': BACKUP_SCHEMA, 'created_at': now(), 'contains': {
+    D0 = database.Database(settings.db_path)
+    with D0.read() as db:
+        def count(sql):
+            try:
+                return db.execute(sql).fetchone()[0]
+            except Exception:
+                return None
+        inventory = {'model_revisions': [dict(r) for r in db.execute('SELECT id, model_id, revision, hub_repo, weight_digest, status, installed FROM model_revisions').fetchall()] if count('SELECT COUNT(*) FROM model_revisions') is not None else [],
+                     'knowledge_indexes': count('SELECT COUNT(*) FROM knowledge_indexes'), 'knowledge_versions': count('SELECT COUNT(*) FROM knowledge_versions'), 'calibration_models': count('SELECT COUNT(*) FROM calibration_models'),
+                     'verification_records': count('SELECT COUNT(*) FROM verification_jobs'), 'nodes': [dict(r) for r in db.execute('SELECT id, name, state, public_key_hex FROM nodes').fetchall()] if count('SELECT COUNT(*) FROM nodes') is not None else [],
+                     'approvals': count('SELECT COUNT(*) FROM approvals')}
+    manifest = {'schema': BACKUP_SCHEMA, 'created_at': now(), 'inventory': inventory,
+                'classes': {'portable_source': 'not in this backup (git export)', 'operational_state': 'service.sqlite + journal.sqlite', 'encrypted_payloads': 'artifacts/ (age ciphertext: documents, indexes, checkpoints, outputs, calibration rows)',
+                            'secret_material': 'keys/ only with --include-keys; node credentials are hashes only (the nodes keep their private keys); model weights are NOT included (pinned manifests only)'},
+                'contains': {
         'service_database': 'sensitive metadata (principal names, credential hashes, contract terms, digests, events)',
         'journal_database': 'economic authorization state (a restored copy must be reconciled, not resumed)',
         'artifacts': str(count) + ' ciphertext objects (age) and public bundles',
@@ -103,9 +117,34 @@ def restore(backup_dir, settings, keys_dir=None):
         for w in db.execute('SELECT workspace FROM campaigns'):
             history.record(db, w['workspace'], 'operator', 'restore.completed', 'service', 'restore',
                            {'keys_restored': keys_restored, 'reconciliation_gate': True})
+    recovery = model_index_recovery(settings)
     return {'restored_to': str(home), 'keys_restored': keys_restored,
             'note': 'key material absent: encrypted artifacts unreadable until the identity is restored' if not keys_restored else 'ok',
-            'reconciliation_gate': 'set; run reconcile on unresolved actions before any new dispatch'}
+            'reconciliation_gate': 'set; run reconcile on unresolved actions before any new dispatch', 'models_and_indexes': recovery}
+
+
+def model_index_recovery(settings):
+    """After a restore: which model revisions lack weights on this host (nothing is downloaded; the operator installs the
+    pinned artifact and runs recheck), which indexes have their encrypted artifact, and that no node enrolls itself."""
+    from .models import registry as registry_mod
+    D = database.Database(settings.db_path)
+    out = {'model_revisions': [], 'knowledge_indexes': [], 'nodes': 'enrolled node rows restored; none re-registered automatically; credentials unchanged (hashes)', 'policy': 'no automatic download; no index rebuild without an authorized index request'}
+    with D.tx() as db:
+        try:
+            rows = db.execute('SELECT * FROM model_revisions').fetchall()
+        except Exception:
+            return out
+        for r in rows:
+            insp = registry_mod.inspect_artifact(settings, r['hub_repo'], r['revision'])
+            present = insp['local_dir_exists'] and not insp['problems'] and (insp['files'].get('model.safetensors', {}).get('sha256') == r['weight_digest'] or r['weight_digest'] is None)
+            db.execute('UPDATE model_revisions SET installed=? WHERE id=?', (int(present), r['id']))
+            db.execute("UPDATE model_runtimes SET state='unloaded', pid=NULL WHERE revision_id=?", (r['id'],))
+            out['model_revisions'].append({'id': r['id'], 'model_id': r['model_id'], 'weights_present': present, 'problems': insp['problems'][:2], 'action': None if present else 'install the pinned artifact under the model store, then POST /api/v1/models/{id}/recheck'})
+        for i in db.execute('SELECT id, state, vectors_artifact_id FROM knowledge_indexes').fetchall():
+            art = db.execute('SELECT deleted_at, storage_name FROM artifacts WHERE id=?', (i['vectors_artifact_id'],)).fetchone() if i['vectors_artifact_id'] else None
+            payload = bool(art) and art['deleted_at'] is None and (Path(settings.artifacts_dir) / art['storage_name']).exists()
+            out['knowledge_indexes'].append({'id': i['id'], 'state': i['state'], 'payload_present': payload, 'action': None if payload or i['state'] != 'ready' else 'build a new index version (a rebuilt index gets a new identity)'})
+    return out
 
 
 def clear_gate(settings):

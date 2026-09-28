@@ -95,10 +95,10 @@ def expansion(args, go):
             if st2 != 200:
                 return st2, seg
             for s_ in seg['segments']:
-                sys.stdout.write(s_['text']); sys.stdout.flush(); text += s_['text']
+                sys.stderr.write(s_['text']); sys.stderr.flush(); text += s_['text']        # streamed text on stderr; the JSON result stays on stdout
             after = seg['cursor']
             if seg['done']:
-                sys.stdout.write('\n')
+                sys.stderr.write('\n')
                 st3, view = go('GET', '/api/v1/models/jobs/' + jid)
                 return st3, {'job_id': jid, 'state': view.get('state'), 'usage': view.get('usage'), 'chars': len(text)}
         return 408, {'error': True, 'code': 'CLIENT_TIMEOUT', 'job_id': jid, 'note': 'delivery resumes with model-job --segments --after N; no second generation was requested'}
