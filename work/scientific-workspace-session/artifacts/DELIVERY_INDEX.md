@@ -19,7 +19,8 @@
 | `test-logs/` | consolidated suite, science suite, local-chain suite, regression batches, journeys |
 | `benchmarks/`, `generation-batching-benchmark.json`, `continuous-equality.json`, `adaptive-campaign-benchmark.json` | measurements with their conditions and sample sizes |
 | `eval-set-agent-behavior-v2.json`, `document-extraction-results-baseline.json` | agent evaluation (dev/validation/held-out) and document extraction results (dev 42/42, held-out 14/14) |
-| `live-status.json`, `live-capabilities.json`, `live-upgrade.json` | the upgraded live instance after backup, migration and restart |
+| `live-status.json`, `live-capabilities.json`, `live-upgrade.json`, `live-health.json`, `migrate.json`, `backup-manifest.json`, `restore-check.json`, `test-logs/live-upgrade.log` | the upgraded live instance: keyed backup manifest (paths and counts only), isolated restore check, applied migrations, health with the loaded revision, status and capabilities after restart |
+| `patch-check.json` | the session patch applied to a checkout of the exact base reproduces the candidate source (tree comparison, zero differences outside `work/`) |
 | `local-chain-record.json` | the private local-chain scenarios (upto), including lost-response reconciliation |
 | `browser-screenshots/` | Playwright evidence of the console at desktop and narrow widths |
 | `clean-export-logs/` | journey 24: fresh venv from the lock (local wheels only), init, status, suites, local chain, journeys from the archive |

@@ -23,7 +23,7 @@ cp "$A"/clean-export/* "$DELIVER/clean-export-logs/" 2>/dev/null
 cp "$A"/shots/* "$DELIVER/browser-screenshots/" 2>/dev/null
 cp "$A"/manifests/* "$DELIVER/manifests/" 2>/dev/null
 cp "$A"/examples/* "$DELIVER/examples/" 2>/dev/null
-for f in FEATURE_LEDGER.json MIGRATIONS.json verification-results.json IMPLEMENTATION_REPORT.md DELIVERY_INDEX.md ISSUES.md openapi.json mcp-schema.json live-status.json live-capabilities.json live-upgrade.json local-chain-record.json eval-set-agent-behavior-v2.json document-extraction-results-baseline.json generation-batching-benchmark.json continuous-equality.json adaptive-campaign-benchmark.json failure-campaign.json producers.jsonl recorder-selftest.jsonl; do
+for f in FEATURE_LEDGER.json MIGRATIONS.json patch-check.json live-restart-v5.json live-health.json migrate.json backup-manifest.json restore-check.json verification-results.json IMPLEMENTATION_REPORT.md DELIVERY_INDEX.md ISSUES.md openapi.json mcp-schema.json live-status.json live-capabilities.json live-upgrade.json local-chain-record.json eval-set-agent-behavior-v2.json document-extraction-results-baseline.json generation-batching-benchmark.json continuous-equality.json adaptive-campaign-benchmark.json failure-campaign.json producers.jsonl recorder-selftest.jsonl; do
   [ -f "$A/$f" ] && cp "$A/$f" "$DELIVER/"
 done
 echo "== scans ($(date -u +%Y-%m-%dT%H:%M:%SZ)) archive $HEAD base $BASE" > "$DELIVER/DELIVERY_SCANS.txt"

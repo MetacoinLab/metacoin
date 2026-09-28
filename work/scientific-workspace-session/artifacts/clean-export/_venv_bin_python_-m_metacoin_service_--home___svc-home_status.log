@@ -1,0 +1,64 @@
+{
+  "home": "svc-home",
+  "db_exists": true,
+  "provider_mode": "simulation",
+  "schema": [
+    "001_initial",
+    "002_batches_templates",
+    "003_datasets_lineage",
+    "004_workflows",
+    "005_campaigns",
+    "006_catalog_quotes_usage",
+    "007_agent_policy_grants",
+    "008_hierarchical_budgets",
+    "009_workers_quotas",
+    "010_reuse_and_sharing",
+    "011_schedules",
+    "012_compute_engine",
+    "013_compute_preemption",
+    "014_local_models",
+    "015_private_knowledge",
+    "016_calibration",
+    "017_verification",
+    "018_federation",
+    "019_approvals",
+    "020_verification_policies",
+    "021_evaluation_registry",
+    "022_notebooks",
+    "023_warmup_batching",
+    "024_agent_plans",
+    "025_metered_upto",
+    "026_document_intelligence",
+    "027_generation_batching",
+    "028_agent_intents",
+    "029_analyses",
+    "030_packages",
+    "031_reconciliation"
+  ],
+  "jobs_by_state": {},
+  "review_by_state": {},
+  "sales_by_state": {},
+  "artifacts": {
+    "total": 0,
+    "payload_deleted": 0
+  },
+  "reconciliation_gate": "0",
+  "workspaces": [
+    {
+      "workspace": "ws_default",
+      "campaign_id": "campaign-ws_default",
+      "cap": 10,
+      "asset": "Test-META",
+      "network": "local-simulation",
+      "unit": "atomic"
+    }
+  ],
+  "history_chains": {
+    "ws_default": {
+      "valid": true,
+      "checked": 4,
+      "head": "3f87a2894a2986531d764d96b2889b84f4a60d22478f6c4a5e3893934c1c1db2"
+    }
+  },
+  "api_pid_file": null
+}

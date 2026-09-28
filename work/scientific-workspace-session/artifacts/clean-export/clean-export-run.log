@@ -1,0 +1,12 @@
+files: 514
+sha256 of archive: 5fd2428195ce6f8795fd31c5839acaf200d519c02efd9ca6240ac78a731df05e
+venv rc=0
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home --provider-mode test-http init
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home status
+rc=0 29s :: .venv/bin/python -m unittest metacoin_service.tests.test_documents metacoin_service.tests.test_resource_plan_service metacoin_service.tests.test_analyses metacoin_service.tests.test_packages metacoin_service.tests.test_intent metacoin_service.tests.test_verification metacoin_service.tests.test_reconciliation metacoin_service.tests.test_document_compare
+rc=0 2s :: /usr/bin/python3 -m unittest metacoin_service.tests.test_resource_plan metacoin_service.tests.test_compute_science
+rc=0 5s :: .venv/bin/python -m unittest integrations.x402.local_chain.test_local_chain metacoin_service.tests.test_packages_upto
+rc=0 87s :: .venv/bin/python -m unittest metacoin_service.tests.test_generation_batching metacoin_service.tests.test_generation_continuous metacoin_service.tests.test_backlog_late
+rc=0 43s :: .venv/bin/python -m metacoin_service.tests.journeys_workspace --only 1,2,4,6,8,11,14,16,17,18 --out /home/zhangd2/projects/metacoin/work/scientific-workspace-session/artifacts/clean-export/journeys-from-clean-export.json
+CLEAN_EXPORT rc=0
+exit 0

@@ -27,6 +27,6 @@
    "note": "reconciliations/measurement_requests"
   }
  ],
- "transaction_notes": "each migration runs in one transaction; all additive (new tables/columns); restore of a pre-026 backup applies 026-031 on open (test_ops_search.test_prior_backup_migrates_and_serves and journey 23)",
- "rollback": "no destructive change; an older binary must not run against a newer database (schema check refuses)"
+ "transaction_notes": "each migration runs in one transaction; all additive (new tables/columns); a pre-026 backup migrates forward on `migrate` (test_ops_search.test_prior_backup_migrates_and_serves, journey 23) and, since issue 34, `restore` of such a backup is accepted under the upgraded code and reports pending_migrations (test_service test_13)",
+ "rollback": "no destructive change; an older binary must not run against a newer database (schema check refuses newer, unknown or gapped schemas); the live upgrade kept a keyed backup at schema 025 for rollback"
 }

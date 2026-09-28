@@ -1,0 +1,28 @@
+{
+  "home": "svc-home",
+  "workspace": "ws_default",
+  "credential_file": "svc-home/credentials/bootstrap.json",
+  "principals": {
+    "owner": {
+      "principal_id": "p_acbddca399a3e1ea",
+      "credential_id": "c_02df250522158147",
+      "role": "owner"
+    },
+    "worker": {
+      "principal_id": "p_382420d42c4f4198",
+      "credential_id": "c_3faf23cf41ffc0c2",
+      "role": "worker"
+    },
+    "reviewer": {
+      "principal_id": "p_132a025b8bbdb60a",
+      "credential_id": "c_22a79f4546b243c5",
+      "role": "reviewer",
+      "signing_key_id": "k_c1abb952cc4d982dae36ad5a"
+    },
+    "viewer": {
+      "principal_id": "p_4989e21ec15db045",
+      "credential_id": "c_effe3a1aee1bd90e",
+      "role": "viewer"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+ "schema": "metacoin-patch-check/v1",
+ "base": "be2d60cf489392c9b9b712a17f244c3c005ced64",
+ "candidate": "db63420ec712fcbb702c0e85a3840cda8fc17277",
+ "patch": "metacoin-scientific-workspace-session-vs-be2d60c.patch (the file in this delivery)",
+ "method": "git worktree of the base in an isolated directory; git apply of the delivered patch; git diff-tree -r of the applied tree against the candidate outside work/",
+ "applied_tree": "6b2b47ad5307cc268271163f32f1854a40ea29ba",
+ "diff_lines_outside_work": 0,
+ "shortstat": "104 files changed, 12180 insertions(+), 90 deletions(-)",
+ "result": "the patch applied to the exact base reproduces the candidate source byte for byte (work/ session records excluded by construction)",
+ "at": "2026-09-28T10:20:24Z"
+}

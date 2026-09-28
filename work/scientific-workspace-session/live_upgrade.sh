@@ -28,7 +28,7 @@ log "pane pids api=$API_PID (child $API_CHILD) worker=$WRK_PID (child $WRK_CHILD
 WID="$(curl -s "${H[@]}" http://127.0.0.1:$PORT/api/v1/status | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('workers',{}))")"; log "workers: $WID"
 for w in $(sqlite3 "$LIVE/service.sqlite" "SELECT id FROM workers WHERE state='active'"); do curl -s -o /dev/null -w "drain $w %{http_code}\n" -X POST "${H[@]}" "http://127.0.0.1:$PORT/api/v1/workers/$w/drain" | tee -a "$OUT/live-upgrade.log"; done
 for i in $(seq 1 60); do R="$(sqlite3 "$LIVE/service.sqlite" "SELECT COUNT(*) FROM jobs WHERE state='running'")"; [ "$R" = "0" ] && break; sleep 2; done; log "running jobs after drain: $R; queued: $(sqlite3 "$LIVE/service.sqlite" "SELECT COUNT(*) FROM jobs WHERE state='queued'")"
-for p in ${WRK_CHILD:-} ${API_CHILD:-}; do [ -n "$p" ] && ps -p "$p" -o args= | grep -q "metacoin_service" && { kill -TERM "$p"; log "TERM $p"; }; done
+for p in ${WRK_CHILD:-} ${API_CHILD:-} $WRK_PID $API_PID; do [ -n "$p" ] && ps -p "$p" -o args= | grep -q "metacoin_service" && { kill -TERM "$p"; log "TERM $p"; }; done   # pane pids included: after an exec respawn the pane process IS the service
 for i in $(seq 1 30); do alive=0; for p in ${WRK_CHILD:-} ${API_CHILD:-}; do [ -n "$p" ] && ps -p "$p" >/dev/null 2>&1 && alive=1; done; [ $alive = 0 ] && break; sleep 1; done; log "old processes stopped (alive=$alive)"
 # 3. migrate
 PYTHONPATH="$REPO" "$PY" -m metacoin_service --home "$LIVE" --provider-mode test-http migrate > "$OUT/migrate.json" 2>>"$OUT/live-upgrade.log" || { log "MIGRATE FAILED: restore from $BK"; exit 3; }
