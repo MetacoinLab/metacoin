@@ -12,6 +12,7 @@ import os
 import stat
 import sys
 import time
+from pathlib import Path
 import urllib.error
 import urllib.request
 
@@ -53,7 +54,8 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'knowledge-search', 'knowledge-answer', 'knowledge-revoke', 'knowledge-validate-citations', 'calibration-dataset', 'calibration-fit', 'calibration-models', 'calibration-predict', 'calibration-action',
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
-                      'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate'}
+                      'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
+                      'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -219,6 +221,23 @@ def expansion(args, go):
         return go('GET', '/api/v1/evaluation/compare/%s/%s' % (args.run_a, args.run_b))
     if c == 'eval-gate':
         return go('POST', '/api/v1/evaluation/gate', {'suite_id': args.suite_id or None})
+    if c == 'notebook-create':
+        spec = json.load(open(args.file))
+        return go('POST', '/api/v1/notebooks', {'name': args.name or spec.get('name'), 'blocks': spec['blocks'], 'note': spec.get('note', '')})
+    if c == 'notebooks':
+        return go('GET', '/api/v1/notebooks')
+    if c == 'notebook':
+        return go('GET', '/api/v1/notebooks/' + args.notebook_id + ('?version=%d' % args.version if args.version else ''))
+    if c == 'notebook-version':
+        spec = json.load(open(args.file))
+        return go('POST', '/api/v1/notebooks/' + args.notebook_id + '/versions', {'blocks': spec['blocks'], 'note': args.note or spec.get('note', '')})
+    if c == 'notebook-compare':
+        return go('GET', '/api/v1/notebooks/%s/compare/%d/%d' % (args.notebook_id, args.a, args.b))
+    if c == 'notebook-export':
+        st, out = go('GET', '/api/v1/notebooks/' + args.notebook_id + '/export' + ('?version=%d' % args.version if args.version else ''))
+        if st == 200 and args.out:
+            Path(args.out).write_text(json.dumps(out, indent=1))
+        return st, out
     if c == 'node-enroll':
         from cryptography.hazmat.primitives.asymmetric import ed25519
         from cryptography.hazmat.primitives import serialization
@@ -346,6 +365,11 @@ def main(argv=None):
     sub.add_parser('verification-policies')
     esc = sub.add_parser('eval-suite-create', help='immutable evaluation suite from a JSON file {name, threshold_percent, items:[...]}'); esc.add_argument('--file', required=True); esc.add_argument('--name'); esc.add_argument('--threshold', type=int)
     sub.add_parser('eval-suites'); er = sub.add_parser('eval-run', help='run a suite under a generation revision (default: the promoted one) through ordinary jobs'); er.add_argument('suite_id'); er.add_argument('--revision'); er.add_argument('--wait', action='store_true'); er.add_argument('--timeout', type=int, default=600)
+    nc = sub.add_parser('notebook-create', help='private experiment notebook from a JSON file {name, note, blocks:[{id,type:text|link,...}]}; nothing is executed'); nc.add_argument('--file', required=True); nc.add_argument('--name')
+    sub.add_parser('notebooks'); nv_ = sub.add_parser('notebook'); nv_.add_argument('notebook_id'); nv_.add_argument('--version', type=int)
+    nvv = sub.add_parser('notebook-version', help='append an immutable version'); nvv.add_argument('notebook_id'); nvv.add_argument('--file', required=True); nvv.add_argument('--note')
+    ncp = sub.add_parser('notebook-compare'); ncp.add_argument('notebook_id'); ncp.add_argument('a', type=int); ncp.add_argument('b', type=int)
+    nex = sub.add_parser('notebook-export', help='authorized export: text + object references with commitments, no payloads'); nex.add_argument('notebook_id'); nex.add_argument('--version', type=int); nex.add_argument('--out')
     ec = sub.add_parser('eval-compare'); ec.add_argument('run_a'); ec.add_argument('run_b'); eg = sub.add_parser('eval-gate', help='require a passing scored run of this suite before promotion (empty clears)'); eg.add_argument('--suite-id', default='')
     ne = sub.add_parser('node-enroll', help='generate a node keypair, enroll it, and write a private identity file'); ne.add_argument('--name', required=True); ne.add_argument('--out', required=True); ne.add_argument('--devices', default='cpu'); ne.add_argument('--capabilities')
     sub.add_parser('nodes'); nv = sub.add_parser('node'); nv.add_argument('node_id'); na = sub.add_parser('node-action'); na.add_argument('node_id'); na.add_argument('action', choices=('drain', 'enable', 'disable', 'revoke', 'rotate')); na.add_argument('--reason', default='')

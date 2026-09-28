@@ -119,7 +119,8 @@ def run(args, settings):
         if args.once: argv += ['--once']
         if args.stop_file: argv += ['--stop-file', args.stop_file]
         if args.compute_python: argv += ['--compute-python', args.compute_python]
-        return node_worker.main(argv) and None
+        node_worker.main(argv)
+        return None
     if args.command == 'rehearse-recovery':
         return ops.rehearse_recovery(settings, args.dest)
     if args.command == 'node-tls':

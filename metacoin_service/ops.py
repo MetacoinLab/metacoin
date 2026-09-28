@@ -57,8 +57,7 @@ def backup(settings, dest, include_keys=False):
             shutil.copy2(f, dest / 'artifacts' / f.name); os.chmod(dest / 'artifacts' / f.name, 0o600); count += 1
     if include_keys:
         (dest / 'keys').mkdir(mode=0o700)
-        for f in Path(settings.keys_dir).glob('*'):
-            shutil.copy2(f, dest / 'keys' / f.name); os.chmod(dest / 'keys' / f.name, 0o600)
+        copy_key_tree(Path(settings.keys_dir), dest / 'keys')
     D0 = database.Database(settings.db_path)
     with D0.read() as db:
         def _n(sql):
@@ -108,8 +107,7 @@ def restore(backup_dir, settings, keys_dir=None):
     source_keys = Path(keys_dir) if keys_dir else (backup_dir / 'keys' if (backup_dir / 'keys').exists() else None)
     keys_restored = False
     if source_keys is not None and source_keys.exists():
-        for f in source_keys.glob('*'):
-            shutil.copy2(f, settings.keys_dir / f.name); os.chmod(settings.keys_dir / f.name, 0o600)
+        copy_key_tree(source_keys, Path(settings.keys_dir))
         keys_restored = True
     D = database.Database(settings.db_path)
     with D.tx() as db:
@@ -185,6 +183,16 @@ def rehearse_recovery(settings, dest):
            'scope': 'one local rehearsal on this host; not evidence of disaster recovery across machines, keys and external settlement history'}
     (dest / 'REHEARSAL.json').write_text(json.dumps(out, indent=1, default=str))
     return out
+
+
+def copy_key_tree(src, dst):
+    """Copy key material recursively (the node TLS CA lives in a subdirectory); every copied file is 0600, directories 0700."""
+    dst.mkdir(parents=True, exist_ok=True); os.chmod(dst, 0o700)
+    for f in Path(src).iterdir():
+        if f.is_dir():
+            copy_key_tree(f, dst / f.name)
+        else:
+            shutil.copy2(f, dst / f.name); os.chmod(dst / f.name, 0o600)
 
 
 def clear_gate(settings):

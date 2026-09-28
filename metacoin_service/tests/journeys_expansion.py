@@ -227,7 +227,7 @@ class Journeys(BaseJourneys):
         st, nv = self.api_json('get', '/api/v1/nodes/' + self.node_id)
         ok = local is None and ran.get('ran', [None, None])[1] == 'succeeded' and v['state'] == 'succeeded' and v['verification']['passed'] and 'federated node' in v['backend_reason'] and nv['observed']['completed_by_backend'].get('cpu') == 1 and any(t['direction'] == 'from_node' and t['role'] == 'result' for t in nv['transfers'])
         self.record(11, 'enroll an isolated worker identity, transfer data over TLS, execute without coordinator database access, publish a fenced result', 'passed' if ok else 'failed',
-                    {'node': self.node_id, 'transport': 'https://127.0.0.1:%d (pinned local CA)' % self.tls_port, 'local_worker_refused_node_only_job': local is None, 'node_ran': ran.get('ran'), 'verification': v.get('verification', {}).get('mode'), 'transfers': [t['role'] + ':' + t['direction'] for t in nv.get('transfers', [])][:6], 'topology': 'two processes on one host (not multi-machine)'})
+                    {'node': self.node_id, 'transport': 'https://127.0.0.1:%d (pinned local CA)' % self.tls_port, 'local_worker_refused_node_only_job': local is None, 'node_ran': ran.get('ran', ran), 'verification': v.get('verification', {}).get('mode'), 'transfers': [t['role'] + ':' + t['direction'] for t in nv.get('transfers', [])][:6], 'topology': 'two processes on one host (not multi-machine)'})
         self.node_ident = ident
 
     def j12_interrupt_and_reassign(self):
@@ -272,7 +272,7 @@ class Journeys(BaseJourneys):
                     caveat='local py-evm chain with pinned sources; not public-network settlement; SDK canonical addresses redirected to local deployments')
 
     def j15_purchase_verification_via_sdk(self):
-        from metacoin_service.tests import x402_invoke_client
+        self.worker_bg('w-j15')
         sid = next(s['id'] for s in self.api_json('get', '/api/v1/services')[1]['items'] if s['kind'] == 'verification_audit')
         st, sv = self.api_json('get', '/api/v1/services/' + sid)
         inputs = {'schema': 'verification-audit-input/v1', 'verification_id': 'vf_000000000000', 'target_job_id': self.j8_job, 'class': 'analytical', 'params': {}}
@@ -301,12 +301,13 @@ class Journeys(BaseJourneys):
 
     # ---- 16-17: MCP --------------------------------------------------------------------------------------
     def j16_mcp_client(self):
+        self.worker_bg('w-j16')
         p = subprocess.run([PY, '-m', 'metacoin_service.tests.mcp_journey_client', self.base, str(self.creds['owner']), 'agent'], cwd=ROOT, env=self.env, capture_output=True, text=True, timeout=600)
         try:
             out = json.loads(p.stdout)
         except ValueError:
             out = {'stdout': p.stdout[-300:], 'stderr': p.stderr[-300:]}
-        self.worker_once('w-j16'); self.worker_once('w-j16')
+        self.wait(out.get('verification_id') and self.api_json('get', '/api/v1/verification/' + out['verification_id'])[1].get('audit_job_id') or 'x', lambda v: v.get('state') in ('succeeded', 'failed', 'cancelled'), 120) if out.get('verification_id') else None
         st, v = self.api_json('get', '/api/v1/verification/' + out.get('verification_id', 'x'))
         ok = out.get('protocol') and out.get('submitted', {}).get('state') == 'queued' and v.get('state') in ('passed', 'queued') and out.get('summary_read')
         self.record(16, 'separate MCP client discovers a service, submits permitted work, queries status, requests verification, retrieves an allowed result', 'passed' if ok else 'failed', {'protocol': out.get('protocol'), 'tools': out.get('tool_count'), 'job': out.get('submitted', {}).get('job_id'), 'verification': v.get('state'), 'sdk': 'mcp 1.26.0 stdio'})
@@ -327,12 +328,12 @@ class Journeys(BaseJourneys):
         manifest = json.loads(p.stdout) if p.returncode == 0 else {}
         fresh = Path(self.inst.temp.name) / 'restored'
         r = subprocess.run([PY, '-m', 'metacoin_service', '--home', str(fresh), 'restore', str(dest), '--keys-dir', str(self.inst.settings.keys_dir)], cwd=ROOT, env=self.env, capture_output=True, text=True, timeout=300)
-        rest = json.loads(r.stdout) if r.returncode == 0 else {'stderr': r.stderr[-300:]}
+        rest = json.loads(r.stdout) if r.returncode == 0 else {'stderr': r.stderr[-300:], 'stdout': r.stdout[-200:]}
         status = json.loads(subprocess.run([PY, '-m', 'metacoin_service', '--home', str(fresh), 'status'], cwd=ROOT, env=self.env, capture_output=True, text=True, timeout=120).stdout or '{}')
         weights = rest.get('models_and_indexes', {}).get('model_revisions', [])
         ok = p.returncode == 0 and r.returncode == 0 and status.get('reconciliation_gate') == '1' and manifest.get('inventory') is not None and status.get('sales_by_state') is not None and (not self.models_ok or all(w['weights_present'] for w in weights))
         self.record(18, 'restore a representative backup into a fresh location: privacy preserved, no automatic economic resubmission, model/index recovery reported', 'passed' if ok else 'failed',
-                    {'inventory': {k: (len(v) if isinstance(v, list) else v) for k, v in (manifest.get('inventory') or {}).items()}, 'classes': manifest.get('classes'), 'gate': status.get('reconciliation_gate'), 'models': [(w['model_id'], w['weights_present']) for w in weights], 'indexes': rest.get('models_and_indexes', {}).get('knowledge_indexes')})
+                    {'inventory': {k: (len(v) if isinstance(v, list) else v) for k, v in (manifest.get('inventory') or {}).items()}, 'classes': manifest.get('classes'), 'gate': status.get('reconciliation_gate'), 'restore_error': rest.get('stderr'), 'models': [(w['model_id'], w['weights_present']) for w in weights], 'indexes': rest.get('models_and_indexes', {}).get('knowledge_indexes')})
 
     def j19_console_browser(self):
         script = ROOT / 'metacoin_service' / 'tests' / 'browser' / 'journey_expansion.py'

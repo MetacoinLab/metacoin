@@ -20,6 +20,7 @@ from .federation.service import Federation
 from .approvals import Approvals, gate as approval_gate
 from . import statements as statements_mod, tracing
 from .evaluation import Evaluation
+from .notebooks import Notebooks
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -53,6 +54,7 @@ class Services:
         self.federation = Federation(self.db, self.store, settings)
         self.approvals = Approvals(settings, self)
         self.evaluation = Evaluation(settings, self)
+        self.notebooks = Notebooks(settings, self)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -1693,6 +1695,35 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         return await run(request, True, lambda db, p: svc.evaluation.set_gate(db, p, body.get('suite_id')), 'evaluation.gate', raw)
+
+    # ---- experiment notebooks (§65-2) ---------------------------------------------------------------------------
+    @app.post(API + '/notebooks', status_code=201)
+    async def nb_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.notebooks.create(db, p, body.get('name'), body.get('blocks'), body.get('note', '')), 201), 'notebook.create', raw)
+
+    @app.get(API + '/notebooks')
+    async def nb_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.notebooks.list(db, p)})
+
+    @app.get(API + '/notebooks/{nid}')
+    async def nb_view(request: Request, nid: str, version: int = None):
+        return await run(request, False, lambda db, p: svc.notebooks.view(db, p, nid, version))
+
+    @app.post(API + '/notebooks/{nid}/versions', status_code=201)
+    async def nb_version(request: Request, nid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.notebooks.add_version(db, p, nid, body.get('blocks'), body.get('note', '')), 201), 'notebook.version', raw)
+
+    @app.get(API + '/notebooks/{nid}/compare/{va}/{vb}')
+    async def nb_compare(request: Request, nid: str, va: int, vb: int):
+        return await run(request, False, lambda db, p: svc.notebooks.compare(db, p, nid, va, vb))
+
+    @app.get(API + '/notebooks/{nid}/export')
+    async def nb_export(request: Request, nid: str, version: int = None):
+        return await run(request, True, lambda db, p: svc.notebooks.export(db, p, nid, version))
 
     # ---- usage statements -----------------------------------------------------------------------------------
     @app.get(API + '/statements')

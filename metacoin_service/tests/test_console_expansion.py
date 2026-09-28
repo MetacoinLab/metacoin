@@ -23,7 +23,7 @@ class ConsoleExpansionTests(unittest.TestCase):
 
     def test_pages_render_for_owner_and_hide_private_fields_from_viewer(self):
         csrf = login(self.inst, 'owner')
-        for path in ('/console/models', '/console/calibration', '/console/verification', '/console/nodes', '/console/approvals', '/console/statement', '/console/knowledge'):
+        for path in ('/console/models', '/console/calibration', '/console/verification', '/console/nodes', '/console/approvals', '/console/statement', '/console/knowledge', '/console/notebooks'):
             r = self.c.get(path)
             self.assertEqual(r.status_code, 200, path); self.assertIn('viewport', r.text)
         # knowledge: create a collection and add a document through the forms; search lexical (no index yet)
@@ -32,6 +32,12 @@ class ConsoleExpansionTests(unittest.TestCase):
         self.assertEqual(self.c.post('/console/knowledge/collections/' + cid + '/documents', data={'csrf': csrf, 'name': 'n.md', 'format': 'markdown', 'content': '# Note\n\nThe reserve is 2000 mJ.\n'}, follow_redirects=False).status_code, 303)
         r = self.c.post('/console/knowledge/collections/' + cid + '/search', data={'csrf': csrf, 'query': 'reserve', 'mode': 'lexical'})
         self.assertEqual(r.status_code, 200); self.assertIn('2000 mJ', r.text); self.assertIn('BM25', r.text)
+        # notebooks: create through the form with a link to the knowledge collection's document version; nothing executes
+        ver = self.c.get('/api/v1/knowledge/collections/' + cid, headers=self.inst.h('owner')).json()
+        self.assertEqual(self.c.post('/console/notebooks', data={'csrf': csrf, 'name': 'console nb', 'text': 'Observed: reserve 2000 mJ. <script>alert(1)</script>', 'link': 'job:job_missing'}, follow_redirects=False).status_code, 404)
+        self.assertEqual(self.c.post('/console/notebooks', data={'csrf': csrf, 'name': 'console nb', 'text': 'Observed: reserve 2000 mJ. <script>alert(1)</script>'}, follow_redirects=False).status_code, 303)
+        page = self.c.get('/console/notebooks').text
+        self.assertIn('console nb', page); self.assertIn('&lt;script&gt;', page); self.assertNotIn('<script>alert', page)
         # approvals policy form and a proposal decided by the reviewer through the console
         r = self.c.post('/console/approvals/policy', data={'csrf': csrf, 'required': ['scheduling_toggle']}, follow_redirects=False)
         self.assertEqual(r.status_code, 303)
@@ -44,6 +50,7 @@ class ConsoleExpansionTests(unittest.TestCase):
         self.c.cookies.clear()
         csrf_v = login(self.inst, 'viewer')
         self.assertEqual(self.c.get('/console/knowledge').status_code, 403)
+        self.assertEqual(self.c.get('/console/notebooks').status_code, 403)
         self.assertEqual(self.c.get('/console/statement').status_code, 403)
         page = self.c.get('/console/models').text
         self.assertNotIn('>promote ', page); self.assertNotIn('mck_', page)

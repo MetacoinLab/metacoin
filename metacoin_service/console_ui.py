@@ -494,6 +494,41 @@ def mount(app, svc):
         answers = [dict(r, citations=json.loads(r['citations_json'])) for r in db.execute('SELECT * FROM knowledge_answers WHERE workspace=? AND principal_id=? ORDER BY created_at DESC LIMIT 30', (p.workspace, p.id)).fetchall()]
         return dict(principal=p, collections=cols, answers=answers, results=results)
 
+    @app.get('/console/notebooks', response_class=HTMLResponse)
+    async def notebooks_page(request: Request):
+        def fn(db, p):
+            p.require('knowledge:read')
+            nbs = [svc.notebooks.view(db, p, n['id']) for n in svc.notebooks.list(db, p)]
+            return render(request, 'notebooks.html', principal=p, notebooks=nbs)
+        return await page(request, fn)
+
+    def _nb_blocks(f, existing=None):
+        blocks = list(existing or [])
+        n = len(blocks) + 1
+        blocks.append({'id': 'b%d' % n, 'type': 'text', 'text': f.get('text', '')})
+        link = (f.get('link') or '').strip()
+        if link:
+            kind, _, ref = link.partition(':')
+            blocks.append({'id': 'l%d' % n, 'type': 'link', 'ref_kind': kind, 'ref_id': ref})
+        return blocks
+
+    @app.post('/console/notebooks', response_class=HTMLResponse)
+    async def notebooks_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            svc.notebooks.create(db, p, f.get('name', ''), _nb_blocks(f), 'console')
+            return RedirectResponse('/console/notebooks', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/notebooks/{nid}/versions', response_class=HTMLResponse)
+    async def notebooks_version(request: Request, nid: str):
+        f = await form(request)
+        def fn(db, p):
+            cur = svc.notebooks.view(db, p, nid, check_links=False)
+            svc.notebooks.add_version(db, p, nid, _nb_blocks(f, cur['blocks']), 'console')
+            return RedirectResponse('/console/notebooks', status_code=303)
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/knowledge', response_class=HTMLResponse)
     async def knowledge_page(request: Request):
         def fn(db, p):

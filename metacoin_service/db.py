@@ -316,6 +316,11 @@ MIGRATIONS = [
     CREATE TABLE evaluation_runs (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, suite_id TEXT NOT NULL REFERENCES evaluation_suites(id), model_revision_id TEXT NOT NULL, jobs_json TEXT NOT NULL, state TEXT NOT NULL,
         results_json TEXT, passed INTEGER, total INTEGER, percent INTEGER, started_by TEXT NOT NULL, created_at INTEGER NOT NULL, scored_at INTEGER);
     """),
+    ('022_notebooks', """
+    CREATE TABLE notebooks (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE notebook_versions (id TEXT PRIMARY KEY, notebook_id TEXT NOT NULL REFERENCES notebooks(id), version INTEGER NOT NULL, blocks_json TEXT NOT NULL, links_json TEXT NOT NULL, digest TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '', created_by TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (notebook_id, version));
+    """),
 ]
 
 

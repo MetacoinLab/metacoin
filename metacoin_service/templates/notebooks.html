@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block body %}
+<h1>Notebooks</h1>
+<p class="note">Private experiment notebooks: immutable versions of text blocks and checked links to jobs, artifacts, audits, answers, datasets and evaluation runs. Nothing in a notebook executes; a link snapshots the object's commitment so later drift is visible.</p>
+{% if principal.can('knowledge:write') %}<div class="card"><h2>New notebook</h2><form method="post" action="/console/notebooks"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><label for="nbname">Name</label><input id="nbname" name="name" type="text" required maxlength="96">
+<label for="nbtext">First text block</label><textarea id="nbtext" name="text" style="min-height:90px" required></textarea>
+<label for="nblink">Optional link (kind:id, e.g. job:job_abc or verification:vf_abc)</label><input id="nblink" name="link" type="text" maxlength="120">
+<p><button type="submit">Create version 1</button></p></form></div>{% endif %}
+{% for n in notebooks %}<div class="card"><h2>{{ n.name }} <code>{{ n.id }}</code></h2><p class="note">version {{ n.version }} of {{ n.versions|length }} · digest <code>{{ n.digest[:16] }}</code> · {{ n.note }}</p>
+{% for b in n.blocks %}{% if b.type == 'text' %}{% if b.heading %}<h3>{{ b.heading }}</h3>{% endif %}<p>{{ b.text }}</p>{% else %}<p><span class="badge {{ 'ok' if n.link_drift.get(b.id) == 'unchanged' else 'warn' }}">{{ n.link_drift.get(b.id) }}</span> {{ b.label or b.ref_kind }}: <code>{{ b.ref_kind }}:{{ b.ref_id }}</code> commitment <code>{{ (n.links[b.id].commitment or '')[:16] }}</code></p>{% endif %}{% endfor %}
+{% if principal.can('knowledge:write') %}<form method="post" action="/console/notebooks/{{ n.id }}/versions"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><label for="ap-{{ n.id }}">Append a text block as a new version</label><textarea id="ap-{{ n.id }}" name="text" style="min-height:60px" required></textarea><p><button type="submit" class="secondary">Add version {{ n.version + 1 }}</button></p></form>{% endif %}</div>{% else %}<p class="muted">No notebooks yet.</p>{% endfor %}{% endblock %}
