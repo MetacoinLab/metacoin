@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """An agent under a grant pays for a priced service over the real local x402 transport (test-http), with a
 checkpointed payment identifier so an interruption after payment re-presents the same authorization."""
 import json

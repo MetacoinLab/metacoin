@@ -257,6 +257,7 @@ class Catalog:
         asset = pricing['asset_by_mode'].get(mode)
         if asset is None or asset == 'configured':
             raise ServiceError('CAPABILITY_UNAVAILABLE', 'no asset configured for provider mode ' + str(mode))
+        # EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
         network = {'simulation': 'local-simulation', 'test-http': 'eip155-84532'}.get(mode, 'configured')
         pay_to = {'simulation': 'legacy-compute-provider', 'test-http': 'loopback-compute-provider'}.get(mode, 'configured')
         if scheme == 'upto':

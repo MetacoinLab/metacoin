@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Real x402 client process: obtains 402 requirements over TCP, builds the SDK payload with the
 payment-identifier extension, retries with PAYMENT-SIGNATURE, decodes PAYMENT-RESPONSE."""
 import hashlib, json, sys, httpx

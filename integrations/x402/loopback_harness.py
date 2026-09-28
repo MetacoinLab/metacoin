@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """OFFLINE loopback harness against the pinned official x402 Python SDK.
 
 What it exercises, entirely in-process (no socket, no chain, no facilitator

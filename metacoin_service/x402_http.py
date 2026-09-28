@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """x402 over real HTTP: the service SELLS access to an accepted job's public bundle.
 
 Direction: a customer pays the service (pay_to) for a result. This is distinct

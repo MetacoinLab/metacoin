@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """x402 SDK loopback: compatibility and refusal matrix. Skipped when the SDK is absent.
 
 Run with an interpreter that has the pinned SDK (see integrations/x402/README.md):

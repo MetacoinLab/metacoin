@@ -1,5 +1,7 @@
 # MetaCoin work service
 
+> **EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.**
+
 An operational application over the Step 01 work-contract core: authenticated HTTP API,
 server-rendered console, durable scientific job queue, age-encrypted private artifacts,
 Ed25519-signed review decisions, an x402 sale route over real HTTP, retention, backup and

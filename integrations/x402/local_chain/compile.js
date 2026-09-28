@@ -1,3 +1,4 @@
+// EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 // Compile pinned contract sources with solcjs (WASM) for the LOCAL validation chain.
 // usage: node compile.js <config.json>   (config: {jobs:[{name, solc, entry, contracts, settings, remappings, roots}]})
 const fs = require('fs'); const path = require('path');

@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Bounded economic actions (agent buys next-step compute) through the existing journal.
 Provider mode is part of the persisted action binding and never changes on retry."""
 import json

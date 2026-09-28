@@ -110,6 +110,7 @@ def trusted(contract, expected_digest, mode='current'):
 
 
 # Action destinations per adapter capability. Tokens only (the CAIP-2 network
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 # id eip155:84532 is written eip155-84532; the loopback adapter maps it back).
 ACTION_TEMPLATES = {
     'legacy_simulation': {'recipient': 'legacy-compute-provider', 'resource': 'next-compute',

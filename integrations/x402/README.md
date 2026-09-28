@@ -1,5 +1,7 @@
 # x402 payment boundary: inventory, capabilities, and the SDK loopback harness
 
+> **EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.**
+
 Updated 2026-09-23. Two things live here: the adapter over MetaCoin's existing
 x402-class simulation (`legacy_adapter.py`), and an OFFLINE compatibility
 harness against the pinned official x402 Python SDK (`loopback_harness.py`,

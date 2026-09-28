@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Local-chain validation of the x402 `upto` scheme: real pinned SDK client/server/facilitator code and real contract
 execution on a private py-evm chain. Evidence of LOCAL contract behaviour only; never public-network settlement.
 

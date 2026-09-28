@@ -518,6 +518,7 @@ def create_app(settings):
             return invoke_under_quote(svc, db, p, sid, body.get('quote_id'), body.get('inputs')), 202
         return await run(request, True, fn, 'services.invoke', raw)
 
+    # EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
     @app.post(API + '/x402/services/{sid}/invoke')
     async def x402_invoke(request: Request, sid: str):
         raw = await request.body()

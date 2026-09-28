@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Independent client process for a priced POST invocation over x402 (no server internals)."""
 import hashlib, json, os, sys, httpx
 from integrations.x402 import loopback_harness as lb

@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Journal adapter over the x402 SDK loopback harness (capability x402_loopback_test).
 
 Connects the contract decision to the real SDK request/response path. The

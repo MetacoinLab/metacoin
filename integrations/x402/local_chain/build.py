@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Reproducible build of the local validation contracts from PINNED upstream sources (never from a live chain):
 
   - Permit2 (Uniswap/permit2, MIT), solc 0.8.17, via_ir, optimizer runs 1000000 (the repository's own foundry profile)

@@ -150,6 +150,7 @@ class Runner:
             self.remember('job', job)
         return {'executed': True, 'plan': plan, 'job': job}
 
+    # EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
     def paid_invoke(self, plan, inputs):
         from integrations.x402 import loopback_harness as lb
         ns = lb.load()

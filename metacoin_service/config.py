@@ -39,6 +39,7 @@ class Settings:
     provider_mode: str = 'simulation'
     campaign_cap: int = 10
     # production provider (all required when provider_mode == 'production'; otherwise ignored)
+    # EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
     facilitator_url: str = ''
     x402_network: str = ''
     x402_asset: str = ''

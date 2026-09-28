@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Production x402 BUYER adapter: the agent pays a remote protected resource over HTTP.
 
 Direction: this service (payer, key held in a private file) buys `next-compute` from a

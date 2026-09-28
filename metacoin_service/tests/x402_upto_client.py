@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Independent client process for a metered (upto) invocation over the HTTP route. It derives the local chain's synthetic
 payer key from eth-tester's deterministic accounts and redirects the SDK's Permit2/proxy constants to the coordinator's
 recorded local deployments (published under /api/v1/x402/settlements), so the EIP-712 domain matches. Test topology only."""

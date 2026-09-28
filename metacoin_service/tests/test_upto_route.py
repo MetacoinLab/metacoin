@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Group F application route: variable-price (upto) invocations. A quote chooses the scheme explicitly; the 402 asks for a
 Permit2 authorization up to the ceiling; a verified authorization creates the job without moving funds; settlement after
 the job transfers the measured amount (below the ceiling when usage is smaller); a failed job leaves the authorization

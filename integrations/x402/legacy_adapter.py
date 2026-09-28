@@ -1,3 +1,4 @@
+# EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
 """Thin adapter over the existing zero-value stub; no HTTP or real settlement."""
 import hashlib
 import threading

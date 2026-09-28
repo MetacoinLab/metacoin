@@ -861,6 +861,7 @@ class ProductionBuyerTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
         from eth_account import Account
         cls.seller = Instance(provider_mode='test-http')
         cls.port = free_port()
