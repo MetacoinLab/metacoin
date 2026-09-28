@@ -491,6 +491,23 @@ class ServiceMatrix(unittest.TestCase):
         with self.assertRaises(ServiceError):
             ops.restore(dest, rs2)                                    # never into a non-empty destination
         self.assertEqual(database.check_schema(rs2.db_path), database.schema_version(self.inst.settings.db_path))
+        self.assertEqual(out2['pending_migrations'], [])
+        # a backup taken BEFORE an upgrade (older schema, exact prefix) restores under the upgraded code and reports the
+        # pending migrations; migrate then completes it. A newer or unknown schema is still refused.
+        import shutil, sqlite3
+        old = Path(self.inst.temp.name) / 'backup-old'; shutil.copytree(dest, old)
+        c = sqlite3.connect(old / 'service.sqlite'); c.execute('DROP TABLE reconciliations'); c.execute('DROP TABLE measurement_requests'); c.execute("DELETE FROM schema_migrations WHERE name='031_reconciliation'"); c.commit(); c.close()
+        rs3 = config.Settings(home=Path(self.inst.temp.name) / 'restored3')
+        out3 = ops.restore(old, rs3, keys_dir=self.inst.settings.keys_dir)
+        self.assertEqual(out3['pending_migrations'], ['031_reconciliation']); self.assertEqual(out3['schema'], '030_packages')
+        self.assertEqual(database.migrate(rs3.db_path), ['031_reconciliation'])
+        self.assertEqual(database.check_schema(rs3.db_path)[-1], '031_reconciliation')
+        c = sqlite3.connect(old / 'service.sqlite'); c.execute("INSERT INTO schema_migrations VALUES ('999_future', 0)"); c.commit(); c.close()
+        with self.assertRaises(RuntimeError):
+            database.check_schema(old / 'service.sqlite', allow_older=True)
+        c = sqlite3.connect(old / 'service.sqlite'); c.execute("DELETE FROM schema_migrations WHERE name IN ('999_future', '029_analyses')"); c.commit(); c.close()
+        with self.assertRaises(RuntimeError):                       # out of order (a gap) is not migratable
+            database.check_schema(old / 'service.sqlite', allow_older=True)
 
     # 14 --------------------------------------------------------------------------
     def test_14_retention_cleanup_removes_payload_keeps_record(self):

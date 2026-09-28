@@ -447,11 +447,13 @@ def schema_version(path):
     return rows
 
 
-def check_schema(path):
-    """Structural check before opening restored or foreign state for writes."""
+def check_schema(path, allow_older=False):
+    """Structural check before opening restored or foreign state for writes. With allow_older, a database at an OLDER
+    schema that is an exact prefix of this revision's migration list is accepted (it can be migrated forward, e.g. a backup
+    taken before an upgrade restored by the upgraded code); a newer, unknown or out-of-order schema is always refused."""
     expected = [name for name, _ in MIGRATIONS]
     actual = schema_version(path)
-    if actual != expected:
+    if actual != expected and not (allow_older and actual and actual == expected[:len(actual)]):
         raise RuntimeError('schema version mismatch: ' + ','.join(actual) + ' vs ' + ','.join(expected))
     db = open_db(path)
     try:

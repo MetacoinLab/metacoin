@@ -99,7 +99,8 @@ def restore(backup_dir, settings, keys_dir=None):
     for d in (settings.keys_dir, settings.artifacts_dir, settings.credentials_dir, settings.logs_dir, settings.run_dir):
         Path(d).mkdir(mode=0o700, exist_ok=True)
     shutil.copy2(backup_dir / 'service.sqlite', settings.db_path); os.chmod(settings.db_path, 0o600)
-    database.check_schema(settings.db_path)      # structural + version check before opening for writes
+    applied = database.check_schema(settings.db_path, allow_older=True)      # structural + version check before opening for writes; an older (pre-upgrade) backup is accepted and reported as pending migrations
+    pending = [name for name, _ in database.MIGRATIONS if name not in set(applied)]
     if (backup_dir / 'journal.sqlite').exists():
         shutil.copy2(backup_dir / 'journal.sqlite', settings.journal_path); os.chmod(settings.journal_path, 0o600)
     for f in (backup_dir / 'artifacts').glob('*'):
@@ -116,7 +117,7 @@ def restore(backup_dir, settings, keys_dir=None):
             history.record(db, w['workspace'], 'operator', 'restore.completed', 'service', 'restore',
                            {'keys_restored': keys_restored, 'reconciliation_gate': True})
     recovery = model_index_recovery(settings)
-    return {'restored_to': str(home), 'keys_restored': keys_restored,
+    return {'restored_to': str(home), 'keys_restored': keys_restored, 'schema': applied[-1] if applied else None, 'pending_migrations': pending,
             'note': 'key material absent: encrypted artifacts unreadable until the identity is restored' if not keys_restored else 'ok',
             'reconciliation_gate': 'set; run reconcile on unresolved actions before any new dispatch', 'models_and_indexes': recovery}
 
