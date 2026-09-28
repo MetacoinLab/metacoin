@@ -31,5 +31,8 @@ H approvals, usage statements, tracing, console pages, CLI, journeys (20), failu
 - approvals.py + migration 019, statements.py, tracing.py (opentelemetry optional, METACOIN_TRACING=1), client_cli expansion commands, console pages + test_console_expansion OK — commit (see log)
 - journeys/failure campaign/benchmark/endurance scripts + README + lock — commit 3bc722f; journeys 1-10 PASSED (run 3: 6-9 needed a background worker)
 - §65-6 verification policy templates + §65-10 rehearse-recovery (migration 020) — commit 42da012; §65-1 evaluation registry (migration 021) — commit (see log)
+- §65-2 notebooks (022), §65-3 design suggestions, §65-4 batching + §65-5 warmup (023) — commits ecc9a5b, 5b33a14, and the batching/warmup commit; journeys 1-18 PASSED at ecc9a5b (19 fixed after: worker + coverage rule), 20 runs at packaging
+- background verification (worktree snapshot e513377): service suite 125 tests OK (8 skipped: no-torch variants), local-chain 6 OK, benchmark-expansion.json, endurance 15 min (264 jobs, queue depth 0, api rss 70.8->71.5 MB)
+- live service still at 3b6f292 / schema 013 (pids 682832 API, 682837 live-worker, started 2026-09-24 01:09): upgrade pending (backup first)
 ## Next action
 journeys_expansion.py (20 journeys incl. TLS node topology + kill hooks, MCP client, local chain, restore), failure campaign, endurance window, benchmarks, live upgrade (backup + migrate 014-019 + restart), README, delivery ~/metacoin-24h-expansion-delivery-2026-09-27/
