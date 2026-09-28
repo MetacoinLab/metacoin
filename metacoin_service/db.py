@@ -306,6 +306,10 @@ MIGRATIONS = [
     CREATE TABLE approvals (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, action TEXT NOT NULL, content_json TEXT NOT NULL, content_digest TEXT NOT NULL, revision_digest TEXT NOT NULL, state TEXT NOT NULL,
         proposed_by TEXT NOT NULL, approved_by TEXT, note TEXT, decision_note TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, decided_at INTEGER, applied_at INTEGER, apply_result_json TEXT);
     """),
+    ('020_verification_policies', """
+    CREATE TABLE verification_policies (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, class TEXT NOT NULL, params_json TEXT NOT NULL, max_work INTEGER NOT NULL,
+        verifier_digest TEXT NOT NULL, scope TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, retired_at INTEGER, UNIQUE (workspace, name, version));
+    """),
 ]
 
 

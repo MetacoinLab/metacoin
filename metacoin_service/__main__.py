@@ -23,6 +23,7 @@ def main(argv=None):
     nw.add_argument('--identity', required=True); nw.add_argument('--coordinator', required=True); nw.add_argument('--ca'); nw.add_argument('--node-home', required=True)
     nw.add_argument('--once', action='store_true'); nw.add_argument('--stop-file'); nw.add_argument('--compute-python')
     sub.add_parser('node-tls', help='create (once) the local node trust domain CA and server certificate; prints the CA path for nodes to pin')
+    rr = sub.add_parser('rehearse-recovery', help='backup -> restore -> read-only checks in an isolated directory without touching the running service'); rr.add_argument('dest')
     work = sub.add_parser('worker', help='start a background worker')
     work.add_argument('--once', action='store_true')
     work.add_argument('--name', help='worker name shown in the queue view')
@@ -119,6 +120,8 @@ def run(args, settings):
         if args.stop_file: argv += ['--stop-file', args.stop_file]
         if args.compute_python: argv += ['--compute-python', args.compute_python]
         return node_worker.main(argv) and None
+    if args.command == 'rehearse-recovery':
+        return ops.rehearse_recovery(settings, args.dest)
     if args.command == 'node-tls':
         from .federation.tls import ensure_node_tls
         return ensure_node_tls(settings)

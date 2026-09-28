@@ -61,15 +61,15 @@ def backup(settings, dest, include_keys=False):
             shutil.copy2(f, dest / 'keys' / f.name); os.chmod(dest / 'keys' / f.name, 0o600)
     D0 = database.Database(settings.db_path)
     with D0.read() as db:
-        def count(sql):
+        def _n(sql):
             try:
                 return db.execute(sql).fetchone()[0]
             except Exception:
                 return None
-        inventory = {'model_revisions': [dict(r) for r in db.execute('SELECT id, model_id, revision, hub_repo, weight_digest, status, installed FROM model_revisions').fetchall()] if count('SELECT COUNT(*) FROM model_revisions') is not None else [],
-                     'knowledge_indexes': count('SELECT COUNT(*) FROM knowledge_indexes'), 'knowledge_versions': count('SELECT COUNT(*) FROM knowledge_versions'), 'calibration_models': count('SELECT COUNT(*) FROM calibration_models'),
-                     'verification_records': count('SELECT COUNT(*) FROM verification_jobs'), 'nodes': [dict(r) for r in db.execute('SELECT id, name, state, public_key_hex FROM nodes').fetchall()] if count('SELECT COUNT(*) FROM nodes') is not None else [],
-                     'approvals': count('SELECT COUNT(*) FROM approvals')}
+        inventory = {'model_revisions': [dict(r) for r in db.execute('SELECT id, model_id, revision, hub_repo, weight_digest, status, installed FROM model_revisions').fetchall()] if _n('SELECT COUNT(*) FROM model_revisions') is not None else [],
+                     'knowledge_indexes': _n('SELECT COUNT(*) FROM knowledge_indexes'), 'knowledge_versions': _n('SELECT COUNT(*) FROM knowledge_versions'), 'calibration_models': _n('SELECT COUNT(*) FROM calibration_models'),
+                     'verification_records': _n('SELECT COUNT(*) FROM verification_jobs'), 'nodes': [dict(r) for r in db.execute('SELECT id, name, state, public_key_hex FROM nodes').fetchall()] if _n('SELECT COUNT(*) FROM nodes') is not None else [],
+                     'approvals': _n('SELECT COUNT(*) FROM approvals')}
     manifest = {'schema': BACKUP_SCHEMA, 'created_at': now(), 'inventory': inventory,
                 'classes': {'portable_source': 'not in this backup (git export)', 'operational_state': 'service.sqlite + journal.sqlite', 'encrypted_payloads': 'artifacts/ (age ciphertext: documents, indexes, checkpoints, outputs, calibration rows)',
                             'secret_material': 'keys/ only with --include-keys; node credentials are hashes only (the nodes keep their private keys); model weights are NOT included (pinned manifests only)'},
@@ -144,6 +144,46 @@ def model_index_recovery(settings):
             art = db.execute('SELECT deleted_at, storage_name FROM artifacts WHERE id=?', (i['vectors_artifact_id'],)).fetchone() if i['vectors_artifact_id'] else None
             payload = bool(art) and art['deleted_at'] is None and (Path(settings.artifacts_dir) / art['storage_name']).exists()
             out['knowledge_indexes'].append({'id': i['id'], 'state': i['state'], 'payload_present': payload, 'action': None if payload or i['state'] != 'ready' else 'build a new index version (a rebuilt index gets a new identity)'})
+    return out
+
+
+def rehearse_recovery(settings, dest):
+    """§65-10: bounded backup -> restore -> read-only verification rehearsal in an isolated directory. The running
+    service is not touched (backup uses the SQLite backup API; nothing is started, resubmitted or enrolled)."""
+    from . import config as config_mod
+    dest = Path(dest)
+    if dest.exists() and any(dest.iterdir()):
+        raise ServiceError('CONFLICT', 'rehearsal directory must be empty')
+    dest.mkdir(mode=0o700, parents=True, exist_ok=True)
+    t0 = now()
+    manifest = backup(settings, dest / 'backup', include_keys=False)
+    restored = config_mod.Settings(home=dest / 'restored-home', provider_mode=settings.provider_mode, compute_python=settings.compute_python, model_store=settings.model_store)
+    result = restore(dest / 'backup', restored, keys_dir=str(settings.keys_dir))
+    D = database.Database(restored.db_path)
+    with D.read() as db:
+        checks = {'schema': database.schema_version(restored.db_path)[-1], 'integrity': db.execute('PRAGMA integrity_check').fetchone()[0], 'foreign_keys': len(db.execute('PRAGMA foreign_key_check').fetchall()),
+                  'jobs': db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], 'artifacts_present': 0, 'artifacts_missing': [], 'unresolved_actions': db.execute("SELECT COUNT(*) FROM sales WHERE state IN ('SUBMISSION_PENDING','OUTCOME_UNKNOWN')").fetchone()[0],
+                  'reconciliation_gate': db.execute("SELECT value FROM meta WHERE key='reconciliation_gate'").fetchone()[0], 'history_chains': {w['workspace']: history.verify_chain(db, w['workspace']) for w in db.execute('SELECT workspace FROM campaigns')}}
+        for a in db.execute('SELECT id, storage_name, deleted_at FROM artifacts').fetchall():
+            if a['deleted_at'] is None:
+                if (Path(restored.artifacts_dir) / a['storage_name']).exists():
+                    checks['artifacts_present'] += 1
+                else:
+                    checks['artifacts_missing'].append(a['id'])
+        checks['artifacts_missing'] = checks['artifacts_missing'][:20]
+        # decryptability of one private artifact with the restored keys (read-only)
+        from .artifacts import ArtifactStore
+        store = ArtifactStore(restored)
+        row = db.execute("SELECT id, workspace FROM artifacts WHERE encrypted=1 AND deleted_at IS NULL ORDER BY created_at LIMIT 1").fetchone()
+        try:
+            checks['sample_artifact_decrypts'] = bool(store.load(db, row['id'], row['workspace'])) if row else None
+        except Exception as exc:
+            checks['sample_artifact_decrypts'] = False; checks['decrypt_error'] = type(exc).__name__
+    missing_keys = [k for k in ('service.age', 'service.ed25519') if not (Path(restored.keys_dir) / k).exists()]
+    out = {'rehearsal_dir': str(dest), 'seconds': now() - t0, 'backup_inventory': manifest.get('inventory'), 'restore': {k: result[k] for k in ('keys_restored', 'reconciliation_gate')}, 'checks': checks,
+           'missing_keys': missing_keys, 'models_and_indexes': result.get('models_and_indexes'), 'running_service': 'untouched (no process started, no payment resubmitted, no node enrolled)',
+           'scope': 'one local rehearsal on this host; not evidence of disaster recovery across machines, keys and external settlement history'}
+    (dest / 'REHEARSAL.json').write_text(json.dumps(out, indent=1, default=str))
     return out
 
 

@@ -52,7 +52,7 @@ def call(base, token, method, path, body=None, raw=False, idempotency_key=None):
 EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-action', 'generate', 'embed', 'model-job', 'knowledge-collection-create', 'knowledge-collections', 'knowledge-add', 'knowledge-index',
                       'knowledge-search', 'knowledge-answer', 'knowledge-revoke', 'knowledge-validate-citations', 'calibration-dataset', 'calibration-fit', 'calibration-models', 'calibration-predict', 'calibration-action',
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
-                      'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection'}
+                      'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies'}
 
 
 def wait_job(go, job_id, timeout):
@@ -191,6 +191,13 @@ def expansion(args, go):
         return st, proj
     if c == 'verifications':
         return go('GET', '/api/v1/verification' + ('?job_id=' + args.job if args.job else ''))
+    if c == 'verification-policy-create':
+        body = {'name': args.name, 'class': args.cls, 'params': ({'sample_count': args.sample_count} if args.sample_count else {})}
+        if args.max_work:
+            body['max_work'] = args.max_work
+        return go('POST', '/api/v1/verification/policies', body)
+    if c == 'verification-policies':
+        return go('GET', '/api/v1/verification/policies')
     if c == 'node-enroll':
         from cryptography.hazmat.primitives.asymmetric import ed25519
         from cryptography.hazmat.primitives import serialization
@@ -314,6 +321,8 @@ def main(argv=None):
     vr = sub.add_parser('verification-request'); vr.add_argument('job_id'); vr.add_argument('--class', dest='cls', required=True); vr.add_argument('--sample-count', type=int); vr.add_argument('--wait', action='store_true'); vr.add_argument('--timeout', type=int, default=600)
     vs = sub.add_parser('verification-status'); vs.add_argument('verification_id'); vst = sub.add_parser('verification-statement', help='public signed projection; --verify checks it against this service'); vst.add_argument('verification_id'); vst.add_argument('--verify', action='store_true'); vst.add_argument('--out')
     vl = sub.add_parser('verifications'); vl.add_argument('--job')
+    vpc = sub.add_parser('verification-policy-create', help='reusable immutable audit requirement: class, params, max work'); vpc.add_argument('--name', required=True); vpc.add_argument('--class', dest='cls', required=True); vpc.add_argument('--sample-count', type=int); vpc.add_argument('--max-work', type=int)
+    sub.add_parser('verification-policies')
     ne = sub.add_parser('node-enroll', help='generate a node keypair, enroll it, and write a private identity file'); ne.add_argument('--name', required=True); ne.add_argument('--out', required=True); ne.add_argument('--devices', default='cpu'); ne.add_argument('--capabilities')
     sub.add_parser('nodes'); nv = sub.add_parser('node'); nv.add_argument('node_id'); na = sub.add_parser('node-action'); na.add_argument('node_id'); na.add_argument('action', choices=('drain', 'enable', 'disable', 'revoke', 'rotate')); na.add_argument('--reason', default='')
     apr = sub.add_parser('approval-propose'); apr.add_argument('--action', required=True); apr.add_argument('--content', required=True, help='JSON object'); apr.add_argument('--note', default='')

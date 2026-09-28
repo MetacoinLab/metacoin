@@ -299,19 +299,71 @@ class Verification:
         history.record(db, principal.workspace, principal.id, 'verification.resolved', 'verification', vid, {'decision': decision})
         return self.view(db, principal, vid)
 
+    # ---- policy templates (§65-6): reusable, immutable audit requirements ---------------------------------
+    def create_policy(self, db, principal, body):
+        principal.require('verification:submit'); principal.require('contract:create')
+        if type(body) is not dict or set(body) - {'name', 'class', 'params', 'max_work', 'scope'}:
+            raise ServiceError('VALIDATION', 'fields: name, class, params, max_work, scope')
+        name, cls, params, scope = body.get('name'), body.get('class'), body.get('params') or {}, body.get('scope', 'all-results')
+        if type(name) is not str or not 1 <= len(name) <= 64 or cls not in CLASSES or type(params) is not dict or set(params) - {'sample_count', 'backend'} or type(scope) is not str or len(scope) > 200:
+            raise ServiceError('VALIDATION', 'name/class/params/scope')
+        max_work = body.get('max_work', MAX_WORK[cls])
+        if type(max_work) is not int or not 1 <= max_work <= MAX_WORK[cls]:
+            raise ServiceError('VALIDATION', {'code': 'max_work', 'allowed_max': MAX_WORK[cls]})
+        version = db.execute('SELECT COALESCE(MAX(version),0)+1 FROM verification_policies WHERE workspace=? AND name=?', (principal.workspace, name)).fetchone()[0]
+        pid = 'vp_' + secrets.token_hex(6)
+        db.execute('INSERT INTO verification_policies (id, workspace, name, version, class, params_json, max_work, verifier_digest, scope, created_by, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+                   (pid, principal.workspace, name, version, cls, json.dumps(params), max_work, implementation_digest(), scope, principal.id, now()))
+        history.record(db, principal.workspace, principal.id, 'verification.requested', 'verification_policy', pid, {'name': name, 'version': version, 'class': cls})
+        return self.policy_view(self.policy(db, principal, pid))
+
+    def policy(self, db, principal, pid):
+        r = db.execute('SELECT * FROM verification_policies WHERE id=? AND workspace=?', (pid, principal.workspace)).fetchone()
+        if r is None:
+            raise ServiceError('NOT_FOUND', 'verification policy')
+        return r
+
+    @staticmethod
+    def policy_view(r):
+        return {'id': r['id'], 'name': r['name'], 'version': r['version'], 'class': r['class'], 'params': json.loads(r['params_json']), 'max_work': r['max_work'], 'verifier_digest': r['verifier_digest'],
+                'verifier_current': r['verifier_digest'] == implementation_digest(), 'scope': r['scope'], 'created_by': r['created_by'], 'created_at': r['created_at'], 'retired_at': r['retired_at'],
+                'immutable': 'a new version is a new id; contracts bind the id before execution'}
+
+    def list_policies(self, db, principal):
+        principal.require('job:read')
+        return [self.policy_view(r) for r in db.execute('SELECT * FROM verification_policies WHERE workspace=? ORDER BY name, version', (principal.workspace,)).fetchall()]
+
+    def retire_policy(self, db, principal, pid):
+        principal.require('verification:submit'); principal.require('contract:create')
+        self.policy(db, principal, pid)
+        db.execute('UPDATE verification_policies SET retired_at=? WHERE id=? AND retired_at IS NULL', (now(), pid))
+        return self.policy_view(self.policy(db, principal, pid))
+
     # ---- gate ------------------------------------------------------------------------------------
     @staticmethod
     def gate(db, job, contract):
-        """Returns None when the contract's required verification is satisfied, else a refusal detail."""
+        """Returns None when the contract's required verification is satisfied, else a refusal detail. The requirement
+        is the class named in the policy or the template bound at freeze time (class, minimum sample count, verifier)."""
         pol = json.loads(contract['policy_json'])
-        req = pol.get('required_verification')
+        req, min_samples, verifier = pol.get('required_verification'), None, None
+        if pol.get('verification_policy_id'):
+            tpl = db.execute('SELECT * FROM verification_policies WHERE id=?', (pol['verification_policy_id'],)).fetchone()
+            if tpl is None:
+                return {'code': 'verification_policy_missing', 'policy_id': pol['verification_policy_id']}
+            req = tpl['class']; min_samples = json.loads(tpl['params_json']).get('sample_count'); verifier = tpl['verifier_digest']
         if not req:
             return None
-        ok = db.execute("SELECT id FROM verification_jobs WHERE target_job_id=? AND class=? AND state='passed' AND result_commitment=?", (job['id'], req, job['evidence_root'])).fetchone()
-        if ok:
+        for ok in db.execute("SELECT * FROM verification_jobs WHERE target_job_id=? AND class=? AND state='passed' AND result_commitment=?", (job['id'], req, job['evidence_root'])).fetchall():
+            params = json.loads(ok['params_json'])
+            if min_samples is not None and (params.get('sample_count') or 0) < min_samples:
+                continue
+            st = json.loads(ok['statement_json'] or '{}')
+            if verifier is not None and st.get('auditor_digest') != verifier:
+                continue
             return None
         pending = db.execute("SELECT id, state FROM verification_jobs WHERE target_job_id=? AND class=? ORDER BY created_at DESC LIMIT 1", (job['id'], req)).fetchone()
-        return {'code': 'awaiting_verification', 'required_class': req, 'latest': dict(pending) if pending else None, 'note': 'bound before execution; a sampled audit cannot substitute for the required class'}
+        return {'code': 'awaiting_verification', 'required_class': req, 'minimum_sample_count': min_samples, 'required_verifier_digest': verifier, 'latest': dict(pending) if pending else None,
+                'note': 'bound before execution; a weaker audit cannot substitute for the required policy'}
 
 
 def _elevated(principal, ops):

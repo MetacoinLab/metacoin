@@ -1473,6 +1473,20 @@ def create_app(settings):
         body = read_body(request, raw)
         return await run(request, False, lambda db, p: Verification.verify_statement(db, body.get('bundle'), body.get('expected')))
 
+    @app.post(API + '/verification/policies', status_code=201)
+    async def vf_policy_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.verification.create_policy(db, p, body), 201), 'verification.policy', raw)
+
+    @app.get(API + '/verification/policies')
+    async def vf_policies(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.verification.list_policies(db, p)})
+
+    @app.post(API + '/verification/policies/{pid}/retire')
+    async def vf_policy_retire(request: Request, pid: str):
+        return await run(request, True, lambda db, p: svc.verification.retire_policy(db, p, pid))
+
     @app.get(API + '/verification/{vid}')
     async def vf_view(request: Request, vid: str):
         return await run(request, False, lambda db, p: svc.verification.view(db, p, vid))

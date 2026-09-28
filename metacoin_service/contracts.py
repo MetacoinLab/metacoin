@@ -37,13 +37,15 @@ DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loop
 def validate_policy(kind, policy, default_capability='legacy_simulation'):
     merkle.canonical(policy)
     allowed = {'accepted_outcomes', 'disclose_outcome', 'disclose_explanation', 'amount', 'capability',
-               'expires_in_seconds', 'retention_seconds', 'reviewer_id', 'required_verification', 'execution_locations'}
+               'expires_in_seconds', 'retention_seconds', 'reviewer_id', 'required_verification', 'execution_locations', 'verification_policy_id'}
     if type(policy) is not dict or not set(policy) <= allowed:
         raise ServiceError('VALIDATION', 'policy fields')
     out = {'accepted_outcomes': list(energy.OUTCOMES), 'disclose_outcome': True, 'disclose_explanation': False,
            'amount': 1, 'capability': default_capability, 'expires_in_seconds': DEFAULT_EXPIRY_SECONDS,
-           'retention_seconds': 30 * 86400, 'reviewer_id': None, 'required_verification': None, 'execution_locations': ['local']}
+           'retention_seconds': 30 * 86400, 'reviewer_id': None, 'required_verification': None, 'execution_locations': ['local'], 'verification_policy_id': None}
     out.update(policy)
+    if out['verification_policy_id'] is not None and (type(out['verification_policy_id']) is not str or not out['verification_policy_id'].startswith('vp_')):
+        raise ServiceError('VALIDATION', 'verification_policy_id')
     loc = out['execution_locations']
     if type(loc) is not list or not loc or len(loc) > 16 or not all(type(x) is str and (x in ('local', 'nodes', '*') or x.startswith('nd_')) and len(x) <= 32 for x in loc):
         raise ServiceError('VALIDATION', {'code': 'execution_locations', 'allowed': "list of 'local', 'nodes', '*' or enrolled node ids (nd_...)"})
@@ -174,6 +176,12 @@ class Contracts:
         pol = json.loads(row['policy_json'])
         if pol['reviewer_id'] is None:
             raise ServiceError('VALIDATION', 'reviewer_id required before freezing')
+        if pol.get('verification_policy_id'):
+            tpl = db.execute('SELECT * FROM verification_policies WHERE id=? AND workspace=?', (pol['verification_policy_id'], principal.workspace)).fetchone()
+            if tpl is None or tpl['retired_at'] is not None:
+                raise ServiceError('VALIDATION', {'code': 'verification_policy_unavailable', 'policy_id': pol['verification_policy_id']})
+            pol['required_verification'] = tpl['class']
+            db.execute('UPDATE contracts SET policy_json=? WHERE id=?', (json.dumps(pol), contract_id))
         reviewer_pub = self._reviewer(db, principal.workspace, pol['reviewer_id'])
         inputs = self.store.load_json(db, row['input_artifact_id'], principal.workspace)
         validate_inputs(row['kind'], inputs)
