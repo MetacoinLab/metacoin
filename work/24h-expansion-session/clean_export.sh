@@ -11,7 +11,7 @@ rc=0
 run() { s=$(date +%s); env -i PATH="$PATH" HOME="$HOME" LANG=C.UTF-8 PYTHONPATH="$PWD" "$@" > "$OUT/$(echo "$*" | tr ' /.' '___' | cut -c1-80).log" 2>&1; r=$?; echo "rc=$r $(( $(date +%s)-s ))s :: $*"; [ $r -ne 0 ] && rc=1; }
 run .venv/bin/python -m metacoin_service --home ./svc-home --provider-mode test-http init
 run .venv/bin/python -m metacoin_service --home ./svc-home status
-run .venv/bin/python -m unittest metacoin_service.tests.test_approvals_statements metacoin_service.tests.test_verification metacoin_service.tests.test_calibration metacoin_service.tests.test_federation metacoin_service.tests.test_mcp
+run .venv/bin/python -m unittest metacoin_service.tests.test_approvals_statements metacoin_service.tests.test_verification metacoin_service.tests.test_calibration metacoin_service.tests.test_federation metacoin_service.tests.test_mcp metacoin_service.tests.test_planner metacoin_service.tests.test_upto_route metacoin_service.tests.test_bundles_disagreements metacoin_service.tests.test_notebooks metacoin_service.tests.test_examples
 run python3 -m unittest metacoin_service.tests.test_compute_science
 run .venv/bin/python -m unittest integrations.x402.local_chain.test_local_chain
 run .venv/bin/python -m unittest metacoin_service.tests.test_models metacoin_service.tests.test_knowledge

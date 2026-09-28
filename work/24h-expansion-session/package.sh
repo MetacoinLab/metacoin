@@ -7,8 +7,8 @@ mkdir -p "$DELIVER/test-logs" "$DELIVER/clean-export-logs" "$DELIVER/journeys" "
 git diff "$BASE" "$HEAD" -- . ':!work' > "$DELIVER/metacoin-24h-expansion-session-vs-3b6f292.patch"
 git log --format='%H %s' "$BASE..$HEAD" > "$DELIVER/commits.txt"
 echo "$HEAD" > "$DELIVER/SOURCE_REVISION.txt"
-git archive --format=zip --prefix=metacoin-24h-expansion/ -o "$DELIVER/metacoin-24h-expansion-source.zip" "$HEAD"
-git ls-files > "$DELIVER/SOURCE_ALLOWLIST.txt"
+TMPX="$(mktemp -d)"; git archive --format=tar --prefix=metacoin-24h-expansion/ "$HEAD" | tar -x -C "$TMPX" && rm -rf "$TMPX/metacoin-24h-expansion/work" && (cd "$TMPX" && zip -qr "$DELIVER/metacoin-24h-expansion-source.zip" metacoin-24h-expansion) && rm -rf "$TMPX"
+git ls-files | grep -v '^work/' > "$DELIVER/SOURCE_ALLOWLIST.txt"
 cp metacoin_service/requirements.lock "$DELIVER/requirements-service.lock"
 cp metacoin_service/README.md "$DELIVER/SERVICE_README.md"
 cp work/24h-expansion-session/SESSION_STATE.md "$DELIVER/"
@@ -18,7 +18,7 @@ cp "$A"/benchmarks/*.json "$DELIVER/benchmarks/" 2>/dev/null
 cp "$A"/clean-export/* "$DELIVER/clean-export-logs/" 2>/dev/null
 cp "$A"/shots/* "$DELIVER/browser-screenshots/" 2>/dev/null
 cp "$A"/manifests/* "$DELIVER/manifests/" 2>/dev/null
-for f in FEATURE_LEDGER.json MIGRATIONS.json verification-results.json IMPLEMENTATION_REPORT.md openapi.json live-status.json live-capabilities.json local-chain-record.json knowledge-eval.json endurance.json failure-campaign.json mcp-schema.json; do
+for f in FEATURE_LEDGER.json MIGRATIONS.json verification-results.json IMPLEMENTATION_REPORT.md DELIVERY_INDEX.md openapi.json live-status.json live-capabilities.json local-chain-record.json knowledge-eval.json eval-set-agent-behavior.json endurance.json failure-campaign.json mcp-schema.json; do
   [ -f "$A/$f" ] && cp "$A/$f" "$DELIVER/"
 done
 echo "== scans ($(date -u +%Y-%m-%dT%H:%M:%SZ)) archive $HEAD" > "$DELIVER/DELIVERY_SCANS.txt"
