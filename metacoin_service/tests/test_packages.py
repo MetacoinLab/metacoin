@@ -183,6 +183,11 @@ class PackageTests(unittest.TestCase):
         s = self.c.post('/api/v1/session', json={'token': self.inst.tok['owner']}); cookies = {'metacoin_session': s.cookies['metacoin_session']}
         self.assertEqual(self.c.get('/console/packages', cookies=cookies).status_code, 200)
         page = self.c.get('/console/packages/' + pk['id'], cookies=cookies); self.assertEqual(page.status_code, 200); self.assertIn('signed result bundle', page.text); self.assertIn('delivered', page.text)
+        csrf = s.json()['csrf']
+        cf = self.c.post('/console/packages/' + pk['id'] + '/compatibility', cookies=cookies, data={'csrf': csrf, 'device_policy': ''})
+        self.assertEqual(cf.status_code, 200, cf.text[:300]); self.assertIn('supported_as_requested', cf.text); self.assertIn('nothing reserved', cf.text)
+        qf = self.c.post('/console/packages/' + pk['id'] + '/instantiate', cookies=cookies, data={'csrf': csrf, 'inputs': json.dumps({'plan': sample()}), 'scheme': 'exact', 'action': 'quote'})
+        self.assertEqual(qf.status_code, 200, qf.text[:300]); self.assertIn('Composite quote', qf.text)
         self.assertEqual(self.c.post('/api/v1/packages/runs/' + run['id'] + '/bundle', headers=self.inst.h('viewer'), json={}).status_code, 403)
         self.assertEqual(self.c.post('/api/v1/packages', headers=self.inst.h('viewer'), json=body).status_code, 403)
 

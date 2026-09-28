@@ -1,0 +1,57 @@
+{
+ "statement": {
+  "schema": "metacoin-report-projection/v1",
+  "report_id": "rp_532de4516c73",
+  "analysis_id": "an_d7bd32463cc8",
+  "analysis_version": 1,
+  "report_digest": "bc7782732ca77784767a7b08901d6de9eea86bdd3705b7e49ec37bf9564b2c06",
+  "analysis_digest": "1a2017fbc9ab2f78e877c90b6c9578948ac4826c2bdb1a8e662e2320d868716c",
+  "scope": {
+   "blocks": [
+    "plan",
+    "concl"
+   ],
+   "fields": {
+    "plan": [
+     "objective",
+     "status"
+    ]
+   },
+   "include_assumption_values": false
+  },
+  "included_blocks": [
+   "plan",
+   "concl"
+  ],
+  "omitted_block_count": 1,
+  "projected_sha256": "704526a4716b1aa3eb5ae893c03c950d3caa29eff7a71abfab1f8cb3c463ee97",
+  "artifacts": [
+   {
+    "block": "plan",
+    "type": "run_result",
+    "ref_kind": "job",
+    "ref_id": "j_0f2d29e5227d5df1",
+    "commitment_field": "evidence_root",
+    "commitment": "adadf2a35f4107cd57d7f9301a6b12246ee713d4010b41b165e2a7bcbb1b68f8",
+    "drift": "unchanged"
+   }
+  ],
+  "warnings_acknowledged": [
+   {
+    "block": "concl",
+    "code": "claim_text_carries_hidden_values",
+    "detail": "claim references values of omitted blocks/fields: plan.min_margin"
+   }
+  ],
+  "issued_at": 1790588305,
+  "issued_by": "p_63338596bf2c5370",
+  "workspace": "ws_default",
+  "issuer_key_id": "k_916976fc4482be842f6b6e54",
+  "claims": "ordinary selective disclosure signed by the issuing service; omitted content is absent from the bytes, which is not a cryptographic proof about it"
+ },
+ "signature": "f94e03dccf699bce96699a36c12c2c27e66e52fc688a0df520a5a9e7b5bcc86ecaaca6024b16ea48fa8d895322cfe06fddcb26e3af192aae46ced9f722f9c702",
+ "public_key": "c6ff8923dc9c52d31429c025f1065e78d942d0ada91ec5def3e0fce6e24cbf00",
+ "files": {
+  "projection.md": "# Report projection\n\nProjection of report `rp_532de4516c73` (analysis `an_d7bd32463cc8` revision 1). Included blocks: plan, concl. Omitted blocks: 1.\n\n- result **plan**: job `j_0f2d29e5227d5df1` outcome VERIFIED, review none, evidence root `adadf2a35f4107cd`\n  - objective: 12\n  - status: \"optimal_within_tolerance\"\n  (fields withheld: min_margin)\n- conclusion **concl**: Objective 12 at min margin 18000 mJ.\n  The plan reaches the enumeration optimum under the declared bounds.\n"
+ }
+}

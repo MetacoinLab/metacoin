@@ -122,11 +122,12 @@ class Journeys(ExpansionJourneys):
         top = (s.get('results') or [{}])[0]
         st3, chk = self.req('post', '/api/v1/knowledge/citations/validate', json={'citations': [{'chunk_id': top.get('chunk_id'), 'quote': 'keeps a reserve of 2000 mJ'}]})
         cites = chk.get('citations', [])
-        ok = rc == 0 and v.get('state') == 'ready' and v.get('page_count') == 1 and pg.get('page', {}).get('method') == 'native' and page.status_code == 200 and 'native' in page.text and 'span' in page.text.lower() \
-            and top.get('version_id') == v.get('version_id') and top.get('page_number') == 1 and chk.get('all_valid') is True
+        checks = {'cli_rc': rc == 0, 'ready': v.get('state') == 'ready', 'one_page': v.get('page_count') == 1, 'native': pg.get('page', {}).get('method') == 'native', 'console_page': page.status_code == 200, 'console_shows_method': 'native' in page.text, 'console_shows_spans': 'span' in page.text.lower(),
+                  'hit_version': top.get('version_id') == v.get('version_id'), 'hit_page_1': top.get('page_number') == 1, 'citation_valid': chk.get('all_valid') is True}
+        ok = all(checks.values())
         self.ctx['document_id'] = did; self.ctx['collection_id'] = cid; self.ctx['version_id'] = v.get('version_id')
         self.rec(1, 'native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page', ok,
-                 {'document': did, 'state': v.get('state'), 'parser': (v.get('extraction') or {}).get('parser', {}).get('id'), 'page_method': pg.get('page', {}).get('method'), 'console_page_status': page.status_code, 'hit_page': top.get('page_number'), 'search_status': st2, 'search_error': (None if st2 == 200 else s), 'results': len(s.get('results') or []), 'citation_valid': [c.get('quote_valid') for c in cites], 'all_valid': chk.get('all_valid')}, t0=t0)
+                 {'document': did, 'state': v.get('state'), 'parser': (v.get('extraction') or {}).get('parser', {}).get('id'), 'page_method': pg.get('page', {}).get('method'), 'console_page_status': page.status_code, 'hit_page': top.get('page_number'), 'search_status': st2, 'search_error': (None if st2 == 200 else s), 'results': len(s.get('results') or []), 'citation_valid': [c.get('quote_valid') for c in cites], 'all_valid': chk.get('all_valid'), 'checks': checks, 'hit_version': top.get('version_id'), 'doc_version': v.get('version_id')}, t0=t0)
 
     def j2_scanned_ocr(self):
         t0 = time.time(); self.worker_bg('w-j2'); cid = self.ensure_collection()

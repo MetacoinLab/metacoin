@@ -148,15 +148,23 @@ class DocumentEngine:
                             json.dumps({'continued': True, 'pages': t.get('continuation_pages')}) if t.get('continued') else None, now()))
             review_needed = done['excluded_pages'] > 0 or bool(done.get('active_content'))
             st = 'awaiting_review' if review_needed else 'ready'
-            db.execute("UPDATE document_imports SET state=?, stage=?, extraction_id=?, page_count=?, progress_json=?, updated_at=? WHERE id=?", (st, 'extracted', exid, done['pages'], json.dumps({'pages_done': done['pages'], 'excluded': done['excluded_pages'], 'ocr_pages': done['ocr_pages'], 'tables': len(tables_doc['tables'])}), now(), imp['id']))
+            publishing = st == 'ready' and bool(imp['collection_id'])
+            # a collection-bound import becomes `ready` only together with its knowledge version (below): no window where the
+            # state is terminal but the version id is still missing (found by journey 1 racing the CLI wait loop)
+            db.execute("UPDATE document_imports SET state=?, stage=?, extraction_id=?, page_count=?, progress_json=?, updated_at=? WHERE id=?", ('extracting' if publishing else st, 'publishing' if publishing else 'extracted', exid, done['pages'], json.dumps({'pages_done': done['pages'], 'excluded': done['excluded_pages'], 'ocr_pages': done['ocr_pages'], 'tables': len(tables_doc['tables'])}), now(), imp['id']))
             history.record(db, ws, self.worker.worker_id, 'document.extracted', 'document_import', imp['id'], {'extraction_id': exid, 'pages': done['pages'], 'excluded': done['excluded_pages'], 'ocr_pages': done['ocr_pages'], 'tables': len(tables_doc['tables']), 'parser': pages_doc['parser']['id']})
         # publication to the collection outside the fenced write (it is an ordinary authorized operation on the extraction revision)
-        if st == 'ready':
+        if publishing:
             docs = self.worker.documents_service()                 # constructed outside the transaction (its own initialization opens one)
-            with self.worker.db.tx() as db:
-                imp2 = db.execute('SELECT * FROM document_imports WHERE id=?', (imp['id'],)).fetchone()
-                if imp2['state'] == 'ready' and imp2['collection_id']:
-                    docs._publish(db, principal, imp2, False)
+            try:
+                with self.worker.db.tx() as db:
+                    imp2 = db.execute('SELECT * FROM document_imports WHERE id=?', (imp['id'],)).fetchone()
+                    if imp2['stage'] == 'publishing' and imp2['collection_id']:
+                        docs._publish(db, principal, dict(imp2, state='ready'), False)
+            except Exception as exc:
+                with self.worker.db.tx() as db:
+                    db.execute("UPDATE document_imports SET state='awaiting_review', stage='publish_failed', error_json=?, updated_at=? WHERE id=? AND stage='publishing'", (json.dumps({'code': 'publish_failed', 'reason': type(exc).__name__}), now(), imp['id']))
+                st = 'awaiting_review'
         summary = {'import_id': imp['id'], 'extraction_id': exid, 'pages': done['pages'], 'excluded_pages': done['excluded_pages'], 'ocr_pages': done['ocr_pages'], 'tables': len(tables_doc['tables']), 'chars': done['chars'], 'ms': done['ms'], 'state': st,
                    'parser': pages_doc['parser'], 'pages_sha256': hashlib.sha256(pages_blob).hexdigest(), 'text_sha256': hashlib.sha256(text_blob).hexdigest(), 'tables_sha256': hashlib.sha256(tables_blob).hexdigest(), 'implementation_digest': implementation_digest()}
         evidence = {'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'], 'verifier_id': 'document-extractor/v1', 'verifier_digest': implementation_digest(), 'result_schema': 'document-import-result/v1', 'model_id': 'document-import/v1',

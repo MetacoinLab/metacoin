@@ -121,6 +121,8 @@ class AnalysisTests(unittest.TestCase):
         self.assertEqual(page.status_code, 200, page.text[:300]); self.assertIn('stale', page.text); self.assertIn('Reports', page.text)
         self.assertEqual(self.c.get('/console/analyses', cookies=cookies).status_code, 200)
         rpage = self.c.get('/console/reports/' + rep['id'], cookies=cookies); self.assertEqual(rpage.status_code, 200); self.assertIn('Computed findings', rpage.text)
+        pf = self.c.post('/console/reports/' + rep['id'] + '/projection', cookies=cookies, data={'csrf': s.json()['csrf'], 'blocks': ['run', 'concl'], 'fields': json.dumps({'run': ['scenarios']}), 'action': 'preview'})   # repeated keys as a browser sends them
+        self.assertEqual(pf.status_code, 200, pf.text[:300]); self.assertIn('Preview', pf.text); self.assertIn('scenarios', pf.text); self.assertNotIn('first_infeasible_index: ', pf.text)
 
     def test_regeneration_reruns_changed_branch_and_reuses_the_other(self):
         definition = {'schema': wf_mod.SCHEMA, 'name': 'two branches', 'outputs': ['out'], 'nodes': [

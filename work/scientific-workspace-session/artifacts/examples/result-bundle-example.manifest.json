@@ -1,0 +1,119 @@
+{
+ "schema": "metacoin-result-bundle/v1",
+ "package": {
+  "id": "pk_bf7189aeb872",
+  "name": "robust-plan-example",
+  "version": 1,
+  "digest": "5e665263b7a79f965eabef388c2b2922e2421602069126175bd7860abd7fe089"
+ },
+ "package_run_id": "pr_d6a56463f177",
+ "run_id": "run_0953cf948f42992e",
+ "workspace": "ws_default",
+ "delivery_state": "delivered",
+ "delivery_policy": {
+  "gate": "required_verification",
+  "required_class": "full_reference",
+  "metered_failure_charge": "none",
+  "fixed_price_failure": "an exact (fixed-price) payment settles before computation: on verification failure the result is marked unaccepted and kept private; the application does not refund (no escrow)",
+  "metered_failure": "an upto authorization is left unused (no transfer) when verification fails",
+  "guarantee": "application-level delivery gating; not an on-chain escrow, not a universal refund guarantee"
+ },
+ "operations": {
+  "resource_plan": {
+   "model_id": "robust-resource-plan/v1",
+   "result_schema": "robust-resource-plan-result/v1",
+   "verifier_digest": "fabf93347109f0cfd367eddc88dc4ba08e5527c54fe71e2134767c3e0691f49a",
+   "manifest_id": "robust-resource-plan/v1",
+   "manifest_version": 1,
+   "input_schema": "robust-resource-plan-input/v1",
+   "devices": [
+    "cpu"
+   ],
+   "precision": [
+    "integer"
+   ],
+   "backend_equivalence": "cpu only (HiGHS); no device choice"
+  }
+ },
+ "nodes": [
+  {
+   "node": "plan",
+   "job_id": "j_0f2d29e5227d5df1",
+   "kind": "resource_plan",
+   "outcome": "VERIFIED",
+   "evidence_root": "adadf2a35f4107cd57d7f9301a6b12246ee713d4010b41b165e2a7bcbb1b68f8",
+   "contract_digest": "26a6a292e151d768c4cbd58fcd7c3990417c306f7cd5916f36804ad900bea942",
+   "input_commitment": "2c2739785ace784f6d38122f0f6f18392225e93fca8c69a1d2f6f5f3e1703a8f",
+   "operation": {
+    "model_id": "robust-resource-plan/v1",
+    "verifier_id": "robust-resource-plan/v1-verifier",
+    "verifier_digest": "fabf93347109f0cfd367eddc88dc4ba08e5527c54fe71e2134767c3e0691f49a"
+   },
+   "summary_file": "files/plan/summary.json",
+   "reused_from": null,
+   "inputs_file": "files/plan/inputs.json",
+   "witness_file": "files/plan/witness.json",
+   "verifications": [
+    {
+     "id": "vf_d0454c05ea09",
+     "class": "full_reference",
+     "state": "passed",
+     "result_commitment": "adadf2a35f4107cd57d7f9301a6b12246ee713d4010b41b165e2a7bcbb1b68f8",
+     "statement": {
+      "auditor_digest": "2cfeb2c67ade67935bcf4b8040be863755a720b3becda01b3d64d040f27209d6",
+      "auditor_id": "metacoin-verification/v1",
+      "challenge_digest": null,
+      "claim": "stored assignments replayed by the exact integer simulator (objective, margins, trajectory, alternatives); solver status consistency; exhaustive oracle re-run on small instances",
+      "class": "full_reference",
+      "contract_digest": "26a6a292e151d768c4cbd58fcd7c3990417c306f7cd5916f36804ad900bea942",
+      "independence": "same host and operator; not organizational independence; no attestation, no consensus, no sensor truth",
+      "input_root": "ac94fef76bb2e3fa874271f5cad29008bbbe71b00000efaefdbad6692f6d330b",
+      "issued_at": 1790588305,
+      "kind": "resource_plan",
+      "nonce": "d0b813bb69608054",
+      "outcome": "passed",
+      "params": {},
+      "producer_verifier_digest": "fabf93347109f0cfd367eddc88dc4ba08e5527c54fe71e2134767c3e0691f49a",
+      "producer_verifier_id": "robust-resource-plan/v1-verifier",
+      "result_commitment": "adadf2a35f4107cd57d7f9301a6b12246ee713d4010b41b165e2a7bcbb1b68f8",
+      "schema": "metacoin-verification-statement/v1",
+      "scope": {
+       "checked": 1,
+       "coverage": null,
+       "items": null,
+       "total": 1
+      },
+      "shared_code": [
+       "compute.resource_plan.simulate (the declared model; independent of the MILP encoding)"
+      ],
+      "statement_version": "metacoin-verification-statement/v1",
+      "target_job_id": "j_0f2d29e5227d5df1",
+      "tolerance": {
+       "abs": 0,
+       "rel": 0
+      },
+      "verification_id": "vf_d0454c05ea09",
+      "workspace": "ws_default"
+     },
+     "signature": "ef34646b81ff4546dd783c415c6ab35211407bfeaf015cea2cb01f0ce7586022fc85e83348a695dcfc3bacbec42998016f2e1c0234fa9ad58b2a548f7fa3a209",
+     "key_id": "k_916976fc4482be842f6b6e54"
+    }
+   ]
+  }
+ ],
+ "scope": {
+  "disclose_inputs": true,
+  "disclose_witness": true,
+  "summary_fields": null
+ },
+ "file_sha256": {
+  "files/plan/summary.json": "8204ab61db7671fd8efe8887d738326a159117fd9f07257c4a233ae06467ce74",
+  "files/plan/inputs.json": "7b2e543f644865f6a35a1cd68a6186c601667356d94e1967509f687e1b76df3b",
+  "files/plan/witness.json": "202e9d1e7ad5dabeeb07fabc6a3eed310878c01aa71468a521bcf738ded884d7"
+ },
+ "issued_at": 1790588305,
+ "issued_by": "p_63338596bf2c5370",
+ "issuer_key_id": "k_916976fc4482be842f6b6e54",
+ "signing": "ed25519 by the issuing service key over the canonical manifest; a valid signature identifies the issuer, not an independent review",
+ "undisclosed": []
+}

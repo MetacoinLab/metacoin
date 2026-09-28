@@ -1,0 +1,79 @@
+{
+ "schema": "metacoin-measurement-request/v1-export",
+ "request": {
+  "schema": "metacoin-measurement-request/v1",
+  "id": "mq_134cf619571b",
+  "title": "measurement request: reserve",
+  "quantity": {
+   "name": "reserve",
+   "dimension": "energy"
+  },
+  "unit": "mJ",
+  "base_unit": "mJ",
+  "required_precision": {
+   "abs": "100",
+   "unit": "mJ"
+  },
+  "acceptable_format": {
+   "kind": "csv",
+   "columns": [
+    "reserve",
+    "unit",
+    "timestamp",
+    "method"
+   ]
+  },
+  "decision_relevance": [
+   {
+    "source": "plan_sensitivity",
+    "job_id": "j_0f2d29e5227d5df1",
+    "parameter": "reserve",
+    "value": 60000,
+    "decision_changed": true,
+    "status": "infeasible_established_by_enumeration",
+    "objective": null
+   },
+   {
+    "source": "plan_sensitivity",
+    "job_id": "j_0f2d29e5227d5df1",
+    "parameter": "capacity",
+    "value": 200000,
+    "decision_changed": false,
+    "status": "optimal_within_tolerance",
+    "objective": 12
+   }
+  ],
+  "missing_evidence": [
+   "assumption reserve=20000 mJ in assump comes from user_edit, not from a measurement"
+  ],
+  "evidence_considered": [
+   {
+    "kind": "resource_plan",
+    "job_id": "j_0f2d29e5227d5df1",
+    "status": "optimal_within_tolerance",
+    "objective": 12,
+    "min_margin": 18000,
+    "voi_proxy": {
+     "count": 1,
+     "definition": "number of tested changes that alter the selected set or feasibility",
+     "note": "a ranking of which inputs matter within the tested range; not a monetary valuation",
+     "of": 2
+    }
+   },
+   {
+    "kind": "analysis",
+    "id": "an_d7bd32463cc8",
+    "version": 1,
+    "stale_blocks": []
+   }
+  ],
+  "note": "",
+  "created_by": "p_63338596bf2c5370",
+  "created_at": 1790588305,
+  "delivery": "local artifact only: nothing was sent to anyone; export it and hand it over yourself",
+  "not_a_measurement": "a request is not an observation; no uncertainty interval shrinks until new evidence is imported and reconciled"
+ },
+ "exported_at": 1790588305,
+ "exported_by": "p_63338596bf2c5370",
+ "contents": "the request document only; no private results, documents or credentials"
+}

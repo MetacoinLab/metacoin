@@ -688,7 +688,8 @@ def mount(app, svc):
     def _package_ctx(db, p, pid, **extra):
         pk = svc.packages.view(db, p, pid)
         runs = svc.packages.list_runs(db, p, pid)
-        return dict(principal=p, p=pk, runs=runs, compat=None, quote=None, values={}, error=None, **extra)
+        ctx = dict(principal=p, p=pk, runs=runs, compat=None, quote=None, values={}, error=None); ctx.update(extra)
+        return ctx
 
     @app.get('/console/packages/{pid}', response_class=HTMLResponse)
     async def package_page(request: Request, pid: str):
@@ -818,7 +819,8 @@ def mount(app, svc):
         r = svc.analyses.report(db, p, rid)
         body = svc.analyses.report_html(db, p, rid)
         body = body.split('<body>', 1)[-1].rsplit('</body>', 1)[0]
-        return dict(principal=p, r=r, body=body, preview=None, exported=None, values={}, **extra)
+        ctx = dict(principal=p, r=r, body=body, preview=None, exported=None, values={}); ctx.update(extra)
+        return ctx
 
     @app.get('/console/reports/{rid}', response_class=HTMLResponse)
     async def report_page(request: Request, rid: str):
