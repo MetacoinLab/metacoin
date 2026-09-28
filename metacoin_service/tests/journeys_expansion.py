@@ -347,7 +347,7 @@ class Journeys(BaseJourneys):
         except (ValueError, IndexError):
             out = {'stderr': p.stderr[-400:], 'stdout': p.stdout[-200:]}
         ok = p.returncode == 0 and out.get('failed', 1) == 0
-        self.record(19, 'connected console journeys with owner/reviewer/viewer roles at desktop and narrow widths', 'passed' if ok else 'failed', {'checks': out.get('passed'), 'failed': out.get('failed'), 'screenshots': out.get('screenshots'), 'details': [c for c in out.get('checks', []) if not c.get('ok')][:5]})
+        self.record(19, 'connected console journeys with owner/reviewer/viewer roles at desktop and narrow widths', 'passed' if ok else 'failed', {'checks': out.get('passed'), 'failed': out.get('failed'), 'screenshots': out.get('screenshots'), 'details': [c for c in out.get('checks', []) if not c.get('ok')][:5], 'stderr': out.get('stderr'), 'rc': p.returncode})
         self.browser_shots = outdir
 
     def j20_clean_export(self):
