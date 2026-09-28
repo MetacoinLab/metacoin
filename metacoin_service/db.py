@@ -310,6 +310,12 @@ MIGRATIONS = [
     CREATE TABLE verification_policies (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, class TEXT NOT NULL, params_json TEXT NOT NULL, max_work INTEGER NOT NULL,
         verifier_digest TEXT NOT NULL, scope TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, retired_at INTEGER, UNIQUE (workspace, name, version));
     """),
+    ('021_evaluation_registry', """
+    CREATE TABLE evaluation_suites (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, items_json TEXT NOT NULL, digest TEXT NOT NULL, threshold_percent INTEGER NOT NULL,
+        created_by TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (workspace, name, version));
+    CREATE TABLE evaluation_runs (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, suite_id TEXT NOT NULL REFERENCES evaluation_suites(id), model_revision_id TEXT NOT NULL, jobs_json TEXT NOT NULL, state TEXT NOT NULL,
+        results_json TEXT, passed INTEGER, total INTEGER, percent INTEGER, started_by TEXT NOT NULL, created_at INTEGER NOT NULL, scored_at INTEGER);
+    """),
 ]
 
 

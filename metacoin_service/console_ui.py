@@ -450,7 +450,10 @@ def mount(app, svc):
             rows = db.execute('SELECT job_id FROM model_requests WHERE workspace=? ORDER BY updated_at DESC LIMIT 30', (p.workspace,)).fetchall()
             jobs = [model_svc.view(db, p, svc.jobs, r['job_id']) for r in rows]
             facts = model_svc.runtime_facts(db, settings, api_host=svc._model_host)
-            return render(request, 'models.html', principal=p, models=models, jobs=jobs, facts=facts, generate_default='generate' in facts['defaults'])
+            suites = svc.evaluation.list_suites(db, p)
+            runs = [svc.evaluation.run_view(db, p, r['id']) for r in db.execute('SELECT id FROM evaluation_runs WHERE workspace=? ORDER BY created_at DESC LIMIT 20', (p.workspace,)).fetchall()]
+            gate = db.execute('SELECT value FROM meta WHERE key=?', ('evaluation_gate:' + p.workspace,)).fetchone()
+            return render(request, 'models.html', principal=p, models=models, jobs=jobs, facts=facts, generate_default='generate' in facts['defaults'], suites=suites, eval_runs=runs, eval_gate=gate['value'] if gate else None)
         return await page(request, fn)
 
     @app.post('/console/models/generate', response_class=HTMLResponse)

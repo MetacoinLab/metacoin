@@ -137,6 +137,7 @@ class Journeys(BaseJourneys):
 
     # ---- 6-7: calibration -------------------------------------------------------------------------------
     def j6_calibration(self):
+        self.worker_bg('w-j6')
         rows = [{'x1': i, 'x2': (i * 7) % 13, 'y': 4 * i - 3 * ((i * 7) % 13) + 2} for i in range(40)]
         rc, ds = self.cli('owner', 'calibration-dataset', '--file', self.tmpjson('cal.json', {'name': 'journey exact', 'columns': ['x1', 'x2', 'y'], 'target': 'y', 'units': {'y': 'ms'}, 'rows': rows}))
         rc2, fit = self.cli('owner', 'calibration-fit', ds['id'], '--features', 'x1,x2', '--target', 'y', '--split', 'random', '--wait')
@@ -147,15 +148,15 @@ class Journeys(BaseJourneys):
         self.record(6, 'fit a stable calibration model, evaluate held-out data, predict a supported case, label extrapolation', 'passed' if ok else 'failed', {'model': m.get('id'), 'eval_rmse': (m.get('metrics') or {}).get('eval', {}).get('rmse'), 'verified': m.get('verification_passed'), 'interpolation': p_in.get('prediction'), 'extrapolation': p_out.get('domain_status')})
 
     def j7_calibrated_scheduling(self):
+        self.worker_bg('w-j7')
         for step in (300, 100, 50, 25, 20):
-            self.submit('temporal_batch', batch_spec(grid=[{'path': 'reserve', 'start': 0, 'stop': 9000, 'step': step}, {'path': 'load_scale_percent', 'values': [50, 100, 150, 200]}], private_label='J7'), 'j7-%d' % step)
-            self.worker_once('w-j7')
+            self.wait_job(self.submit('temporal_batch', batch_spec(grid=[{'path': 'reserve', 'start': 0, 'stop': 9000, 'step': step}, {'path': 'load_scale_percent', 'values': [50, 100, 150, 200]}], private_label='J7'), 'j7-%d' % step))
         rc, ds = self.cli('owner', 'calibration-dataset', '--task-kind', 'temporal_batch')
         rc2, fit = self.cli('owner', 'calibration-fit', ds.get('id', 'x'), '--features', 'work_units', '--target', 'duration_ms', '--scope-kind', 'temporal_batch', '--scope-backend', 'cpu', '--wait')
         m = fit.get('model') or {}
         rc3, ap = self.cli('owner', 'calibration-action', m.get('id', 'x'), 'approve')
         rc4, plan = self.cli('owner', 'calibration-plan', '--kind', 'temporal_batch', '--inputs', self.tmpjson('plan.json', batch_spec(device_policy='auto', private_label='J7P')))
-        jid = self.submit('temporal_batch', batch_spec(device_policy='auto', private_label='J7Q'), 'j7q'); self.worker_once('w-j7q')
+        jid = self.submit('temporal_batch', batch_spec(device_policy='auto', private_label='J7Q'), 'j7q'); self.wait_job(jid)
         v = self.view(jid)
         cpu = next((c for c in plan.get('candidates', []) if c['backend'] == 'cpu'), {})
         ok = ap.get('state') == 'approved' and cpu.get('prediction_status') == 'calibrated' and 'calibrat' in (v.get('backend_reason') or '') and v['verification']['passed'] and plan.get('not_a_measurement')
@@ -164,15 +165,17 @@ class Journeys(BaseJourneys):
     # ---- 8-10: verification -----------------------------------------------------------------------------
     def j8_audit_and_corruption(self):
         jid = self.submit('temporal_batch', batch_spec(private_label='J8'), 'j8'); self.worker_once('w-j8')
-        rc, v = self.cli('owner', 'verification-request', jid, '--class', 'full_exact', '--wait')
         jc = self.submit('temporal_batch', batch_spec(private_label='J8C'), 'j8c'); self.worker_once('w-j8c')
         corrupt_output(self.inst, jc, flip_first_outcome, rewrite_vault=True)
+        self.worker_bg('w-j8')
+        rc, v = self.cli('owner', 'verification-request', jid, '--class', 'full_exact', '--wait')
         rc2, vc = self.cli('owner', 'verification-request', jc, '--class', 'full_exact', '--wait')
         ok = v.get('state') == 'passed' and v['result']['checked'] == 364 and vc.get('state') == 'failed' and vc['result']['checks'][0]['detail']['mismatches'][0]['index'] == 0
         self.record(8, 'audit a scientific result through an independent reference; reject a deliberately corrupted result', 'passed' if ok else 'failed', {'honest': {'state': v.get('state'), 'checked': v.get('result', {}).get('checked')}, 'corrupted': {'state': vc.get('state'), 'first_mismatch': vc.get('result', {}).get('checks', [{}])[0].get('detail')}})
         self.j8_job = jid
 
     def j9_sampled_audit(self):
+        self.worker_bg('w-j9')
         rc, v = self.cli('owner', 'verification-request', self.j8_job, '--class', 'sampled_reference', '--sample-count', '32', '--wait')
         r = v.get('result', {})
         ok = v.get('state') == 'passed' and r.get('checked') == 32 and r.get('total') == 364 and len(r.get('scope_items', [])) == 32 and 'not guaranteed' in r.get('statement', '') and v.get('challenge', {}).get('drawn_by', '').startswith('service')

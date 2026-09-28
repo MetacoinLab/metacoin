@@ -19,6 +19,7 @@ from .verification import Verification
 from .federation.service import Federation
 from .approvals import Approvals, gate as approval_gate
 from . import statements as statements_mod, tracing
+from .evaluation import Evaluation
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -51,6 +52,7 @@ class Services:
         self.verification = Verification(self.store, settings, self.contracts, self.jobs)
         self.federation = Federation(self.db, self.store, settings)
         self.approvals = Approvals(settings, self)
+        self.evaluation = Evaluation(settings, self)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -1214,6 +1216,9 @@ def create_app(settings):
                 return svc.models.recheck_install(db, p, rid)
             if action == 'promote':
                 approval_gate(svc.approvals, db, p, 'model_promote')
+                eg = svc.evaluation.gate(db, p.workspace, rid)
+                if eg:
+                    raise ServiceError('CONFLICT', eg)
                 return svc.models.promote(db, p, rid, body.get('operation'), body.get('evidence'))
             if action == 'rollback-default':
                 return svc.models.rollback_default(db, p, body.get('operation'))
@@ -1657,6 +1662,37 @@ def create_app(settings):
                 return svc.approvals.apply(db, p, pid)
             raise ServiceError('NOT_FOUND', 'action')
         return await run(request, True, fn, 'approvals.' + action, raw)
+
+    # ---- evaluation registry (§65-1) ---------------------------------------------------------------------------
+    @app.post(API + '/evaluation/suites', status_code=201)
+    async def ev_suite_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.evaluation.create_suite(db, p, body.get('name'), body.get('items'), body.get('threshold_percent', 100)), 201), 'evaluation.suite', raw)
+
+    @app.get(API + '/evaluation/suites')
+    async def ev_suites(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.evaluation.list_suites(db, p)})
+
+    @app.post(API + '/evaluation/suites/{sid}/runs', status_code=202)
+    async def ev_run_start(request: Request, sid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.evaluation.start_run(db, p, sid, body.get('model_revision_id')), 202), 'evaluation.run', raw)
+
+    @app.get(API + '/evaluation/runs/{rid}')
+    async def ev_run(request: Request, rid: str):
+        return await run(request, True, lambda db, p: svc.evaluation.score(db, p, rid))
+
+    @app.get(API + '/evaluation/compare/{run_a}/{run_b}')
+    async def ev_compare(request: Request, run_a: str, run_b: str):
+        return await run(request, True, lambda db, p: svc.evaluation.compare(db, p, run_a, run_b))
+
+    @app.post(API + '/evaluation/gate')
+    async def ev_gate(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.evaluation.set_gate(db, p, body.get('suite_id')), 'evaluation.gate', raw)
 
     # ---- usage statements -----------------------------------------------------------------------------------
     @app.get(API + '/statements')
