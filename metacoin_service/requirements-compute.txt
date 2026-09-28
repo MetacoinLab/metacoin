@@ -1,0 +1,12 @@
+# Pins for the COMPUTE/MODEL child interpreter (/usr/bin/python3 user site on the DGX; `compute_python` in settings).
+# The API venv (.venv-service, requirements.lock) never imports these; the worker launches children with this interpreter.
+# Pre-existing on the host (recorded, not installed by MetaCoin): torch==2.10.0+cu130 transformers==5.5.0 numpy==2.2.6 pillow==12.1.1 opencv-python==4.13.0 reportlab==4.1.0
+# Added 2026-09-28 for Order 07 (all from PyPI wheels, aarch64, cached in the delivery's dependency record):
+pypdf==6.1.3
+scipy==1.18.1
+onnxruntime==1.30.0
+rapidocr_onnxruntime==1.4.4   # installed with --no-deps: its declared numpy/opencv pins are satisfied by the host's numpy 2.2.6 / cv2 4.13.0
+pyclipper==1.4.0
+shapely==2.1.2
+pyyaml==6.0.3
+# Not used by design: PyMuPDF (AGPL) although present on the host. Page rendering uses poppler's pdftoppm as a separate process.

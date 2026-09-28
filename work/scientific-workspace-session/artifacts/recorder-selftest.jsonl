@@ -1,0 +1,3 @@
+{"step":"pass","rc":0,"start":"2026-09-28T06:23:24Z","end":"2026-09-28T06:23:24Z","seconds":0,"log":"/tmp/rec-pass.log","cmd":"true "}
+{"step":"fail","rc":3,"start":"2026-09-28T06:23:24Z","end":"2026-09-28T06:23:24Z","seconds":0,"log":"/tmp/rec-fail.log","cmd":"bash -c echo boom; exit 3 "}
+{"step":"masked","rc":0,"start":"2026-09-28T06:23:24Z","end":"2026-09-28T06:23:24Z","seconds":0,"log":"/tmp/rec-masked.log","cmd":"bash -c false; echo trailing-success "}
