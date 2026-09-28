@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -163,6 +163,8 @@ def expansion(args, go):
         if args.action == 'comparison':
             return go('GET', '/api/v1/calibration/models/' + args.model_id + '/comparison')
         return go('POST', '/api/v1/calibration/models/' + args.model_id + '/' + args.action, {})
+    if c == 'calibration-design':
+        return go('POST', '/api/v1/calibration/models/' + args.model_id + '/design', json.load(open(args.file)))
     if c == 'calibration-plan':
         return go('POST', '/api/v1/calibration/plan', {'task_kind': args.kind, 'inputs': json.load(open(args.inputs))})
     if c in ('verification-preview', 'verification-request'):
@@ -365,6 +367,7 @@ def main(argv=None):
     sub.add_parser('verification-policies')
     esc = sub.add_parser('eval-suite-create', help='immutable evaluation suite from a JSON file {name, threshold_percent, items:[...]}'); esc.add_argument('--file', required=True); esc.add_argument('--name'); esc.add_argument('--threshold', type=int)
     sub.add_parser('eval-suites'); er = sub.add_parser('eval-run', help='run a suite under a generation revision (default: the promoted one) through ordinary jobs'); er.add_argument('suite_id'); er.add_argument('--revision'); er.add_argument('--wait', action='store_true'); er.add_argument('--timeout', type=int, default=600)
+    cdz = sub.add_parser('calibration-design', help='rank candidate measurements (JSON file {candidates:[{features,cost,label}], objective, cost_policy, targets}) by predicted utility; nothing is executed'); cdz.add_argument('model_id'); cdz.add_argument('--file', required=True)
     nc = sub.add_parser('notebook-create', help='private experiment notebook from a JSON file {name, note, blocks:[{id,type:text|link,...}]}; nothing is executed'); nc.add_argument('--file', required=True); nc.add_argument('--name')
     sub.add_parser('notebooks'); nv_ = sub.add_parser('notebook'); nv_.add_argument('notebook_id'); nv_.add_argument('--version', type=int)
     nvv = sub.add_parser('notebook-version', help='append an immutable version'); nvv.add_argument('notebook_id'); nvv.add_argument('--file', required=True); nvv.add_argument('--note')

@@ -624,8 +624,10 @@ def mount(app, svc):
         return await page(request, lambda db, p: render(request, 'knowledge_answer.html', principal=p, a=svc.knowledge.answer(db, p, aid, svc.store)))
 
     def calibration_ctx(db, p, **extra):
-        return dict(principal=p, datasets=svc.calibration.list_datasets(db, p), models=svc.calibration.list_models(db, p), scheduling={'calibrated_scheduling_enabled': svc.calibration.scheduling_enabled(db)},
-                    kinds=[k for k in compute_manifests.KINDS if k != 'calibration_fit'], detail=None, prediction=None, comparison=None, values={}, **extra)
+        ctx = dict(principal=p, datasets=svc.calibration.list_datasets(db, p), models=svc.calibration.list_models(db, p), scheduling={'calibrated_scheduling_enabled': svc.calibration.scheduling_enabled(db)},
+                   kinds=[k for k in compute_manifests.KINDS if k != 'calibration_fit'], detail=None, prediction=None, comparison=None, design=None, values={})
+        ctx.update(extra)
+        return ctx
 
     @app.get('/console/calibration', response_class=HTMLResponse)
     async def calibration_page(request: Request):
@@ -657,6 +659,19 @@ def mount(app, svc):
                 feats = {k: f.get('f_' + k, '') for k in detail['features']}
                 pred = svc.calibration.predict(db, p, mid, feats)
                 return render(request, 'calibration.html', **calibration_ctx(db, p, detail=detail, prediction=pred, values=dict(f)))
+            if action == 'design':
+                detail = svc.calibration.model_view(db, svc.calibration.model(db, p, mid), full=True)
+                try:
+                    cands = json.loads(f.get('candidates', ''))
+                except ValueError:
+                    raise ServiceError('VALIDATION', 'candidates: JSON list of {features, cost, label}')
+                body = {'candidates': cands, 'objective': f.get('objective', 'reduce_overall_uncertainty'), 'cost_policy': {'rank_by': f.get('rank_by', 'utility_per_cost')}}
+                if f.get('budget'):
+                    body['cost_policy']['budget'] = f['budget']
+                if f.get('targets'):
+                    body['targets'] = json.loads(f['targets'])
+                design = svc.calibration.design(db, p, mid, body)
+                return render(request, 'calibration.html', **calibration_ctx(db, p, detail=detail, design=design, values=dict(f)))
             if action == 'approve':
                 from .approvals import gate as approval_gate
                 approval_gate(svc.approvals, db, p, 'calibration_approve')

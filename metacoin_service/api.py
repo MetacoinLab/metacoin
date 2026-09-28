@@ -1421,6 +1421,12 @@ def create_app(settings):
             return svc.calibration.set_scheduling(db, p, bool(body.get('enabled', True)))
         return await run(request, True, fn, 'calibration.scheduling', raw)
 
+    @app.post(API + '/calibration/models/{mid}/design')
+    async def cal_design(request: Request, mid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.calibration.design(db, p, mid, body), 'calibration.design', raw)
+
     @app.post(API + '/calibration/plan')
     async def cal_plan(request: Request):
         raw = await request.body()

@@ -134,3 +134,36 @@ class CalibrationTests(unittest.TestCase):
         # retire clears the default; the retired model stays readable
         rt = self.c.post('/api/v1/calibration/models/' + pm['id'] + '/retire', headers=self.H, json={}).json()
         self.assertEqual((rt['state'], rt['default_for']), ('retired', []))
+
+
+@unittest.skipUnless(HAVE_RUNTIME, 'no numpy-capable compute interpreter on this host')
+class DesignSuggestionTests(CalibrationTests):
+    test_fits_predictions_verification_and_scheduling_signal = None          # fixture reuse only
+
+    def test_design_suggestions_rank_by_predicted_utility_under_cost_policy(self):
+        # training data covers x1 in 0..19 densely but x2 only in {0, 1}: a candidate far along x2 has the most leverage
+        rows = [{'x1': i, 'x2': i % 2, 'y': 3 * i - 2 * (i % 2) + 5} for i in range(24)]
+        did = self.dataset(rows)
+        jid, m = self.fit({'dataset_id': did, 'features': ['x1', 'x2'], 'target': 'y', 'intercept': True, 'split': {'method': 'random', 'train_fraction_percent': 80, 'seed': 3}})
+        self.assertIsNotNone(m)
+        cands = [{'label': 'dup-inside', 'features': {'x1': 5, 'x2': 1}, 'cost': 1}, {'label': 'x2-far', 'features': {'x1': 5, 'x2': 6}, 'cost': 1},
+                 {'label': 'x1-far', 'features': {'x1': 60, 'x2': 0}, 'cost': 1}, {'label': 'pricey', 'features': {'x1': 5, 'x2': 8}, 'cost': 40}, {'label': 'free-inside', 'features': {'x1': 10, 'x2': 0}, 'cost': 0}]
+        r = self.c.post('/api/v1/calibration/models/' + m['id'] + '/design', headers=self.H, json={'candidates': cands, 'objective': 'reduce_overall_uncertainty', 'cost_policy': {'budget': 3, 'rank_by': 'utility_per_cost'}, 'max_selected': 3})
+        self.assertEqual(r.status_code, 200, r.text); d = r.json()
+        labels = [s['label'] for s in d['selected']]
+        self.assertEqual(len(labels), 3); self.assertIn('x2-far', labels[:2]); self.assertIn('x1-far', labels[:2])
+        self.assertTrue(all(s['proven_information_gain'] is None for s in d['selected']))
+        self.assertEqual({n['label']: n['reason'] for n in d['not_selected']}['pricey'], 'over_budget')
+        self.assertEqual(d['selected'][0]['domain_status'], 'extrapolation'); self.assertEqual(float(d['total_cost']), sum(c['cost'] for c in cands if c['label'] in labels))
+        self.assertIn('none', d['instrument_contact'])
+        # utility decreases for a near-duplicate after the first pick (sequential update), and a zero-utility point is reported as such
+        first = float(d['selected'][0]['predicted_utility']); self.assertGreater(first, float(d['selected'][-1]['predicted_utility']))
+        # target-focused objective: reduce uncertainty at a declared point far along x2 prefers the x2 candidate strictly
+        r2 = self.c.post('/api/v1/calibration/models/' + m['id'] + '/design', headers=self.H, json={'candidates': cands[:3], 'objective': 'reduce_uncertainty_at_targets', 'targets': [{'x1': 5, 'x2': 7}], 'cost_policy': {'rank_by': 'utility'}, 'max_selected': 1}).json()
+        self.assertEqual(r2['selected'][0]['label'], 'x2-far')
+        # refusals: wrong feature set, non-finite cost, unknown objective, viewer role; nothing was submitted
+        self.assertEqual(self.c.post('/api/v1/calibration/models/' + m['id'] + '/design', headers=self.H, json={'candidates': [{'features': {'x1': 1}}]}).status_code, 422)
+        self.assertEqual(self.c.post('/api/v1/calibration/models/' + m['id'] + '/design', headers=self.H, json={'candidates': [{'features': {'x1': 1, 'x2': 1}, 'cost': 'inf'}]}).status_code, 422)
+        self.assertEqual(self.c.post('/api/v1/calibration/models/' + m['id'] + '/design', headers=self.H, json={'candidates': cands[:1], 'objective': 'maximize_truth'}).status_code, 422)
+        self.assertEqual(self.c.post('/api/v1/calibration/models/' + m['id'] + '/design', headers=self.inst.h('viewer'), json={'candidates': cands[:1]}).status_code, 403)
+        self.assertEqual(len([j for j in self.c.get('/api/v1/jobs', headers=self.H).json()['items']]), 1)

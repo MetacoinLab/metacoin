@@ -38,6 +38,13 @@ class ConsoleExpansionTests(unittest.TestCase):
         self.assertEqual(self.c.post('/console/notebooks', data={'csrf': csrf, 'name': 'console nb', 'text': 'Observed: reserve 2000 mJ. <script>alert(1)</script>'}, follow_redirects=False).status_code, 303)
         page = self.c.get('/console/notebooks').text
         self.assertIn('console nb', page); self.assertIn('&lt;script&gt;', page); self.assertNotIn('<script>alert', page)
+        # calibration design form on a model detail page (fit a tiny numeric model first)
+        did = self.c.post('/api/v1/calibration/datasets', headers=self.inst.h('owner'), json={'name': 'c', 'columns': ['x1', 'y'], 'target': 'y', 'units': {'y': 'ms'}, 'rows': [{'x1': i, 'y': 2 * i + 1} for i in range(12)], 'provenance': 'synthetic'}).json()['id']
+        self.c.post('/api/v1/calibration/fits', headers=self.inst.h('owner'), json={'inputs': {'dataset_id': did, 'features': ['x1'], 'target': 'y', 'intercept': True, 'split': {'method': 'random', 'train_fraction_percent': 75, 'seed': 1}}})
+        self.inst.worker().run_once()
+        mid = self.c.get('/api/v1/calibration/models', headers=self.inst.h('owner')).json()['items'][0]['id']
+        r = self.c.post('/console/calibration/models/' + mid + '/design', data={'csrf': csrf, 'candidates': json.dumps([{'label': 'far', 'features': {'x1': 100}, 'cost': 1}, {'label': 'near', 'features': {'x1': 5}, 'cost': 1}]), 'objective': 'reduce_overall_uncertainty', 'budget': '1'})
+        self.assertEqual(r.status_code, 200, r.text[-900:]); self.assertIn('none yet', r.text); self.assertIn('near (over_budget)', r.text)
         # approvals policy form and a proposal decided by the reviewer through the console
         r = self.c.post('/console/approvals/policy', data={'csrf': csrf, 'required': ['scheduling_toggle']}, follow_redirects=False)
         self.assertEqual(r.status_code, 303)

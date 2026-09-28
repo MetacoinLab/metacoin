@@ -201,6 +201,20 @@ class Calibration:
             raise ServiceError('COMPUTATION', 'non-finite prediction')
         return out
 
+    def design(self, db, principal, mid, body):
+        """§65-3: rank candidate measurements by predicted utility under this model's design geometry (no execution)."""
+        principal.require('calibration:write')
+        from . import design as design_mod
+        row = self.model(db, principal, mid)
+        m, _ = self.manifest_of(db, row)
+        data = rows_for_fit(db, self.store, principal.workspace, {'dataset_id': m['dataset_id'], 'features': m['features'], 'target': m['target']})
+        idx = [data['columns'].index(f) for f in m['features']]
+        train = [{f: cal.to_float(r[j]) for f, j in zip(m['features'], idx)} for k, r in enumerate(data['rows']) if k in set(m.get('train_indexes', range(len(data['rows']))))]
+        out = design_mod.suggest(m, train, body if type(body) is dict else {})
+        out['model_id'] = mid; out['model_state'] = row['state']
+        history.record(db, principal.workspace, principal.id, 'calibration.dataset', 'calibration_model', mid, {'design_suggestion': True, 'candidates': len(body.get('candidates', [])), 'selected': len(out['selected'])})
+        return out
+
     def approve(self, db, principal, mid, evidence=None):
         principal.require('calibration:write')
         row = self.model(db, principal, mid)
