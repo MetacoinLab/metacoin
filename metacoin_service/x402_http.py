@@ -363,6 +363,174 @@ class SaleService:
         history.record(db, principal.workspace, principal.id, 'sale.settled', 'job', out['job_id'], {'payment_id': identifier, 'transaction': settled.transaction, 'quote_id': quote['id']})
         return 202, dict(settled.headers), json.dumps(out).encode()
 
+    # ---- variable price (upto): authorize up to the ceiling now, settle the measured amount after the job ----------------
+    def local_chain(self):
+        """test-http: a private py-evm chain with the pinned Permit2 / upto proxy / mock token deployed in this process (SDK
+        canonical addresses redirected to the local deployments); production: no chain object, the HTTP facilitator settles."""
+        if self.settings.provider_mode != 'test-http':
+            return None
+        if getattr(self, '_chain', None) is None:
+            from integrations.x402.local_chain import harness
+            chain = harness.LocalChain()
+            chain.patch_sdk()
+            self._chain = chain
+            self._chain_facilitator = harness.LocalFacilitatorClient(harness.facilitator_for(chain))
+        return self._chain
+
+    def upto_available(self):
+        try:
+            from integrations.x402.local_chain import harness
+            from x402.mechanisms.evm.upto import UptoEvmServerScheme
+            return harness.ARTIFACTS.exists() and self.settings.provider_mode in ('test-http', 'production')
+        except ImportError:
+            return False
+
+    def upto_terms(self, base_url):
+        from x402.mechanisms.evm.upto import UptoEvmServerScheme
+        if self.settings.provider_mode == 'production':
+            client = self.facilitator_client(base_url)
+            return self.settings.x402_network, self.settings.x402_asset, self.settings.x402_pay_to, client, {'name': 'USDC', 'version': '2'}
+        chain = self.local_chain()
+        from integrations.x402.local_chain.harness import TOKEN_NAME, TOKEN_VERSION
+        return chain.network, chain.token, chain.recipient, self._chain_facilitator, {'name': TOKEN_NAME, 'version': TOKEN_VERSION}
+
+    def _upto_server(self, base_url, path, quote, expected, max_amount, bind=None):
+        ns = sdk()
+        from x402.mechanisms.evm.upto import UptoEvmServerScheme
+        network, asset, pay_to, fclient, extra_asset = self.upto_terms(base_url)
+        core = ns.server.x402ResourceServerSync(fclient)
+        core.register(network, UptoEvmServerScheme())
+        if bind:
+            core.on_before_verify(bind)
+        option = ns.http.PaymentOption(scheme='upto', pay_to=pay_to, price=ns.schemas.AssetAmount(amount=str(max_amount), asset=asset, extra=extra_asset), network=network, max_timeout_seconds=600, extra=expected)
+        routes = {'POST ' + path: ns.http.RouteConfig(accepts=option, resource=base_url + path, description='metered invocation under quote ' + quote['id'] + ' (upto)', mime_type='application/json',
+                                                      extensions={ns.pi.PAYMENT_IDENTIFIER: ns.pi.declare_payment_identifier_extension(required=True)})}
+        server = ns.http.x402HTTPResourceServerSync(core, routes)
+        server.initialize()
+        return server, (network, asset, pay_to)
+
+    def handle_invoke_upto(self, db, request, body, base_url, sid, quote, principal, invoke):
+        """402 asks for an UPTO authorization of the quote ceiling; a verified authorization creates the job and is recorded as
+        AUTHORIZED (nothing moved). Settlement happens after the job with the measured amount (see settle_metered). A failed
+        authorization is refused; it never becomes a fixed-price charge or a simulated success."""
+        if not self.enabled() or not self.upto_available():
+            raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'upto_unavailable', 'mode': self.settings.provider_mode})
+        ns = sdk()
+        if quote['provider_mode'] != self.settings.provider_mode:
+            raise ServiceError('CONFLICT', 'quote provider mode differs from the service')
+        path = '/api/v1/x402/services/' + sid + '/invoke'
+        body_digest = hashlib.sha256(body).hexdigest()
+        expected = {'quote_id': quote['id'], 'request_digest': quote['request_digest'], 'service_revision': str(quote['service_revision']), 'body_sha256': body_digest,
+                    'resource_version': 'service-invoke-metered/v1', 'route': 'POST ' + path, 'scheme': 'upto', 'pricing_revision': quote['pricing_revision'], 'provider_mode': quote['provider_mode']}
+        max_amount = quote['amount_max']
+        seen = {}
+        holder = {}
+
+        def bind(ctx):
+            accepted = ctx.requirements
+            got = ns.pi.extract_payment_identifier(ctx.payment_payload, validate=False)
+            if not got or not ns.pi.is_valid_payment_id(got):
+                return ns.schemas.AbortResult(reason='work_contract_payment_identifier_required')
+            seen['identifier'] = got
+            network, asset, pay_to = holder['terms']
+            if quote['state'] == 'consumed':
+                prior = db.execute('SELECT state FROM metered_settlements WHERE payment_id=? AND quote_id=?', (got, quote['id'])).fetchone()
+                if prior is None:
+                    return ns.schemas.AbortResult(reason='work_contract_quote_consumed')
+            if (accepted.scheme != 'upto' or accepted.amount != str(max_amount) or accepted.pay_to != pay_to or accepted.network != network or accepted.asset != asset
+                    or any(accepted.extra.get(k) != v for k, v in expected.items())):
+                return ns.schemas.AbortResult(reason=ERR_BINDING)
+            resource = getattr(ctx.payment_payload, 'resource', None)
+            if resource is None or getattr(resource, 'url', None) != base_url + path:
+                return ns.schemas.AbortResult(reason=ERR_BINDING)
+            return None
+        server, terms = self._upto_server(base_url, path, quote, expected, max_amount, bind)
+        holder['terms'] = terms
+        network, asset, pay_to = terms
+        ctx = ns.http.HTTPRequestContext(adapter=StarletteAdapter(request, body), path=path, method='POST')
+        result = server.process_http_request(ctx)
+        if result.type == 'payment-error':
+            return result.response.status, dict(result.response.headers), json.dumps(result.response.body or {}).encode()
+        if result.type != 'payment-verified':
+            raise ServiceError('CONFLICT', 'route not protected')
+        identifier = seen['identifier']
+        existing = db.execute('SELECT * FROM metered_settlements WHERE payment_id=?', (identifier,)).fetchone()
+        if existing is not None:
+            job = db.execute('SELECT id, state FROM jobs WHERE id=?', (existing['job_id'],)).fetchone() if existing['job_id'] else None
+            return 200, {'X-Sale-State': 'already-authorized:' + existing['state']}, json.dumps({'job_id': job['id'] if job else None, 'state': job['state'] if job else None, 'quote_id': quote['id'], 'replayed': True,
+                                                                                                 'settlement': self.settlement_view(existing)}).encode()
+        requirements_digest = hashlib.sha256(result.payment_requirements.model_dump_json(by_alias=True).encode()).hexdigest()
+        extensions = {k: (v.model_dump(by_alias=True, exclude_none=True) if hasattr(v, 'model_dump') else v) for k, v in (result.declared_extensions or {}).items()}
+        out = invoke()                                   # consumes the quote atomically and creates the bound job; the authorization is recorded with it
+        db.execute('INSERT INTO metered_settlements (payment_id, workspace, quote_id, job_id, resource, max_amount, asset, network, pay_to, provider_mode, scheme, state, payload_json, requirements_json, extensions_json, requirements_digest, payer, created_at, updated_at) '
+                   'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                   (identifier, principal.workspace, quote['id'], out['job_id'], expected['route'], str(max_amount), asset, network, pay_to, self.settings.provider_mode, 'upto', 'AUTHORIZED',
+                    result.payment_payload.model_dump_json(by_alias=True), result.payment_requirements.model_dump_json(by_alias=True), json.dumps(extensions, default=str), requirements_digest,
+                    getattr(result.payment_payload, 'payload', {}).get('permit2Authorization', {}).get('from') if isinstance(getattr(result.payment_payload, 'payload', None), dict) else None, now(), now()))
+        history.record(db, principal.workspace, principal.id, 'sale.requested', 'job', out['job_id'], {'payment_id': identifier, 'scheme': 'upto', 'authorized_max': str(max_amount), 'settled': False})
+        out['settlement'] = {'payment_id': identifier, 'state': 'AUTHORIZED', 'authorized_max': str(max_amount), 'asset': asset, 'network': network,
+                             'settle': 'GET /api/v1/x402/settlements/' + identifier + ' after the job completes (the service settles the measured amount; nothing has moved yet)'}
+        return 202, {'X-Sale-State': 'authorized-not-settled'}, json.dumps(out).encode()
+
+    def settlement_view(self, row):
+        return {'payment_id': row['payment_id'], 'job_id': row['job_id'], 'quote_id': row['quote_id'], 'scheme': row['scheme'], 'state': row['state'], 'authorized_max': row['max_amount'], 'final_amount': row['final_amount'],
+                'asset': row['asset'], 'network': row['network'], 'pay_to': row['pay_to'], 'provider_mode': row['provider_mode'], 'transaction': row['transaction_ref'], 'payer': row['payer'], 'error': row['error'],
+                'created_at': row['created_at'], 'settled_at': row['settled_at'],
+                'meaning': {'AUTHORIZED': 'a Permit2 authorization up to the ceiling was verified; no transfer has happened', 'SETTLED': 'the measured amount was transferred on the recorded network',
+                            'AUTHORIZATION_UNUSED': 'the job did not produce billable usage; the authorization was never presented for settlement', 'SETTLEMENT_FAILED': 'settlement was refused; nothing was charged and no fixed price substituted',
+                            'OUTCOME_UNKNOWN': 'the settlement transaction was sent but its receipt was not observed; reconcile before retrying'}.get(row['state'])}
+
+    def settle_metered(self, db, principal, payment_id, base_url):
+        """Settle the measured amount for a completed job (idempotent). Nothing is charged for a failed or cancelled job."""
+        row = db.execute('SELECT * FROM metered_settlements WHERE payment_id=? AND workspace=?', (payment_id, principal.workspace)).fetchone()
+        if row is None:
+            raise ServiceError('NOT_FOUND', 'metered settlement')
+        if row['state'] != 'AUTHORIZED':
+            return self.settlement_view(row)
+        job = db.execute('SELECT * FROM jobs WHERE id=?', (row['job_id'],)).fetchone()
+        if job['state'] in ('queued', 'running'):
+            return dict(self.settlement_view(row), job_state=job['state'], note='job not finished; the authorization stays unused until it is')
+        if job['state'] != 'succeeded':
+            db.execute("UPDATE metered_settlements SET state='AUTHORIZATION_UNUSED', error=?, updated_at=? WHERE payment_id=?", ('job ' + job['state'] + (': ' + job['error_code'] if job['error_code'] else ''), now(), payment_id))
+            history.record(db, principal.workspace, principal.id, 'sale.failed', 'job', job['id'], {'payment_id': payment_id, 'scheme': 'upto', 'unused': True, 'job_state': job['state']})
+            return self.settlement_view(db.execute('SELECT * FROM metered_settlements WHERE payment_id=?', (payment_id,)).fetchone())
+        usage = db.execute('SELECT assessed_charge, quantity FROM usage_records WHERE job_id=?', (job['id'],)).fetchone()
+        if usage is None:
+            return dict(self.settlement_view(row), note='usage not finalized yet')
+        final = int(usage['assessed_charge'])
+        if final <= 0:
+            db.execute("UPDATE metered_settlements SET state='AUTHORIZATION_UNUSED', final_amount='0', error='zero measured usage', updated_at=? WHERE payment_id=?", (now(), payment_id))
+            return self.settlement_view(db.execute('SELECT * FROM metered_settlements WHERE payment_id=?', (payment_id,)).fetchone())
+        if final > int(row['max_amount']):
+            raise ServiceError('INTERNAL_DEFECT', 'assessed charge above the authorized maximum')
+        ns = sdk()
+        quote = db.execute('SELECT * FROM quotes WHERE id=?', (row['quote_id'],)).fetchone()
+        path = '/api/v1/x402/services/' + quote['service_id'] + '/invoke'
+        server, _ = self._upto_server(base_url, path, quote, json.loads(row['requirements_json']).get('extra') or {}, int(row['max_amount']))
+        payload = ns.schemas.PaymentPayload.model_validate_json(row['payload_json'])
+        requirements = ns.schemas.PaymentRequirements.model_validate_json(row['requirements_json']).model_copy(update={'amount': str(final)})
+        from integrations.x402.loopback_harness import FakeAdapter
+        ctx = ns.http.HTTPRequestContext(adapter=FakeAdapter(path, None), path=path, method='POST')
+        db.execute("UPDATE metered_settlements SET state='OUTCOME_UNKNOWN', final_amount=?, updated_at=? WHERE payment_id=?", (str(final), now(), payment_id))
+        db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')
+        try:
+            settled = server.process_settlement(payload, requirements, context=ctx, declared_extensions=json.loads(row['extensions_json'] or '{}'))
+        except Exception as exc:
+            db.execute("UPDATE metered_settlements SET error=?, updated_at=? WHERE payment_id=?", ('settlement outcome unknown: ' + type(exc).__name__, now(), payment_id))
+            raise ServiceError('PROVIDER_UNAVAILABLE', 'settlement outcome unknown; reconcile before retrying')
+        response = settled.settle_response.model_dump(by_alias=True, exclude_none=True) if settled.settle_response else {}
+        if settled.success and response.get('amount') not in (None, str(final)):
+            db.execute("UPDATE metered_settlements SET error=?, updated_at=? WHERE payment_id=?", ('settlement answer names a different amount: ' + str(response.get('amount')), now(), payment_id))
+            raise ServiceError('ADAPTER_RESPONSE_INVALID', 'settlement answer inconsistent with the measured amount')
+        if not settled.success:
+            state = 'OUTCOME_UNKNOWN' if settled.error_reason == 'settlement_pending' else 'SETTLEMENT_FAILED'
+            db.execute("UPDATE metered_settlements SET state=?, error=?, updated_at=? WHERE payment_id=?", (state, settled.error_reason, now(), payment_id))
+            history.record(db, principal.workspace, principal.id, 'sale.failed', 'job', job['id'], {'payment_id': payment_id, 'scheme': 'upto', 'reason': settled.error_reason})
+        else:
+            db.execute("UPDATE metered_settlements SET state='SETTLED', transaction_ref=?, payer=?, settled_at=?, updated_at=? WHERE payment_id=?", (settled.transaction, settled.payer, now(), now(), payment_id))
+            history.record(db, principal.workspace, principal.id, 'sale.settled', 'job', job['id'], {'payment_id': payment_id, 'scheme': 'upto', 'final_amount': str(final), 'authorized_max': row['max_amount'], 'transaction': settled.transaction})
+        return self.settlement_view(db.execute('SELECT * FROM metered_settlements WHERE payment_id=?', (payment_id,)).fetchone())
+
     def reconcile(self, db, principal, job_id):
         principal.require('action:reconcile')
         row = db.execute('SELECT * FROM sales WHERE job_id=? AND workspace=?', (job_id, principal.workspace)).fetchone()

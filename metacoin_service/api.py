@@ -493,7 +493,7 @@ def create_app(settings):
     async def service_quote(request: Request, sid: str):
         raw = await request.body()
         body = read_body(request, raw)
-        return await run(request, True, lambda db, p: (svc.catalog.quote(db, p, sid, body.get('inputs'), body.get('quantity_max'), body.get('provider_mode')), 201), 'services.quote', raw)
+        return await run(request, True, lambda db, p: (svc.catalog.quote(db, p, sid, body.get('inputs'), body.get('quantity_max'), body.get('provider_mode'), body.get('scheme', 'exact')), 201), 'services.quote', raw)
 
     @app.post(API + '/quotes/{qid}/accept')
     async def quote_accept(request: Request, qid: str):
@@ -525,16 +525,40 @@ def create_app(settings):
                 quote = svc.catalog.get_quote(db, p, body.get('quote_id'))
                 if quote['principal_id'] != p.id:
                     raise ServiceError('FORBIDDEN', 'quote belongs to another principal')
+                metered = (quote['scheme'] if 'scheme' in quote.keys() else 'exact') == 'upto'
                 if quote['state'] == 'consumed':
-                    # re-delivery path: only a payment whose identifier already settled can be answered
-                    if db.execute("SELECT 1 FROM invoke_sales WHERE quote_id=? AND state='CONFIRMED'", (quote['id'],)).fetchone() is None:
+                    # re-delivery path: only a payment whose identifier already settled (or was authorized, for upto) can be answered
+                    table = 'metered_settlements' if metered else "invoke_sales WHERE state='CONFIRMED' AND"
+                    if db.execute('SELECT 1 FROM ' + ('metered_settlements WHERE' if metered else "invoke_sales WHERE state='CONFIRMED' AND") + ' quote_id=?', (quote['id'],)).fetchone() is None:
                         raise ServiceError('CONFLICT', 'quote consumed')
                 elif quote['state'] != 'accepted':
                     raise ServiceError('CONFLICT', 'quote not accepted')
-                status, headers, content = svc.sales.handle_invoke(db, request, raw, base, sid, quote, p, lambda: invoke_under_quote(svc, db, p, sid, quote['id'], body.get('inputs')))
+                handler = svc.sales.handle_invoke_upto if metered else svc.sales.handle_invoke
+                status, headers, content = handler(db, request, raw, base, sid, quote, p, lambda: invoke_under_quote(svc, db, p, sid, quote['id'], body.get('inputs')))
                 return status, headers, content
         status, headers, content = await run_in_threadpool(do)
         return Response(content=content, status_code=status, headers=dict(headers, **SENSITIVE_HEADERS), media_type='application/json')
+
+    @app.get(API + '/x402/settlements')
+    async def settlements_list(request: Request):
+        def fn(db, p):
+            p.require('budget:read')
+            return {'items': [svc.sales.settlement_view(r) for r in db.execute('SELECT * FROM metered_settlements WHERE workspace=? ORDER BY created_at DESC LIMIT 100', (p.workspace,)).fetchall()],
+                    'local_chain': svc.sales.local_chain().record if settings.provider_mode == 'test-http' and svc.sales.upto_available() else None}
+        return await run(request, False, fn)
+
+    @app.get(API + '/x402/settlements/{payment_id}')
+    async def settlement_get(request: Request, payment_id: str):
+        base = str(request.base_url).rstrip('/')
+        def fn(db, p):
+            p.require('budget:read')
+            return svc.sales.settle_metered(db, p, payment_id, base)            # settles the measured amount once the job is terminal (idempotent); otherwise reports the state
+        return await run(request, True, fn, 'x402.settle')
+
+    @app.post(API + '/x402/settlements/{payment_id}/settle')
+    async def settlement_post(request: Request, payment_id: str):
+        base = str(request.base_url).rstrip('/')
+        return await run(request, True, lambda db, p: svc.sales.settle_metered(db, p, payment_id, base), 'x402.settle')
 
     # ---- compute engine ------------------------------------------------------------------------
     @app.get(API + '/compute/capabilities')
@@ -1868,6 +1892,10 @@ def capability_table(svc, db):
                            'available': installed_x402 and settings.provider_mode in ('test-http', 'production'),
                            'mode': settings.provider_mode, 'externally_validated': False,
                            'settlement_observed': 'none (test double in test-http; production unexercised)'},
+        'x402_variable_price_upto': {'installed': installed_x402 and svc.sales.upto_available(), 'configured': settings.provider_mode in ('test-http', 'production'), 'available': installed_x402 and svc.sales.upto_available(),
+                                     'code_readiness': 'quote scheme=upto -> 402 upto requirements (Permit2 witness) -> verified authorization creates the job -> settlement of the measured amount after completion; failed jobs leave the authorization unused',
+                                     'local_protocol_validation': 'private py-evm chain with the pinned Permit2 / x402UptoPermit2Proxy / mock token in test-http mode (integrations/x402/local_chain)',
+                                     'external_production_settlement': 'unverified: no external facilitator or public network exercised', 'externally_validated': False},
         'payment_actions': {'modes': {'simulation': 'zero-value in-process stub', 'test-http': 'in-process SDK objects with facilitator double',
                                       'production': __import__('metacoin_service.buyer', fromlist=['status']).status(settings)},
                             'current_mode': settings.provider_mode, 'externally_validated': False},

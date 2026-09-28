@@ -330,6 +330,13 @@ MIGRATIONS = [
     CREATE TABLE agent_plans (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, principal_id TEXT NOT NULL, grant_id TEXT, goal_sha256 TEXT, draft_json TEXT NOT NULL, digest TEXT, validation_json TEXT NOT NULL,
         assist_json TEXT NOT NULL, state TEXT NOT NULL, execution_json TEXT, created_at INTEGER NOT NULL, accepted_at INTEGER, accepted_by TEXT);
     """),
+    ('025_metered_upto', """
+    ALTER TABLE quotes ADD COLUMN scheme TEXT NOT NULL DEFAULT 'exact';
+    CREATE TABLE metered_settlements (payment_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, quote_id TEXT NOT NULL REFERENCES quotes(id), job_id TEXT REFERENCES jobs(id), resource TEXT NOT NULL,
+        max_amount TEXT NOT NULL, final_amount TEXT, asset TEXT NOT NULL, network TEXT NOT NULL, pay_to TEXT NOT NULL, provider_mode TEXT NOT NULL, scheme TEXT NOT NULL, state TEXT NOT NULL,
+        payload_json TEXT NOT NULL, requirements_json TEXT NOT NULL, extensions_json TEXT, requirements_digest TEXT NOT NULL, transaction_ref TEXT, payer TEXT, error TEXT,
+        created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, settled_at INTEGER);
+    """),
 ]
 
 

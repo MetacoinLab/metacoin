@@ -231,8 +231,10 @@ class Catalog:
         digest = hashlib.sha256(merkle.canonical(inputs)).hexdigest()
         return row, digest
 
-    def quote(self, db, principal, sid, inputs, quantity_max=1, provider_mode=None):
+    def quote(self, db, principal, sid, inputs, quantity_max=1, provider_mode=None, scheme='exact'):
         principal.require('contract:create')
+        if scheme not in ('exact', 'upto'):
+            raise ServiceError('VALIDATION', {'code': 'scheme', 'allowed': ['exact', 'upto'], 'meaning': 'exact = fixed-price bundle at the ceiling; upto = variable price, authorized up to the ceiling and settled for the measured amount'})
         row, digest = self.validate_request(db, principal, sid, inputs)
         from .agents import guard
         guard(db, principal, 'quote', service_id=sid, service_kind=row['kind'])
@@ -257,15 +259,20 @@ class Catalog:
             raise ServiceError('CAPABILITY_UNAVAILABLE', 'no asset configured for provider mode ' + str(mode))
         network = {'simulation': 'local-simulation', 'test-http': 'eip155-84532'}.get(mode, 'configured')
         pay_to = {'simulation': 'legacy-compute-provider', 'test-http': 'loopback-compute-provider'}.get(mode, 'configured')
+        if scheme == 'upto':
+            if mode == 'simulation':
+                raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'upto_needs_chain', 'note': 'variable-price settlement needs the local chain (test-http) or a production facilitator'})
+            network, pay_to = {'test-http': 'local-chain'}.get(mode, 'configured'), {'test-http': 'local-chain-provider'}.get(mode, 'configured')
         amount = quantity_max * pricing['amount_per_unit']
         qid = 'q_' + secrets.token_hex(8)
         binding = {'service_id': sid, 'service_revision': row['revision'], 'request_digest': digest, 'principal_id': principal.id, 'quantity_max': quantity_max,
                    'amount_max': amount, 'unit': pricing['unit'], 'amount_per_unit': pricing['amount_per_unit'], 'asset': asset, 'network': network, 'pay_to': pay_to,
-                   'pricing_revision': pricing['policy_revision'], 'provider_mode': mode, 'expires_at': now() + QUOTE_TTL_SECONDS}
+                   'pricing_revision': pricing['policy_revision'], 'provider_mode': mode, 'scheme': scheme, 'expires_at': now() + QUOTE_TTL_SECONDS,
+                   'settlement_rule': 'fixed bundle: the ceiling is charged at invocation' if scheme == 'exact' else 'variable: authorized up to the ceiling; settled for min(measured usage * price, ceiling) after the job; a failed job leaves the authorization unused'}
         db.execute('INSERT INTO quotes (id, workspace, service_id, service_revision, principal_id, request_digest, quantity_max, amount_max, unit, asset, network, pay_to, '
-                   'pricing_revision, provider_mode, expires_at, state, binding_json, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                   'pricing_revision, provider_mode, expires_at, state, binding_json, created_at, scheme) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                    (qid, principal.workspace, sid, row['revision'], principal.id, digest, quantity_max, amount, pricing['unit'], asset, network, pay_to,
-                    pricing['policy_revision'], mode, binding['expires_at'], 'offered', json.dumps(binding), now()))
+                    pricing['policy_revision'], mode, binding['expires_at'], 'offered', json.dumps(binding), now(), scheme))
         history.record(db, principal.workspace, principal.id, 'sale.requested', 'quote', qid, {'service_id': sid, 'amount_max': amount, 'unit': pricing['unit']})
         add_edge(db, principal.workspace, 'service', sid, 'quote', qid, 'quoted')
         return dict(binding, quote_id=qid, state='offered')

@@ -72,7 +72,7 @@ def view(db, row):
     statement = merkle.parse(row['statement_json'])
     pub = db.execute("SELECT value FROM meta WHERE key='service_signing_public'").fetchone()
     valid = crypto.verify(pub['value'], row['statement_json'].encode(), row['signature_hex']) if pub else False
-    sale = db.execute('SELECT state, transaction_ref FROM invoke_sales WHERE job_id=?', (row['job_id'],)).fetchone()
+    sale = db.execute('SELECT state, transaction_ref FROM invoke_sales WHERE job_id=?', (row['job_id'],)).fetchone() or db.execute("SELECT state, transaction_ref, 'upto' AS scheme, final_amount, max_amount FROM metered_settlements WHERE job_id=?", (row['job_id'],)).fetchone()
     return {'usage_id': row['id'], 'job_id': row['job_id'], 'quote_id': row['quote_id'], 'service_id': row['service_id'], 'unit': row['unit'],
             'quantity': row['quantity'], 'amount_per_unit': row['amount_per_unit'], 'assessed_charge': row['assessed_charge'], 'asset': row['asset'],
             'state': row['state'], 'calculation': json.loads(row['calculation_json']), 'statement': statement, 'signature_hex': row['signature_hex'],

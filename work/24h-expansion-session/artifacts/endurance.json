@@ -1,0 +1,3491 @@
+{
+ "minutes": 15.0,
+ "submitted": {
+  "generation": 58,
+  "answer": 35,
+  "batch": 87,
+  "mc": 25,
+  "heat": 15,
+  "audit": 43
+ },
+ "final_jobs_by_state": {
+  "succeeded": 264
+ },
+ "samples": [
+  {
+   "t": 1790567978,
+   "queue_depth": 0,
+   "api_rss": 70774784,
+   "api_fds": 8,
+   "worker_rss": [
+    58335232,
+    42348544
+   ],
+   "worker_fds": [
+    3,
+    6
+   ],
+   "jobs_by_state": {
+    "succeeded": 1
+   },
+   "tmp_files": 38
+  },
+  {
+   "t": 1790567983,
+   "queue_depth": 0,
+   "api_rss": 70787072,
+   "api_fds": 8,
+   "worker_rss": [
+    58335232,
+    58867712
+   ],
+   "worker_fds": [
+    3,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 1
+   },
+   "tmp_files": 40
+  },
+  {
+   "t": 1790567988,
+   "queue_depth": 0,
+   "api_rss": 70787072,
+   "api_fds": 8,
+   "worker_rss": [
+    58335232,
+    58912768
+   ],
+   "worker_fds": [
+    3,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 2
+   },
+   "tmp_files": 46
+  },
+  {
+   "t": 1790567994,
+   "queue_depth": 0,
+   "api_rss": 70815744,
+   "api_fds": 8,
+   "worker_rss": [
+    58859520,
+    58912768
+   ],
+   "worker_fds": [
+    6,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 2
+   },
+   "tmp_files": 53
+  },
+  {
+   "t": 1790568002,
+   "queue_depth": 0,
+   "api_rss": 70967296,
+   "api_fds": 11,
+   "worker_rss": [
+    58859520,
+    59670528
+   ],
+   "worker_fds": [
+    9,
+    6
+   ],
+   "jobs_by_state": {
+    "succeeded": 6
+   },
+   "tmp_files": 69
+  },
+  {
+   "t": 1790568007,
+   "queue_depth": 0,
+   "api_rss": 70971392,
+   "api_fds": 11,
+   "worker_rss": [
+    58859520,
+    59670528
+   ],
+   "worker_fds": [
+    9,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 6
+   },
+   "tmp_files": 73
+  },
+  {
+   "t": 1790568012,
+   "queue_depth": 0,
+   "api_rss": 70979584,
+   "api_fds": 11,
+   "worker_rss": [
+    58859520,
+    59670528
+   ],
+   "worker_fds": [
+    9,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 8
+   },
+   "tmp_files": 80
+  },
+  {
+   "t": 1790568018,
+   "queue_depth": 0,
+   "api_rss": 71016448,
+   "api_fds": 11,
+   "worker_rss": [
+    58900480,
+    59670528
+   ],
+   "worker_fds": [
+    12,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 9
+   },
+   "tmp_files": 89
+  },
+  {
+   "t": 1790568023,
+   "queue_depth": 0,
+   "api_rss": 71016448,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    59670528
+   ],
+   "worker_fds": [
+    9,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 11
+   },
+   "tmp_files": 93
+  },
+  {
+   "t": 1790568028,
+   "queue_depth": 0,
+   "api_rss": 71020544,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    59670528
+   ],
+   "worker_fds": [
+    9,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 12
+   },
+   "tmp_files": 99
+  },
+  {
+   "t": 1790568033,
+   "queue_depth": 0,
+   "api_rss": 71217152,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    59670528
+   ],
+   "worker_fds": [
+    9,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 14
+   },
+   "tmp_files": 106
+  },
+  {
+   "t": 1790568038,
+   "queue_depth": 0,
+   "api_rss": 71245824,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62513152
+   ],
+   "worker_fds": [
+    9,
+    6
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 15
+   },
+   "tmp_files": 115
+  },
+  {
+   "t": 1790568043,
+   "queue_depth": 0,
+   "api_rss": 71245824,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62513152
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 17
+   },
+   "tmp_files": 122
+  },
+  {
+   "t": 1790568048,
+   "queue_depth": 0,
+   "api_rss": 71249920,
+   "api_fds": 11,
+   "worker_rss": [
+    59568128,
+    62521344
+   ],
+   "worker_fds": [
+    13,
+    10
+   ],
+   "jobs_by_state": {
+    "running": 2,
+    "succeeded": 18
+   },
+   "tmp_files": 137
+  },
+  {
+   "t": 1790568053,
+   "queue_depth": 0,
+   "api_rss": 71254016,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 20
+   },
+   "tmp_files": 138
+  },
+  {
+   "t": 1790568059,
+   "queue_depth": 0,
+   "api_rss": 71290880,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62554112
+   ],
+   "worker_fds": [
+    9,
+    15
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 22
+   },
+   "tmp_files": 152
+  },
+  {
+   "t": 1790568064,
+   "queue_depth": 0,
+   "api_rss": 71290880,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 24
+   },
+   "tmp_files": 150
+  },
+  {
+   "t": 1790568069,
+   "queue_depth": 0,
+   "api_rss": 71303168,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 24
+   },
+   "tmp_files": 154
+  },
+  {
+   "t": 1790568074,
+   "queue_depth": 0,
+   "api_rss": 71303168,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 26
+   },
+   "tmp_files": 159
+  },
+  {
+   "t": 1790568079,
+   "queue_depth": 0,
+   "api_rss": 71319552,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 26
+   },
+   "tmp_files": 165
+  },
+  {
+   "t": 1790568084,
+   "queue_depth": 0,
+   "api_rss": 71323648,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 29
+   },
+   "tmp_files": 175
+  },
+  {
+   "t": 1790568090,
+   "queue_depth": 0,
+   "api_rss": 71331840,
+   "api_fds": 11,
+   "worker_rss": [
+    59535360,
+    62521344
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 32
+   },
+   "tmp_files": 191
+  },
+  {
+   "t": 1790568095,
+   "queue_depth": 0,
+   "api_rss": 71331840,
+   "api_fds": 11,
+   "worker_rss": [
+    62349312,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 33
+   },
+   "tmp_files": 190
+  },
+  {
+   "t": 1790568100,
+   "queue_depth": 0,
+   "api_rss": 71340032,
+   "api_fds": 11,
+   "worker_rss": [
+    62349312,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 33
+   },
+   "tmp_files": 196
+  },
+  {
+   "t": 1790568105,
+   "queue_depth": 0,
+   "api_rss": 71340032,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 36
+   },
+   "tmp_files": 204
+  },
+  {
+   "t": 1790568110,
+   "queue_depth": 0,
+   "api_rss": 71344128,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 37
+   },
+   "tmp_files": 208
+  },
+  {
+   "t": 1790568115,
+   "queue_depth": 0,
+   "api_rss": 71348224,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 38
+   },
+   "tmp_files": 213
+  },
+  {
+   "t": 1790568120,
+   "queue_depth": 0,
+   "api_rss": 71348224,
+   "api_fds": 11,
+   "worker_rss": [
+    62390272,
+    62521344
+   ],
+   "worker_fds": [
+    15,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 39
+   },
+   "tmp_files": 227
+  },
+  {
+   "t": 1790568125,
+   "queue_depth": 0,
+   "api_rss": 71348224,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 42
+   },
+   "tmp_files": 228
+  },
+  {
+   "t": 1790568131,
+   "queue_depth": 0,
+   "api_rss": 71348224,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 42
+   },
+   "tmp_files": 234
+  },
+  {
+   "t": 1790568136,
+   "queue_depth": 0,
+   "api_rss": 71348224,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 45
+   },
+   "tmp_files": 241
+  },
+  {
+   "t": 1790568141,
+   "queue_depth": 0,
+   "api_rss": 71352320,
+   "api_fds": 11,
+   "worker_rss": [
+    62390272,
+    62521344
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 45
+   },
+   "tmp_files": 247
+  },
+  {
+   "t": 1790568146,
+   "queue_depth": 0,
+   "api_rss": 71352320,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    62521344
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 47
+   },
+   "tmp_files": 253
+  },
+  {
+   "t": 1790568151,
+   "queue_depth": 0,
+   "api_rss": 71352320,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 49
+   },
+   "tmp_files": 260
+  },
+  {
+   "t": 1790568156,
+   "queue_depth": 0,
+   "api_rss": 71352320,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 50
+   },
+   "tmp_files": 267
+  },
+  {
+   "t": 1790568161,
+   "queue_depth": 0,
+   "api_rss": 71364608,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 52
+   },
+   "tmp_files": 278
+  },
+  {
+   "t": 1790568166,
+   "queue_depth": 0,
+   "api_rss": 71364608,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 55
+   },
+   "tmp_files": 284
+  },
+  {
+   "t": 1790568172,
+   "queue_depth": 0,
+   "api_rss": 71364608,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 55
+   },
+   "tmp_files": 286
+  },
+  {
+   "t": 1790568177,
+   "queue_depth": 0,
+   "api_rss": 71364608,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 56
+   },
+   "tmp_files": 291
+  },
+  {
+   "t": 1790568182,
+   "queue_depth": 0,
+   "api_rss": 71376896,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 58
+   },
+   "tmp_files": 301
+  },
+  {
+   "t": 1790568187,
+   "queue_depth": 0,
+   "api_rss": 71376896,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 60
+   },
+   "tmp_files": 305
+  },
+  {
+   "t": 1790568192,
+   "queue_depth": 0,
+   "api_rss": 71376896,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 60
+   },
+   "tmp_files": 311
+  },
+  {
+   "t": 1790568197,
+   "queue_depth": 0,
+   "api_rss": 71376896,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 63
+   },
+   "tmp_files": 319
+  },
+  {
+   "t": 1790568203,
+   "queue_depth": 0,
+   "api_rss": 71380992,
+   "api_fds": 11,
+   "worker_rss": [
+    62357504,
+    61894656
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 63
+   },
+   "tmp_files": 329
+  },
+  {
+   "t": 1790568208,
+   "queue_depth": 0,
+   "api_rss": 71380992,
+   "api_fds": 11,
+   "worker_rss": [
+    61636608,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 66
+   },
+   "tmp_files": 336
+  },
+  {
+   "t": 1790568213,
+   "queue_depth": 0,
+   "api_rss": 71380992,
+   "api_fds": 11,
+   "worker_rss": [
+    61636608,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 68
+   },
+   "tmp_files": 342
+  },
+  {
+   "t": 1790568218,
+   "queue_depth": 0,
+   "api_rss": 71380992,
+   "api_fds": 11,
+   "worker_rss": [
+    61636608,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 69
+   },
+   "tmp_files": 345
+  },
+  {
+   "t": 1790568223,
+   "queue_depth": 0,
+   "api_rss": 71380992,
+   "api_fds": 11,
+   "worker_rss": [
+    61669376,
+    61894656
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 69
+   },
+   "tmp_files": 353
+  },
+  {
+   "t": 1790568228,
+   "queue_depth": 0,
+   "api_rss": 71380992,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 72
+   },
+   "tmp_files": 359
+  },
+  {
+   "t": 1790568233,
+   "queue_depth": 0,
+   "api_rss": 71380992,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    13
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 73
+   },
+   "tmp_files": 370
+  },
+  {
+   "t": 1790568238,
+   "queue_depth": 0,
+   "api_rss": 71380992,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 75
+   },
+   "tmp_files": 373
+  },
+  {
+   "t": 1790568244,
+   "queue_depth": 0,
+   "api_rss": 71385088,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 76
+   },
+   "tmp_files": 379
+  },
+  {
+   "t": 1790568249,
+   "queue_depth": 0,
+   "api_rss": 71385088,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 78
+   },
+   "tmp_files": 383
+  },
+  {
+   "t": 1790568254,
+   "queue_depth": 0,
+   "api_rss": 71385088,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 78
+   },
+   "tmp_files": 387
+  },
+  {
+   "t": 1790568259,
+   "queue_depth": 0,
+   "api_rss": 71385088,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61894656
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 81
+   },
+   "tmp_files": 398
+  },
+  {
+   "t": 1790568264,
+   "queue_depth": 0,
+   "api_rss": 71409664,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61902848
+   ],
+   "worker_fds": [
+    13,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 82
+   },
+   "tmp_files": 417
+  },
+  {
+   "t": 1790568269,
+   "queue_depth": 0,
+   "api_rss": 71409664,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 85
+   },
+   "tmp_files": 416
+  },
+  {
+   "t": 1790568274,
+   "queue_depth": 0,
+   "api_rss": 71409664,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 86
+   },
+   "tmp_files": 420
+  },
+  {
+   "t": 1790568279,
+   "queue_depth": 0,
+   "api_rss": 71413760,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 87
+   },
+   "tmp_files": 423
+  },
+  {
+   "t": 1790568285,
+   "queue_depth": 0,
+   "api_rss": 71413760,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61902848
+   ],
+   "worker_fds": [
+    15,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 2,
+    "succeeded": 88
+   },
+   "tmp_files": 439
+  },
+  {
+   "t": 1790568290,
+   "queue_depth": 0,
+   "api_rss": 71413760,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 91
+   },
+   "tmp_files": 439
+  },
+  {
+   "t": 1790568295,
+   "queue_depth": 0,
+   "api_rss": 71413760,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 91
+   },
+   "tmp_files": 441
+  },
+  {
+   "t": 1790568300,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 92
+   },
+   "tmp_files": 448
+  },
+  {
+   "t": 1790568305,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 94
+   },
+   "tmp_files": 457
+  },
+  {
+   "t": 1790568310,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 96
+   },
+   "tmp_files": 463
+  },
+  {
+   "t": 1790568315,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 97
+   },
+   "tmp_files": 471
+  },
+  {
+   "t": 1790568320,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 100
+   },
+   "tmp_files": 479
+  },
+  {
+   "t": 1790568326,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61935616
+   ],
+   "worker_fds": [
+    12,
+    15
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 101
+   },
+   "tmp_files": 490
+  },
+  {
+   "t": 1790568331,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 102
+   },
+   "tmp_files": 489
+  },
+  {
+   "t": 1790568336,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 103
+   },
+   "tmp_files": 497
+  },
+  {
+   "t": 1790568341,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 106
+   },
+   "tmp_files": 505
+  },
+  {
+   "t": 1790568346,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61902848
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 106
+   },
+   "tmp_files": 513
+  },
+  {
+   "t": 1790568351,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 109
+   },
+   "tmp_files": 517
+  },
+  {
+   "t": 1790568356,
+   "queue_depth": 0,
+   "api_rss": 71417856,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 109
+   },
+   "tmp_files": 519
+  },
+  {
+   "t": 1790568361,
+   "queue_depth": 0,
+   "api_rss": 71421952,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 110
+   },
+   "tmp_files": 526
+  },
+  {
+   "t": 1790568367,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 112
+   },
+   "tmp_files": 534
+  },
+  {
+   "t": 1790568372,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 114
+   },
+   "tmp_files": 542
+  },
+  {
+   "t": 1790568377,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 116
+   },
+   "tmp_files": 552
+  },
+  {
+   "t": 1790568382,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 118
+   },
+   "tmp_files": 557
+  },
+  {
+   "t": 1790568387,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 119
+   },
+   "tmp_files": 565
+  },
+  {
+   "t": 1790568392,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61902848
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 121
+   },
+   "tmp_files": 573
+  },
+  {
+   "t": 1790568397,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 122
+   },
+   "tmp_files": 575
+  },
+  {
+   "t": 1790568403,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 123
+   },
+   "tmp_files": 578
+  },
+  {
+   "t": 1790568408,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61935616
+   ],
+   "worker_fds": [
+    13,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 2,
+    "succeeded": 123
+   },
+   "tmp_files": 597
+  },
+  {
+   "t": 1790568413,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 127
+   },
+   "tmp_files": 597
+  },
+  {
+   "t": 1790568418,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 128
+   },
+   "tmp_files": 601
+  },
+  {
+   "t": 1790568423,
+   "queue_depth": 0,
+   "api_rss": 71426048,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61935616
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 129
+   },
+   "tmp_files": 608
+  },
+  {
+   "t": 1790568428,
+   "queue_depth": 0,
+   "api_rss": 71430144,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 130
+   },
+   "tmp_files": 614
+  },
+  {
+   "t": 1790568433,
+   "queue_depth": 0,
+   "api_rss": 71430144,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 133
+   },
+   "tmp_files": 621
+  },
+  {
+   "t": 1790568439,
+   "queue_depth": 0,
+   "api_rss": 71430144,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 133
+   },
+   "tmp_files": 627
+  },
+  {
+   "t": 1790568444,
+   "queue_depth": 0,
+   "api_rss": 71430144,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 136
+   },
+   "tmp_files": 636
+  },
+  {
+   "t": 1790568449,
+   "queue_depth": 0,
+   "api_rss": 71442432,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 137
+   },
+   "tmp_files": 643
+  },
+  {
+   "t": 1790568454,
+   "queue_depth": 0,
+   "api_rss": 71442432,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61935616
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 139
+   },
+   "tmp_files": 651
+  },
+  {
+   "t": 1790568459,
+   "queue_depth": 0,
+   "api_rss": 71442432,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 140
+   },
+   "tmp_files": 653
+  },
+  {
+   "t": 1790568464,
+   "queue_depth": 0,
+   "api_rss": 71442432,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 141
+   },
+   "tmp_files": 658
+  },
+  {
+   "t": 1790568469,
+   "queue_depth": 0,
+   "api_rss": 71446528,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 142
+   },
+   "tmp_files": 666
+  },
+  {
+   "t": 1790568475,
+   "queue_depth": 0,
+   "api_rss": 71446528,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 145
+   },
+   "tmp_files": 672
+  },
+  {
+   "t": 1790568480,
+   "queue_depth": 0,
+   "api_rss": 71446528,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 145
+   },
+   "tmp_files": 676
+  },
+  {
+   "t": 1790568485,
+   "queue_depth": 0,
+   "api_rss": 71446528,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61902848
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 147
+   },
+   "tmp_files": 686
+  },
+  {
+   "t": 1790568490,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 150
+   },
+   "tmp_files": 699
+  },
+  {
+   "t": 1790568495,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 152
+   },
+   "tmp_files": 703
+  },
+  {
+   "t": 1790568500,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 152
+   },
+   "tmp_files": 709
+  },
+  {
+   "t": 1790568505,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 154
+   },
+   "tmp_files": 712
+  },
+  {
+   "t": 1790568511,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    11,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 154
+   },
+   "tmp_files": 723
+  },
+  {
+   "t": 1790568516,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 156
+   },
+   "tmp_files": 726
+  },
+  {
+   "t": 1790568521,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 159
+   },
+   "tmp_files": 735
+  },
+  {
+   "t": 1790568526,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 160
+   },
+   "tmp_files": 738
+  },
+  {
+   "t": 1790568531,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 160
+   },
+   "tmp_files": 746
+  },
+  {
+   "t": 1790568536,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 163
+   },
+   "tmp_files": 750
+  },
+  {
+   "t": 1790568541,
+   "queue_depth": 0,
+   "api_rss": 71458816,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 164
+   },
+   "tmp_files": 758
+  },
+  {
+   "t": 1790568546,
+   "queue_depth": 0,
+   "api_rss": 71462912,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 166
+   },
+   "tmp_files": 766
+  },
+  {
+   "t": 1790568552,
+   "queue_depth": 0,
+   "api_rss": 71462912,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 167
+   },
+   "tmp_files": 774
+  },
+  {
+   "t": 1790568557,
+   "queue_depth": 0,
+   "api_rss": 71462912,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 170
+   },
+   "tmp_files": 781
+  },
+  {
+   "t": 1790568562,
+   "queue_depth": 0,
+   "api_rss": 71462912,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 170
+   },
+   "tmp_files": 785
+  },
+  {
+   "t": 1790568567,
+   "queue_depth": 0,
+   "api_rss": 71462912,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 172
+   },
+   "tmp_files": 792
+  },
+  {
+   "t": 1790568572,
+   "queue_depth": 0,
+   "api_rss": 71495680,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 173
+   },
+   "tmp_files": 798
+  },
+  {
+   "t": 1790568577,
+   "queue_depth": 0,
+   "api_rss": 71495680,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 175
+   },
+   "tmp_files": 804
+  },
+  {
+   "t": 1790568582,
+   "queue_depth": 0,
+   "api_rss": 71495680,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 176
+   },
+   "tmp_files": 812
+  },
+  {
+   "t": 1790568588,
+   "queue_depth": 0,
+   "api_rss": 71495680,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 177
+   },
+   "tmp_files": 813
+  },
+  {
+   "t": 1790568593,
+   "queue_depth": 0,
+   "api_rss": 71499776,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 4,
+    "succeeded": 178
+   },
+   "tmp_files": 824
+  },
+  {
+   "t": 1790568598,
+   "queue_depth": 0,
+   "api_rss": 71499776,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 182
+   },
+   "tmp_files": 834
+  },
+  {
+   "t": 1790568603,
+   "queue_depth": 0,
+   "api_rss": 71499776,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    13
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 183
+   },
+   "tmp_files": 841
+  },
+  {
+   "t": 1790568608,
+   "queue_depth": 0,
+   "api_rss": 71499776,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 184
+   },
+   "tmp_files": 844
+  },
+  {
+   "t": 1790568613,
+   "queue_depth": 0,
+   "api_rss": 71503872,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 185
+   },
+   "tmp_files": 850
+  },
+  {
+   "t": 1790568618,
+   "queue_depth": 0,
+   "api_rss": 71503872,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61927424
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 187
+   },
+   "tmp_files": 858
+  },
+  {
+   "t": 1790568624,
+   "queue_depth": 0,
+   "api_rss": 71503872,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61927424
+   ],
+   "worker_fds": [
+    13,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 2,
+    "succeeded": 188
+   },
+   "tmp_files": 875
+  },
+  {
+   "t": 1790568629,
+   "queue_depth": 0,
+   "api_rss": 71503872,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 191
+   },
+   "tmp_files": 872
+  },
+  {
+   "t": 1790568634,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 191
+   },
+   "tmp_files": 876
+  },
+  {
+   "t": 1790568639,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 193
+   },
+   "tmp_files": 884
+  },
+  {
+   "t": 1790568644,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61927424
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 194
+   },
+   "tmp_files": 890
+  },
+  {
+   "t": 1790568649,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 196
+   },
+   "tmp_files": 893
+  },
+  {
+   "t": 1790568654,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "running": 1,
+    "succeeded": 196
+   },
+   "tmp_files": 903
+  },
+  {
+   "t": 1790568660,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 200
+   },
+   "tmp_files": 912
+  },
+  {
+   "t": 1790568665,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 201
+   },
+   "tmp_files": 917
+  },
+  {
+   "t": 1790568670,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 202
+   },
+   "tmp_files": 924
+  },
+  {
+   "t": 1790568675,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 204
+   },
+   "tmp_files": 932
+  },
+  {
+   "t": 1790568680,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 206
+   },
+   "tmp_files": 936
+  },
+  {
+   "t": 1790568685,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 206
+   },
+   "tmp_files": 940
+  },
+  {
+   "t": 1790568690,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 208
+   },
+   "tmp_files": 945
+  },
+  {
+   "t": 1790568696,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61927424
+   ],
+   "worker_fds": [
+    13,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 210
+   },
+   "tmp_files": 966
+  },
+  {
+   "t": 1790568701,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 212
+   },
+   "tmp_files": 966
+  },
+  {
+   "t": 1790568706,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 213
+   },
+   "tmp_files": 968
+  },
+  {
+   "t": 1790568711,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 214
+   },
+   "tmp_files": 973
+  },
+  {
+   "t": 1790568716,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 215
+   },
+   "tmp_files": 982
+  },
+  {
+   "t": 1790568721,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 218
+   },
+   "tmp_files": 990
+  },
+  {
+   "t": 1790568726,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 219
+   },
+   "tmp_files": 994
+  },
+  {
+   "t": 1790568732,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 220
+   },
+   "tmp_files": 1001
+  },
+  {
+   "t": 1790568737,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 222
+   },
+   "tmp_files": 1010
+  },
+  {
+   "t": 1790568742,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 224
+   },
+   "tmp_files": 1014
+  },
+  {
+   "t": 1790568747,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61673472,
+    61927424
+   ],
+   "worker_fds": [
+    15,
+    9
+   ],
+   "jobs_by_state": {
+    "running": 2,
+    "succeeded": 225
+   },
+   "tmp_files": 1028
+  },
+  {
+   "t": 1790568752,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 227
+   },
+   "tmp_files": 1027
+  },
+  {
+   "t": 1790568757,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 227
+   },
+   "tmp_files": 1031
+  },
+  {
+   "t": 1790568762,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 229
+   },
+   "tmp_files": 1037
+  },
+  {
+   "t": 1790568768,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61640704,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "succeeded": 230
+   },
+   "tmp_files": 1045
+  },
+  {
+   "t": 1790568773,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61685760,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "running": 1,
+    "succeeded": 233
+   },
+   "tmp_files": 1058
+  },
+  {
+   "t": 1790568778,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61685760,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    15
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 234
+   },
+   "tmp_files": 1073
+  },
+  {
+   "t": 1790568783,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 237
+   },
+   "tmp_files": 1070
+  },
+  {
+   "t": 1790568788,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 237
+   },
+   "tmp_files": 1072
+  },
+  {
+   "t": 1790568793,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 238
+   },
+   "tmp_files": 1077
+  },
+  {
+   "t": 1790568798,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 240
+   },
+   "tmp_files": 1091
+  },
+  {
+   "t": 1790568803,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 242
+   },
+   "tmp_files": 1093
+  },
+  {
+   "t": 1790568809,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 243
+   },
+   "tmp_files": 1100
+  },
+  {
+   "t": 1790568814,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 245
+   },
+   "tmp_files": 1105
+  },
+  {
+   "t": 1790568819,
+   "queue_depth": 0,
+   "api_rss": 71520256,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 245
+   },
+   "tmp_files": 1111
+  },
+  {
+   "t": 1790568824,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "running": 1,
+    "succeeded": 247
+   },
+   "tmp_files": 1119
+  },
+  {
+   "t": 1790568829,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 250
+   },
+   "tmp_files": 1128
+  },
+  {
+   "t": 1790568834,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 251
+   },
+   "tmp_files": 1131
+  },
+  {
+   "t": 1790568840,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 3,
+    "running": 1,
+    "succeeded": 251
+   },
+   "tmp_files": 1139
+  },
+  {
+   "t": 1790568845,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61726720,
+    61927424
+   ],
+   "worker_fds": [
+    12,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 255
+   },
+   "tmp_files": 1150
+  },
+  {
+   "t": 1790568850,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61960192
+   ],
+   "worker_fds": [
+    9,
+    12
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "running": 1,
+    "succeeded": 255
+   },
+   "tmp_files": 1154
+  },
+  {
+   "t": 1790568855,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 257
+   },
+   "tmp_files": 1159
+  },
+  {
+   "t": 1790568860,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 258
+   },
+   "tmp_files": 1165
+  },
+  {
+   "t": 1790568865,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "succeeded": 260
+   },
+   "tmp_files": 1169
+  },
+  {
+   "t": 1790568870,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 2,
+    "succeeded": 260
+   },
+   "tmp_files": 1173
+  },
+  {
+   "t": 1790568875,
+   "queue_depth": 0,
+   "api_rss": 71524352,
+   "api_fds": 11,
+   "worker_rss": [
+    61693952,
+    61927424
+   ],
+   "worker_fds": [
+    9,
+    9
+   ],
+   "jobs_by_state": {
+    "queued": 1,
+    "succeeded": 263
+   },
+   "tmp_files": 1184
+  }
+ ],
+ "trend": {
+  "api_rss_first": 70774784,
+  "api_rss_last": 71524352,
+  "api_fds_first": 8,
+  "api_fds_last": 11,
+  "worker_rss_first": [
+   58335232,
+   42348544
+  ],
+  "worker_rss_last": [
+   61693952,
+   61927424
+  ],
+  "max_queue_depth": 0,
+  "home_files_first": 38,
+  "home_files_last": 1184
+ },
+ "runtimes_at_end": [
+  {
+   "host": "api",
+   "revision_id": "mr_61aa20c04ddc",
+   "state": "ready",
+   "device": "cpu",
+   "dtype": "float32",
+   "estimated_bytes": 90261504,
+   "loaded_at": 1790568002,
+   "load_ms": 408,
+   "last_used_at": null,
+   "requests": 0,
+   "desired": "loaded",
+   "error": null,
+   "versions": {
+    "torch": "2.10.0+cu130",
+    "transformers": "5.5.0",
+    "python": "3.12.3",
+    "device": "cpu",
+    "device_name": "cpu",
+    "dtype": "float32",
+    "threads": 4,
+    "tokenizer_class": "BertTokenizer",
+    "model_class": "BertModel",
+    "param_bytes": 90261504
+   },
+   "updated_at": 1790568002
+  },
+  {
+   "host": "worker:w-e1",
+   "revision_id": "mr_1baee6cde3f2",
+   "state": "ready",
+   "device": "cuda",
+   "dtype": "bfloat16",
+   "estimated_bytes": 988065536,
+   "loaded_at": 1790567996,
+   "load_ms": 5190,
+   "last_used_at": null,
+   "requests": 0,
+   "desired": "loaded",
+   "error": null,
+   "versions": {
+    "torch": "2.10.0+cu130",
+    "transformers": "5.5.0",
+    "python": "3.12.3",
+    "device": "cuda",
+    "device_name": "NVIDIA GB10",
+    "dtype": "bfloat16",
+    "threads": 4,
+    "tokenizer_class": "Qwen2Tokenizer",
+    "model_class": "Qwen2ForCausalLM",
+    "param_bytes": 988065536
+   },
+   "updated_at": 1790567996
+  },
+  {
+   "host": "worker:w-e1",
+   "revision_id": "mr_61aa20c04ddc",
+   "state": "ready",
+   "device": "cpu",
+   "dtype": "float32",
+   "estimated_bytes": 90261504,
+   "loaded_at": 1790568001,
+   "load_ms": 354,
+   "last_used_at": null,
+   "requests": 0,
+   "desired": "loaded",
+   "error": null,
+   "versions": {
+    "torch": "2.10.0+cu130",
+    "transformers": "5.5.0",
+    "python": "3.12.3",
+    "device": "cpu",
+    "device_name": "cpu",
+    "dtype": "float32",
+    "threads": 4,
+    "tokenizer_class": "BertTokenizer",
+    "model_class": "BertModel",
+    "param_bytes": 90261504
+   },
+   "updated_at": 1790568001
+  },
+  {
+   "host": "worker:w-e2",
+   "revision_id": "mr_1baee6cde3f2",
+   "state": "ready",
+   "device": "cuda",
+   "dtype": "bfloat16",
+   "estimated_bytes": 988065536,
+   "loaded_at": 1790568045,
+   "load_ms": 5117,
+   "last_used_at": null,
+   "requests": 0,
+   "desired": "loaded",
+   "error": null,
+   "versions": {
+    "torch": "2.10.0+cu130",
+    "transformers": "5.5.0",
+    "python": "3.12.3",
+    "device": "cuda",
+    "device_name": "NVIDIA GB10",
+    "dtype": "bfloat16",
+    "threads": 4,
+    "tokenizer_class": "Qwen2Tokenizer",
+    "model_class": "Qwen2ForCausalLM",
+    "param_bytes": 988065536
+   },
+   "updated_at": 1790568045
+  },
+  {
+   "host": "worker:w-e2",
+   "revision_id": "mr_61aa20c04ddc",
+   "state": "ready",
+   "device": "cpu",
+   "dtype": "float32",
+   "estimated_bytes": 90261504,
+   "loaded_at": 1790567978,
+   "load_ms": 475,
+   "last_used_at": null,
+   "requests": 0,
+   "desired": "loaded",
+   "error": null,
+   "versions": {
+    "torch": "2.10.0+cu130",
+    "transformers": "5.5.0",
+    "python": "3.12.3",
+    "device": "cpu",
+    "device_name": "cpu",
+    "dtype": "float32",
+    "threads": 4,
+    "tokenizer_class": "BertTokenizer",
+    "model_class": "BertModel",
+    "param_bytes": 90261504
+   },
+   "updated_at": 1790567978
+  }
+ ],
+ "scope": "bounded mixed-work window on one host; evidence about leaks/queues in this window only, not indefinite reliability"
+}

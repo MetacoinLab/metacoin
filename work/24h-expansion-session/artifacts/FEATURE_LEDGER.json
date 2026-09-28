@@ -165,17 +165,21 @@
   },
   {
    "section": "F",
-   "feature": "x402 upto variable-price scheme validated on a private py-evm chain with pinned contracts",
-   "status": "local contract behaviour verified",
+   "feature": "x402 upto variable-price scheme: local py-evm validation of the pinned contracts AND the application route (quote scheme=upto -> 402 -> Permit2 authorization up to the ceiling -> job -> settlement of the measured amount; failed jobs leave the authorization unused; replay returns the same job; exact fixed-price fallback selected explicitly)",
+   "status": "implemented-and-verified (local chain); external production settlement unverified",
    "entry_points": [
+    "POST /api/v1/services/{sid}/quote {scheme: upto}",
+    "POST /api/v1/x402/services/{sid}/invoke",
+    "GET /api/v1/x402/settlements[/{payment_id}]",
     "integrations/x402/local_chain"
    ],
    "evidence": [
     "test_local_chain (6)",
-    "journey 14",
+    "test_upto_route (2: compute at ceiling, generation below ceiling)",
+    "journey 14 (separate client process)",
     "local-chain.json"
    ],
-   "known_limits": "application-level metered settlement route NOT implemented; not production settlement"
+   "known_limits": "SDK canonical addresses redirected to local deployments in test-http; production path is code only (HTTP facilitator client), never exercised"
   },
   {
    "section": "G",

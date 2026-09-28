@@ -265,10 +265,26 @@ class Journeys(BaseJourneys):
         p = subprocess.run([PY, '-m', 'unittest', 'integrations.x402.local_chain.test_local_chain'], cwd=ROOT, env=dict(self.env, METACOIN_LOCAL_CHAIN_OUT=str(Path(self.inst.temp.name) / 'local-chain.json')), capture_output=True, text=True, timeout=900)
         rec = json.loads((Path(self.inst.temp.name) / 'local-chain.json').read_text()) if (Path(self.inst.temp.name) / 'local-chain.json').exists() else {}
         s = rec.get('scenarios', {})
-        ok = p.returncode == 0 and s.get('below_maximum', {}).get('moved') == 640 and not s.get('over_maximum', {}).get('success')
-        self.record(14, 'variable-price (upto) contract behaviour on an isolated local chain', 'passed' if ok else 'failed',
+        # application route: a metered (upto) quote for a temporal batch through the HTTP route from a separate client process; the job runs; the service settles the measured amount
+        self.worker_bg('w-j14')
+        sid = next(x['id'] for x in self.api_json('get', '/api/v1/services')[1]['items'] if x['kind'] == 'temporal_batch')
+        inputs = batch_spec(private_label='J14')
+        st, q = self.api_json('post', '/api/v1/services/' + sid + '/quote', json={'inputs': inputs, 'scheme': 'upto'})
+        self.api_json('post', '/api/v1/quotes/' + q.get('quote_id', 'x') + '/accept')
+        body_text = json.dumps({'quote_id': q.get('quote_id'), 'inputs': inputs}, sort_keys=True)
+        cp = subprocess.run([PY, '-m', 'metacoin_service.tests.x402_upto_client', self.base, sid, str(self.creds['owner']), body_text, 'journey-14-upto-' + 'x' * 20], cwd=ROOT, env=self.env, capture_output=True, text=True, timeout=900)
+        try:
+            app = json.loads(cp.stdout)
+        except ValueError:
+            app = {'stdout': cp.stdout[-300:], 'stderr': cp.stderr[-400:]}
+        settle = app.get('settlement') or {}
+        app_ok = app.get('first_status') == 402 and app.get('scheme') == 'upto' and app.get('second_status') == 202 and app.get('job_state') == 'succeeded' and settle.get('state') == 'SETTLED' and settle.get('final_amount') is not None and int(settle['final_amount']) <= int(settle['authorized_max'])
+        ok = p.returncode == 0 and s.get('below_maximum', {}).get('moved') == 640 and not s.get('over_maximum', {}).get('success') and app_ok
+        self.record(14, 'variable-price (upto) contract behaviour on an isolated local chain and a metered invocation through the application route', 'passed' if ok else 'failed',
                     {'unittest_rc': p.returncode, 'chain': rec.get('topology', {}).get('network'), 'below_maximum_moved': s.get('below_maximum', {}).get('moved'), 'refusals': {k: s[k].get('verify_error') or s[k].get('error_reason') for k in ('over_maximum', 'wrong_recipient', 'wrong_spender', 'expired', 'wrong_domain', 'replay_same_nonce') if k in s},
-                     'lost_response': {k: s.get('response_lost_then_retry', {}).get(k) for k in ('receipt_wait_attempts_during_first', 'total_moved', 'moved_after_second')}, 'unresolved': 'application-level metered settlement (authorize max at invoke, settle assessed amount at completion) is not wired into the service routes; local contract behaviour only'},
+                     'lost_response': {k: s.get('response_lost_then_retry', {}).get(k) for k in ('receipt_wait_attempts_during_first', 'total_moved', 'moved_after_second')},
+                     'application_route': {k: app.get(k) for k in ('first_status', 'scheme', 'authorized_max', 'second_status', 'job_state', 'error', 'stderr')} | {'settlement': settle},
+                     'categories': {'code_readiness': 'quote scheme=upto -> 402 -> authorization -> job -> settlement of the measured amount', 'local_protocol_validation': 'py-evm chain, pinned contracts, SDK client/server/facilitator paths', 'external_production_settlement': 'not exercised'}},
                     caveat='local py-evm chain with pinned sources; not public-network settlement; SDK canonical addresses redirected to local deployments')
 
     def j15_purchase_verification_via_sdk(self):

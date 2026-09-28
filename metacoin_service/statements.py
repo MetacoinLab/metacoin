@@ -27,11 +27,11 @@ def build(db, principal, settings, since=0, until=None, page=1, page_size=200):
     for u in db.execute('SELECT * FROM usage_records WHERE workspace=? AND created_at>=? AND created_at<=? ORDER BY created_at, id', (ws, since, until)).fetchall():
         q = db.execute('SELECT * FROM quotes WHERE id=?', (u['quote_id'],)).fetchone()
         job = db.execute('SELECT kind, state, outcome, finished_at FROM jobs WHERE id=?', (u['job_id'],)).fetchone()
-        sale = db.execute('SELECT state, transaction_ref, network FROM invoke_sales WHERE job_id=?', (u['job_id'],)).fetchone()
+        sale = db.execute('SELECT state, transaction_ref, network FROM invoke_sales WHERE job_id=?', (u['job_id'],)).fetchone() or db.execute('SELECT state, transaction_ref, network, final_amount, max_amount FROM metered_settlements WHERE job_id=?', (u['job_id'],)).fetchone()
         rows.append({'row_id': u['id'], 'type': 'usage', 'at': u['created_at'], 'job_id': u['job_id'], 'kind': job['kind'] if job else None, 'service_id': u['service_id'], 'quote_id': u['quote_id'],
                      'unit': u['unit'], 'quantity': u['quantity'], 'amount_per_unit': u['amount_per_unit'], 'assessed_charge': u['assessed_charge'], 'asset': u['asset'],
                      'network': q['network'] if q else None, 'reserved_max': q['amount_max'] if q else None, 'provider_mode': q['provider_mode'] if q else mode,
-                     'settlement': ({'state': sale['state'], 'reference': sale['transaction_ref']} if sale else {'state': 'none', 'reference': None}), 'environment': env,
+                     'settlement': ({'state': sale['state'], 'reference': sale['transaction_ref'], **({'scheme': 'upto', 'settled_amount': sale['final_amount'], 'authorized_max': sale['max_amount']} if 'final_amount' in sale.keys() else {'scheme': 'exact'})} if sale else {'state': 'none', 'reference': None}), 'environment': env,
                      'rule': 'charge = min(quantity * amount_per_unit, reserved_max); quantity measured (tokens/items/work units) or 1 evaluation'})
     # 2. accepted quotes without usage yet (reserved ceilings)
     for q in db.execute("SELECT * FROM quotes WHERE workspace=? AND state IN ('accepted','consumed') AND created_at>=? AND created_at<=? ORDER BY created_at", (ws, since, until)).fetchall():

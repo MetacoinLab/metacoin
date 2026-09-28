@@ -34,5 +34,7 @@ H approvals, usage statements, tracing, console pages, CLI, journeys (20), failu
 - §65-2 notebooks (022), §65-3 design suggestions, §65-4 batching + §65-5 warmup (023) — commits ecc9a5b, 5b33a14, and the batching/warmup commit; journeys 1-18 PASSED at ecc9a5b (19 fixed after: worker + coverage rule), 20 runs at packaging
 - background verification (worktree snapshot e513377): service suite 125 tests OK (8 skipped: no-torch variants), local-chain 6 OK, benchmark-expansion.json, endurance 15 min (264 jobs, queue depth 0, api rss 70.8->71.5 MB)
 - live service still at 3b6f292 / schema 013 (pids 682832 API, 682837 live-worker, started 2026-09-24 01:09): upgrade pending (backup first)
+- §51 planner + §52 eval set + §58 examples — commit 4f6f94e; Group F application route (metered upto: quote scheme, authorization -> job -> settlement of measured amount, migration 025, test_upto_route 2 OK, journey 14 extended with a separate-process client) — this commit
 ## Next action
+§65-7 service bundles, §65-8 import checks, §65-9 disagreement review (bounded); then final verification from a worktree snapshot (suite, journeys 1-20 with Playwright, local chain, endurance), live backup+migrate+restart, packaging + clean export (journey 20), final report
 journeys_expansion.py (20 journeys incl. TLS node topology + kill hooks, MCP client, local chain, restore), failure campaign, endurance window, benchmarks, live upgrade (backup + migrate 014-019 + restart), README, delivery ~/metacoin-24h-expansion-delivery-2026-09-27/
