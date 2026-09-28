@@ -814,6 +814,51 @@ class Analyses:
         return {'schema': 'metacoin-report-bundle/v1', 'report_id': rid, 'analysis_id': rep['analysis_id'], 'version': rep['version'], 'digest': rep['digest'], 'files': files,
                 'file_sha256': {k: hashlib.sha256(v.encode()).hexdigest() for k, v in files.items()}, 'contents': 'report text, HTML rendering and the artifact manifest (identifiers, commitments); no payloads'}
 
+    # ---- backlog 5: PDF export (local rendering child; metadata follows the disclosure scope) ---------------------------------
+    def report_pdf(self, db, principal, rid, projection_id=None):
+        principal.require('artifact:export')
+        rep = self.report(db, principal, rid)
+        if projection_id:
+            pr = db.execute('SELECT * FROM analysis_projections WHERE id=? AND report_id=? AND workspace=?', (projection_id, rid, principal.workspace)).fetchone()
+            if pr is None:
+                raise ServiceError('NOT_FOUND', 'projection')
+            bundle = json.loads(pr['bundle_json']); md = bundle['files']['projection.md']; title = 'Report projection ' + projection_id
+            meta = {'Title': title, 'Subject': 'metacoin report projection ' + projection_id + ' of ' + rid, 'Keywords': 'scope=' + json.dumps(bundle['statement'].get('scope'), sort_keys=True)[:200]}
+        else:
+            principal.require('job:read_private')
+            md = rep['markdown']; title = 'Report ' + rid
+            meta = {'Title': title, 'Subject': 'metacoin analysis report ' + rid + ' (analysis ' + rep['analysis_id'] + ' revision %d)' % rep['version'], 'Keywords': 'digest=' + rep['digest'][:16]}
+        import subprocess, sys
+        from .compute.engine import compute_interpreter
+        rt = compute_interpreter(self.settings)
+        if not rt or not rt.get('python'):
+            raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'pdf_renderer_unavailable', 'detail': 'the compute interpreter with reportlab is not configured'})
+        spec = json.dumps({'title': title, 'markdown': md, 'metadata': meta, 'limits': {'max_pages': 200, 'max_chars': LIMITS['report_chars']}}).encode()
+        try:
+            p = subprocess.run([rt['python'], '-m', 'metacoin_service.report_pdf_child'], input=spec, capture_output=True, timeout=120, cwd=str(__import__('pathlib').Path(__file__).resolve().parents[1]))
+        except subprocess.TimeoutExpired:
+            raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'pdf_render_timeout'})
+        if p.returncode != 0 or not p.stdout.startswith(b'%PDF'):
+            raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'pdf_render_failed', 'detail': p.stderr.decode(errors='replace')[-200:]})
+        data = p.stdout
+        try:
+            from pypdf import PdfReader
+            import io as _io
+            reader = PdfReader(_io.BytesIO(data)); pages = len(reader.pages)
+            text = ''.join((pg.extract_text() or '') for pg in reader.pages[:3])
+            if pages < 1 or ('Report' not in text and 'projection' not in text.lower()):
+                raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'pdf_inspection_failed', 'pages': pages})
+            info = reader.metadata or {}
+            for k in ('/Author', '/Creator', '/Producer'):
+                if info.get(k) and any(s in str(info.get(k)) for s in ('/home/', 'zhangd2')):
+                    raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'pdf_metadata_leak', 'field': k})
+        except ServiceError:
+            raise
+        except Exception as exc:
+            raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'pdf_inspection_failed', 'detail': type(exc).__name__})
+        history.record(db, principal.workspace, principal.id, 'artifact.exported', 'report', rid, {'pdf': True, 'projection': projection_id, 'pages': pages, 'sha256': hashlib.sha256(data).hexdigest()})
+        return data
+
     # ---- reviewable disclosure projections --------------------------------------------------------------------------------
     def _project(self, db, principal, rep, scope):
         """Deterministic projection of a report by block allowlist and per-block field allowlist. Returns (projected markdown,

@@ -35,6 +35,27 @@ LIVE_HOME = Path(os.environ.get('METACOIN_LIVE_HOME', str(Path.home() / '.local/
 
 
 class Journeys(ExpansionJourneys):
+    def start_api(self):
+        """The API's stderr goes to a task-owned log file, never to an unread pipe: a chatty child (local-chain deprecation
+        warnings) must not block the server on a full pipe (found by journey 19 hanging; the base harness used stderr=PIPE)."""
+        self.api_log = open(Path(self.inst.temp.name) / 'api-stderr.log', 'ab')
+        self.api = subprocess.Popen([PY, '-m', 'metacoin_service', '--home', str(self.inst.home), '--provider-mode', 'test-http', 'serve', '--port', str(self.port)],
+                                    cwd=ROOT, env=self.env, stdout=subprocess.DEVNULL, stderr=self.api_log)
+        for _ in range(200):
+            try:
+                if httpx.get(self.base + '/api/health', timeout=1).status_code == 200:
+                    return
+            except Exception:
+                time.sleep(0.1)
+        raise SystemExit('api did not start')
+
+    def start_worker(self, name):
+        stop = Path(self.inst.temp.name) / ('stop-' + name)
+        log = open(Path(self.inst.temp.name) / ('worker-' + name + '.log'), 'ab')
+        p = subprocess.Popen([PY, '-m', 'metacoin_service', '--home', str(self.inst.home), '--provider-mode', 'test-http', 'worker', '--name', name, '--stop-file', str(stop)],
+                             cwd=ROOT, env=self.env, stdout=subprocess.DEVNULL, stderr=log)
+        self.workers.append(p); self.stop_files.append(stop); return p
+
     def __init__(self):
         super().__init__()
         self.ctx = {}                                   # ids handed to the browser script

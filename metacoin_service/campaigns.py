@@ -493,7 +493,9 @@ class Campaigns:
                 value = (1 if robust_ok(row['outcome']) else 0) if obj['field'] == 'feasible' else summary.get(obj['field'])
                 if type(value) not in (int, float) or isinstance(value, bool):
                     value = None
-            state['evaluated'].append({'index': row['idx'], 'params': json.loads(row['params_json']), 'state': row['state'], 'outcome': row['outcome'] if row['state'] == 'succeeded' else row['state'], 'observed': value})
+            jrow = db.execute('SELECT attempt, id FROM jobs WHERE id=(SELECT job_id FROM sci_campaign_candidates WHERE campaign_id=? AND idx=?)', (c['id'], row['idx'])).fetchone()
+            state['evaluated'].append({'index': row['idx'], 'params': json.loads(row['params_json']), 'state': row['state'], 'outcome': row['outcome'] if row['state'] == 'succeeded' else row['state'], 'observed': value,
+                                       'job_id': jrow['id'] if jrow else None, 'job_attempts': jrow['attempt'] if jrow else None, 'recovered_after_interruption': bool(jrow and jrow['attempt'] > 1)})
             if value is not None and (state['best'] is None or (value > state['best']['observed'] if maxim else value < state['best']['observed'])):
                 state['best'] = {'index': row['idx'], 'params': json.loads(row['params_json']), 'observed': value}
         evaluated = {e['index'] for e in state['evaluated']}
@@ -533,6 +535,9 @@ class Campaigns:
                 self._dispatch(db, c, owner, base, cd, idx)
                 state['budget_left'] -= 1
         state['remaining_candidates'] = len([i for i in range(len(state['candidates'])) if i not in evaluated]) - (0 if state['stopping_reason'] else 1)
+        state['checkpoint'] = {'evaluated': len(state['evaluated']), 'budget_left': state['budget_left'], 'seed': state['seed'], 'acquisition': state['acquisition']['objective'], 'exploration_percent': state['acquisition']['exploration_percent'],
+                               'candidate_set_digest': hashlib.sha256(merkle.canonical(state['candidates'])).hexdigest()[:16], 'dispatched_indexes': sorted({e['index'] for e in state['evaluated']} | ({l['index']} if (l := (state['log'][-1] if state['log'] else None)) and l.get('index') is not None else set())),
+                               'recoveries': sum(1 for e in state['evaluated'] if e.get('recovered_after_interruption')), 'note': 'every dispatched evaluation is a row; a restart never re-dispatches an evaluated or in-flight index; an interrupted job is recovered by the job lease, not re-charged by the campaign'}
         db.execute('UPDATE sci_campaigns SET adaptive_json=?, updated_at=? WHERE id=?', (json.dumps(state), now(), c['id']))
         if state['stopping_reason']:
             db.execute("UPDATE sci_campaign_candidates SET state='cancelled', outcome='not_selected_by_acquisition', updated_at=? WHERE campaign_id=? AND state='unevaluated'", (now(), c['id']))

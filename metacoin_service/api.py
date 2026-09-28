@@ -1280,8 +1280,35 @@ def create_app(settings):
         def fn(db, p):
             p.require('model:use')
             inputs = dict(body.get('inputs') or {}, schema=model_svc.GENERATION_SCHEMA)
-            return quick_submit(svc, db, p, 'text_generation', inputs, body.get('title') or 'text generation'), 202
+            decision = None
+            if body.get('route'):
+                from .models import routing
+                rq = body['route'] if type(body['route']) is dict else {}
+                decision = routing.route(db, p, svc.models, 'generate', rq.get('category'), rq.get('budget'))
+                if decision['chosen'] is None:
+                    raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'no_model_within_budget', 'routing': decision['basis']})
+                inputs['model_revision_id'] = decision['chosen']['revision_id']
+            out = quick_submit(svc, db, p, 'text_generation', inputs, body.get('title') or 'text generation')
+            if decision:
+                out['routing'] = {'chosen': decision['chosen']['revision_id'], 'model_id': decision['chosen']['model_id'], 'basis': decision['basis'], 'category': decision['category']}
+            return out, 202
         return await run(request, True, fn, 'models.generate', raw)
+
+    @app.get(API + '/models/route')
+    async def models_route(request: Request):
+        q = request.query_params
+        def fn(db, p):
+            from .models import routing
+            budget = {}
+            if q.get('max_resource_bytes', '').isdigit():
+                budget['max_resource_bytes'] = int(q['max_resource_bytes'])
+            if q.get('max_ms_per_unit'):
+                try:
+                    budget['max_ms_per_unit'] = float(q['max_ms_per_unit'])
+                except ValueError:
+                    raise ServiceError('VALIDATION', 'max_ms_per_unit')
+            return routing.route(db, p, svc.models, q.get('operation', 'generate'), q.get('category'), budget)
+        return await run(request, False, fn)
 
     @app.post(API + '/models/embed', status_code=202)
     async def models_embed(request: Request):
@@ -2273,6 +2300,24 @@ def create_app(settings):
                 return svc.analyses.report_html(db, p, rid)
         text = await run_in_threadpool(do)
         return Response(content=text, media_type='text/html; charset=utf-8', headers=dict(SENSITIVE_HEADERS, **{'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'"}))
+
+    @app.get(API + '/reports/{rid}/pdf')
+    async def report_pdf(request: Request, rid: str):
+        def do():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, True)
+                return svc.analyses.report_pdf(db, p, rid, None)
+        data = await run_in_threadpool(do)
+        return Response(content=data, media_type='application/pdf', headers=dict(SENSITIVE_HEADERS, **{'Content-Disposition': 'attachment; filename="report-' + rid + '.pdf"', 'Cache-Control': 'private, no-store'}))
+
+    @app.get(API + '/reports/{rid}/projections/{pid}/pdf')
+    async def projection_pdf(request: Request, rid: str, pid: str):
+        def do():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, True)
+                return svc.analyses.report_pdf(db, p, rid, pid)
+        data = await run_in_threadpool(do)
+        return Response(content=data, media_type='application/pdf', headers=dict(SENSITIVE_HEADERS, **{'Content-Disposition': 'attachment; filename="projection-' + pid + '.pdf"', 'Cache-Control': 'private, no-store'}))
 
     @app.get(API + '/reports/{rid}/bundle')
     async def report_bundle(request: Request, rid: str):

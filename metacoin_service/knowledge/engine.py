@@ -108,21 +108,64 @@ class KnowledgeEngine:
         if embed_row['status'] == 'revoked':
             raise ServiceError('CONFLICT', {'code': 'model_revoked'})
         self.models._update(job, phase='running')
-        vectors, tokens, truncated = [], [], []
+        # §66-7 incremental reindexing: vectors of chunks whose text digest, chunker and embedding revision are identical to the
+        # collection's latest ready index are reused; anything else (new/changed chunks, a different chunker or embedding
+        # revision, a truncated chunk) is embedded again. Old chunk ids stay valid: chunks are immutable per document version.
+        reuse = {'basis': None, 'previous_index': None, 'reused': 0, 'embedded': 0, 'rejected': None}
+        prev_vec = {}
+        with self.worker.db.read() as db:
+            prev = db.execute("SELECT * FROM knowledge_indexes WHERE collection_id=? AND state='ready' AND id!=? ORDER BY version DESC LIMIT 1", (idx['collection_id'], idx['id'])).fetchone()
+            if prev is not None:
+                reuse['previous_index'] = prev['id']
+                if prev['model_revision_id'] != embed_row['id']:
+                    reuse['rejected'] = 'embedding revision differs from the previous index (%s vs %s): no vector reuse' % (prev['model_revision_id'], embed_row['id'])
+                elif prev['chunker_id'] != text_mod.CHUNKER_ID:
+                    reuse['rejected'] = 'chunker changed (%s vs %s): no vector reuse' % (prev['chunker_id'], text_mod.CHUNKER_ID)
+                elif not prev['vectors_artifact_id']:
+                    reuse['rejected'] = 'previous index has no vectors'
+                else:
+                    try:
+                        pfiles = container.unpack(self.worker.store.load(db, prev['vectors_artifact_id'], job['workspace']))
+                        pman = json.loads(pfiles['manifest.json']); pvals, pdtype, pshape = npy.decode(pfiles['vectors.npy'])
+                        pdim = pshape[1] if len(pshape) == 2 else 0
+                        if pman.get('model_revision_id') == embed_row['id'] and pman.get('chunker_id') == text_mod.CHUNKER_ID:
+                            for j, m in enumerate(pman['chunks']):
+                                if not m.get('truncated'):
+                                    prev_vec[m['sha256']] = (pvals[j * pdim:(j + 1) * pdim], m['tokens'])
+                            reuse['basis'] = 'identical chunk text digest, chunker %s and embedding revision %s as index %s' % (text_mod.CHUNKER_ID, embed_row['id'], prev['id'])
+                        else:
+                            reuse['rejected'] = 'previous manifest binds another chunker or revision'
+                    except Exception as exc:
+                        reuse['rejected'] = 'previous vectors unreadable: ' + type(exc).__name__
+        vectors, tokens, truncated = [None] * len(texts), [None] * len(texts), [None] * len(texts)
+        todo = []
+        for j, c in enumerate(chunks):
+            hit = prev_vec.get(c['sha256'])
+            if hit is not None:
+                vectors[j], tokens[j], truncated[j] = list(hit[0]), hit[1], False; reuse['reused'] += 1
+            else:
+                todo.append(j)
         bs = self.limits['model_max_embed_items']
-        for i in range(0, len(texts), bs):
+        for i in range(0, len(todo), bs):
             if should_cancel():
                 return 'fenced' if state['fenced'] else self.worker._finish(job, None, 'CANCELLED')
-            ev = self.host.embed(embed_row, texts[i:i + bs], truncate=True)
-            vectors.extend(ev['vectors']); tokens.extend(ev['tokens']); truncated.extend(ev['truncated'])
-            self.models._update(job, items=len(vectors))
+            batch_idx = todo[i:i + bs]
+            ev = self.host.embed(embed_row, [texts[j] for j in batch_idx], truncate=True)
+            for k, j in enumerate(batch_idx):
+                vectors[j], tokens[j], truncated[j] = ev['vectors'][k], ev['tokens'][k], ev['truncated'][k]
+            reuse['embedded'] += len(batch_idx)
+            self.models._update(job, items=reuse['embedded'])
+        if todo and 'ev' not in dir():
+            ev = None
+        if not todo:
+            ev = {'pooling': embed_row['pooling'], 'max_seq_length': None}
         dim = len(vectors[0]) if vectors else (embed_row['embedding_dim'] or 0)
         flat = [x for v in vectors for x in v]
         blob_npy = npy.encode(flat, '<f8', (len(vectors), dim))
         manifest = {'schema': knowledge_svc.INDEX_SCHEMA, 'index_id': idx['id'], 'collection_id': idx['collection_id'], 'model_revision_id': embed_row['id'], 'chunker_id': text_mod.CHUNKER_ID, 'dim': dim,
                     'pooling': ev['pooling'] if vectors else None, 'normalized': True, 'max_seq_length': ev['max_seq_length'] if vectors else None,
                     'truncation_policy': 'chunks longer than the model window are embedded from their first max_seq_length tokens and flagged here (truncated=true)',
-                    'chunks': [{'version_id': c['version_id'], 'ordinal': c['ordinal'], 'sha256': c['sha256'], 'tokens': tokens[j], 'truncated': truncated[j]} for j, c in enumerate(chunks)]}
+                    'chunks': [{'version_id': c['version_id'], 'ordinal': c['ordinal'], 'sha256': c['sha256'], 'tokens': tokens[j], 'truncated': truncated[j]} for j, c in enumerate(chunks)], 'reuse': reuse}
         files = {'vectors.npy': blob_npy, 'manifest.json': json.dumps(manifest, separators=(',', ':')).encode()}
         blob = container.pack(files)
         with self.worker.db.tx() as db:
@@ -135,9 +178,9 @@ class KnowledgeEngine:
             from ..datasets import add_edge
             add_edge(db, job['workspace'], 'job', job['id'], 'knowledge_index', idx['id'], 'produced')
         output = {'schema': 'knowledge-index-result/v1', 'index_id': idx['id'], 'chunks': len(chunks), 'dim': dim, 'truncated_chunks': sum(1 for t in truncated if t), 'documents': len(versions),
-                  'model_revision_id': embed_row['id'], 'vectors_sha256': hashlib.sha256(blob_npy).hexdigest(), 'manifest_sha256': hashlib.sha256(files['manifest.json']).hexdigest()}
-        self.models._update(job, items=len(vectors), usage_json=json.dumps({'items': len(vectors), 'tokens': sum(tokens)}), input_tokens=sum(tokens))
-        result = self.models._complete(job, contract, spec, embed_row, output, 'INDEXED', {'index_id': idx['id'], 'chunks': len(chunks), 'dim': dim, 'truncated_chunks': output['truncated_chunks'], 'tokens': sum(tokens)},
+                  'model_revision_id': embed_row['id'], 'vectors_sha256': hashlib.sha256(blob_npy).hexdigest(), 'manifest_sha256': hashlib.sha256(files['manifest.json']).hexdigest(), 'reuse': reuse}
+        self.models._update(job, items=reuse['embedded'], usage_json=json.dumps({'items': reuse['embedded'], 'tokens': sum(tokens[j] for j in todo) if todo else 0, 'reused_vectors': reuse['reused']}), input_tokens=sum(tokens[j] for j in todo) if todo else 0)
+        result = self.models._complete(job, contract, spec, embed_row, output, 'INDEXED', {'index_id': idx['id'], 'chunks': len(chunks), 'dim': dim, 'truncated_chunks': output['truncated_chunks'], 'tokens': sum(tokens), 'reused_vectors': reuse['reused'], 'embedded_vectors': reuse['embedded'], 'reuse_rejected': reuse['rejected']},
                                        scope='private-knowledge-index')
         with self.worker.db.tx() as db:
             if result == 'succeeded':
