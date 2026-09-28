@@ -292,6 +292,16 @@ MIGRATIONS = [
         state TEXT NOT NULL, preview_json TEXT NOT NULL, audit_job_id TEXT, replica_job_id TEXT, challenge_json TEXT, result_commitment TEXT NOT NULL, result_json TEXT, statement_json TEXT, signature_hex TEXT,
         key_id TEXT, dispute_json TEXT, resolution_json TEXT, resolved_by TEXT, resolved_at INTEGER, created_at INTEGER NOT NULL, finished_at INTEGER);
     """),
+    ('018_federation', """
+    ALTER TABLE jobs ADD COLUMN location_policy TEXT;
+    CREATE TABLE nodes (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, public_key_hex TEXT NOT NULL, secret_hash TEXT NOT NULL, capabilities_json TEXT NOT NULL, devices_json TEXT NOT NULL,
+        devices_reported_json TEXT, workspaces_json TEXT NOT NULL, artifact_scope TEXT NOT NULL, state TEXT NOT NULL, enrolled_by TEXT NOT NULL, enrolled_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+        revoked_at INTEGER, revocation_reason TEXT, credential_rotated_at INTEGER, last_seen INTEGER, last_request_ts INTEGER, last_request_nonce TEXT, current_job_id TEXT, observed_json TEXT, versions_json TEXT, trust_json TEXT);
+    CREATE TABLE node_uploads (id TEXT PRIMARY KEY, node_id TEXT NOT NULL REFERENCES nodes(id), job_id TEXT NOT NULL, attempt_generation INTEGER NOT NULL, role TEXT NOT NULL, expected_sha256 TEXT NOT NULL,
+        total_bytes INTEGER NOT NULL, received_bytes INTEGER NOT NULL, path TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+    CREATE TABLE node_transfers (id TEXT PRIMARY KEY, node_id TEXT NOT NULL REFERENCES nodes(id), job_id TEXT NOT NULL, attempt_generation INTEGER NOT NULL, role TEXT NOT NULL, direction TEXT NOT NULL,
+        bytes INTEGER NOT NULL, sha256 TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, completed_at INTEGER);
+    """),
 ]
 
 

@@ -60,16 +60,24 @@ def set_worker_state(db, principal, worker_id, state):
     return worker_view(db.execute('SELECT * FROM workers WHERE id=?', (worker_id,)).fetchone())
 
 
-def fair_order(db, capabilities=None, workspace=None):
-    """Deterministic order of queued jobs for a worker with the given capabilities (None = all kinds)."""
+def local_allowed(policy_json):
+    loc = json.loads(policy_json) if policy_json else ['local']
+    return 'local' in loc or '*' in loc
+
+
+def fair_order(db, capabilities=None, workspace=None, location='local'):
+    """Deterministic order of queued jobs for a worker with the given capabilities (None = all kinds). location='local'
+    keeps only jobs whose contract allows the coordinator's own workers; None keeps every job (node claims filter themselves)."""
     running = {r['submitted_by']: r['n'] for r in db.execute("SELECT submitted_by, COUNT(*) AS n FROM jobs WHERE state='running' GROUP BY submitted_by")}
-    sql = "SELECT id, kind, submitted_by, created_at, workspace FROM jobs WHERE state='queued' AND cancel_requested=0 AND hold=0"
+    sql = "SELECT id, kind, submitted_by, created_at, workspace, location_policy FROM jobs WHERE state='queued' AND cancel_requested=0 AND hold=0"
     args = []
     if workspace:
         sql += ' AND workspace=?'; args.append(workspace)
     rows = [dict(r) for r in db.execute(sql + ' ORDER BY created_at, id LIMIT 500', args)]
     if capabilities is not None:
         rows = [r for r in rows if r['kind'] in capabilities]
+    if location == 'local':
+        rows = [r for r in rows if local_allowed(r['location_policy'])]
     rows.sort(key=lambda r: (running.get(r['submitted_by'], 0), r['created_at'], r['id']))
     return rows
 
@@ -109,6 +117,8 @@ def queue(db, principal):
             reason = 'no live worker registered'
         elif r['kind'] not in caps:
             reason = 'no live worker declares capability ' + r['kind']
+        elif not local_allowed(db.execute('SELECT location_policy FROM jobs WHERE id=?', (r['id'],)).fetchone()[0]):
+            reason = 'contract restricts execution to enrolled nodes; waiting for an eligible live node'
         else:
             ahead = [o for o in global_order[:position.get(r['id'], 0)] if o['kind'] in caps]
             reason = 'next to run' if not ahead else 'behind %d job(s) under fair share (fewest running jobs per submitter first)' % len(ahead)

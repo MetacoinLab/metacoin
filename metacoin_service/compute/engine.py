@@ -383,9 +383,12 @@ class ComputeEngine:
         return out
 
     def _publish_checkpoint(self, job, run, ckpt_dir, ev, backend):
+        files = {p.name: p.read_bytes() for p in ckpt_dir.iterdir() if p.is_file()}
+        return self.publish_checkpoint_files(job, run, files, ev, backend)
+
+    def publish_checkpoint_files(self, job, run, files, ev, backend):
         """Pack, encrypt, store and record in one transaction; nothing references the checkpoint before the object is complete."""
         try:
-            files = {p.name: p.read_bytes() for p in ckpt_dir.iterdir() if p.is_file()}
             meta = json.loads(files['meta.json'])
             if meta['job_id'] != job['id'] or meta['generation'] != ev['generation']:
                 raise ValueError('checkpoint metadata does not bind this job')
@@ -440,6 +443,10 @@ class ComputeEngine:
 
     def _complete(self, job, contract, spec, run, man, out_dir, ev, backend):
         files = {p.name: p.read_bytes() for p in out_dir.iterdir() if p.is_file()}
+        return self.complete_files(job, contract, spec, run, man, files, ev, backend)
+
+    def complete_files(self, job, contract, spec, run, man, files, ev, backend):
+        """Verification phase + durable publication from an in-memory output set (local child or federated node)."""
         self._update(job, phase='verifying', work_computed=ev['committed'])
         try:
             aux = None

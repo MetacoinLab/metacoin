@@ -77,7 +77,9 @@ class Worker:
             recovered = False
             if row is None:
                 placeholders = ','.join('?' * len(kinds))
-                for cand in db.execute("SELECT id, kind FROM jobs WHERE state='running' AND lease_expires < ? AND kind IN (" + placeholders + ") ORDER BY lease_expires LIMIT 10", (now(), *kinds)).fetchall():
+                for cand in db.execute("SELECT id, kind, location_policy FROM jobs WHERE state='running' AND lease_expires < ? AND kind IN (" + placeholders + ") ORDER BY lease_expires LIMIT 10", (now(), *kinds)).fetchall():
+                    if not scheduling.local_allowed(cand['location_policy']):
+                        continue                                   # node-only work is recovered by another eligible node, never by a local worker
                     if cand['kind'] in compute_manifests.KINDS:
                         db.execute('DELETE FROM compute_reservations WHERE job_id=?', (cand['id'],))
                         if self.compute.try_reserve(db, cand['id']) is None:

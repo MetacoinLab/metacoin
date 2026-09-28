@@ -16,6 +16,7 @@ from .models import service as model_svc, registry as model_registry
 from .knowledge import service as knowledge_mod, retrieval as retrieval_mod, engine as knowledge_engine
 from .calibration import Calibration
 from .verification import Verification
+from .federation.service import Federation
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -46,6 +47,7 @@ class Services:
         self.knowledge = knowledge_mod.Knowledge(self.store, settings)
         self.calibration = Calibration(self.store, settings)
         self.verification = Verification(self.store, settings, self.contracts, self.jobs)
+        self.federation = Federation(self.db, self.store, settings)
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -1462,6 +1464,123 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         return await run(request, True, lambda db, p: svc.verification.resolve(db, p, vid, body.get('decision'), body.get('note', '')), 'verification.resolve', raw)
+
+    # ---- federation: operator routes ---------------------------------------------------------------------------
+    @app.post(API + '/nodes', status_code=201)
+    async def nodes_enroll(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.federation.enroll(db, p, body), 201), 'nodes.enroll', raw)
+
+    @app.get(API + '/nodes')
+    async def nodes_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.federation.list(db, p), 'trust': 'authenticated coordination among enrolled nodes on this host\'s trust domain; not a permissionless network'})
+
+    @app.get(API + '/nodes/{nid}')
+    async def nodes_view(request: Request, nid: str):
+        def fn(db, p):
+            p.require('job:read')
+            row = svc.federation.node(db, nid)
+            if p.workspace not in json.loads(row['workspaces_json']):
+                raise ServiceError('NOT_FOUND', 'node')
+            out = svc.federation.view(db, row)
+            out['transfers'] = [dict(r) for r in db.execute('SELECT id, job_id, attempt_generation, role, direction, bytes, sha256, state, created_at FROM node_transfers WHERE node_id=? ORDER BY created_at DESC LIMIT 50', (nid,)).fetchall()]
+            out['uploads'] = [dict(r) for r in db.execute('SELECT id, job_id, role, total_bytes, received_bytes, state, created_at FROM node_uploads WHERE node_id=? ORDER BY created_at DESC LIMIT 20', (nid,)).fetchall()]
+            return out
+        return await run(request, False, fn)
+
+    @app.post(API + '/nodes/{nid}/{action}')
+    async def nodes_control(request: Request, nid: str, action: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.federation.control(db, p, nid, action, body.get('reason', '')), 'nodes.' + action, raw)
+
+    # ---- federation: node transport (node credential + Ed25519 request signature; serve over TLS) ----------------
+    def node_call(request, raw, fn):
+        with svc.db.tx() as db:
+            node = svc.federation.authenticate(db, request, raw)
+        return fn(node)
+
+    def node_tx(request, raw, fn):
+        with svc.db.tx() as db:
+            node = svc.federation.authenticate(db, request, raw)
+            return fn(db, node)
+
+    def gen_of(request):
+        g = request.query_params.get('generation', '')
+        if not g.isdigit():
+            raise ServiceError('VALIDATION', 'generation')
+        return int(g)
+
+    @app.post('/node/v1/register')
+    async def node_register(request: Request):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_tx, request, raw, lambda db, node: svc.federation.register(db, node, json.loads(raw or b'{}'))))
+
+    @app.post('/node/v1/heartbeat')
+    async def node_heartbeat(request: Request):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_tx, request, raw, lambda db, node: svc.federation.heartbeat(db, node, json.loads(raw or b'{}'))))
+
+    @app.post('/node/v1/claim')
+    async def node_claim(request: Request):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_tx, request, raw, lambda db, node: svc.federation.claim(db, node, json.loads(raw or b'{}'))))
+
+    @app.post('/node/v1/jobs/{job_id}/lease')
+    async def node_lease(request: Request, job_id: str):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_tx, request, raw, lambda db, node: svc.federation.renew(db, node, job_id, gen_of(request))))
+
+    @app.post('/node/v1/jobs/{job_id}/progress')
+    async def node_progress(request: Request, job_id: str):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_tx, request, raw, lambda db, node: svc.federation.progress(db, node, job_id, gen_of(request), json.loads(raw or b'{}'))))
+
+    @app.get('/node/v1/jobs/{job_id}/checkpoint')
+    async def node_checkpoint_get(request: Request, job_id: str):
+        def fn(db, node):
+            return svc.federation.checkpoint_blob(db, node, job_id, gen_of(request))
+        gen, blob = await run_in_threadpool(node_tx, request, b'', fn)
+        return Response(content=blob, media_type='application/octet-stream', headers=dict(SENSITIVE_HEADERS, **{'X-Checkpoint-Generation': str(gen)}))
+
+    @app.post('/node/v1/jobs/{job_id}/uploads')
+    async def node_upload_start(request: Request, job_id: str):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_tx, request, raw, lambda db, node: svc.federation.upload_start(db, node, job_id, gen_of(request), json.loads(raw or b'{}'))))
+
+    @app.put('/node/v1/uploads/{uid}')
+    async def node_upload_chunk(request: Request, uid: str):
+        raw = await request.body()
+        off = request.query_params.get('offset', '')
+        if not off.isdigit():
+            raise ServiceError('VALIDATION', 'offset')
+        return JSONResponse(await run_in_threadpool(node_tx, request, raw, lambda db, node: svc.federation.upload_chunk(db, node, uid, int(off), raw)))
+
+    @app.post('/node/v1/uploads/{uid}/complete')
+    async def node_upload_complete(request: Request, uid: str):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_tx, request, raw, lambda db, node: svc.federation.upload_complete(db, node, uid)))
+
+    @app.post('/node/v1/jobs/{job_id}/checkpoints')
+    async def node_checkpoint_publish(request: Request, job_id: str):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_call, request, raw, lambda node: svc.federation.publish_checkpoint(node, job_id, gen_of(request), json.loads(raw or b'{}'))))
+
+    @app.post('/node/v1/jobs/{job_id}/result')
+    async def node_result(request: Request, job_id: str):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_call, request, raw, lambda node: svc.federation.publish_result(node, job_id, gen_of(request), json.loads(raw or b'{}'))))
+
+    @app.post('/node/v1/jobs/{job_id}/fail')
+    async def node_fail(request: Request, job_id: str):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_call, request, raw, lambda node: svc.federation.fail(node, job_id, gen_of(request), json.loads(raw or b'{}'))))
+
+    @app.post('/node/v1/jobs/{job_id}/paused')
+    async def node_paused(request: Request, job_id: str):
+        raw = await request.body()
+        return JSONResponse(await run_in_threadpool(node_call, request, raw, lambda node: svc.federation.paused(node, job_id, gen_of(request), json.loads(raw or b'{}'))))
 
     from . import console
     console.mount(app, svc)

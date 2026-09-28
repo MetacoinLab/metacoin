@@ -37,13 +37,16 @@ DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loop
 def validate_policy(kind, policy, default_capability='legacy_simulation'):
     merkle.canonical(policy)
     allowed = {'accepted_outcomes', 'disclose_outcome', 'disclose_explanation', 'amount', 'capability',
-               'expires_in_seconds', 'retention_seconds', 'reviewer_id', 'required_verification'}
+               'expires_in_seconds', 'retention_seconds', 'reviewer_id', 'required_verification', 'execution_locations'}
     if type(policy) is not dict or not set(policy) <= allowed:
         raise ServiceError('VALIDATION', 'policy fields')
     out = {'accepted_outcomes': list(energy.OUTCOMES), 'disclose_outcome': True, 'disclose_explanation': False,
            'amount': 1, 'capability': default_capability, 'expires_in_seconds': DEFAULT_EXPIRY_SECONDS,
-           'retention_seconds': 30 * 86400, 'reviewer_id': None, 'required_verification': None}
+           'retention_seconds': 30 * 86400, 'reviewer_id': None, 'required_verification': None, 'execution_locations': ['local']}
     out.update(policy)
+    loc = out['execution_locations']
+    if type(loc) is not list or not loc or len(loc) > 16 or not all(type(x) is str and (x in ('local', 'nodes', '*') or x.startswith('nd_')) and len(x) <= 32 for x in loc):
+        raise ServiceError('VALIDATION', {'code': 'execution_locations', 'allowed': "list of 'local', 'nodes', '*' or enrolled node ids (nd_...)"})
     if out['required_verification'] is not None and out['required_verification'] not in verification_mod.CLASSES:
         raise ServiceError('VALIDATION', {'code': 'required_verification', 'allowed': list(verification_mod.CLASSES)})
     if type(out['accepted_outcomes']) is not list or not out['accepted_outcomes'] \

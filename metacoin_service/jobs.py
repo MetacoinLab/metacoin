@@ -47,9 +47,10 @@ class Jobs:
         if grant and not getattr(principal, 'agent_counted', False):
             agents.guard(db, principal, 'job:submit', service_kind=row['kind'], jobs=1)
         jid = 'j_' + secrets.token_hex(8)
-        db.execute('INSERT INTO jobs (id, workspace, contract_id, kind, state, retries_left, submitted_by, created_at, updated_at, batch_id) '
-                   'VALUES (?,?,?,?,?,?,?,?,?,?)', (jid, principal.workspace, row['id'], row['kind'], 'queued',
-                                                  self.settings.limits['job_max_retries'], principal.id, now(), now(), batch_id))
+        pol = json.loads(row['policy_json'] or '{}')
+        db.execute('INSERT INTO jobs (id, workspace, contract_id, kind, state, retries_left, submitted_by, created_at, updated_at, batch_id, location_policy) '
+                   'VALUES (?,?,?,?,?,?,?,?,?,?,?)', (jid, principal.workspace, row['id'], row['kind'], 'queued',
+                                                    self.settings.limits['job_max_retries'], principal.id, now(), now(), batch_id, json.dumps(pol.get('execution_locations') or ['local'])))
         history.record(db, principal.workspace, principal.id, 'job.queued', 'job', jid,
                        {'contract_id': row['id'], 'contract_digest': row['contract_digest'], 'kind': row['kind'], 'batch_id': batch_id, 'grant_id': grant})
         from .compute import manifests as compute_manifests

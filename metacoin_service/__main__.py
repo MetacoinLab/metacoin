@@ -18,6 +18,11 @@ def main(argv=None):
     serve = sub.add_parser('serve', help='start the API + console (loopback)')
     serve.add_argument('--port', type=int)
     serve.add_argument('--host')
+    serve.add_argument('--tls', action='store_true', help='serve over TLS with the local node trust domain certificate (keys/node-tls); nodes pin ca.pem')
+    nw = sub.add_parser('node-worker', help='run a federated worker node against a coordinator (separate home, no database access)')
+    nw.add_argument('--identity', required=True); nw.add_argument('--coordinator', required=True); nw.add_argument('--ca'); nw.add_argument('--node-home', required=True)
+    nw.add_argument('--once', action='store_true'); nw.add_argument('--stop-file'); nw.add_argument('--compute-python')
+    sub.add_parser('node-tls', help='create (once) the local node trust domain CA and server certificate; prints the CA path for nodes to pin')
     work = sub.add_parser('worker', help='start a background worker')
     work.add_argument('--once', action='store_true')
     work.add_argument('--name', help='worker name shown in the queue view')
@@ -68,8 +73,13 @@ def run(args, settings):
         settings.validate()
         settings.run_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
         (settings.run_dir / 'api.pid').write_text(str(os.getpid()))
+        tls = {}
+        if args.tls:
+            from .federation.tls import ensure_node_tls
+            t = ensure_node_tls(settings)
+            tls = {'ssl_certfile': t['cert'], 'ssl_keyfile': t['key']}
         try:
-            uvicorn.run(create_app(settings), host=settings.host, port=settings.port, log_level='warning', access_log=False)
+            uvicorn.run(create_app(settings), host=settings.host, port=settings.port, log_level='warning', access_log=False, **tls)
         finally:
             try:
                 (settings.run_dir / 'api.pid').unlink()
@@ -101,6 +111,17 @@ def run(args, settings):
             except FileNotFoundError:
                 pass
         return None
+    if args.command == 'node-worker':
+        from .federation import node_worker
+        argv = ['--identity', args.identity, '--coordinator', args.coordinator, '--home', args.node_home]
+        if args.ca: argv += ['--ca', args.ca]
+        if args.once: argv += ['--once']
+        if args.stop_file: argv += ['--stop-file', args.stop_file]
+        if args.compute_python: argv += ['--compute-python', args.compute_python]
+        return node_worker.main(argv) and None
+    if args.command == 'node-tls':
+        from .federation.tls import ensure_node_tls
+        return ensure_node_tls(settings)
     if args.command == 'status':
         return ops.status(settings)
     if args.command == 'health':
