@@ -17,7 +17,7 @@ class CatalogTests(unittest.TestCase):
         self.services = {s['kind']: s for s in self.c.get('/api/v1/services', headers=self.inst.h('viewer')).json()['items']}
 
     def test_catalog_lists_installed_services_with_separate_status_facts(self):
-        self.assertEqual(sorted(self.services), ['energy_audit', 'heat_diffusion', 'monte_carlo_reliability', 'plan_comparison', 'safe_runtime', 'task_selection', 'temporal_batch', 'temporal_energy'])
+        self.assertEqual(sorted(self.services), ['energy_audit', 'heat_diffusion', 'monte_carlo_reliability', 'plan_comparison', 'safe_runtime', 'task_selection', 'temporal_batch', 'temporal_energy', 'text_embedding', 'text_generation'])
         for s in self.services.values():
             self.assertEqual((s['state']['registered'], s['state']['installed'], s['state']['available'], s['state']['externally_validated']), (True, True, True, False))
             self.assertTrue(s['state']['verifier_matches_installed'])

@@ -26,6 +26,9 @@ def verifier_digest_for(kind):
     from .compute import manifests as compute_manifests
     if kind in compute_manifests.KINDS:
         return compute_manifests.implementation_digest()
+    from .models import engine as model_engine
+    if kind in model_engine.KINDS:
+        return model_engine.implementation_digest()
     return {'energy_audit': terms.verifier_digest, 'temporal_energy': temporal.bundle_digest}.get(kind, science.bundle_digest)()
 
 

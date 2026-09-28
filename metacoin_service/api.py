@@ -12,6 +12,7 @@ from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
 from .compute import service as compute_svc
+from .models import service as model_svc, registry as model_registry
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
 from .errors import ServiceError, from_exception
@@ -38,9 +39,28 @@ class Services:
         self.catalog = catalog_mod.Catalog(settings, self.contracts, self.jobs)
         self.agents = agents_mod.Agents(settings)
         self.schedules = schedules_mod.Schedules(self.workflows, settings)
+        self.models = model_registry.ModelRegistry(settings)
+        self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
             metering.ensure_service_key(settings, db)
+
+
+def model_host_of(svc):
+    """The API process's own runtime host (used for synchronous query embeddings); created lazily."""
+    if svc._model_host is None:
+        from .models.engine import ModelHost
+        svc._model_host = ModelHost(svc.settings, svc.db, 'api')
+    return svc._model_host
+
+
+def quick_submit(svc, db, principal, kind, inputs, title):
+    """Create, freeze and submit a contract of `kind` for the caller (reviewer = first workspace reviewer). Same rules as the console."""
+    reviewer = db.execute("SELECT id FROM principals WHERE workspace=? AND role='reviewer' AND revoked_at IS NULL ORDER BY created_at LIMIT 1", (principal.workspace,)).fetchone()
+    cid = svc.contracts.create_draft(db, principal, kind=kind, title=title, inputs=inputs, policy={'reviewer_id': reviewer['id'] if reviewer else None}, datasets=svc.datasets)
+    svc.contracts.freeze(db, principal, cid)
+    jid = svc.jobs.submit(db, principal, cid)
+    return {'job_id': jid, 'contract_id': cid, 'kind': kind, 'state': 'queued'}
 
 
 def read_body(request, raw):
@@ -1078,6 +1098,105 @@ def create_app(settings):
         @app.post('/facilitator-double/settle')
         async def fd_settle(request: Request):
             return svc.sales.double.settle(json.loads(await request.body()))
+
+    # ---- local models (registry, runtime facts, generation/embedding jobs, durable segments) ---------------------
+    @app.get(API + '/models')
+    async def models_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.models.list(db, p, include_retired=request.query_params.get('include_retired', '1') == '1')})
+
+    @app.post(API + '/models', status_code=201)
+    async def models_register(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.models.register(db, p, body), 201), 'models.register', raw)
+
+    @app.get(API + '/models/runtime')
+    async def models_runtime(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            return model_svc.runtime_facts(db, settings, api_host=svc._model_host)
+        return await run(request, False, fn)
+
+    @app.get(API + '/models/promotions')
+    async def models_promotions(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.models.promotions(db, p)})
+
+    @app.post(API + '/models/generate', status_code=202)
+    async def models_generate(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('model:use')
+            inputs = dict(body.get('inputs') or {}, schema=model_svc.GENERATION_SCHEMA)
+            return quick_submit(svc, db, p, 'text_generation', inputs, body.get('title') or 'text generation'), 202
+        return await run(request, True, fn, 'models.generate', raw)
+
+    @app.post(API + '/models/embed', status_code=202)
+    async def models_embed(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('model:use')
+            inputs = dict(body.get('inputs') or {}, schema=model_svc.EMBEDDING_SCHEMA)
+            return quick_submit(svc, db, p, 'text_embedding', inputs, body.get('title') or 'text embedding'), 202
+        return await run(request, True, fn, 'models.embed', raw)
+
+    @app.get(API + '/models/jobs/{job_id}')
+    async def models_job(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: model_svc.view(db, p, svc.jobs, job_id))
+
+    @app.get(API + '/models/jobs/{job_id}/segments')
+    async def models_segments(request: Request, job_id: str):
+        q = request.query_params
+        try:
+            after, wait = int(q.get('after', '-1')), min(int(q.get('wait', '0')), 20)
+        except ValueError:
+            raise ServiceError('VALIDATION', 'after/wait')
+        def poll():
+            deadline = time.time() + wait
+            while True:
+                with svc.db.tx() as db:
+                    p = principal_of(request, db, False)
+                    out = model_svc.segments(db, p, svc.jobs, job_id, after=after)
+                if out['segments'] or out['done'] or time.time() >= deadline:
+                    return out
+                time.sleep(0.2)
+        return JSONResponse(await run_in_threadpool(poll))
+
+    @app.get(API + '/models/jobs/{job_id}/outputs')
+    async def models_outputs(request: Request, job_id: str):
+        return await run(request, False, lambda db, p: model_svc.output(db, p, svc.jobs, svc.store, job_id))
+
+    @app.get(API + '/models/jobs/{job_id}/outputs/{name}')
+    async def models_output_file(request: Request, job_id: str, name: str):
+        def fn():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, False)
+                return model_svc.output(db, p, svc.jobs, svc.store, job_id, name)
+        name, data = await run_in_threadpool(fn)
+        return Response(content=data, media_type='application/json' if name.endswith('.json') else 'application/octet-stream', headers=SENSITIVE_HEADERS)
+
+    @app.get(API + '/models/{rid}')
+    async def models_detail(request: Request, rid: str):
+        return await run(request, False, lambda db, p: svc.models.detail(db, p, rid))
+
+    @app.post(API + '/models/{rid}/{action}')
+    async def models_action(request: Request, rid: str, action: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            if action == 'recheck':
+                return svc.models.recheck_install(db, p, rid)
+            if action == 'promote':
+                return svc.models.promote(db, p, rid, body.get('operation'), body.get('evidence'))
+            if action == 'rollback-default':
+                return svc.models.rollback_default(db, p, body.get('operation'))
+            if action in ('retire', 'revoke'):
+                return svc.models.retire(db, p, rid, body.get('reason', ''), revoke=(action == 'revoke'))
+            if action in ('load', 'unload'):
+                return model_svc.request_load(db, p, settings, rid, 'loaded' if action == 'load' else 'unloaded')
+            raise ServiceError('NOT_FOUND', 'action')
+        return await run(request, True, fn, 'models.' + action, raw)
 
     from . import console
     console.mount(app, svc)

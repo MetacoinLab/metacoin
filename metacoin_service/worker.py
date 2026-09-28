@@ -10,6 +10,7 @@ from experiments.private_receipts import receipt as merkle
 from . import history, scheduling
 from .compute import manifests as compute_manifests
 from .compute.engine import ComputeEngine
+from .models import engine as model_engine
 from .db import now
 from .errors import ServiceError
 
@@ -23,12 +24,15 @@ class Worker:
         self.name = name or self.worker_id
         from .contracts import KINDS
         self.compute = ComputeEngine(self)
+        self.models = model_engine.ModelEngine(self)
         wanted = set(capabilities or KINDS)
         unknown = {c for c in wanted if c not in KINDS and not c.startswith('device:')}
         if unknown:
             raise ServiceError('VALIDATION', {'code': 'unknown_capabilities', 'unknown': sorted(unknown), 'installed': list(KINDS)})
         if not self.compute.runtime:                       # no numpy-capable interpreter: compute kinds are not offered
             wanted -= set(compute_manifests.KINDS)
+        if not self.models.available():                    # no torch in the interpreter: model kinds are not offered
+            wanted -= set(model_engine.KINDS)
         wanted = {c for c in wanted if not c.startswith('device:')} | {'device:' + d for d in self.compute.devices}
         self.capabilities = sorted(wanted)
         self.lease = settings.limits['job_lease_seconds']
@@ -49,6 +53,7 @@ class Worker:
         with self.db.tx() as db:
             scheduling.go_offline(db, self.worker_id)
             db.execute('DELETE FROM compute_reservations WHERE worker_id=?', (self.worker_id,))
+        self.models.host.drain_all('worker offline')
 
     def claim(self):
         """Atomically claim one queued job (fair order within our capabilities), or recover one whose lease expired."""
@@ -106,6 +111,8 @@ class Worker:
         """Run one attempt in a child process; publish only if the lease is still ours."""
         if job['kind'] in compute_manifests.KINDS:
             return self.compute.run(job)
+        if job['kind'] in model_engine.KINDS:
+            return self.models.run(job)
         with self.db.read() as db:
             contract, spec = self._spec(db, job)
         limits = {'cpu': self.settings.limits['worker_cpu_seconds'], 'mem': self.settings.limits['worker_address_space_bytes'],
@@ -212,6 +219,11 @@ class Worker:
                 advanced = self.tick_workflows()
                 if time.time() - last_beat >= scheduling.HEARTBEAT_SECONDS:
                     self.heartbeat(); last_beat = time.time()
+                    if self.models.available():
+                        try:
+                            self.models.host.apply_desired(self.models.registry); self.models.host.idle_cleanup()
+                        except Exception:
+                            pass
                 if ran is None and not advanced:
                     time.sleep(poll_seconds)
         finally:

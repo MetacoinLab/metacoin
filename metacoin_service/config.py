@@ -19,6 +19,10 @@ LIMITS = {
     'compute_checkpoint_interval_seconds': 5, 'compute_max_artifact_bytes': 64 * 1024 * 1024, 'compute_lease_renew_seconds': 20,
     'compute_telemetry_interval_seconds': 2, 'compute_checkpoints_retained': 2, 'compute_log_tail_bytes': 16384,
     'compute_preempt_after_seconds': 10, 'compute_preempt_max_ratio_percent': 10,   # a job may preempt a checkpointed job >= 10x its size that ran >= 10 s
+    # local model runtime (application-enforced policy on unified memory; no hardware limit)
+    'model_max_weight_bytes': 4 * 1024 ** 3, 'model_max_loaded': 2, 'model_memory_budget_bytes': 24 * 1024 ** 3, 'model_memory_headroom_bytes': 16 * 1024 ** 3,
+    'model_load_timeout_seconds': 300, 'model_request_timeout_seconds': 600, 'model_token_timeout_seconds': 120, 'model_max_input_tokens': 4096, 'model_max_output_tokens': 1024,
+    'model_max_embed_items': 256, 'model_max_text_chars': 8000, 'model_idle_unload_seconds': 1800, 'model_embed_on_cuda': 0, 'model_max_messages': 32,
 }
 
 
@@ -45,6 +49,7 @@ class Settings:
     buyer_max_amount: int = 0
     buyer_pay_to: str = ''             # optional pinned recipient
     compute_python: str = ''           # trusted interpreter for compute children (numpy, optional CUDA torch); probed when empty
+    model_store: str = str(Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share')) / 'metacoin-models')   # pinned model artifacts (weights are not part of the service home)
     limits: dict = field(default_factory=lambda: dict(LIMITS))
 
     @classmethod
@@ -65,14 +70,15 @@ class Settings:
                 buyer_network=env.get('METACOIN_BUYER_NETWORK', ''), buyer_asset=env.get('METACOIN_BUYER_ASSET', ''),
                 buyer_asset_token=env.get('METACOIN_BUYER_ASSET_TOKEN', 'usdc-test-identifier'),
                 buyer_max_amount=int(env.get('METACOIN_BUYER_MAX_AMOUNT', '0') or 0), buyer_pay_to=env.get('METACOIN_BUYER_PAY_TO', ''),
-                compute_python=env.get('METACOIN_COMPUTE_PYTHON', ''))
+                compute_python=env.get('METACOIN_COMPUTE_PYTHON', ''),
+                model_store=env.get('METACOIN_MODEL_STORE', str(Path(env.get('XDG_DATA_HOME', Path.home() / '.local' / 'share')) / 'metacoin-models')))
         for key, value in overrides.items():
             setattr(s, key, value)
         # Operator override of bounded limits (integers only), e.g. METACOIN_LIMITS_JSON='{"job_timeout_seconds": 5}'
         if env.get('METACOIN_LIMITS_JSON'):
             import json
             for key, value in json.loads(env['METACOIN_LIMITS_JSON']).items():
-                if key not in s.limits or type(value) not in (int, float) or value <= 0:
+                if key not in s.limits or type(value) not in (int, float) or value < 0 or (value == 0 and not key.startswith('model_')):
                     raise ValueError('invalid limits override: ' + str(key))
                 s.limits[key] = value
         s.validate()

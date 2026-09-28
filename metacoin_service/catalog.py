@@ -65,6 +65,19 @@ for _kind, _m in compute_manifests.MANIFESTS.items():
                         'compute': {'work_unit': _m['work_unit'], 'price_basis': _m['price_basis'], 'checkpoint_format': _m['checkpoint_format'],
                                     'verification_modes': _m['verification_modes'], 'verification_policy': _m['verification_policy']}}
 
+from .models import engine as model_engine, service as model_svc
+INSTALLED['text_generation'] = {'model_id': model_engine.MODEL_IDS['text_generation'], 'result_schema': model_engine.RESULT_SCHEMAS['text_generation'], 'verifier': 'model-runtime/v1', 'input_type': 'model',
+                                'dataset_kind': None, 'input_schema': {'type': 'object', 'schema': model_engine.GENERATION_SCHEMA, 'required': ['schema', 'max_output_tokens', 'messages|prompt'],
+                                                                       'properties': {'messages': [{'role': 'system|user|assistant', 'content': 'string'}], 'prompt': 'string', 'max_output_tokens': 'int 1..model_max_output_tokens',
+                                                                                      'temperature_percent': 'int 0..200 (0 = greedy)', 'top_p_percent': 'int 1..100', 'seed': 'int|null', 'stop': ['<=4 strings'], 'model_revision_id': 'mr_... or null (promoted default)'}},
+                                'output_fields': ['text', 'finish_reason', 'usage', 'config', 'model_revision_id'], 'limits': {'max_output_tokens': 1024, 'max_input_tokens': 4096, 'max_messages': 32}, 'action_entitlement': False,
+                                'model': {'work_unit': model_svc.WORK_UNIT['text_generation'], 'completion': 'the runtime produced text under the recorded configuration; not a factual or scientific claim', 'privacy': 'prompt and output private to owner and designated reviewer; local runtime only'}}
+INSTALLED['text_embedding'] = {'model_id': model_engine.MODEL_IDS['text_embedding'], 'result_schema': model_engine.RESULT_SCHEMAS['text_embedding'], 'verifier': 'model-runtime/v1', 'input_type': 'model',
+                               'dataset_kind': None, 'input_schema': {'type': 'object', 'schema': model_engine.EMBEDDING_SCHEMA, 'required': ['schema', 'texts'],
+                                                                      'properties': {'texts': ['1..256 strings'], 'truncate': 'bool (false refuses silent truncation)', 'model_revision_id': 'mr_... or null'}},
+                               'output_fields': ['items', 'dim', 'pooling', 'normalized', 'tokens', 'truncated', 'model_revision_id'], 'limits': {'max_items': 256, 'max_text_chars': 8000}, 'action_entitlement': False,
+                               'model': {'work_unit': model_svc.WORK_UNIT['text_embedding'], 'completion': 'vectors stored as a private artifact; comparable only within one revision/pooling/normalization', 'privacy': 'vectors are sensitive derived data; never exported by default'}}
+
 PRIVACY = {'inputs': 'private (age-encrypted); readable by owner, worker and the designated reviewer',
            'results': 'private by default; public openings only by contract disclosure policy after an accepted signed review',
            'public_verification': 'salted Merkle membership + bindings; no hidden-computation proof'}
@@ -74,6 +87,8 @@ def verifier_digest(kind):
     from experiments.work_contracts import contract as terms
     if kind in compute_manifests.KINDS:
         return compute_manifests.implementation_digest()
+    if kind in model_engine.KINDS:
+        return model_engine.implementation_digest()
     return {'energy_audit': terms.verifier_digest, 'temporal_energy': temporal.bundle_digest}.get(kind, science.bundle_digest)()
 
 
@@ -203,12 +218,12 @@ class Catalog:
         row, digest = self.validate_request(db, principal, sid, inputs)
         from .agents import guard
         guard(db, principal, 'quote', service_id=sid, service_kind=row['kind'])
-        if row['kind'] in compute_manifests.KINDS:
-            needed = compute_inputs.work_units(row['kind'], inputs)          # deterministic work bound from the validated inputs
+        if row['kind'] in compute_manifests.KINDS or row['kind'] in model_engine.KINDS:
+            needed = compute_inputs.work_units(row['kind'], inputs) if row['kind'] in compute_manifests.KINDS else model_svc.work_units(row['kind'], inputs)   # deterministic work bound from the validated inputs
             if quantity_max is None:
                 quantity_max = needed
             if type(quantity_max) is not int or quantity_max < needed:
-                raise ServiceError('VALIDATION', {'code': 'quantity_below_work_estimate', 'work_units': needed, 'unit': compute_manifests.MANIFESTS[row['kind']]['work_unit']})
+                raise ServiceError('VALIDATION', {'code': 'quantity_below_work_estimate', 'work_units': needed, 'unit': compute_manifests.MANIFESTS[row['kind']]['work_unit'] if row['kind'] in compute_manifests.KINDS else model_svc.WORK_UNIT[row['kind']]})
             if quantity_max > 10 ** 9:
                 raise ServiceError('VALIDATION', 'quantity_max')
         else:

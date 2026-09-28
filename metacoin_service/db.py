@@ -241,6 +241,25 @@ MIGRATIONS = [
     ALTER TABLE compute_runs ADD COLUMN preempted_for TEXT;
     ALTER TABLE compute_runs ADD COLUMN preempted_at INTEGER;
     """),
+    ('014_local_models', """
+    CREATE TABLE model_revisions (
+        id TEXT PRIMARY KEY, model_id TEXT NOT NULL, revision TEXT NOT NULL, hub_repo TEXT NOT NULL, local_dir TEXT NOT NULL, architecture TEXT NOT NULL, loader TEXT NOT NULL,
+        weight_format TEXT NOT NULL, weight_digest TEXT, tokenizer_digest TEXT, config_json TEXT NOT NULL, license TEXT NOT NULL, operations_json TEXT NOT NULL, context_limit INTEGER,
+        embedding_dim INTEGER, pooling TEXT, precision TEXT NOT NULL, resource_estimate_bytes INTEGER, status TEXT NOT NULL, installed INTEGER NOT NULL DEFAULT 0, install_json TEXT,
+        description TEXT, registered_by TEXT NOT NULL, created_at INTEGER NOT NULL, retired_at INTEGER, revoked_at INTEGER, revocation_reason TEXT, UNIQUE (model_id, revision));
+    CREATE TABLE model_defaults (operation TEXT PRIMARY KEY, revision_id TEXT NOT NULL REFERENCES model_revisions(id), set_by TEXT NOT NULL, evidence_json TEXT, previous_revision_id TEXT, updated_at INTEGER NOT NULL);
+    CREATE TABLE model_promotions (id TEXT PRIMARY KEY, operation TEXT NOT NULL, from_revision_id TEXT, to_revision_id TEXT NOT NULL, principal_id TEXT NOT NULL, evidence_json TEXT, action TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE model_runtimes (
+        host TEXT NOT NULL, revision_id TEXT NOT NULL REFERENCES model_revisions(id), state TEXT NOT NULL, pid INTEGER, device TEXT, dtype TEXT, estimated_bytes INTEGER, versions_json TEXT,
+        loaded_at INTEGER, load_ms INTEGER, last_used_at INTEGER, requests INTEGER NOT NULL DEFAULT 0, desired TEXT, error TEXT, updated_at INTEGER NOT NULL, PRIMARY KEY (host, revision_id));
+    CREATE TABLE model_requests (
+        job_id TEXT PRIMARY KEY REFERENCES jobs(id), workspace TEXT NOT NULL, kind TEXT NOT NULL, revision_id TEXT NOT NULL REFERENCES model_revisions(id), operation TEXT NOT NULL,
+        phase TEXT NOT NULL, host TEXT, request_digest TEXT NOT NULL, max_output_tokens INTEGER, max_items INTEGER, input_tokens INTEGER, output_tokens INTEGER, items INTEGER,
+        finish_reason TEXT, queue_seconds INTEGER, load_ms INTEGER, inference_ms INTEGER, versions_json TEXT, segments INTEGER NOT NULL DEFAULT 0, output_chars INTEGER NOT NULL DEFAULT 0,
+        output_artifact_id TEXT REFERENCES artifacts(id), attempt_generation INTEGER, usage_json TEXT, error TEXT, started_at INTEGER, updated_at INTEGER NOT NULL);
+    CREATE TABLE model_segments (job_id TEXT NOT NULL REFERENCES jobs(id), attempt_generation INTEGER NOT NULL, seq INTEGER NOT NULL, text TEXT NOT NULL, chars INTEGER NOT NULL,
+        created_at INTEGER NOT NULL, PRIMARY KEY (job_id, attempt_generation, seq));
+    """),
 ]
 
 

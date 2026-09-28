@@ -58,6 +58,9 @@ class Jobs:
             db.execute('INSERT INTO compute_runs (job_id, workspace, kind, manifest_id, manifest_version, implementation_digest, input_digest, device_policy, precision, phase, work_total, updated_at) '
                        'VALUES (?,?,?,?,?,?,?,?,?,?,?,?)', (jid, principal.workspace, row['kind'], params['manifest_id'], params['manifest_version'], params['implementation_digest'],
                                                              params['input_digest'], params['device_policy'], params['precision'], 'admitted', params['work_units'], now()))
+        from .models import engine as model_engine, service as model_svc
+        if row['kind'] in model_engine.KINDS:
+            model_svc.insert_request(db, jid, principal.workspace, row['kind'], json.loads(row['params_json'] or '{}'))
         from .datasets import add_edge
         add_edge(db, principal.workspace, 'contract', row['id'], 'job', jid, 'used_input')
         return jid
@@ -188,6 +191,11 @@ class Jobs:
                               'work_total': crun['work_total'], 'work_committed': crun['work_committed'], 'work_computed': crun['work_computed'],
                               'checkpoint_generation': crun['checkpoint_generation'], 'control': crun['control'], 'hold': bool(row['hold']) if 'hold' in row.keys() else False,
                               'verification': ({'mode': ver.get('mode'), 'passed': ver.get('passed')} if ver else None), 'manifest_id': crun['manifest_id']}
+        mreq = db.execute('SELECT * FROM model_requests WHERE job_id=?', (row['id'],)).fetchone()
+        if mreq:
+            out['model'] = {'phase': mreq['phase'], 'operation': mreq['operation'], 'revision_id': mreq['revision_id'], 'finish_reason': mreq['finish_reason'],
+                            'input_tokens': mreq['input_tokens'], 'output_tokens': mreq['output_tokens'], 'items': mreq['items'], 'segments': mreq['segments'],
+                            'verification': 'none: model output is data, not a verified result'}
         out['payment'] = self.payment_view(db, principal, row)
         out['next_operation'] = self.next_operation(row, contract_row, principal)
         return out

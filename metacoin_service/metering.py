@@ -40,6 +40,10 @@ def record_for_job(settings, db, job_row):
     crun = db.execute('SELECT work_committed FROM compute_runs WHERE job_id=?', (job_row['id'],)).fetchone()
     if crun and not reused:
         quantity = min(crun['work_committed'], quote['quantity_max'])   # committed logical work units only; retries never add units
+    mreq = db.execute('SELECT output_tokens, items, kind FROM model_requests WHERE job_id=?', (job_row['id'],)).fetchone()
+    if mreq and not reused:
+        measured = mreq['output_tokens'] if mreq['kind'] == 'text_generation' else mreq['items']
+        quantity = min(measured or 0, quote['quantity_max'])            # measured by the runtime tokenizer; the quote only reserved the allowance
     charge = quantity * quote['amount_max'] // quote['quantity_max'] if quote['quantity_max'] else 0
     charge = min(charge, quote['amount_max'])
     pub = ensure_service_key(settings, db)
@@ -75,4 +79,4 @@ def view(db, row):
             'key_id': row['key_id'], 'signature_valid': valid,
             'states': {'estimated': 'quote', 'reserved_max': 'accepted quote amount_max', 'recorded_usage': 'this record', 'assessed_charge': row['assessed_charge'],
                        'provider_settlement': dict(sale) if sale else 'none recorded'},
-            'independently_recomputable': 'quantity = number of completed evaluations for this job (1); charge = min(quantity*amount_per_unit, cap)'}
+            'independently_recomputable': 'quantity = completed evaluations (1), committed compute work units, or measured model tokens/items, capped by the quote; charge = min(quantity*amount_per_unit, cap)'}

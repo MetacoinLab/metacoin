@@ -87,6 +87,13 @@ class Reviews:
                 out.update(recomputation='matches' if matches else 'mismatch', verification_source='persisted-verification-phase: ' + str(values['result'].get('verification', {}).get('mode')),
                            scientific_outcome=job['outcome'], policy_satisfied=matches, private_details=values['result'],
                            verifier_status='current' if values['verifier_digest'] == compute_manifests.implementation_digest() else 'superseded')
+            elif job['kind'] in __import__('metacoin_service.models.engine', fromlist=['KINDS']).KINDS:
+                from .models import engine as model_engine
+                values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
+                matches = values['contract_digest'] == contract['contract_digest'] and values['verifier_digest'] == model_engine.implementation_digest()
+                out.update(recomputation='matches' if matches else 'mismatch', verification_source='runtime record only: generated output is not recomputed or scientifically verified',
+                           scientific_outcome=job['outcome'], policy_satisfied=matches, private_details=values['result'],
+                           verifier_status='current' if values['verifier_digest'] == model_engine.implementation_digest() else 'superseded')
             else:
                 values = acceptance.full_values(evidence_vault, evidence_vault['receipt']['root'])
                 inputs = acceptance.full_values(input_vault, contract['input_root'])['inputs']

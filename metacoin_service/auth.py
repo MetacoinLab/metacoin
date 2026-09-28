@@ -21,10 +21,11 @@ PERMISSIONS = {
     'owner': {'contract:create', 'contract:read', 'contract:freeze', 'contract:amend', 'job:submit', 'job:read',
               'job:cancel', 'job:read_private', 'review:request', 'artifact:read_private', 'artifact:export',
               'artifact:delete', 'action:create', 'action:read', 'action:reconcile', 'budget:read', 'history:read',
-              'x402:sell', 'admin:credentials', 'admin:keys', 'template:write'},
+              'x402:sell', 'admin:credentials', 'admin:keys', 'template:write',
+              'model:admin', 'model:use', 'knowledge:write', 'knowledge:read', 'calibration:write', 'verification:submit', 'node:admin', 'approval:propose', 'approval:decide', 'statement:read'},
     'worker': {'job:claim', 'job:read', 'job:publish', 'artifact:read_input', 'history:read'},
     'reviewer': {'job:read', 'review:read_evidence', 'review:decide', 'artifact:read_private_assigned',
-                 'history:read', 'contract:read', 'action:read', 'budget:read'},
+                 'history:read', 'contract:read', 'action:read', 'budget:read', 'verification:submit', 'approval:decide'},
     'viewer': {'job:read', 'contract:read', 'artifact:read_public', 'history:read', 'budget:read'},
 }
 PEPPER_KEY = 'credential_pepper'
@@ -76,7 +77,8 @@ def create_principal(db, name, role, workspace):
 
 
 AUTOMATION_OPERATIONS = {'contract:create', 'contract:read', 'contract:freeze', 'job:submit', 'job:read', 'job:read_private',
-                         'review:request', 'artifact:export', 'history:read', 'budget:read', 'action:read'}
+                         'review:request', 'artifact:export', 'history:read', 'budget:read', 'action:read',
+                         'model:use', 'knowledge:read', 'knowledge:write', 'verification:submit', 'statement:read'}
 
 
 def issue_scoped_credential(db, issuer, operations, lifetime_seconds):

@@ -20,6 +20,12 @@ CATEGORIES = {'budget.ceiling_set': 'economic', 'compute.progress': 'scientific'
     'credential.issued': 'administrative', 'credential.revoked': 'administrative', 'key.rotated': 'administrative',
     'key.revoked': 'administrative', 'backup.created': 'administrative', 'restore.completed': 'administrative',
     'retention.cleanup': 'administrative',
+    'model.registered': 'administrative', 'model.install_checked': 'administrative', 'model.promoted': 'administrative', 'model.retired': 'administrative', 'model.request': 'scientific', 'model.runtime': 'administrative',
+    'knowledge.collection': 'administrative', 'knowledge.document': 'administrative', 'knowledge.index': 'scientific', 'knowledge.query': 'scientific', 'knowledge.revoked': 'administrative', 'knowledge.answer': 'scientific',
+    'calibration.dataset': 'scientific', 'calibration.fit': 'scientific', 'calibration.promoted': 'administrative',
+    'verification.requested': 'scientific', 'verification.completed': 'scientific', 'verification.disputed': 'scientific', 'verification.resolved': 'scientific',
+    'node.enrolled': 'administrative', 'node.revoked': 'administrative', 'node.drained': 'administrative', 'node.transfer': 'administrative', 'node.claimed': 'scientific',
+    'approval.proposed': 'administrative', 'approval.decided': 'administrative', 'approval.applied': 'administrative', 'approval.expired': 'administrative',
 }
 
 
