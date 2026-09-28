@@ -144,6 +144,26 @@ def build(api=None):
         s, b = api.call('POST', '/api/v1/compute/jobs/' + job_id + '/freeze-alternative', {'cost_ceiling': cost_ceiling, 'title': title})
         return ok_or_refused(s, b)
 
+    @mcp.tool(name='create_analysis', description='Create a structured analysis session (typed blocks: source_note, dataset_ref, assumption_table, operation_draft, run_result, comparison, verification, conclusion; nothing executes) optionally seeded from a document import or a workflow definition.', annotations=CREATE)
+    def create_analysis(name: str, blocks: list | None = None, from_document: str | None = None, from_workflow: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/analyses', {'name': name, 'blocks': blocks or [], 'from_document': from_document, 'from_workflow': from_workflow})
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='analysis_status', description='An analysis revision: blocks with current/stale status and reasons, references with drift, freezes and reports.', annotations=READ)
+    def analysis_status(analysis_id: str, version: int | None = None) -> dict:
+        s, b = api.call('GET', '/api/v1/analyses/' + analysis_id + ('?version=%d' % version if version else ''))
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='analysis_impact', description='Change-impact query on an analysis: directly and transitively affected blocks/objects, unaffected, unknown dependencies, cycles, and what each affected block requires.', annotations=READ)
+    def analysis_impact(analysis_id: str, changed: dict) -> dict:
+        s, b = api.call('POST', '/api/v1/analyses/' + analysis_id + '/impact', {'changed': changed})
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='build_report', description='Build a deterministic evidence-linked report from a frozen analysis revision (tables and statements from validated data; claims checked against structured values). mode="model" adds a labelled local-model interpretation.', annotations=CREATE)
+    def build_report(analysis_id: str, version: int, mode: str = 'deterministic') -> dict:
+        s, b = api.call('POST', '/api/v1/analyses/' + analysis_id + '/reports', {'version': version, 'mode': mode})
+        return ok_or_refused(s, b)
+
     @mcp.tool(name='verification_preview', description='Cost, claim and scope of an independent verification class for a completed job (nothing created).', annotations=READ)
     def verification_preview(job_id: str, verification_class: str, params: dict | None = None) -> dict:
         s, b = api.call('POST', '/api/v1/verification/preview', {'job_id': job_id, 'class': verification_class, 'params': params or {}})

@@ -281,6 +281,10 @@ class Knowledge:
         aid = 'ka_' + secrets.token_hex(6)
         db.execute('INSERT INTO knowledge_answers (id, workspace, collection_id, index_id, job_id, principal_id, mode, question_sha256, status, sources_json, citations_json, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
                    (aid, workspace, cid, iid, job_id, principal_id, mode, hashlib.sha256(question.encode()).hexdigest(), status, json.dumps(sources), json.dumps(citations), now()))
+        from ..datasets import add_edge as _add_edge
+        for vid in sorted({s.get('version_id') for s in sources if isinstance(s, dict) and s.get('version_id')}):
+            _add_edge(db, workspace, 'knowledge_version', vid, 'knowledge_answer', aid, 'used_input')
+        _add_edge(db, workspace, 'job', job_id, 'knowledge_answer', aid, 'produced')
         return aid
 
     def answer(self, db, principal, aid, store):

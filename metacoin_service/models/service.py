@@ -126,6 +126,8 @@ def bind_params(db, settings, kind, inputs):
 
 
 def insert_request(db, jid, workspace, kind, params):
+    from ..datasets import add_edge as _add_edge
+    _add_edge(db, workspace, 'model_revision', params['model_revision_id'], 'job', jid, 'used_input')
     db.execute('INSERT INTO model_requests (job_id, workspace, kind, revision_id, operation, phase, request_digest, max_output_tokens, max_items, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
                (jid, workspace, kind, params['model_revision_id'], params['operation'], 'admitted', params['request_digest'], params.get('max_output_tokens'), params.get('max_items'), now()))
 

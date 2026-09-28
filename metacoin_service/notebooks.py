@@ -14,7 +14,8 @@ from .db import now
 from .errors import ServiceError
 
 MAX_BLOCKS, MAX_TEXT, MAX_NAME = 200, 20000, 96
-LINK_KINDS = ('job', 'artifact', 'verification', 'knowledge_answer', 'calibration_model', 'calibration_dataset', 'evaluation_run', 'knowledge_document_version')
+ANALYSIS_BLOCK_TYPES = ('source_note', 'dataset_ref', 'assumption_table', 'operation_draft', 'run_result', 'comparison', 'verification', 'conclusion')
+LINK_KINDS = ('job', 'artifact', 'verification', 'knowledge_answer', 'calibration_model', 'calibration_dataset', 'evaluation_run', 'knowledge_document_version', 'dataset_version', 'workflow_definition', 'workflow_run', 'campaign', 'document_import', 'dataset_mapping')
 
 
 def validate_blocks(blocks):
@@ -31,6 +32,10 @@ def validate_blocks(blocks):
         elif b.get('type') == 'link':
             if b.get('ref_kind') not in LINK_KINDS or type(b.get('ref_id')) is not str or not b['ref_id'] or type(b.get('label', '')) is not str or len(b.get('label', '')) > 200:
                 raise ServiceError('VALIDATION', 'link block: ref_kind in %s, ref_id, optional label' % (LINK_KINDS,))
+        elif b.get('type') in ANALYSIS_BLOCK_TYPES:
+            from . import analyses
+            analyses.validate_block(b, ids)
+            continue
         else:
             raise ServiceError('VALIDATION', "block type: 'text' or 'link' (no executable blocks)")
         if set(b) - {'id', 'type', 'text', 'heading', 'ref_kind', 'ref_id', 'label'}:
@@ -50,7 +55,13 @@ class Notebooks:
              'calibration_model': ('SELECT state, job_id AS c, kind FROM calibration_models WHERE id=? AND workspace=?', 'job_id'),
              'calibration_dataset': ('SELECT kind AS state, digest AS c, kind FROM calibration_datasets WHERE id=? AND workspace=?', 'digest'),
              'evaluation_run': ('SELECT state, results_json AS c, suite_id AS kind FROM evaluation_runs WHERE id=? AND workspace=?', 'results_sha256'),
-             'knowledge_document_version': ('SELECT CASE WHEN d.revoked_at IS NULL THEN \'active\' ELSE \'revoked\' END AS state, v.text_sha256 AS c, d.name AS kind FROM knowledge_versions v JOIN knowledge_documents d ON d.id=v.document_id WHERE v.id=? AND v.workspace=?', 'text_sha256')}[kind]
+             'knowledge_document_version': ('SELECT CASE WHEN d.revoked_at IS NULL THEN \'active\' ELSE \'revoked\' END AS state, v.text_sha256 AS c, d.name AS kind FROM knowledge_versions v JOIN knowledge_documents d ON d.id=v.document_id WHERE v.id=? AND v.workspace=?', 'text_sha256'),
+             'dataset_version': ('SELECT v.normalization_id AS state, v.normalized_commitment AS c, d.kind AS kind FROM dataset_versions v JOIN datasets d ON d.id=v.dataset_id WHERE v.id=? AND d.workspace=?', 'normalized_commitment'),
+             'workflow_definition': ('SELECT \'definition\' AS state, digest AS c, name AS kind FROM workflow_definitions WHERE id=? AND workspace=?', 'digest'),
+             'workflow_run': ('SELECT state, summary_json AS c, definition_id AS kind FROM workflow_runs WHERE id=? AND workspace=?', 'summary_sha256'),
+             'campaign': ('SELECT state, digest AS c, kind FROM sci_campaigns WHERE id=? AND workspace=?', 'digest'),
+             'document_import': ('SELECT state, content_sha256 AS c, declared_format AS kind FROM document_imports WHERE id=? AND workspace=?', 'content_sha256'),
+             'dataset_mapping': ('SELECT state, digest AS c, target AS kind FROM dataset_mappings WHERE id=? AND workspace=?', 'digest')}[kind]
         r = db.execute(q[0], (ref_id, workspace)).fetchone()
         if r is None:
             raise ServiceError('NOT_FOUND', {'link': kind, 'ref_id': ref_id})
@@ -82,7 +93,7 @@ class Notebooks:
             raise ServiceError('VALIDATION', 'note')
         links = {}
         for b in blocks:
-            if b['type'] == 'link':
+            if b['type'] == 'link' or (b['type'] in ANALYSIS_BLOCK_TYPES and b.get('ref_kind')):
                 links[b['id']] = self._snapshot(db, principal.workspace, b['ref_kind'], b['ref_id'])
         version = db.execute('SELECT COALESCE(MAX(version),0)+1 FROM notebook_versions WHERE notebook_id=?', (nid,)).fetchone()[0]
         canon = merkle.canonical(blocks)

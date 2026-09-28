@@ -652,6 +652,117 @@ def mount(app, svc):
             return RedirectResponse('/console/documents/tables/' + m['table_id'], status_code=303)
         return await page(request, fn, mutating=True)
 
+    # ---- Group E: analyses, reports, projections ------------------------------------------------------------------
+    @app.get('/console/analyses', response_class=HTMLResponse)
+    async def analyses_page(request: Request):
+        def fn(db, p):
+            p.require('knowledge:read')
+            return render(request, 'analyses.html', principal=p, analyses=svc.analyses.list(db, p))
+        return await page(request, fn)
+
+    @app.post('/console/analyses', response_class=HTMLResponse)
+    async def analyses_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            blocks = [{'id': 'aim', 'type': 'text', 'heading': 'Aim', 'text': f.get('text') or 'New analysis.'}]
+            a = svc.analyses.create(db, p, f.get('name', ''), blocks, f.get('from_document') or None, f.get('from_workflow') or None, 'console')
+            return RedirectResponse('/console/analyses/' + a['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/analyses/{aid}', response_class=HTMLResponse)
+    async def analysis_page(request: Request, aid: str):
+        version = request.query_params.get('version')
+        def fn(db, p):
+            a = svc.analyses.view(db, p, aid, int(version) if version and version.isdigit() else None)
+            return render(request, 'analysis.html', principal=p, a=a, impact=None, error=None)
+        return await page(request, fn)
+
+    def _strip(blocks):
+        return [{k: v for k, v in b.items() if k not in ('status', 'stale', 'requires', 'reference', 'reference_drift')} for b in blocks]
+
+    @app.post('/console/analyses/{aid}/blocks', response_class=HTMLResponse)
+    async def analysis_add_block(request: Request, aid: str):
+        f = await form(request)
+        def fn(db, p):
+            a = svc.analyses.view(db, p, aid)
+            try:
+                fields = json.loads(f.get('fields') or '{}')
+            except ValueError:
+                return render(request, 'analysis.html', status=422, principal=p, a=a, impact=None, error='typed fields are not valid JSON')
+            if type(fields) is not dict:
+                return render(request, 'analysis.html', status=422, principal=p, a=a, impact=None, error='typed fields must be a JSON object')
+            b = dict(fields, id=f.get('id', ''), type=f.get('type', 'text'))
+            if f.get('text'):
+                b['text'] = f['text']
+            ref = (f.get('ref') or '').strip()
+            if ref:
+                kind, _, rid = ref.partition(':'); b['ref_kind'] = kind; b['ref_id'] = rid
+            deps = [d.strip() for d in (f.get('depends_on') or '').split(',') if d.strip()]
+            if deps:
+                b['depends_on'] = deps
+            try:
+                svc.analyses.revise(db, p, aid, _strip(a['blocks']) + [b], int(f.get('expected_version', '0')), 'console')
+            except ServiceError as exc:
+                return render(request, 'analysis.html', status=exc.status, principal=p, a=a, impact=None, error='refused: ' + json.dumps(exc.detail)[:400])
+            return RedirectResponse('/console/analyses/' + aid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/analyses/{aid}/freeze', response_class=HTMLResponse)
+    async def analysis_freeze_form(request: Request, aid: str):
+        f = await form(request)
+        def fn(db, p):
+            svc.analyses.freeze(db, p, aid, int(f.get('version', '0')), f.get('reason', ''))
+            return RedirectResponse('/console/analyses/' + aid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/analyses/{aid}/impact', response_class=HTMLResponse)
+    async def analysis_impact_form(request: Request, aid: str):
+        f = await form(request)
+        def fn(db, p):
+            a = svc.analyses.view(db, p, aid)
+            imp = svc.analyses.impact(db, p, aid, {'block': f.get('block', '')})
+            return render(request, 'analysis.html', principal=p, a=a, impact=imp, error=None)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/analyses/{aid}/reports', response_class=HTMLResponse)
+    async def analysis_report_form(request: Request, aid: str):
+        f = await form(request)
+        host = preloaded_generation_host(svc) if f.get('mode') == 'model' else None
+        def fn(db, p):
+            rep = svc.analyses.build_report(db, p, aid, int(f.get('version', '0')), f.get('mode', 'deterministic'), host)
+            return RedirectResponse('/console/reports/' + rep['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    def _report_ctx(db, p, rid, **extra):
+        r = svc.analyses.report(db, p, rid)
+        body = svc.analyses.report_html(db, p, rid)
+        body = body.split('<body>', 1)[-1].rsplit('</body>', 1)[0]
+        return dict(principal=p, r=r, body=body, preview=None, exported=None, values={}, **extra)
+
+    @app.get('/console/reports/{rid}', response_class=HTMLResponse)
+    async def report_page(request: Request, rid: str):
+        def fn(db, p):
+            return render(request, 'report.html', **_report_ctx(db, p, rid))
+        return await page(request, fn)
+
+    @app.post('/console/reports/{rid}/projection', response_class=HTMLResponse)
+    async def report_projection_form(request: Request, rid: str):
+        rawf = await request.form()
+        blocks = rawf.getlist('blocks')
+        f = dict(rawf); request.state.form = f
+        def fn(db, p):
+            try:
+                fields = json.loads(f.get('fields') or '{}')
+            except ValueError:
+                fields = {}
+            scope = {'blocks': blocks, 'fields': fields, 'include_quotes': bool(f.get('include_quotes')), 'include_assumption_values': bool(f.get('include_assumption_values'))}
+            pv = svc.analyses.projection_preview(db, p, rid, scope)
+            exported = None
+            if f.get('action') == 'export':
+                exported = svc.analyses.export_projection(db, p, rid, scope, acknowledge_warnings=True)
+            return render(request, 'report.html', **_report_ctx(db, p, rid, preview=pv, exported=exported, values=dict(f)))
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/notebooks', response_class=HTMLResponse)
     async def notebooks_page(request: Request):
         def fn(db, p):

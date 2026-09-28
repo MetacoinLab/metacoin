@@ -138,6 +138,8 @@ class Verification:
             db.execute('UPDATE verification_jobs SET audit_job_id=? WHERE id=?', (ajid, vid))
         from .datasets import add_edge
         add_edge(db, principal.workspace, 'job', job_id, 'verification', vid, 'audited_by')
+        if (params or {}).get('policy_id'):
+            add_edge(db, principal.workspace, 'verification_policy', params['policy_id'], 'verification', vid, 'used_input')
         history.record(db, principal.workspace, principal.id, 'verification.requested', 'verification', vid, {'target_job_id': job_id, 'class': cls, 'params': pv['params'], 'challenge': bool(challenge)})
         return self.view(db, principal, vid)
 

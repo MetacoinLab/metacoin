@@ -242,7 +242,7 @@ class Workflows:
             history.record(db, principal.workspace, principal.id, 'contract.created', 'workflow_definition', new_id, {'instantiated_from': wid, 'slots': sorted(values), 'digest': digest})
         return dict(self.definition_view(self.get_definition(db, principal, new_id)), template_id=wid, values=values, created=created)
 
-    def start_run(self, db, principal, wid, bindings=None, budget_ceiling=None, preview=False):
+    def start_run(self, db, principal, wid, bindings=None, budget_ceiling=None, preview=False, reuse_nodes=None):
         principal.require('job:submit')
         drow = self.get_definition(db, principal, wid)
         definition = merkle.parse(drow['definition_json'])
@@ -252,6 +252,9 @@ class Workflows:
         bindings = bindings or {}
         if type(bindings) is not dict or not all(type(k) is str and type(v) is str for k, v in bindings.items()):
             raise ServiceError('VALIDATION', 'bindings must map slot names to dataset version ids')
+        reuse_nodes = sorted(set(reuse_nodes or []))
+        if not all(type(x) is str and any(n['id'] == x for n in definition['nodes']) for x in reuse_nodes):
+            raise ServiceError('VALIDATION', {'code': 'reuse_nodes', 'detail': 'node ids of this definition'})
         for n in definition['nodes']:
             if n['type'] == 'dataset':
                 vid = n.get('dataset_version_id') or bindings.get(n.get('bind'))
@@ -278,7 +281,7 @@ class Workflows:
             if 'budget' in n:
                 budgets.create_child(db, principal.workspace, parent, 'workflow_node', rid + '/' + n['id'], n['budget'])
         db.execute('INSERT INTO workflow_runs VALUES (?,?,?,?,?,?,?,?,?,0,?,?,NULL)',
-                   (rid, principal.workspace, wid, principal.id, 'created', budget_ceiling, json.dumps(bindings), json.dumps(est), None, now(), now()))
+                   (rid, principal.workspace, wid, principal.id, 'created', budget_ceiling, json.dumps(bindings), json.dumps(dict(est, reuse_nodes=reuse_nodes)), None, now(), now()))
         for n in definition['nodes']:
             db.execute('INSERT INTO workflow_nodes (run_id, node_id, type, state, attempts, updated_at) VALUES (?,?,?,?,0,?)', (rid, n['id'], n['type'], 'pending', now()))
         history.record(db, principal.workspace, principal.id, 'job.queued', 'workflow_run', rid, {'definition_id': wid, 'digest': drow['digest']})
@@ -403,7 +406,7 @@ class Workflows:
         amount = json.loads(db.execute('SELECT policy_json FROM contracts WHERE id=?', (cid,)).fetchone()['policy_json']).get('amount', 0)
         bnode = budgets.node_for(db, 'workflow_node', run['id'] + '/' + nid) or budgets.node_for(db, 'workflow_run', run['id']) or budgets.root(db, run['workspace'])
         budgets.reserve(db, run['workspace'], bnode['id'], amount, 'workflow_node', run['id'] + '/' + nid)     # refuses atomically before any job exists
-        jid = self.jobs.submit(db, owner, cid)
+        jid = self.jobs.submit(db, owner, cid, reuse=nid in (json.loads(run['estimate_json']).get('reuse_nodes') or []))
         db.execute("UPDATE workflow_nodes SET state='queued', job_id=?, contract_id=?, attempts=attempts+1, binding_json=?, updated_at=? WHERE run_id=? AND node_id=?",
                    (jid, cid, json.dumps({'upstream': binding, 'contract_digest': db.execute('SELECT contract_digest FROM contracts WHERE id=?', (cid,)).fetchone()[0]}),
                     now(), run['id'], nid))

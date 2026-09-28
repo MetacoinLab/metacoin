@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'resource-plan', 'plan-view', 'plan-freeze', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'resource-plan', 'plan-view', 'plan-freeze', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export', 'analysis-create', 'analyses', 'analysis', 'analysis-revise', 'analysis-freeze', 'analysis-impact', 'analysis-regenerate', 'analysis-report', 'report', 'report-projection', 'projection-verify'}
 
 
 def wait_job(go, job_id, timeout):
@@ -246,6 +246,36 @@ def expansion(args, go):
         return go('POST', '/api/v1/notebooks/' + args.notebook_id + '/versions', {'blocks': spec['blocks'], 'note': args.note or spec.get('note', '')})
     if c == 'notebook-compare':
         return go('GET', '/api/v1/notebooks/%s/compare/%d/%d' % (args.notebook_id, args.a, args.b))
+    if c == 'analysis-create':
+        spec = json.load(open(args.file)) if args.file else {}
+        return go('POST', '/api/v1/analyses', {'name': args.name or spec.get('name'), 'blocks': spec.get('blocks', []), 'from_document': args.from_document, 'from_workflow': args.from_workflow, 'note': spec.get('note', '')})
+    if c == 'analyses':
+        return go('GET', '/api/v1/analyses')
+    if c == 'analysis':
+        return go('GET', '/api/v1/analyses/' + args.analysis_id + ('?version=%d' % args.version if args.version else ''))
+    if c == 'analysis-revise':
+        spec = json.load(open(args.file))
+        return go('POST', '/api/v1/analyses/' + args.analysis_id + '/revisions', {'blocks': spec['blocks'], 'expected_version': args.expected_version, 'note': args.note or spec.get('note', '')})
+    if c == 'analysis-freeze':
+        return go('POST', '/api/v1/analyses/' + args.analysis_id + '/freeze', {'version': args.version, 'reason': args.reason or ''})
+    if c == 'analysis-impact':
+        return go('POST', '/api/v1/analyses/' + args.analysis_id + '/impact', {'changed': json.loads(args.changed)})
+    if c == 'analysis-regenerate':
+        body = {'run_id': args.run_id, 'changes': json.loads(args.changes), 'budget_ceiling': args.budget_ceiling}
+        return go('POST', '/api/v1/analyses/' + args.analysis_id + ('/regeneration-plan' if args.plan_only else '/regenerate'), body)
+    if c == 'analysis-report':
+        return go('POST', '/api/v1/analyses/' + args.analysis_id + '/reports', {'version': args.version, 'mode': args.mode})
+    if c == 'report':
+        if args.bundle:
+            return go('GET', '/api/v1/reports/' + args.report_id + '/bundle')
+        return go('GET', '/api/v1/reports/' + args.report_id)
+    if c == 'report-projection':
+        scope = json.loads(args.scope) if args.scope else {}
+        if args.export:
+            return go('POST', '/api/v1/reports/' + args.report_id + '/projection', {'scope': scope, 'acknowledge_warnings': args.acknowledge_warnings})
+        return go('POST', '/api/v1/reports/' + args.report_id + '/projection/preview', {'scope': scope})
+    if c == 'projection-verify':
+        return go('POST', '/api/v1/reports/projection/verify', {'bundle': json.load(open(args.file))})
     if c == 'notebook-export':
         st, out = go('GET', '/api/v1/notebooks/' + args.notebook_id + '/export' + ('?version=%d' % args.version if args.version else ''))
         if st == 200 and args.out:
@@ -459,6 +489,17 @@ def main(argv=None):
     mbt = sub.add_parser('model-batching', help='operator settings for static generation batching (applied at the workers\' next claim)'); mbt.add_argument('--enabled', choices=('on', 'off')); mbt.add_argument('--max-sequences', dest='max_sequences', type=int); mbt.add_argument('--max-tokens', dest='max_tokens', type=int); mbt.add_argument('--wait-ms', dest='wait_ms', type=int); mbt.add_argument('--kv-budget-bytes', dest='kv_budget_bytes', type=int)
     mw = sub.add_parser('model-warmup', help='operator warmup policy: ordered revisions kept resident under a byte ceiling; --disable releases them'); mw.add_argument('--revisions'); mw.add_argument('--ceiling-bytes', type=int); mw.add_argument('--disable', action='store_true')
     cdz = sub.add_parser('calibration-design', help='rank candidate measurements (JSON file {candidates:[{features,cost,label}], objective, cost_policy, targets}) by predicted utility; nothing is executed'); cdz.add_argument('model_id'); cdz.add_argument('--file', required=True)
+    ac = sub.add_parser('analysis-create', help='structured analysis session; optional JSON file {name, blocks}; --from-document / --from-workflow seed blocks'); ac.add_argument('--file'); ac.add_argument('--name'); ac.add_argument('--from-document'); ac.add_argument('--from-workflow')
+    sub.add_parser('analyses')
+    av = sub.add_parser('analysis'); av.add_argument('analysis_id'); av.add_argument('--version', type=int)
+    ar = sub.add_parser('analysis-revise', help='new revision from a JSON file {blocks}; refused unless --expected-version is current'); ar.add_argument('analysis_id'); ar.add_argument('--file', required=True); ar.add_argument('--expected-version', type=int, required=True); ar.add_argument('--note')
+    af = sub.add_parser('analysis-freeze'); af.add_argument('analysis_id'); af.add_argument('--version', type=int, required=True); af.add_argument('--reason')
+    ai = sub.add_parser('analysis-impact', help='impact of a change: --changed \'{"block": "assumptions"}\' or \'{"object_type": "knowledge_document_version", "object_id": "..."}\''); ai.add_argument('analysis_id'); ai.add_argument('--changed', required=True)
+    ag = sub.add_parser('analysis-regenerate', help='plan (or start) a selective regeneration of a workflow run: --changes \'{"node": {"field": value}}\''); ag.add_argument('analysis_id'); ag.add_argument('--run-id', required=True); ag.add_argument('--changes', required=True); ag.add_argument('--budget-ceiling', type=int); ag.add_argument('--plan-only', action='store_true')
+    arp = sub.add_parser('analysis-report', help='build an evidence-linked report from a frozen revision'); arp.add_argument('analysis_id'); arp.add_argument('--version', type=int, required=True); arp.add_argument('--mode', choices=('deterministic', 'model'), default='deterministic')
+    rp2 = sub.add_parser('report'); rp2.add_argument('report_id'); rp2.add_argument('--bundle', action='store_true', help='Markdown + HTML + manifest bundle with per-file digests')
+    rpj = sub.add_parser('report-projection', help='preview (default) or --export a signed disclosure projection; --scope JSON {blocks, fields, include_quotes, include_assumption_values}'); rpj.add_argument('report_id'); rpj.add_argument('--scope'); rpj.add_argument('--export', action='store_true'); rpj.add_argument('--acknowledge-warnings', action='store_true')
+    pvf = sub.add_parser('projection-verify'); pvf.add_argument('--file', required=True)
     nc = sub.add_parser('notebook-create', help='private experiment notebook from a JSON file {name, note, blocks:[{id,type:text|link,...}]}; nothing is executed'); nc.add_argument('--file', required=True); nc.add_argument('--name')
     sub.add_parser('notebooks'); nv_ = sub.add_parser('notebook'); nv_.add_argument('notebook_id'); nv_.add_argument('--version', type=int)
     nvv = sub.add_parser('notebook-version', help='append an immutable version'); nvv.add_argument('notebook_id'); nvv.add_argument('--file', required=True); nvv.add_argument('--note')

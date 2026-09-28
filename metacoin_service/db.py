@@ -367,6 +367,15 @@ MIGRATIONS = [
     CREATE TABLE agent_intents (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, principal_id TEXT NOT NULL, request_sha256 TEXT NOT NULL, request_json TEXT NOT NULL, intent_json TEXT NOT NULL, state TEXT NOT NULL,
         continuation_token TEXT, plan_id TEXT, attempts INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     """),
+    ('029_analyses', """
+    CREATE TABLE analyses (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, notebook_id TEXT NOT NULL REFERENCES notebooks(id), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE analysis_versions (analysis_id TEXT NOT NULL REFERENCES analyses(id), version INTEGER NOT NULL, stale_json TEXT NOT NULL, changed_json TEXT NOT NULL, frozen_at INTEGER, frozen_by TEXT, freeze_reason TEXT,
+        created_by TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (analysis_id, version));
+    CREATE TABLE analysis_reports (id TEXT PRIMARY KEY, analysis_id TEXT NOT NULL REFERENCES analyses(id), workspace TEXT NOT NULL, version INTEGER NOT NULL, mode TEXT NOT NULL, digest TEXT NOT NULL, markdown TEXT NOT NULL,
+        html TEXT NOT NULL, manifest_json TEXT NOT NULL, flags_json TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE analysis_projections (id TEXT PRIMARY KEY, report_id TEXT NOT NULL REFERENCES analysis_reports(id), workspace TEXT NOT NULL, scope_json TEXT NOT NULL, digest TEXT NOT NULL, bundle_json TEXT NOT NULL,
+        created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+    """),
 ]
 
 

@@ -60,6 +60,8 @@ class Services:
         self.approvals = Approvals(settings, self)
         self.evaluation = Evaluation(settings, self)
         self.notebooks = Notebooks(settings, self)
+        from .analyses import Analyses
+        self.analyses = Analyses(settings, self)
         self.planner = Planner(settings, self)
         self.intents = Intents(settings, self)
         self.bundles = Bundles(settings, self)
@@ -2038,6 +2040,93 @@ def create_app(settings):
     @app.get(API + '/notebooks/{nid}/export')
     async def nb_export(request: Request, nid: str, version: int = None):
         return await run(request, True, lambda db, p: svc.notebooks.export(db, p, nid, version))
+
+    # ---- Group E: analysis sessions, impact, regeneration, reports, projections ----------------------------------
+    @app.post(API + '/analyses', status_code=201)
+    async def analysis_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.analyses.create(db, p, body.get('name'), body.get('blocks'), body.get('from_document'), body.get('from_workflow'), body.get('note', '')), 201), 'analysis.create', raw)
+
+    @app.get(API + '/analyses')
+    async def analysis_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.analyses.list(db, p)})
+
+    @app.get(API + '/analyses/{aid}')
+    async def analysis_view(request: Request, aid: str, version: int = None):
+        return await run(request, False, lambda db, p: svc.analyses.view(db, p, aid, version))
+
+    @app.post(API + '/analyses/{aid}/revisions', status_code=201)
+    async def analysis_revise(request: Request, aid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.analyses.revise(db, p, aid, body.get('blocks'), body.get('expected_version'), body.get('note', '')), 201), 'analysis.revise', raw)
+
+    @app.post(API + '/analyses/{aid}/freeze')
+    async def analysis_freeze(request: Request, aid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.analyses.freeze(db, p, aid, body.get('version'), body.get('reason', '')), 'analysis.freeze', raw)
+
+    @app.post(API + '/analyses/{aid}/impact')
+    async def analysis_impact(request: Request, aid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.analyses.impact(db, p, aid, body.get('changed'), body.get('version')))
+
+    @app.post(API + '/analyses/{aid}/regeneration-plan')
+    async def analysis_regeneration_plan(request: Request, aid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.analyses.regeneration_plan(db, p, aid, body.get('run_id'), body.get('changes'), body.get('budget_ceiling')))
+
+    @app.post(API + '/analyses/{aid}/regenerate', status_code=202)
+    async def analysis_regenerate(request: Request, aid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.analyses.regenerate(db, p, aid, body.get('run_id'), body.get('changes'), body.get('budget_ceiling'), body.get('note', '')), 202), 'analysis.regenerate', raw)
+
+    @app.post(API + '/analyses/{aid}/reports', status_code=201)
+    async def analysis_report_build(request: Request, aid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        host = preloaded_generation_host(svc) if body.get('mode') == 'model' else None
+        return await run(request, True, lambda db, p: (svc.analyses.build_report(db, p, aid, body.get('version'), body.get('mode', 'deterministic'), host), 201), 'analysis.report', raw)
+
+    @app.get(API + '/reports/{rid}')
+    async def report_view(request: Request, rid: str):
+        return await run(request, False, lambda db, p: svc.analyses.report(db, p, rid))
+
+    @app.get(API + '/reports/{rid}/html')
+    async def report_html(request: Request, rid: str):
+        def do():
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                return svc.analyses.report_html(db, p, rid)
+        text = await run_in_threadpool(do)
+        return Response(content=text, media_type='text/html; charset=utf-8', headers=dict(SENSITIVE_HEADERS, **{'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'"}))
+
+    @app.get(API + '/reports/{rid}/bundle')
+    async def report_bundle(request: Request, rid: str):
+        return await run(request, True, lambda db, p: svc.analyses.report_bundle(db, p, rid))
+
+    @app.post(API + '/reports/{rid}/projection/preview')
+    async def report_projection_preview(request: Request, rid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.analyses.projection_preview(db, p, rid, body.get('scope')))
+
+    @app.post(API + '/reports/{rid}/projection', status_code=201)
+    async def report_projection_export(request: Request, rid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.analyses.export_projection(db, p, rid, body.get('scope'), bool(body.get('acknowledge_warnings'))), 201), 'analysis.projection', raw)
+
+    @app.post(API + '/reports/projection/verify')
+    async def report_projection_verify(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.analyses.verify_projection(db, body.get('bundle')))
 
     # ---- usage statements -----------------------------------------------------------------------------------
     @app.get(API + '/statements')
