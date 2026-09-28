@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'resource-plan', 'plan-view', 'plan-freeze', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export', 'analysis-create', 'analyses', 'analysis', 'analysis-revise', 'analysis-freeze', 'analysis-impact', 'analysis-regenerate', 'analysis-report', 'report', 'report-projection', 'projection-verify'}
+                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'resource-plan', 'plan-view', 'plan-freeze', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export', 'analysis-create', 'analyses', 'analysis', 'analysis-revise', 'analysis-freeze', 'analysis-impact', 'analysis-regenerate', 'analysis-report', 'report', 'report-projection', 'projection-verify', 'package-create', 'packages', 'package', 'package-compat', 'package-import', 'package-export', 'package-instantiate', 'package-quote', 'package-run', 'package-runs', 'package-run', 'package-retry', 'package-bundle', 'package-retire'}
 
 
 def wait_job(go, job_id, timeout):
@@ -306,6 +306,48 @@ def expansion(args, go):
         if args.action == 'rotate' and st == 200:
             out = {'node_id': out['node_id'], 'note': 'new credential returned by the API; not printed. Re-run node-enroll for a fresh identity file, or read the API response programmatically.'}
         return st, out
+    if c == 'package-create':
+        return go('POST', '/api/v1/packages', json.load(open(args.file)))
+    if c == 'packages':
+        return go('GET', '/api/v1/packages')
+    if c == 'package':
+        return go('GET', '/api/v1/packages/' + args.package_id)
+    if c == 'package-compat':
+        body = {'manifest': json.load(open(args.file))} if args.file else {'package_id': args.package_id}
+        if args.device_policy:
+            body['device_policy'] = args.device_policy
+        return go('POST', '/api/v1/packages/compatibility', body)
+    if c == 'package-import':
+        return go('POST', '/api/v1/packages/import', {'manifest': json.load(open(args.file)), 'apply': args.apply})
+    if c == 'package-export':
+        st, out = go('GET', '/api/v1/packages/' + args.package_id + '/export' + ('' if args.example else '?example=0'))
+        if st == 200 and args.out:
+            Path(args.out).write_text(json.dumps(out, indent=1))
+        return st, out
+    if c == 'package-instantiate':
+        spec = json.load(open(args.file)) if args.file else {}
+        return go('POST', '/api/v1/packages/' + args.package_id + '/instantiate', {'values': spec.get('values'), 'inputs': spec.get('inputs'), 'name': args.name})
+    if c == 'package-quote':
+        return go('POST', '/api/v1/packages/' + args.package_id + '/quote', {'workflow_id': args.workflow_id, 'scheme': args.scheme})
+    if c == 'package-run':
+        if args.quote_id:
+            return go('POST', '/api/v1/packages/' + args.package_id + '/runs', {'quote_id': args.quote_id, 'budget_ceiling': args.budget_ceiling})
+        return go('GET', '/api/v1/packages/runs/' + args.package_id)
+    if c == 'package-runs':
+        return go('GET', '/api/v1/packages/runs')
+    if c == 'package-retry':
+        return go('POST', '/api/v1/packages/runs/' + args.run_id + '/retry', {})
+    if c == 'package-bundle':
+        st, out = go('POST', '/api/v1/packages/runs/' + args.run_id + '/bundle', {'scope': json.loads(args.scope) if args.scope else None})
+        if st == 200 and args.out:
+            import base64
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(base64.b64decode(out['zip_base64']))
+            out = {'written': args.out, 'zip_sha256': out['zip_sha256'], 'bytes': out['bytes'], 'verify': out['verify']}
+        return st, out
+    if c == 'package-retire':
+        return go('POST', '/api/v1/packages/' + args.package_id + '/retire', {})
     if c == 'bundle-export':
         st, out = go('POST', '/api/v1/bundles/export', {'name': args.name, 'services': args.services.split(',') if args.services else None, 'models': args.models.split(',') if args.models else [], 'verification_policies': args.policies.split(',') if args.policies else []})
         if st == 200 and args.out:
@@ -508,6 +550,17 @@ def main(argv=None):
     ec = sub.add_parser('eval-compare'); ec.add_argument('run_a'); ec.add_argument('run_b'); eg = sub.add_parser('eval-gate', help='require a passing scored run of this suite before promotion (empty clears)'); eg.add_argument('--suite-id', default='')
     ne = sub.add_parser('node-enroll', help='generate a node keypair, enroll it, and write a private identity file'); ne.add_argument('--name', required=True); ne.add_argument('--out', required=True); ne.add_argument('--devices', default='cpu'); ne.add_argument('--capabilities')
     sub.add_parser('nodes'); nv = sub.add_parser('node'); nv.add_argument('node_id'); na = sub.add_parser('node-action'); na.add_argument('node_id'); na.add_argument('action', choices=('drain', 'enable', 'disable', 'revoke', 'rotate')); na.add_argument('--reason', default='')
+    pc = sub.add_parser('package-create', help='versioned workflow package from a JSON body {name, workflow_id, description, required_models, delivery_policy, example, disclosure_defaults}'); pc.add_argument('--file', required=True)
+    sub.add_parser('packages'); pv2 = sub.add_parser('package'); pv2.add_argument('package_id')
+    pcm = sub.add_parser('package-compat', help='structured compatibility report (nothing reserved/started/downloaded)'); pcm.add_argument('--package-id'); pcm.add_argument('--file'); pcm.add_argument('--device-policy')
+    pim = sub.add_parser('package-import', help='check (default) or --apply install a package manifest file'); pim.add_argument('--file', required=True); pim.add_argument('--apply', action='store_true')
+    pex = sub.add_parser('package-export'); pex.add_argument('package_id'); pex.add_argument('--out'); pex.add_argument('--example', action='store_true', help='include the synthetic example')
+    pin = sub.add_parser('package-instantiate', help='concrete workflow from a package: JSON file {values, inputs:{node: inputs}}'); pin.add_argument('package_id'); pin.add_argument('--file'); pin.add_argument('--name')
+    pq = sub.add_parser('package-quote', help='composite quote over an instantiated definition'); pq.add_argument('package_id'); pq.add_argument('--workflow-id', required=True); pq.add_argument('--scheme', choices=('exact', 'upto'), default='exact')
+    prn = sub.add_parser('package-run', help='start a run under a composite quote (--quote-id) or view a package run by id'); prn.add_argument('package_id'); prn.add_argument('--quote-id'); prn.add_argument('--budget-ceiling', type=int)
+    sub.add_parser('package-runs'); prt = sub.add_parser('package-retry'); prt.add_argument('run_id')
+    pb = sub.add_parser('package-bundle', help='signed result bundle of a delivered package run'); pb.add_argument('run_id'); pb.add_argument('--scope'); pb.add_argument('--out')
+    pre = sub.add_parser('package-retire'); pre.add_argument('package_id')
     be = sub.add_parser('bundle-export', help='portable data-only bundle: services, pinned model identities, verification templates, approval/warmup policies'); be.add_argument('--name', required=True); be.add_argument('--services'); be.add_argument('--models'); be.add_argument('--policies'); be.add_argument('--out')
     bc = sub.add_parser('bundle-check', help='compatibility check of a bundle against this instance (nothing changes)'); bc.add_argument('--file', required=True)
     bi = sub.add_parser('bundle-import', help='import compatible items (no promotion, load, grant or execution); --apply performs it, otherwise a dry run'); bi.add_argument('--file', required=True); bi.add_argument('--apply', action='store_true')

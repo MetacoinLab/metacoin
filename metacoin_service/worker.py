@@ -270,7 +270,7 @@ class Worker:
             svc = getattr(self, '_svc', None) or Services(self.settings)
             self._svc = svc
             with self.db.tx() as db:
-                advanced = svc.workflows.advance_all(db) + svc.campaigns.tick_all(db) + svc.schedules.tick(db)
+                advanced = svc.workflows.advance_all(db) + svc.campaigns.tick_all(db) + svc.schedules.tick(db) + svc.packages.tick_all(db)
                 ticked = svc.verification.tick(db)
                 return advanced + ([{'verification_finalized': ticked}] if ticked else [])
         except Exception:

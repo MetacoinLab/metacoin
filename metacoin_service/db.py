@@ -376,6 +376,15 @@ MIGRATIONS = [
     CREATE TABLE analysis_projections (id TEXT PRIMARY KEY, report_id TEXT NOT NULL REFERENCES analysis_reports(id), workspace TEXT NOT NULL, scope_json TEXT NOT NULL, digest TEXT NOT NULL, bundle_json TEXT NOT NULL,
         created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     """),
+    ('030_packages', """
+    CREATE TABLE packages (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, digest TEXT NOT NULL, manifest_json TEXT NOT NULL, state TEXT NOT NULL, created_by TEXT NOT NULL,
+        created_at INTEGER NOT NULL, retired_at INTEGER, UNIQUE (workspace, name, version));
+    CREATE TABLE package_quotes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, package_id TEXT NOT NULL REFERENCES packages(id), workflow_id TEXT NOT NULL, principal_id TEXT NOT NULL, scheme TEXT NOT NULL, digest TEXT NOT NULL,
+        binding_json TEXT NOT NULL, components_json TEXT NOT NULL, amount_max INTEGER NOT NULL, fixed_amount INTEGER NOT NULL, metered_amount INTEGER NOT NULL, expires_at INTEGER NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, consumed_at INTEGER);
+    CREATE TABLE package_runs (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, package_id TEXT NOT NULL REFERENCES packages(id), kind TEXT NOT NULL, run_id TEXT, job_id TEXT, quote_id TEXT, state TEXT NOT NULL, attempt INTEGER NOT NULL DEFAULT 1,
+        delivery_json TEXT NOT NULL, verification_json TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX package_runs_job ON package_runs(job_id);
+    """),
 ]
 
 

@@ -238,6 +238,10 @@ class Verification:
                 return vrow, {'outcome': 'failed', 'checked': 0, 'total': 0, 'checks': [{'check': 'output_commitment', 'ok': False, 'detail': {'files': bad}}],
                               'statement': 'stored outputs do not match the committed output digests: the result was altered after commitment'}, target, tcontract
         result = audit(kind, cls, tinputs, files, values['result'], params, challenge, run)
+        fault = db.execute("SELECT value FROM meta WHERE key=?", ('fault:verification_fail:' + target['id'],)).fetchone() if self.settings.limits.get('test_hooks') else None
+        if fault is not None:
+            result = {'outcome': 'failed', 'checked': result.get('checked', 0), 'total': result.get('total', 0), 'checks': result.get('checks', []) + [{'check': 'fault_injection', 'ok': False, 'detail': 'FAULT INJECTED (test hook): forced verification failure'}],
+                      'statement': 'FAULT INJECTED (test hook, disposable instance): the verification outcome was forced to failed; not evidence about the result'}
         return vrow, result, target, tcontract
 
     def finish_audit(self, db, vrow, result, target, tcontract):

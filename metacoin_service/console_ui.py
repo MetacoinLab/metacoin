@@ -652,6 +652,72 @@ def mount(app, svc):
             return RedirectResponse('/console/documents/tables/' + m['table_id'], status_code=303)
         return await page(request, fn, mutating=True)
 
+    # ---- Group F: packages --------------------------------------------------------------------------------------------
+    @app.get('/console/packages', response_class=HTMLResponse)
+    async def packages_page(request: Request):
+        def fn(db, p):
+            p.require('contract:read')
+            defs = [svc.workflows.definition_view(r) for r in db.execute('SELECT * FROM workflow_definitions WHERE workspace=? ORDER BY created_at DESC LIMIT 50', (p.workspace,)).fetchall()]
+            return render(request, 'packages.html', principal=p, packages=svc.packages.list(db, p), definitions=defs)
+        return await page(request, fn)
+
+    @app.post('/console/packages', response_class=HTMLResponse)
+    async def packages_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            body = {'name': f.get('name', ''), 'workflow_id': f.get('workflow_id'), 'description': f.get('description', ''), 'delivery_policy': ({'gate': 'required_verification', 'required_class': f['required_class']} if f.get('required_class') else {'gate': 'none'})}
+            out = svc.packages.create(db, p, body)
+            return RedirectResponse('/console/packages/' + out['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    def _package_ctx(db, p, pid, **extra):
+        pk = svc.packages.view(db, p, pid)
+        runs = svc.packages.list_runs(db, p, pid)
+        return dict(principal=p, p=pk, runs=runs, compat=None, quote=None, values={}, error=None, **extra)
+
+    @app.get('/console/packages/{pid}', response_class=HTMLResponse)
+    async def package_page(request: Request, pid: str):
+        def fn(db, p):
+            return render(request, 'package.html', **_package_ctx(db, p, pid))
+        return await page(request, fn)
+
+    @app.post('/console/packages/{pid}/compatibility', response_class=HTMLResponse)
+    async def package_compat_form(request: Request, pid: str):
+        f = await form(request)
+        def fn(db, p):
+            pk = svc.packages.view(db, p, pid)
+            compat = svc.packages.compatibility(db, p, pk['manifest'], f.get('device_policy') or None)
+            return render(request, 'package.html', **_package_ctx(db, p, pid, compat=compat))
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/packages/{pid}/instantiate', response_class=HTMLResponse)
+    async def package_instantiate_form(request: Request, pid: str):
+        f = await form(request)
+        def fn(db, p):
+            if f.get('action') == 'run' and f.get('quote_id'):
+                out = svc.packages.start_run(db, p, pid, f['quote_id'])
+                return RedirectResponse('/console/packages/' + pid, status_code=303)
+            try:
+                spec = json.loads(f.get('inputs') or '{}')
+            except ValueError:
+                return render(request, 'package.html', status=422, **_package_ctx(db, p, pid, error='inputs are not valid JSON', values=dict(f)))
+            values = spec.pop('values', None) if isinstance(spec, dict) else None
+            try:
+                inst = svc.packages.instantiate(db, p, pid, values, spec if isinstance(spec, dict) else {})
+                quote = svc.packages.quote(db, p, pid, inst['workflow_id'], f.get('scheme', 'exact'))
+            except ServiceError as exc:
+                return render(request, 'package.html', status=exc.status, **_package_ctx(db, p, pid, error='refused: ' + json.dumps(exc.detail)[:400], values=dict(f)))
+            return render(request, 'package.html', **_package_ctx(db, p, pid, quote=quote, values=dict(f)))
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/packages/runs/{rid}/retry', response_class=HTMLResponse)
+    async def package_retry_form(request: Request, rid: str):
+        await form(request)
+        def fn(db, p):
+            out = svc.packages.retry(db, p, rid)
+            return RedirectResponse('/console/packages/' + out['package_id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
     # ---- Group E: analyses, reports, projections ------------------------------------------------------------------
     @app.get('/console/analyses', response_class=HTMLResponse)
     async def analyses_page(request: Request):

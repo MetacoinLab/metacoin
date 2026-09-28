@@ -220,6 +220,21 @@ def build(api=None):
         s, b = api.call('GET', '/api/v1/verification/' + verification_id)
         return ok_or_refused(s, b)
 
+    @mcp.tool(name='package_compatibility', description='Deterministic compatibility report of a workflow package (by package id or a manifest document) against this workspace: per requirement supported_as_requested / supported_via_declared_equivalent / missing_optional_enhancement / blocked_required_dependency. Reserves, starts and downloads nothing.', annotations=READ)
+    def package_compatibility(package_id: str | None = None, manifest: dict | None = None, device_policy: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/packages/compatibility', {'package_id': package_id, 'manifest': manifest, 'device_policy': device_policy})
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='package_quote', description='Composite quote (fixed and metered components, ceilings, expiry, bound digests) for an instantiated package workflow. Persists a quote; nothing is charged or started.', annotations=CREATE)
+    def package_quote(package_id: str, workflow_id: str, scheme: str = 'exact') -> dict:
+        s, b = api.call('POST', '/api/v1/packages/' + package_id + '/quote', {'workflow_id': workflow_id, 'scheme': scheme})
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='package_run_status', description='A package run: execution state, delivery gate state (awaiting_verification / delivered / unaccepted), verification records and settlement (for metered runs).', annotations=READ)
+    def package_run_status(package_run_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/packages/runs/' + package_run_id)
+        return ok_or_refused(s, b)
+
     @mcp.tool(name='list_models', description='Registered local model revisions with installation and readiness facts.', annotations=READ)
     def list_models() -> dict:
         s, b = api.call('GET', '/api/v1/models')

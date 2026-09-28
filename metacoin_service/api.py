@@ -67,6 +67,9 @@ class Services:
         self.bundles = Bundles(settings, self)
         self.documents = Documents(settings, self)
         self.disagreements = Disagreements(settings, self)
+        from .packages import Packages
+        self.packages = Packages(settings, self)
+        self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
             self.catalog.populate(db)
@@ -2040,6 +2043,123 @@ def create_app(settings):
     @app.get(API + '/notebooks/{nid}/export')
     async def nb_export(request: Request, nid: str, version: int = None):
         return await run(request, True, lambda db, p: svc.notebooks.export(db, p, nid, version))
+
+    # ---- Group F: workflow packages, compatibility, composite quotes, gated runs, result bundles ------------------
+    @app.post(API + '/packages', status_code=201)
+    async def package_create(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.packages.create(db, p, body), 201), 'package.create', raw)
+
+    @app.get(API + '/packages')
+    async def package_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.packages.list(db, p)})
+
+    @app.post(API + '/packages/compatibility')
+    async def package_compat(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            manifest = body.get('manifest') or (svc.packages.view(db, p, body['package_id'])['manifest'] if body.get('package_id') else None)
+            return svc.packages.compatibility(db, p, manifest, body.get('device_policy'))
+        return await run(request, False, fn)
+
+    @app.post(API + '/packages/import', status_code=201)
+    async def package_import(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.packages.import_manifest(db, p, (body.get('manifest') or {}).get('package') or body.get('manifest'), bool(body.get('apply'))), 201 if body.get('apply') else 200), 'package.import', raw)
+
+    @app.get(API + '/packages/runs')
+    async def package_runs_all(request: Request):
+        return await run(request, True, lambda db, p: {'items': svc.packages.list_runs(db, p)})
+
+    @app.get(API + '/packages/runs/{rid}')
+    async def package_run_view(request: Request, rid: str):
+        return await run(request, True, lambda db, p: svc.packages.run_view(db, p, rid))
+
+    @app.post(API + '/packages/runs/{rid}/retry', status_code=202)
+    async def package_run_retry(request: Request, rid: str):
+        raw = await request.body()
+        return await run(request, True, lambda db, p: (svc.packages.retry(db, p, rid), 202), 'package.retry', raw)
+
+    @app.post(API + '/packages/runs/{rid}/bundle')
+    async def package_run_bundle(request: Request, rid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.packages.result_bundle_json(db, p, rid, body.get('scope')), 'package.bundle', raw)
+
+    @app.get(API + '/packages/runs/{rid}/bundle.zip')
+    async def package_run_bundle_zip(request: Request, rid: str):
+        def do():
+            with svc.db.tx() as db:
+                p = principal_of(request, db, True)
+                data, manifest = svc.packages.result_bundle(db, p, rid, None)
+                return data
+        data = await run_in_threadpool(do)
+        return Response(content=data, media_type='application/zip', headers=dict(SENSITIVE_HEADERS, **{'Content-Disposition': 'attachment; filename="result-bundle-' + rid + '.zip"', 'Cache-Control': 'private, no-store'}))
+
+    @app.get(API + '/packages/{pid}')
+    async def package_view(request: Request, pid: str):
+        return await run(request, False, lambda db, p: svc.packages.view(db, p, pid))
+
+    @app.post(API + '/packages/{pid}/retire')
+    async def package_retire(request: Request, pid: str):
+        raw = await request.body()
+        return await run(request, True, lambda db, p: svc.packages.retire(db, p, pid), 'package.retire', raw)
+
+    @app.get(API + '/packages/{pid}/export')
+    async def package_export(request: Request, pid: str):
+        return await run(request, True, lambda db, p: svc.packages.export(db, p, pid, request.query_params.get('example', '1') == '1'))
+
+    @app.post(API + '/packages/{pid}/instantiate', status_code=201)
+    async def package_instantiate(request: Request, pid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.packages.instantiate(db, p, pid, body.get('values'), body.get('inputs'), body.get('name')), 201), 'package.instantiate', raw)
+
+    @app.post(API + '/packages/{pid}/quote', status_code=201)
+    async def package_quote(request: Request, pid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.packages.quote(db, p, pid, body.get('workflow_id'), body.get('scheme', 'exact')), 201), 'package.quote', raw)
+
+    @app.get(API + '/packages/quotes/{qid}')
+    async def package_quote_view(request: Request, qid: str):
+        return await run(request, False, lambda db, p: svc.packages.quote_view(db, p, qid))
+
+    @app.post(API + '/packages/{pid}/runs', status_code=202)
+    async def package_run_start(request: Request, pid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.packages.start_run(db, p, pid, body.get('quote_id'), body.get('budget_ceiling')), 202), 'package.run', raw)
+
+    @app.post(API + '/packages/{pid}/bind-job', status_code=201)
+    async def package_bind_job(request: Request, pid: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.packages.bind_metered_job(db, p, pid, body.get('job_id')), 201), 'package.bind', raw)
+
+    @app.post(API + '/ops/faults')
+    async def ops_faults(request: Request):
+        """Fault injection for disposable test instances only: refused unless the instance was started with limits.test_hooks and
+        the caller holds admin:credentials. Never enabled by configuration files or environment in normal operation."""
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('admin:credentials')
+            if not settings.limits.get('test_hooks'):
+                raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'test_hooks_disabled'})
+            if body.get('fault') != 'verification_fail' or type(body.get('job_id')) is not str:
+                raise ServiceError('VALIDATION', {'code': 'fault', 'allowed': ['verification_fail'], 'fields': ['job_id']})
+            key = 'fault:verification_fail:' + body['job_id']
+            if body.get('clear'):
+                db.execute('DELETE FROM meta WHERE key=?', (key,))
+            else:
+                db.execute('INSERT OR REPLACE INTO meta VALUES (?, ?)', (key, json.dumps({'by': p.id, 'at': now()})))
+            history.record(db, p.workspace, p.id, 'ops.fault', 'job', body['job_id'], {'fault': 'verification_fail', 'cleared': bool(body.get('clear'))})
+            return {'fault': 'verification_fail', 'job_id': body['job_id'], 'active': not body.get('clear'), 'scope': 'this disposable instance only'}
+        return await run(request, True, fn, 'ops.fault', raw)
 
     # ---- Group E: analysis sessions, impact, regeneration, reports, projections ----------------------------------
     @app.post(API + '/analyses', status_code=201)

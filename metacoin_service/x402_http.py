@@ -495,6 +495,15 @@ class SaleService:
             db.execute("UPDATE metered_settlements SET state='AUTHORIZATION_UNUSED', error=?, updated_at=? WHERE payment_id=?", ('job ' + job['state'] + (': ' + job['error_code'] if job['error_code'] else ''), now(), payment_id))
             history.record(db, principal.workspace, principal.id, 'sale.failed', 'job', job['id'], {'payment_id': payment_id, 'scheme': 'upto', 'unused': True, 'job_state': job['state']})
             return self.settlement_view(db.execute('SELECT * FROM metered_settlements WHERE payment_id=?', (payment_id,)).fetchone())
+        gate = self.delivery_gate(db, job['id']) if getattr(self, 'delivery_gate', None) else None
+        if gate is not None:
+            if gate['state'] in ('running', 'awaiting_verification'):
+                return dict(self.settlement_view(row), job_state=job['state'], delivery_gate=gate, note='withheld: the package delivery policy requires ' + str(gate['policy'].get('required_class')) + ' verification to pass before the measured amount is settled')
+            if gate['state'] in ('unaccepted', 'failed', 'cancelled'):
+                if gate['policy'].get('metered_failure_charge', 'none') == 'none':
+                    db.execute("UPDATE metered_settlements SET state='AUTHORIZATION_UNUSED', error=?, updated_at=? WHERE payment_id=?", ('package delivery ' + gate['state'] + ': verification did not pass; policy charges nothing', now(), payment_id))
+                    history.record(db, principal.workspace, principal.id, 'sale.failed', 'job', job['id'], {'payment_id': payment_id, 'scheme': 'upto', 'unused': True, 'package_delivery': gate['state']})
+                    return dict(self.settlement_view(db.execute('SELECT * FROM metered_settlements WHERE payment_id=?', (payment_id,)).fetchone()), delivery_gate=gate)
         usage = db.execute('SELECT assessed_charge, quantity FROM usage_records WHERE job_id=?', (job['id'],)).fetchone()
         if usage is None:
             return dict(self.settlement_view(row), note='usage not finalized yet')

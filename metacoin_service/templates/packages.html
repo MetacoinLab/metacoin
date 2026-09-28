@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block body %}
+<h1>Packages</h1>
+<p class="note">Versioned scientific workflow packages: reusable structure (operations, identities, verification and delivery policy, synthetic example) without private inputs. Installing stores a manifest; nothing runs or downloads. Compatibility is checked before a run; delivery is gated by the required verification.</p>
+{% if principal.can('template:write') %}<div class="card"><h2>New package from a workflow definition</h2><form method="post" action="/console/packages"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}">
+<label for="pname">name</label><input id="pname" name="name" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]*">
+<label for="pwf">workflow definition</label><select id="pwf" name="workflow_id">{% for d in definitions %}<option value="{{ d.id }}">{{ d.name }} ({{ d.id }})</option>{% endfor %}</select>
+<label for="pcls">required verification class (delivery gate)</label><select id="pcls" name="required_class"><option>full_reference</option><option>analytical</option><option>full_exact</option><option>sampled_reference</option><option value="">none (no gate)</option></select>
+<label for="pdesc">description (data)</label><textarea id="pdesc" name="description" style="min-height:60px"></textarea>
+<p><button type="submit">Create package</button></p></form></div>{% endif %}
+<div class="tablewrap"><table><tr><th>name</th><th>version</th><th>state</th><th>digest</th><th>id</th></tr>{% for p in packages %}<tr><td><a href="/console/packages/{{ p.id }}">{{ p.name }}</a></td><td>{{ p.version }}</td><td>{{ p.state }}</td><td><code>{{ p.digest[:16] }}</code></td><td><code>{{ p.id }}</code></td></tr>{% endfor %}</table></div>
+{% endblock %}
