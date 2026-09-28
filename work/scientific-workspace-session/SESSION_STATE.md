@@ -37,3 +37,9 @@ Consolidated verification at the candidate (full unit suite, journeys 1-24 with 
 (older) Group C typed intent compilation (intent.py, migration 028, clarification continuation, catalog filter, repair loop, eval set v2 with split + category metrics); then Group D.
 (older) Group B: real static generation batching in the runtime child (padded batch forward, per-row stopping, per-request cancel), batch admission in the worker with reservation accounting, streaming reconnect, usage/upto accounting, benchmark; then
 (Group A original note) Group A: migration 026 (imports/extractions/tables/annotations/mappings + knowledge_chunks page/region columns), documents package with the bounded extraction child, synthetic fixtures generator, API/console/CLI, tests.
+
+
+## Time record (authoritative: START file and git commit times, America/Edmonton)
+The "MDT" ranges written inside the Done entries above were estimates made while working and are WRONG (they drift by several hours); the commit times are the record:
+START 2026-09-28T06:23:24Z (00:23 MDT) → 00:27 baseline checkpoint (cee8a96) → 00:51 Group A (04292c6) → 01:02 Group B (71f0dd8) → 01:15 Group C (acab582) → 01:38 Group D (905441d) → 01:54 Group E (2b245c7) → 02:11 Group F (6fd67e7) → 02:39 harness/campaigns/privacy (79c9f3c) → 02:46 backlog 1 (9339241) → 03:10 backlog 2,3,4,8,9 (6846019) → 03:19 backlog 5,6,7,10 (dcc5f6e) → 03:26 records (a434618) → 03:37 candidate (955b751) → 03:49 final candidate v2 (5e19c8d).
+Elapsed at the final candidate: 3 h 26 min. The order's 24-hour budget was a ceiling, not a target; the remaining time is used for verification, the live upgrade, packaging and the report, not for padding.

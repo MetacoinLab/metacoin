@@ -1,0 +1,253 @@
+{
+ "topology": {
+  "chain_id": 131277322940537,
+  "network": "eip155:131277322940537",
+  "permit2": "0xF2E246BB76DF876Cef8b38ae84130F4F55De395b",
+  "proxy": "0xDe09E74d4888Bc4e65F589e8c13Bce9F71DdF4c7",
+  "token": "0x2946259E0334f33A064106302415aD3391BeD384",
+  "facilitator": "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF",
+  "payer": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69",
+  "recipient": "0x1efF47bc3a10a45D4B230B5d10E37751FE6AA718",
+  "pins": {
+   "x402": {
+    "url": "https://github.com/coinbase/x402.git",
+    "commit": "dd927a26cfefc98c24b3ec38b3a8f204dad0c60d"
+   },
+   "permit2": {
+    "url": "https://github.com/Uniswap/permit2.git",
+    "commit": "cc56ad0f3439c502c246fc5cfcc3db92bb8b7219"
+   },
+   "openzeppelin": {
+    "url": "https://github.com/OpenZeppelin/openzeppelin-contracts.git",
+    "commit": "69c8def5f222ff96f2b5beff05dfba996368aa79"
+   },
+   "solmate": {
+    "url": "https://github.com/transmissions11/solmate.git",
+    "commit": "89365b880c4f3c786bdd453d4b8e8fe410344a69"
+   }
+  },
+  "toolchain": {
+   "permit2": "0.8.17+commit.8df45f5f.Emscripten.clang",
+   "x402": "0.8.28+commit.7893614a.Emscripten.clang"
+  },
+  "contracts": {
+   "Permit2": {
+    "bytecode_sha256": "1e79a1b48e3a2f594169b33cc1d56394ac96fb282f980caadbe4206196dcad5c",
+    "deployed_sha256": "b0289b7e0a60525e6f2dec524c4c08bd4725c2d491479bd854377422a6194d07"
+   },
+   "x402UptoPermit2Proxy": {
+    "bytecode_sha256": "569c9da855cb0650e038d86735e4ec653b30ecd319b21a6d6d57f3bcc2c5c3d8",
+    "deployed_sha256": "a9a79538375b7be9733cca295f64f33d6317339769b9a4453d802485c42336ad"
+   },
+   "MockGenericERC20": {
+    "bytecode_sha256": "601cf7cd8493b5a225fb8e9161ba60bc4ed1f91d16499b260bf9771847663268",
+    "deployed_sha256": "7c583f9c3a576ff4bc611ddf5dbe092e9bed040979654682ec380239130a0551"
+   }
+  },
+  "note": "private py-evm chain; SDK canonical addresses redirected to these local deployments; not a public network, not production settlement"
+ },
+ "scenarios": {
+  "below_maximum": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "112692745362386878862644686613144883737289593676088006794059875624792631335400",
+   "second": "payment-verified",
+   "verify_error": null,
+   "stage": "settlement-attempted",
+   "final_amount": 640,
+   "success": true,
+   "error_reason": null,
+   "transaction": "0x9acd977176e4f3850f825f4ac9a75a763fff80f32bad0d7d234c031a234aac42",
+   "settle_response": {
+    "success": true,
+    "payer": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69",
+    "transaction": "0x9acd977176e4f3850f825f4ac9a75a763fff80f32bad0d7d234c031a234aac42",
+    "network": "eip155:131277322940537",
+    "amount": "640"
+   },
+   "balances_before": {
+    "payer": 1000000000000,
+    "recipient": 0
+   },
+   "balances_after": {
+    "payer": 999999999360,
+    "recipient": 640
+   },
+   "moved": 640,
+   "receipt": {
+    "status": 1,
+    "block": 6,
+    "gas_used": 100564,
+    "logs": 2
+   }
+  },
+  "over_maximum": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "59176593393691942873122696662281294218824005311668425062379053248047627617662",
+   "second": "payment-verified",
+   "verify_error": null,
+   "stage": "settlement-attempted",
+   "final_amount": 1500,
+   "success": false,
+   "error_reason": "invalid_upto_evm_payload_settlement_exceeds_amount",
+   "transaction": "",
+   "settle_response": {
+    "success": false,
+    "errorReason": "invalid_upto_evm_payload_settlement_exceeds_amount",
+    "payer": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69",
+    "transaction": "",
+    "network": "eip155:131277322940537"
+   },
+   "balances_before": {
+    "payer": 999999999360,
+    "recipient": 640
+   },
+   "balances_after": {
+    "payer": 999999999360,
+    "recipient": 640
+   },
+   "moved": 0
+  },
+  "wrong_recipient": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "45662110306861047455924000853679691987993554702967406019158506212271678201142",
+   "second": "payment-error",
+   "verify_error": "invalid_permit2_recipient_mismatch",
+   "stage": "refused-before-settlement"
+  },
+  "wrong_spender": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "23735506128516088511989735622476329728745700982993487206098242896532867162528",
+   "second": "payment-error",
+   "verify_error": "invalid_permit2_spender",
+   "stage": "refused-before-settlement"
+  },
+  "expired": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "32140576127703128325855317921589586185517849175404933893440388019552764583479",
+   "second": "payment-error",
+   "verify_error": "permit2_deadline_expired",
+   "stage": "refused-before-settlement"
+  },
+  "wrong_domain": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "42398168402359071662031187400421647229527956624055772460209061830975500928078",
+   "second": "payment-error",
+   "verify_error": "invalid_permit2_signature",
+   "stage": "refused-before-settlement"
+  },
+  "replay_first": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "6485087013737240767429543093233798057389831508436091998852580601389258586453",
+   "second": "payment-verified",
+   "verify_error": null,
+   "stage": "settlement-attempted",
+   "final_amount": 500,
+   "success": true,
+   "error_reason": null,
+   "transaction": "0x8afeb6dce029ac8504741f64ef638d5b413ee6574be0c25ad5ccc25db38a50e1",
+   "settle_response": {
+    "success": true,
+    "payer": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69",
+    "transaction": "0x8afeb6dce029ac8504741f64ef638d5b413ee6574be0c25ad5ccc25db38a50e1",
+    "network": "eip155:131277322940537",
+    "amount": "500"
+   },
+   "balances_before": {
+    "payer": 999999999360,
+    "recipient": 640
+   },
+   "balances_after": {
+    "payer": 999999998860,
+    "recipient": 1140
+   },
+   "moved": 500,
+   "receipt": {
+    "status": 1,
+    "block": 7,
+    "gas_used": 83476,
+    "logs": 2
+   }
+  },
+  "replay_fresh_second": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "37150113078638079110315558510856182524888056080168132709564899927275544533422",
+   "second": "payment-verified",
+   "verify_error": null,
+   "stage": "settlement-attempted",
+   "final_amount": 500,
+   "success": true,
+   "error_reason": null,
+   "transaction": "0xec3d838d67b671fbe3456833d19d57048ba7ed7a91ee1c3b9eeb992325bb9576",
+   "settle_response": {
+    "success": true,
+    "payer": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69",
+    "transaction": "0xec3d838d67b671fbe3456833d19d57048ba7ed7a91ee1c3b9eeb992325bb9576",
+    "network": "eip155:131277322940537",
+    "amount": "500"
+   },
+   "balances_before": {
+    "payer": 999999998860,
+    "recipient": 1140
+   },
+   "balances_after": {
+    "payer": 999999998360,
+    "recipient": 1640
+   },
+   "moved": 500,
+   "receipt": {
+    "status": 1,
+    "block": 8,
+    "gas_used": 83464,
+    "logs": 2
+   }
+  },
+  "replay_same_nonce": {
+   "first": "payment-error",
+   "status": 402,
+   "authorized_max": "1000",
+   "nonce": "37150113078638079110315558510856182524888056080168132709564899927275544533422",
+   "second": "payment-error",
+   "verify_error": "invalid_upto_evm_transaction_failed",
+   "stage": "refused-before-settlement"
+  },
+  "response_lost_then_retry": {
+   "first": {
+    "success": true,
+    "error_reason": null,
+    "transaction": "0x07a273503209e3f4ec6030c5be3638e7e9eba8432d33674e7f7727910af49032"
+   },
+   "second": {
+    "success": false,
+    "error_reason": "invalid_upto_evm_transaction_failed",
+    "transaction": ""
+   },
+   "receipt_wait_attempts_during_first": 2,
+   "facilitator_settle_calls": 3,
+   "moved_after_first": 700,
+   "moved_after_second": 0,
+   "total_moved": 700,
+   "observed": "the first receipt wait failed (injected); the SDK recorded settlement_pending and the resource server retried once, reconciling to the already-broadcast transaction; an explicit later retry with the same authorization fails on the consumed nonce and moves nothing"
+  }
+ },
+ "facilitator_calls": {
+  "verify": 9,
+  "settle": 4,
+  "supported": 9
+ }
+}

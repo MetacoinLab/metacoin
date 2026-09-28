@@ -121,6 +121,7 @@ class GenerationBatchingTests(unittest.TestCase):
     def test_admission_bounds_sampled_singleton_and_stale_worker(self):
         self.c.post('/api/v1/models/batching', headers=self.H, json={'enabled': True, 'max_sequences': 2})
         a, b, c = (self.gen('Reply with one word: %s' % w, max_tokens=6) for w in ('alpha', 'beta', 'gamma'))
+        time.sleep(1.05)                                                                                # created_at has second resolution: the sampled request must sort after a, b, c for the claim order to be deterministic
         s = self.gen('Reply with one word: delta', max_tokens=6, temperature_percent=50, seed=7)          # sampled: never batched
         primary, outcome = self.w.run_once(); self.assertEqual(outcome, 'succeeded')
         states = {j: self.view(j)['state'] for j in (a, b, c, s)}
