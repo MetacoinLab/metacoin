@@ -61,7 +61,9 @@ def run(p):
     page.screenshot(path=SHOTS + '/02-knowledge-search.png', full_page=True)
     st, ready = api('owner', 'GET', '/api/v1/models/runtime')
     if 'generate' in ready.get('defaults', {}):
-        page.fill('#q-' + cid, 'What is the demonstration reserve?'); page.click('button[name=mode_answer][value=extractive]'); page.wait_for_url(re.compile(r'/console/jobs/j_'))
+        t_form = time.time()
+        page.fill('#q-' + cid, 'What is the demonstration reserve?'); page.click('form[action$="/collections/' + cid + '/search"] button[name=mode_answer][value=extractive]'); page.wait_for_url(re.compile(r'/console/jobs/j_'), timeout=60000)
+        check('answer form submitted and redirected to the job page', True, 'form round trip %.1fs' % (time.time() - t_form))
         jid = page.url.rsplit('/', 1)[-1]
         for _ in range(120):
             st, j = api('owner', 'GET', '/api/v1/jobs/' + jid)
