@@ -81,3 +81,5 @@ websockets==15.0.1
 x402==2.24.0
 yarl==1.25.1
 zipp==4.1.0
+# Order 07 (2026-09-28): the API process reads report/projection PDFs for inspection (analyses.py) and the document fixtures are built with pypdf; wheel in the local cache (scideps)
+pypdf==6.1.3
