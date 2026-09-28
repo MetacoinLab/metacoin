@@ -21,6 +21,8 @@ C catalog/quotes/usage units, workflows/campaigns nodes, CLI, console Compute pa
 - delivery dir populated: test-logs (101 OK + 9 science OK + inherited all OK), journeys, benchmarks, manifests, ledger
 - browser journey4 16/16 (pause job cpu-required, 40000 steps); package v1 complete: patch vs d18e490, zip (408 files, scans clean), clean export (science 9 OK, engine+integration 11 OK, journeys 1,2,6,9 4/4), manifest; report + verification written
 - §53-1 planning (POST /campaigns/{id}/plan, campaign-plan) + §53-6 journey 13 (cpu-only interpreter venv-cpu at scratchpad; passed) committed
+- §53-4 preemption (3b6f292, migration 013, PreemptionTests); suite 102 OK; journeys 13/13 (journeys-compute-final2.json); live backup pre-migration-013-1790233774, migrated, restarted at 3b6f292 (devices cpu+cuda, gpu_verified true)
+- final package v2: patch/zip/scans/logs/clean-export/report/ledger/verification
 ## Next action
-§53-4 chunk-aware preemption (migration 013 preempted_for; engine.preempt/resume) + test; then re-package (patch/zip/logs/manifest/report) and final live restart
+order complete; open: upto scheme, calibration model (§26/§53-3), replica endpoint (§53-2), local inference (§53-5). Session end ~01:35 MDT 2026-09-24.
 (old) fix/verify console pause in journey4; write IMPLEMENTATION_REPORT + verification-results + MIGRATIONS + patch/zip/scans/clean-export/manifest; then §53 extensions (6 second worker env routing journey, 1 planning) if time (lifecycle: cuda, pause/resume, cancel, worker kill recovery, corrupted checkpoint, capacity race); fix; commit; then C: workflows/campaign nodes for compute kinds, console Compute pages, journeys (12), benchmarks, live upgrade (backup+migrate 012+restart), delivery
