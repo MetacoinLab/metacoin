@@ -102,9 +102,14 @@ def run(p):
     pk = ctx.get('package_id')
     page.goto(BASE + '/console/packages'); page.wait_for_load_state(); check('packages list renders', 'Packages' in page.content())
     if pk:
+        for _ in range(60):                                                          # the compatibility report needs a live worker for the device rows
+            st, caps = api('owner', 'GET', '/api/v1/compute/capabilities')
+            if caps.get('facts', {}).get('currently_available', {}).get('live_worker_devices'):
+                break
+            time.sleep(1)
         page.goto(BASE + '/console/packages/' + pk); page.wait_for_load_state()
         page.click('form[action$="/compatibility"] button'); page.wait_for_load_state(); html = page.content()
-        check('package compatibility report rendered from the console form', 'supported_as_requested' in html and 'nothing reserved' in html)
+        check('package compatibility report rendered from the console form', 'supported_as_requested' in html and 'nothing reserved' in html, re.sub(r'\s+', ' ', html)[:300] if 'nothing reserved' not in html else '')
         shot(page, '10-package-compat.png')
     # scenario comparison (two campaigns from the resource plan sample)
     st, s = api('owner', 'GET', '/api/v1/services')

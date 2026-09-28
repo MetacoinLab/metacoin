@@ -25,8 +25,12 @@ class EvaluationTests(unittest.TestCase):
         self.assertEqual(self.c.post('/api/v1/evaluation/suites', headers=self.H, json={'name': 'bad', 'items': [{'id': 'x', 'type': 'shell'}]}).status_code, 422)
         r = self.c.post('/api/v1/evaluation/suites/' + s['id'] + '/runs', headers=self.H, json={}).json()
         self.assertEqual((r['state'], len(r['jobs'])), ('running', 3))
-        for _ in range(3):
-            self.assertEqual(self.w.run_once()[1], 'succeeded')
+        for _ in range(3):                                   # since static generation batching, the three queued greedy items may complete in ONE claim
+            out = self.w.run_once()
+            if out is None:
+                break
+            self.assertEqual(out[1], 'succeeded')
+        self.assertEqual({self.c.get('/api/v1/jobs/' + (j['job_id'] if isinstance(j, dict) else j), headers=self.H).json()['state'] for j in (r['jobs'].values() if isinstance(r['jobs'], dict) else r['jobs'])}, {'succeeded'})
         scored = self.c.get('/api/v1/evaluation/runs/' + r['id'], headers=self.H).json()
         self.assertEqual((scored['state'], scored['total']), ('scored', 3)); self.assertIsNotNone(scored['percent'])
         self.assertTrue(all(any(c['check'] == 'output_limit_honoured' and c['ok'] for c in x['checks']) for x in scored['results']))
@@ -36,7 +40,11 @@ class EvaluationTests(unittest.TestCase):
         reg2 = self.c.post('/api/v1/models', headers=self.H, json=dict(GEN, model_id='qwen-candidate')).json()
         r2 = self.c.post('/api/v1/evaluation/suites/' + s['id'] + '/runs', headers=self.H, json={'model_revision_id': reg2['id']}).json()
         for _ in range(3):
-            self.assertEqual(self.w.run_once()[1], 'succeeded')
+            out = self.w.run_once()
+            if out is None:
+                break
+            self.assertEqual(out[1], 'succeeded')
+        self.assertEqual({self.c.get('/api/v1/jobs/' + (j['job_id'] if isinstance(j, dict) else j), headers=self.H).json()['state'] for j in (r2['jobs'].values() if isinstance(r2['jobs'], dict) else r2['jobs'])}, {'succeeded'})
         cmp = self.c.get('/api/v1/evaluation/compare/%s/%s' % (r['id'], r2['id']), headers=self.H).json()
         self.assertEqual(cmp['a']['revision'], self.ids['generate']); self.assertEqual(cmp['b']['revision'], reg2['id']); self.assertEqual(cmp['unchanged'], 3)
         # promotion gate: with the gate set to this suite, a revision without a passing scored run cannot be promoted

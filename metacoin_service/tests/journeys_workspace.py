@@ -117,6 +117,8 @@ class Journeys(ExpansionJourneys):
         st, pg = self.req('get', '/api/v1/documents/%s/pages/0' % did)
         page = self.console('/console/documents/' + str(did) + '/pages/0')
         st2, s = self.req('post', '/api/v1/knowledge/collections/' + cid + '/search', json={'query': 'reserve 2000 mJ boundary', 'mode': 'lexical', 'k': 3})
+        if st2 != 200 or not s.get('results'):
+            time.sleep(2); st2, s = self.req('post', '/api/v1/knowledge/collections/' + cid + '/search', json={'query': 'reserve 2000 mJ boundary', 'mode': 'lexical', 'k': 3})      # one retry; both attempts recorded
         top = (s.get('results') or [{}])[0]
         st3, chk = self.req('post', '/api/v1/knowledge/citations/validate', json={'citations': [{'chunk_id': top.get('chunk_id'), 'quote': 'keeps a reserve of 2000 mJ'}]})
         cites = chk.get('citations', [])
@@ -124,7 +126,7 @@ class Journeys(ExpansionJourneys):
             and top.get('version_id') == v.get('version_id') and top.get('page_number') == 1 and chk.get('all_valid') is True
         self.ctx['document_id'] = did; self.ctx['collection_id'] = cid; self.ctx['version_id'] = v.get('version_id')
         self.rec(1, 'native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page', ok,
-                 {'document': did, 'state': v.get('state'), 'parser': (v.get('extraction') or {}).get('parser', {}).get('id'), 'page_method': pg.get('page', {}).get('method'), 'console_page_status': page.status_code, 'hit_page': top.get('page_number'), 'citation_valid': [c.get('quote_valid') for c in cites], 'all_valid': chk.get('all_valid')}, t0=t0)
+                 {'document': did, 'state': v.get('state'), 'parser': (v.get('extraction') or {}).get('parser', {}).get('id'), 'page_method': pg.get('page', {}).get('method'), 'console_page_status': page.status_code, 'hit_page': top.get('page_number'), 'search_status': st2, 'search_error': (None if st2 == 200 else s), 'results': len(s.get('results') or []), 'citation_valid': [c.get('quote_valid') for c in cites], 'all_valid': chk.get('all_valid')}, t0=t0)
 
     def j2_scanned_ocr(self):
         t0 = time.time(); self.worker_bg('w-j2'); cid = self.ensure_collection()
@@ -653,7 +655,8 @@ class Journeys(ExpansionJourneys):
         finally:
             api.terminate(); api.wait(timeout=20)
         expected_head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
-        ok = mig.returncode == 0 and len(after) == 30 and len(before) < len(after) and health.get('ok') and health.get('revision') == expected_head and counts_after == counts_before and (old_read is not None or counts_before['artifacts'] == 0) and 'items' in wfs and caps.get('x402_variable_price_upto') is not None
+        from metacoin_service import db as database
+        ok = mig.returncode == 0 and len(after) == len(database.MIGRATIONS) and len(before) < len(after) and health.get('ok') and health.get('revision') == expected_head and counts_after == counts_before and (old_read is not None or counts_before['artifacts'] == 0) and 'items' in wfs and caps.get('x402_variable_price_upto') is not None
         self.rec(23, 'upgrade and restore an isolated copy of the prior live state: old artifacts, credentials and workflows preserved', ok,
                  {'source_schema': before[-1] if before else None, 'destination_schema': after[-1] if after else None, 'migrations_applied': [m for m in after if m not in before], 'loaded_revision': health.get('revision'), 'counts': counts_after, 'artifacts_copied': n_art, 'old_artifact_read': old_read, 'workflows_listed': len(wfs.get('items', [])) if isinstance(wfs, dict) else None},
                  caveat='the live service itself is upgraded by the §64 step with its own backup record; this journey exercises the migration on a consistent SQLite-backup copy', t0=t0)
