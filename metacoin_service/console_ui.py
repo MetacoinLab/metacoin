@@ -212,7 +212,12 @@ def mount(app, svc):
             arts = db.execute('SELECT * FROM artifacts WHERE job_id=? OR contract_id=? ORDER BY created_at', (job_id, row['contract_id'])).fetchall()
             visible = [a for a in arts if a['public'] or p.can('artifact:read_private') or (p.role == 'reviewer' and contract['reviewer_id'] == p.id)]
             compute = compute_svc.view(db, p, svc.jobs, job_id) if db.execute('SELECT 1 FROM compute_runs WHERE job_id=?', (job_id,)).fetchone() else None
-            batch_rows = None
+            batch_rows = None; plan = None
+            if compute and compute.get('output_artifact_id') and row['kind'] == 'resource_plan':
+                try:
+                    plan = compute_svc.plan_json(db, p, svc.jobs, svc.store, job_id)[1]
+                except ServiceError:
+                    plan = None
             if compute and compute.get('output_artifact_id') and row['kind'] == 'temporal_batch':
                 try:
                     listing, _ = compute_svc.outputs(db, p, svc.jobs, svc.store, job_id, 'results.json')
@@ -220,7 +225,7 @@ def mount(app, svc):
                 except Exception:
                     batch_rows = None
             return render(request, 'job.html', principal=p, job=view, contract=contract, review=svc.reviews.view(review) if review else None,
-                          artifacts=visible, events=history.for_object(db, p.workspace, 'job', job_id), compute=compute, batch_rows=batch_rows,
+                          artifacts=visible, events=history.for_object(db, p.workspace, 'job', job_id), compute=compute, batch_rows=batch_rows, plan=plan,
                           sale=db.execute('SELECT * FROM sales WHERE job_id=?', (job_id,)).fetchone())
         return await page(request, fn)
 
@@ -410,6 +415,16 @@ def mount(app, svc):
                            'boundary': {'type': 'dirichlet', 'values': {'left': '0', 'right': '0', 'top': '0', 'bottom': '0'}},
                            'initial': {'type': 'gaussian', 'center_x': '0.64', 'center_y': '0.64', 'sigma': '0.15', 'amplitude': '100', 'background': '0'}, 'snapshots': 2,
                            'units': {'field': 'K', 'length': 'm', 'time': 's'}, 'device_policy': 'auto', 'precision': 'float64', 'private_label': 'CONSOLE_SAMPLE_HEAT'},
+        'calibration_fit': {'schema': compute_inputs.CALIBRATION_SCHEMA, 'dataset_id': 'cds_...', 'features': ['work_units'], 'target': 'duration_seconds', 'device_policy': 'cpu'},
+        'resource_plan': {'schema': compute_inputs.RESOURCE_PLAN_SCHEMA, 'slot_seconds': 60, 'slots': 8, 'capacity': 120000, 'initial_low': 60000, 'reserve': 20000,
+                          'supply_low': [500, 500, 400, 400, 300, 300, 500, 500], 'supply_high': [600, 600, 500, 500, 400, 400, 600, 600], 'base_low': [100] * 8, 'base_high': [150] * 8,
+                          'uncertainty_interpretation': 'specification_bound', 'resources': {'radio': 1, 'cpu': 2},
+                          'tasks': [{'id': 'downlink', 'utility': 6, 'duration': 2, 'power_high': 500, 'resources': {'radio': 1, 'cpu': 1}, 'cost': 4},
+                                    {'id': 'science', 'utility': 5, 'duration': 3, 'power_high': 300, 'resources': {'cpu': 2}, 'cost': 2},
+                                    {'id': 'compress', 'utility': 3, 'duration': 1, 'power_high': 200, 'resources': {'cpu': 1}, 'cost': 1, 'dependencies': ['science']},
+                                    {'id': 'housekeeping', 'mandatory': True, 'utility': 0, 'duration': 1, 'power_high': 100, 'earliest_start': 6, 'latest_start': 7}],
+                          'objectives': {'mode': 'cost_sweep', 'cost_ceilings': [0, 3, 5, 7]}, 'sensitivity': [{'parameter': 'reserve', 'value': 40000}, {'parameter': 'supply_scale_percent', 'value': 70}],
+                          'time_limit_s': 10, 'device_policy': 'cpu', 'private_label': 'CONSOLE_SAMPLE_PLAN'},
     }
 
     @app.get('/console/compute', response_class=HTMLResponse)
@@ -469,8 +484,11 @@ def mount(app, svc):
 
     @app.post('/console/compute/{job_id}/{action}', response_class=HTMLResponse)
     async def compute_control(request: Request, job_id: str, action: str):
-        await form(request)
+        f = await form(request)
         def fn(db, p):
+            if action == 'freeze-alternative':
+                out = compute_svc.freeze_alternative(db, p, svc.jobs, svc.store, svc.workflows, job_id, int(f.get('cost_ceiling', '0')), f.get('title') or None)
+                return RedirectResponse('/console/workflows/' + out['workflow_id'], status_code=303)
             compute_svc.control(db, p, svc.jobs, job_id, action)
             return RedirectResponse('/console/jobs/' + job_id, status_code=303)
         return await page(request, fn, mutating=True)

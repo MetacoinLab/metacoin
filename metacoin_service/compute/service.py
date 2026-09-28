@@ -157,6 +157,94 @@ def reproducibility(db, principal, jobs, job_id, settings):
     return out
 
 
+def plan_json(db, principal, jobs, store, job_id):
+    job, run = _run(db, principal, jobs, job_id)
+    if job['kind'] != 'resource_plan':
+        raise ServiceError('VALIDATION', 'not a resource plan job')
+    if not _private_ok(db, principal, job):
+        raise ServiceError('FORBIDDEN', 'private plan')
+    if not run['output_artifact_id']:
+        raise ServiceError('CONFLICT', 'no committed plan')
+    files = container.unpack(store.load(db, run['output_artifact_id'], principal.workspace))
+    return job, json.loads(files['plan.json'])
+
+
+def plan_inputs(db, principal, jobs, store, job_id):
+    job = jobs.get(db, principal, job_id)
+    contract = db.execute('SELECT * FROM contracts WHERE id=?', (job['contract_id'],)).fetchone()
+    vault = store.load_json(db, contract['input_artifact_id'], principal.workspace)
+    return {f['name']: f['value'] for f in vault['fields']}['inputs']
+
+
+def plan_svg(db, principal, jobs, store, job_id, alternative=None):
+    """Schedule (one row per task, slots on x) over the verified energy trajectory with the reserve line; values labelled."""
+    job, plan = plan_json(db, principal, jobs, store, job_id)
+    data = plan_inputs(db, principal, jobs, store, job_id)
+    case = plan
+    if alternative is not None:
+        cands = [c for c in (plan.get('alternatives') or {}).get('candidates') or [] if c['cost_ceiling'] == alternative]
+        if not cands:
+            raise ServiceError('NOT_FOUND', 'alternative')
+        case = cands[0]
+    T = data['slots']; tasks = data['tasks']; assign = case.get('assignments') or {}
+    traj = case.get('trajectory') or []
+    cw = max(6, min(24, 720 // max(T, 1))); rh = 16; left = 120; top = 20
+    gantt_h = rh * max(len(tasks), 1); chart_h = 120
+    w = left + cw * T + 20; h = top + gantt_h + 30 + chart_h + 40
+    parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" font-family="sans-serif" font-size="10">' % (w, h, w, h),
+             '<title>resource plan %s: status %s, objective %s, min margin %s mJ (model output under declared bounds, not a measurement)</title>' % (html.escape(job_id), html.escape(str(case.get('status'))), case.get('objective'), case.get('min_margin'))]
+    for t in range(T):
+        parts.append('<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>' % (left + t * cw, top, cw, gantt_h, '#f7f7f7' if t % 2 else '#ffffff'))
+        if t % max(1, T // 12) == 0:
+            parts.append('<text x="%d" y="%d">%d</text>' % (left + t * cw + 1, top - 6, t))
+    for i, tk in enumerate(tasks):
+        y = top + i * rh
+        parts.append('<text x="4" y="%d">%s%s</text>' % (y + 12, html.escape(tk['id'][:14]), ' *' if tk.get('mandatory') else ''))
+        if tk['id'] in assign:
+            s = assign[tk['id']]
+            parts.append('<rect x="%d" y="%d" width="%d" height="%d" fill="#1c6b3a" opacity="0.8"><title>%s: start %d, duration %d, utility %s, power_high %s mW</title></rect>' % (left + s * cw, y + 2, cw * tk['duration'], rh - 4, html.escape(tk['id']), s, tk['duration'], tk.get('utility', 0), tk.get('power_high', 0)))
+        else:
+            parts.append('<text x="%d" y="%d" fill="#9b1c1c">not selected</text>' % (left + 2, y + 12))
+    cy = top + gantt_h + 30
+    cap = data['capacity']; r = data['reserve']
+    parts.append('<text x="4" y="%d">energy (mJ)</text><text x="4" y="%d">cap %d</text><text x="4" y="%d">reserve %d</text>' % (cy - 4, cy + 10, cap, cy + chart_h, r))
+    def ypos(e):
+        return cy + chart_h - int(chart_h * e / cap) if cap else cy + chart_h
+    parts.append('<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="#9b1c1c" stroke-dasharray="4 2"/>' % (left, ypos(r), left + cw * T, ypos(r)))
+    pts = ' '.join('%d,%d' % (left + b['boundary'] * cw, ypos(b['energy'])) for b in traj)
+    if pts:
+        parts.append('<polyline points="%s" fill="none" stroke="#1c4e80" stroke-width="2"/>' % pts)
+        for b in traj:
+            parts.append('<circle cx="%d" cy="%d" r="2" fill="#1c4e80"><title>boundary %d: %d mJ (margin %d)</title></circle>' % (left + b['boundary'] * cw, ypos(b['energy']), b['boundary'], b['energy'], b['margin']))
+    else:
+        parts.append('<text x="%d" y="%d" fill="#9b1c1c">no feasible candidate: %s</text>' % (left, cy + 40, html.escape(str(case.get('reason') or case.get('status')))))
+    parts.append('<text x="4" y="%d">* mandatory; conservative recurrence (min supply, max consumption); reserve at every boundary; %s</text></svg>' % (h - 8, html.escape(str(case.get('optimality') or ''))))
+    return ''.join(parts)
+
+
+def freeze_alternative(db, principal, jobs, store, workflows, job_id, cost_ceiling, title=None):
+    """Freeze a sweep alternative into a workflow draft: the original inputs with the cost sweep replaced by that single
+    ceiling. The recorded objective and status of the alternative are copied as a note only; the draft re-solves."""
+    principal.require('contract:create')
+    job, plan = plan_json(db, principal, jobs, store, job_id)
+    cands = [c for c in (plan.get('alternatives') or {}).get('candidates') or [] if c['cost_ceiling'] == cost_ceiling]
+    if not cands:
+        raise ServiceError('NOT_FOUND', {'code': 'alternative', 'ceilings': [c['cost_ceiling'] for c in (plan.get('alternatives') or {}).get('candidates') or []]})
+    alt = cands[0]
+    data = plan_inputs(db, principal, jobs, store, job_id)
+    inputs = json.loads(json.dumps(data)); inputs['objectives'] = {'mode': 'cost_sweep', 'cost_ceilings': [cost_ceiling]}; inputs.pop('sensitivity', None)
+    from .. import workflows as wf_mod
+    definition = {'schema': wf_mod.SCHEMA, 'name': (title or 'plan alternative (cost ceiling %d) from %s' % (cost_ceiling, job_id))[:128], 'outputs': ['out'],
+                  'nodes': [{'id': 'plan', 'type': 'resource_plan', 'inputs': inputs}, {'id': 'out', 'type': 'export', 'depends_on': ['plan'], 'input': 'plan', 'fields': ['outcome', 'model_id', 'evidence_root', 'status']}]}
+    wid, digest, created = workflows.create(db, principal, definition)
+    from ..datasets import add_edge
+    add_edge(db, principal.workspace, 'job', job_id, 'workflow', wid, 'derived_from')
+    history.record(db, principal.workspace, principal.id, 'contract.created', 'workflow', wid, {'frozen_alternative_of': job_id, 'cost_ceiling': cost_ceiling, 'recorded_utility': alt.get('utility'), 'recorded_status': alt.get('status')})
+    return {'workflow_id': wid, 'digest': digest, 'created': created, 'source_job': job_id, 'cost_ceiling': cost_ceiling,
+            'recorded_alternative': {'status': alt.get('status'), 'utility': alt.get('utility'), 'cost': alt.get('cost'), 'min_margin': alt.get('min_margin'), 'assignments': alt.get('assignments')},
+            'note': 'the draft re-solves the instance under this ceiling when run; the recorded values are the original sweep evidence, not the draft result'}
+
+
 def heat_svg(db, principal, jobs, store, job_id):
     job, run = _run(db, principal, jobs, job_id)
     if job['kind'] != 'heat_diffusion':

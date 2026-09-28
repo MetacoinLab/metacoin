@@ -22,7 +22,7 @@ PROBE_CACHE = {}
 # Evidence-based automatic backend selection (benchmark_compute on this DGX, 2026-09-24): the cuda path wins only for
 # large heat grids (512^2: 9x, 1024^2: 10x warm), while temporal batches and Monte Carlo chunks are transfer/host-bound
 # and run 1.3-4x faster on numpy. 'auto' therefore prefers cuda only above these work thresholds; 'gpu' always uses it.
-AUTO_CUDA_MIN_WORK = {'heat_diffusion': 100, 'temporal_batch': None, 'monte_carlo_reliability': None, 'calibration_fit': None}   # work units (heat: millions of cell updates)
+AUTO_CUDA_MIN_WORK = {'heat_diffusion': 100, 'temporal_batch': None, 'monte_carlo_reliability': None, 'calibration_fit': None, 'resource_plan': None}   # work units (heat: millions of cell updates)
 
 
 def compute_interpreter(settings):

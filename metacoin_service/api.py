@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from experiments.private_receipts import receipt as merkle
 from experiments.work_contracts import contract as terms, energy_analysis as energy, explanation
 from . import actions as actions_mod, artifacts as artifacts_mod, auth, contracts as contracts_mod, crypto, history
-from .compute import service as compute_svc
+from .compute import service as compute_svc, inputs as compute_inputs
 from .models import service as model_svc, registry as model_registry
 from .knowledge import service as knowledge_mod, retrieval as retrieval_mod, engine as knowledge_engine
 from .calibration import Calibration
@@ -427,7 +427,14 @@ def create_app(settings):
         raw = await request.body()
         body = read_body(request, raw)
         return await run(request, True, lambda db, p: (svc.campaigns.branch(db, p, campaign_id, base_changes=body.get('base_changes'), axes=body.get('axes'),
-                                                                            candidate_indexes=body.get('candidate_indexes'), name=body.get('name')), 201), 'campaigns.branch', raw)
+                                                                            candidate_indexes=body.get('candidate_indexes'), name=body.get('name'), changes=body.get('changes'), expected_head=body.get('expected_head')), 201), 'campaigns.branch', raw)
+
+    @app.get(API + '/campaigns/{campaign_id}/head')
+    async def campaign_head(request: Request, campaign_id: str):
+        def fn(db, p):
+            p.require('job:read'); svc.campaigns._campaign(db, campaign_id, p.workspace)
+            return {'campaign_id': campaign_id, 'head': svc.campaigns.lineage_head(db, campaign_id)}
+        return await run(request, False, fn)
 
     @app.post(API + '/campaigns/{campaign_id}/{action}')
     async def campaign_control(request: Request, campaign_id: str, action: str):
@@ -599,6 +606,16 @@ def create_app(settings):
     async def compute_job_view(request: Request, job_id: str):
         return await run(request, False, lambda db, p: compute_svc.view(db, p, svc.jobs, job_id))
 
+    @app.post(API + '/compute/jobs/{job_id}/freeze-alternative', status_code=201)
+    async def compute_freeze_alternative(request: Request, job_id: str):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            if type(body.get('cost_ceiling')) is not int:
+                raise ServiceError('VALIDATION', 'cost_ceiling: integer')
+            return compute_svc.freeze_alternative(db, p, svc.jobs, svc.store, svc.workflows, job_id, body['cost_ceiling'], body.get('title')), 201
+        return await run(request, True, fn, 'compute.freeze_alternative', raw)
+
     @app.post(API + '/compute/jobs/{job_id}/{action}')
     async def compute_job_control(request: Request, job_id: str, action: str):
         return await run(request, True, lambda db, p: compute_svc.control(db, p, svc.jobs, job_id, action), 'compute.control:' + action)
@@ -636,6 +653,34 @@ def create_app(settings):
                 return compute_svc.heat_svg(db, p, svc.jobs, svc.store, job_id)
         text = await run_in_threadpool(do)
         return Response(content=text, media_type='image/svg+xml', headers=dict(SENSITIVE_HEADERS, **{'Cache-Control': 'private, no-store'}))
+
+    @app.get(API + '/compute/jobs/{job_id}/plan')
+    async def compute_plan(request: Request, job_id: str):
+        def fn(db, p):
+            job, plan = compute_svc.plan_json(db, p, svc.jobs, svc.store, job_id)
+            return {'job_id': job_id, 'plan': plan}
+        return await run(request, False, fn)
+
+    @app.get(API + '/compute/jobs/{job_id}/plan.svg')
+    async def compute_plan_svg(request: Request, job_id: str):
+        alt = request.query_params.get('alternative')
+        def do():
+            with svc.db.read() as db:
+                p = principal_of(request, db, False)
+                return compute_svc.plan_svg(db, p, svc.jobs, svc.store, job_id, int(alt) if alt is not None and alt.lstrip('-').isdigit() else None)
+        text = await run_in_threadpool(do)
+        return Response(content=text, media_type='image/svg+xml', headers=dict(SENSITIVE_HEADERS, **{'Cache-Control': 'private, no-store'}))
+
+    @app.post(API + '/compute/resource-plans', status_code=202)
+    async def resource_plan_submit(request: Request):
+        raw = await request.body()
+        body = read_body(request, raw)
+        def fn(db, p):
+            p.require('contract:create')
+            inputs = dict(body.get('inputs') or {}, schema=compute_inputs.RESOURCE_PLAN_SCHEMA)
+            inputs.setdefault('device_policy', 'cpu')
+            return quick_submit(svc, db, p, 'resource_plan', inputs, body.get('title') or 'robust resource plan', policy=body.get('policy')), 202
+        return await run(request, True, fn, 'compute.resource_plan', raw)
 
     # ---- §46 extras: compatibility preview, PROV-JSON lineage export --------------------------
     @app.get(API + '/services/{sid}/compatibility')

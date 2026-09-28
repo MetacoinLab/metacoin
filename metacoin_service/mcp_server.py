@@ -129,6 +129,21 @@ def build(api=None):
         s, b = api.call('POST', '/api/v1/jobs/' + job_id + '/cancel', {})
         return ok_or_refused(s, b)
 
+    @mcp.tool(name='plan_resources', description='Submit a bounded robust resource-planning instance (robust-resource-plan-input/v1: slots, capacity, reserve, supply/base intervals, tasks with utility, duration, windows, power, resources, dependencies, exclusivity, optional cost sweep and sensitivity). Returns the job id; the plan is verified by an exact replay before it is committed.', annotations=CREATE)
+    def plan_resources(inputs: dict, title: str = 'robust resource plan', idempotency_key: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/compute/resource-plans', {'inputs': inputs, 'title': title}, idempotency_key=idempotency_key)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='plan_result', description='The committed plan of a succeeded resource-plan job: status, assignments, objective, trajectory, excluded-task reasons, alternatives (cost sweep with dominance), sensitivity rows and solver facts. Values are recorded evidence and cannot be changed here.', annotations=READ)
+    def plan_result(job_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/compute/jobs/' + job_id + '/plan')
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='freeze_plan_alternative', description='Freeze one sweep alternative (by cost ceiling) of a resource-plan job into a workflow draft that re-solves under that ceiling. Nothing runs.', annotations=CREATE)
+    def freeze_plan_alternative(job_id: str, cost_ceiling: int, title: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/compute/jobs/' + job_id + '/freeze-alternative', {'cost_ceiling': cost_ceiling, 'title': title})
+        return ok_or_refused(s, b)
+
     @mcp.tool(name='verification_preview', description='Cost, claim and scope of an independent verification class for a completed job (nothing created).', annotations=READ)
     def verification_preview(job_id: str, verification_class: str, params: dict | None = None) -> dict:
         s, b = api.call('POST', '/api/v1/verification/preview', {'job_id': job_id, 'class': verification_class, 'params': params or {}})

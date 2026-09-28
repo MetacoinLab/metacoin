@@ -55,7 +55,7 @@ EXPANSION_COMMANDS = {'models', 'models-runtime', 'model-register', 'model-actio
                       'calibration-plan', 'verification-preview', 'verification-request', 'verification-status', 'verification-statement', 'verifications', 'node-enroll', 'nodes', 'node', 'node-action',
                       'approval-propose', 'approval-decide', 'approvals', 'approval-policy', 'statement', 'mcp-connection', 'verification-policy-create', 'verification-policies',
                       'eval-suite-create', 'eval-suites', 'eval-run', 'eval-compare', 'eval-gate',
-                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
+                      'calibration-design', 'model-warmup', 'model-batching', 'plan', 'plans', 'plan-accept', 'intent', 'intents', 'intent-continue', 'document-import', 'documents', 'document', 'document-page', 'document-action', 'table', 'table-annotate', 'mapping-preview', 'mapping-create', 'mapping', 'mapping-confirm', 'resource-plan', 'plan-view', 'plan-freeze', 'bundle-export', 'bundle-check', 'bundle-import', 'disagreements', 'disagreement-decide', 'notebook-create', 'notebooks', 'notebook', 'notebook-version', 'notebook-compare', 'notebook-export'}
 
 
 def wait_job(go, job_id, timeout):
@@ -414,7 +414,7 @@ def main(argv=None):
     rc = sub.add_parser('run-cancel'); rc.add_argument('run_id')
     cc = sub.add_parser('campaign-create', help='create a scientific campaign from a JSON definition file'); cc.add_argument('--file', required=True); cc.add_argument('--preview', action='store_true')
     cs = sub.add_parser('campaign-status'); cs.add_argument('campaign_id'); cs.add_argument('--results', action='store_true'); cs.add_argument('--csv', help='write results CSV to this new file')
-    cb = sub.add_parser('campaign-branch', help='fork a campaign with explicit changed assumptions'); cb.add_argument('campaign_id'); cb.add_argument('--base-changes', help='JSON object field->integer'); cb.add_argument('--candidates', help='comma-separated succeeded candidate indexes'); cb.add_argument('--name')
+    cb = sub.add_parser('campaign-branch', help='fork a campaign with explicit changed assumptions'); cb.add_argument('campaign_id'); cb.add_argument('--base-changes', help='JSON object field->integer'); cb.add_argument('--changes', help='JSON list of typed changes [{path, value, source, note?}]'); cb.add_argument('--expected-head', help='refuse when a newer branch of the campaign exists'); cb.add_argument('--candidates', help='comma-separated succeeded candidate indexes'); cb.add_argument('--name')
     cpl = sub.add_parser('campaign-plan', help='rank validated campaign candidates under a cost cap (quality vs cost)'); cpl.add_argument('campaign_id'); cpl.add_argument('--cost-cap', type=int, required=True)
     cc2 = sub.add_parser('campaign-compare'); cc2.add_argument('campaign_a'); cc2.add_argument('campaign_b')
     cp = sub.add_parser('campaign-control'); cp.add_argument('campaign_id'); cp.add_argument('action', choices=('run', 'pause', 'resume', 'cancel'))
@@ -487,7 +487,7 @@ def main(argv=None):
     stm = sub.add_parser('statement', help='consolidated usage statement for an interval'); stm.add_argument('--since', type=int, default=0); stm.add_argument('--until', type=int); stm.add_argument('--csv', help='write CSV to this new file')
     sub.add_parser('mcp-connection', help='print how to connect an MCP client to this service (no secrets printed)')
     sub.add_parser('compute-capabilities', help='installed / configured / available / observed compute facts')
-    cs = sub.add_parser('compute-submit', help='create, freeze and submit a compute job from a bounded JSON input file'); cs.add_argument('--kind', required=True, choices=('temporal_batch', 'monte_carlo_reliability', 'heat_diffusion'))
+    cs = sub.add_parser('compute-submit', help='create, freeze and submit a compute job from a bounded JSON input file'); cs.add_argument('--kind', required=True, choices=('temporal_batch', 'monte_carlo_reliability', 'heat_diffusion', 'resource_plan'))
     cs.add_argument('--inputs', required=True); cs.add_argument('--title', default='compute job'); cs.add_argument('--reviewer', required=True); cs.add_argument('--idempotency-key')
     ci = sub.add_parser('compute-inspect'); ci.add_argument('job_id')
     cw = sub.add_parser('compute-watch', help='poll progress until the job is paused, cancelled or terminal'); cw.add_argument('job_id'); cw.add_argument('--timeout', type=int, default=600); cw.add_argument('--pause-after-checkpoint', action='store_true')
@@ -496,6 +496,9 @@ def main(argv=None):
     cv = sub.add_parser('compute-verify', help='fetch the persisted verification record and reproducibility bundle'); cv.add_argument('job_id')
     ce = sub.add_parser('compute-export', help='download one output file (npy/json) or the heat plot'); ce.add_argument('job_id'); ce.add_argument('name'); ce.add_argument('--out', required=True)
     cl = sub.add_parser('compute-log'); cl.add_argument('job_id')
+    rp = sub.add_parser('resource-plan', help='submit a robust resource-planning instance (JSON file) and optionally wait for the verified plan'); rp.add_argument('--inputs', required=True); rp.add_argument('--title', default='robust resource plan'); rp.add_argument('--wait', action='store_true'); rp.add_argument('--timeout', type=int, default=600)
+    pv = sub.add_parser('plan-view', help='the committed plan of a resource-plan job (assignments, trajectory, alternatives, sensitivity) or its SVG'); pv.add_argument('job_id'); pv.add_argument('--svg', help='write the schedule/energy SVG to this new file'); pv.add_argument('--alternative', type=int)
+    pf = sub.add_parser('plan-freeze', help='freeze a sweep alternative (cost ceiling) into a workflow draft'); pf.add_argument('job_id'); pf.add_argument('--cost-ceiling', type=int, required=True); pf.add_argument('--title')
     ac = sub.add_parser('action', help='create (or dry-run) the bounded next-step payment action of an accepted job'); ac.add_argument('job_id'); ac.add_argument('--request-id', required=True); ac.add_argument('--dry-run', action='store_true')
     sub.add_parser('budget-tree'); sub.add_parser('status-ops', help='operational status counters')
     se = sub.add_parser('search'); se.add_argument('--type'); se.add_argument('--status'); se.add_argument('--model'); se.add_argument('--limit', type=int)
@@ -604,6 +607,10 @@ def main(argv=None):
             body['candidate_indexes'] = [int(x) for x in args.candidates.split(',')]
         if args.name:
             body['name'] = args.name
+        if args.changes:
+            body['changes'] = json.loads(args.changes)
+        if args.expected_head:
+            body['expected_head'] = args.expected_head
         status, out = go('POST', '/api/v1/campaigns/' + args.campaign_id + '/branch', body)
     elif args.command == 'campaign-plan':
         status, out = go('POST', '/api/v1/campaigns/' + args.campaign_id + '/plan', {'cost_cap_units': args.cost_cap})
@@ -698,6 +705,31 @@ def main(argv=None):
         status2, repro = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/reproducibility')
         out = {'verification': view.get('verification') if status == 200 else view, 'reproducibility': repro if status2 == 200 else repro}
         status = max(status, status2)
+    elif args.command == 'resource-plan':
+        with open(args.inputs) as stream:
+            inputs = json.load(stream)
+        status, out = go('POST', '/api/v1/compute/resource-plans', {'inputs': inputs, 'title': args.title})
+        if status == 202 and args.wait:
+            deadline = time.time() + args.timeout
+            while time.time() < deadline:
+                st, job = go('GET', '/api/v1/jobs/' + out['job_id'])
+                if st == 200 and job['state'] in ('succeeded', 'failed', 'cancelled'):
+                    out = {'submitted': out, 'job': job}; break
+                time.sleep(1)
+    elif args.command == 'plan-view':
+        if args.svg:
+            status, content = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/plan.svg' + ('?alternative=%d' % args.alternative if args.alternative is not None else ''), raw=True)
+            if status == 200:
+                fd = os.open(args.svg, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'wb') as stream:
+                    stream.write(content)
+                out = {'written': args.svg, 'bytes': len(content)}
+            else:
+                out = json.loads(content or b'{}')
+        else:
+            status, out = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/plan')
+    elif args.command == 'plan-freeze':
+        status, out = go('POST', '/api/v1/compute/jobs/' + args.job_id + '/freeze-alternative', {'cost_ceiling': args.cost_ceiling, 'title': args.title})
     elif args.command == 'compute-export':
         path = '/api/v1/compute/jobs/' + args.job_id + ('/plot.svg' if args.name == 'plot.svg' else '/outputs/' + args.name)
         status, content = go('GET', path, raw=True)

@@ -6,7 +6,7 @@ from pathlib import Path
 from . import inputs
 
 HERE = Path(__file__).parent
-KERNEL_FILES = ('kernels.py', 'inputs.py', 'reference.py', 'npy.py', 'exec.py', 'calibration.py')
+KERNEL_FILES = ('kernels.py', 'inputs.py', 'reference.py', 'npy.py', 'exec.py', 'calibration.py', 'resource_plan.py')
 
 
 def implementation_digest():
@@ -63,7 +63,22 @@ MANIFESTS = {
         'outputs': ['model.json (manifest: coefficients, scaling, split, metrics, domain, warnings)', 'predictions.json (train/eval rows: actual, predicted, residual)'],
         'resource_controls': {'threads': 'bounded per worker', 'device_slots': 1},
     },
+    'resource_plan': {
+        'manifest_id': 'robust-resource-plan/v1', 'version': 1, 'model_id': 'robust-resource-plan/v1', 'result_schema': 'robust-resource-plan-result/v1',
+        'input_schema': inputs.RESOURCE_PLAN_SCHEMA, 'devices': ['cpu'], 'precision': ['integer'],
+        'numerical_policy': 'mixed-integer linear program (start binaries per task and slot; continuous storage and spill variables; conservative interval recurrence with reserve at every boundary) '
+                            'solved by scipy.optimize.milp (HiGHS) under a time limit; solver status mapped explicitly (optimal within tolerance / feasible incumbent without optimality claim / limit without candidate / '
+                            'infeasible by solver / infeasible established by enumeration / numerical failure / candidate rejected by the checker); every candidate re-checked by an exact integer simulator '
+                            'independent of the constraint construction; small instances additionally solved by exhaustive enumeration; epsilon-constraint cost sweep and finite one-at-a-time sensitivity',
+        'limits': None, 'work_unit': 'start variable (task x admissible slot) plus one per slot', 'price_basis': 'per start variable',
+        'checkpoint_format': 'none (single chunk; each solve is bounded by the time limit)', 'verification_modes': ['reference_replay'],
+        'verification_policy': {'tolerance': {'abs': 0, 'rel': 0}, 'rule': 'the stored assignments must replay feasibly in the exact integer simulator with the stored objective, margin and trajectory; the stored status must be consistent with the solver facts; when the instance is small the exhaustive oracle must agree'},
+        'outputs': ['plan.json (status, assignments, trajectory, resource use, excluded reasons, oracle, alternatives, sensitivity, solver facts)', 'summary'],
+        'resource_controls': {'threads': 'bounded per worker', 'device_slots': 1, 'time_limit_s': 'per solve, from the input (bounded)'},
+    },
 }
+from . import resource_plan as _rp
+MANIFESTS['resource_plan']['limits'] = dict(_rp.LIMITS)
 KINDS = tuple(MANIFESTS)
 
 

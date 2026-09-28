@@ -38,6 +38,8 @@ SUPPORT = {
     'heat_diffusion': {'full_reference': 'scalar pure-Python FTCS from the initial condition (bounded cell-steps) within tolerance', 'analytical': 'invariants plus the closed-form eigenmode solution when the initial field is a single sine mode',
                        'sampled_reference': 'last step recomputed from the stored penultimate field (scope: one transition)', 'replica': 'same bound request on the other backend within the manifest tolerance'},
     'calibration_fit': {'full_reference': 'independent Householder QR refit of the training design compared through predictions'},
+    'resource_plan': {'full_reference': 'stored assignments replayed by the exact integer simulator (objective, margins, trajectory, alternatives); solver status consistency; exhaustive oracle re-run on small instances',
+                      'analytical': 'status/summary/plan consistency and reserve invariants of the stored trajectory without re-solving'},
     'temporal_energy': {'full_exact': 'recomputation by temporal.analyze (same implementation: regression check, not independent)'},
     'energy_audit': {'full_exact': 'acceptance.audit over the input and evidence vaults (same implementation: regression check)'},
     'safe_runtime': {'full_exact': 'recomputation by science.safe_runtime (same implementation)'}, 'plan_comparison': {'full_exact': 'recomputation by science.compare_plans (same implementation)'},
@@ -45,7 +47,7 @@ SUPPORT = {
 }
 MAX_WORK = {'full_exact': 200_000, 'full_reference': 2_000_000, 'sampled_reference': 4096, 'analytical': 10 ** 9, 'replica': 10 ** 9}
 SHARED_CODE = {'temporal_batch': ['compute.inputs.scenario (parameter expansion)', 'compute.npy (array codec)'], 'monte_carlo_reliability': ['compute.inputs.apply_variation', 'stored samples_audit.json (producer-generated parameters)'],
-               'heat_diffusion': ['compute.kernels.heat_initial_field (initial condition constructor)', 'compute.npy'], 'calibration_fit': ['compute.calibration.design/standardize (shared conventions)']}
+               'heat_diffusion': ['compute.kernels.heat_initial_field (initial condition constructor)', 'compute.npy'], 'calibration_fit': ['compute.calibration.design/standardize (shared conventions)'], 'resource_plan': ['compute.resource_plan.simulate (the declared model; independent of the MILP encoding)']}
 
 
 class Verification:
@@ -417,7 +419,29 @@ def audit(kind, cls, inputs, files, result, params, challenge, run):
         man = compute_manifests.manifest('calibration_fit')
         v = compute_verify.calibration(inputs, files, man, result, None)
         return {'outcome': 'passed' if v['passed'] else 'failed', 'checked': 1, 'total': 1, 'checks': v['checks'], 'tolerance': v['tolerance'], 'statement': v['statement'] + ' (training rows were not re-read: metrics and coefficient consistency only)'}
+    if kind == 'resource_plan':
+        return _audit_resource_plan(cls, inputs, files, result)
     return _audit_science(kind, inputs, result)
+
+
+def _audit_resource_plan(cls, inputs, files, result):
+    from .compute import resource_plan as rp
+    man = compute_manifests.manifest('resource_plan')
+    if cls == 'full_reference':
+        v = compute_verify.resource_plan(inputs, files, man, result, None)
+        return {'outcome': 'passed' if v['passed'] else 'failed', 'checked': 1, 'total': 1, 'checks': v['checks'], 'tolerance': v['tolerance'], 'statement': v['statement']}
+    plan = json.loads(files['plan.json'])
+    checks = []
+    def add(name, ok, detail):
+        checks.append({'check': name, 'ok': bool(ok), 'detail': detail})
+    add('status_declared', plan.get('status') in rp.STATUSES and result.get('status') == plan.get('status'), {'status': plan.get('status')})
+    traj = plan.get('trajectory') or []
+    add('reserve_invariant_in_stored_trajectory', all(t['energy'] >= inputs['reserve'] and t['energy'] <= inputs['capacity'] for t in traj), {'boundaries': len(traj)})
+    add('objective_is_sum_of_selected_utilities', plan.get('objective') is None or plan['objective'] == sum(t.get('utility', 0) for t in inputs['tasks'] if t['id'] in (plan.get('selected') or [])), {'objective': plan.get('objective')})
+    add('mandatory_tasks_selected', plan.get('assignments') is None or all(t['id'] in plan['assignments'] for t in inputs['tasks'] if t.get('mandatory')), {})
+    ok = all(c['ok'] for c in checks)
+    return {'outcome': 'passed' if ok else 'failed', 'checked': len(checks), 'total': len(checks), 'checks': checks, 'coverage': 'invariants only',
+            'statement': 'stored plan invariants (status, reserve bounds along the stored trajectory, objective arithmetic, mandatory selection) checked without re-solving or replaying; not a feasibility proof'}
 
 
 def _audit_temporal_batch(cls, inputs, files, challenge):

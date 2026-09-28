@@ -386,7 +386,45 @@ class CalibrationFitTask(Task):
                           'split': m['split'], 'precision': 'float64'})
 
 
-TASKS = {'temporal_batch': TemporalBatchTask, 'monte_carlo_reliability': MonteCarloTask, 'heat_diffusion': HeatTask, 'calibration_fit': CalibrationFitTask}
+class ResourcePlanTask(Task):
+    """Single-chunk robust resource plan: MILP (HiGHS) under a time limit, exact integer replay, bounded oracle, sweep and
+    sensitivity, all in compute.resource_plan. Work units = start variables + slots (committed once the solve returns)."""
+
+    def __init__(self, spec, be, workdir):
+        super().__init__(spec, be, workdir)
+        self.result = None
+
+    def boundary(self):
+        return {'solves_committed': 1 if self.result is not None else 0}
+
+    def save_state(self, d):
+        return {}
+
+    def load_state(self, d, meta):
+        self.committed = meta['committed_units']; self.chunk_id = meta['chunk_id']
+
+    def run_chunk(self):
+        from . import resource_plan as rp
+        self.result = rp.solve(self.data)
+        self.committed = self.total; self.chunk_id += 1
+        return self.total
+
+    def finish(self, out):
+        def exactable(o):
+            if isinstance(o, float): return repr(o)
+            if isinstance(o, dict): return {k: exactable(v) for k, v in o.items()}
+            if isinstance(o, list): return [exactable(v) for v in o]
+            return o
+        r = exactable(self.result)
+        (out / 'plan.json').write_bytes(canonical(r))
+        return {'status': r['status'], 'objective': r.get('objective'), 'cost': r.get('cost'), 'selected': r.get('selected'), 'min_margin': r.get('min_margin'), 'spill': r.get('spill'),
+                'reason': r.get('reason'), 'optimality': r.get('optimality'), 'solver_status_code': (r.get('solver') or {}).get('status_code'), 'solver_runtime_s': (r.get('solver') or {}).get('runtime_s'),
+                'mip_gap': (r.get('solver') or {}).get('mip_gap'), 'binary_variables': (r.get('solver') or {}).get('binary_variables'), 'oracle_checked': 'oracle' in r,
+                'alternatives': len((r.get('alternatives') or {}).get('candidates') or []), 'sensitivity_rows': len((r.get('sensitivity') or {}).get('rows') or []), 'slots': self.data['slots'], 'tasks': len(self.data['tasks']),
+                'uncertainty_set': r['uncertainty_set'], 'conditional_on': r['conditional_on'], 'precision': 'integer'}
+
+
+TASKS = {'temporal_batch': TemporalBatchTask, 'monte_carlo_reliability': MonteCarloTask, 'heat_diffusion': HeatTask, 'calibration_fit': CalibrationFitTask, 'resource_plan': ResourcePlanTask}
 
 
 def main():

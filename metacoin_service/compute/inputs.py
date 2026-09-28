@@ -403,7 +403,24 @@ def validate_calibration(data):
     return data
 
 
-VALIDATORS = {'temporal_batch': validate_temporal_batch, 'monte_carlo_reliability': validate_monte_carlo, 'heat_diffusion': validate_heat, 'calibration_fit': validate_calibration}
+RESOURCE_PLAN_SCHEMA = 'robust-resource-plan-input/v1'
+
+
+def validate_resource_plan(data):
+    from . import resource_plan as rp
+    try:
+        rp.validate(data)
+    except rp.Invalid as exc:
+        raise ComputeInvalid(str(exc))
+    if data.get('device_policy', 'cpu') != 'cpu':
+        raise ComputeInvalid('resource planning runs on cpu only (HiGHS)')
+    return data
+
+
+RESOURCE_PLAN_LIMITS = None   # filled from compute.resource_plan.LIMITS at import of manifests
+
+
+VALIDATORS = {'temporal_batch': validate_temporal_batch, 'monte_carlo_reliability': validate_monte_carlo, 'heat_diffusion': validate_heat, 'calibration_fit': validate_calibration, 'resource_plan': validate_resource_plan}
 
 
 def work_units(kind, data):
@@ -413,4 +430,7 @@ def work_units(kind, data):
         return data['samples']
     if kind == 'calibration_fit':
         return 1
+    if kind == 'resource_plan':
+        from . import resource_plan as rp
+        return rp.work_units(data)
     return heat_work_units(data)

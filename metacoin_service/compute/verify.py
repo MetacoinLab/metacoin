@@ -144,6 +144,46 @@ def calibration(data, files, manifest, summary, aux=None):
             'statement': 'metrics reproduced from stored predictions and an independent pure-Python QR refit on the training design agreed within tolerance; this checks the fit, not whether the model describes unseen jobs'}
 
 
+def resource_plan(data, files, manifest, summary, aux=None):
+    """Independent replay: the stored assignments are re-simulated by the exact integer simulator (shared only through the
+    declared model), objective/margin/trajectory must match, the stored status must be consistent with the solver facts,
+    and on small instances the exhaustive oracle is re-run and must agree with the stored objective."""
+    from . import resource_plan as rp
+    plan = json.loads(files['plan.json'])
+    checks, passed = [], True
+    def add(name, ok, detail):
+        nonlocal passed
+        checks.append({'check': name, 'ok': bool(ok), 'detail': detail}); passed = passed and bool(ok)
+    add('status_declared', plan.get('status') in rp.STATUSES and summary.get('status') == plan.get('status'), {'status': plan.get('status')})
+    add('summary_matches_plan', all(summary.get(k) == plan.get(k) for k in ('objective', 'cost', 'min_margin', 'selected')), {})
+    if plan.get('assignments') is not None:
+        sim = rp.simulate(data, plan['assignments'])
+        add('assignments_replay_feasible', sim['feasible'], {'violations': sim.get('violations')})
+        if sim['feasible']:
+            add('objective_replayed', sim['utility'] == plan.get('objective') and sim['cost'] == plan.get('cost') and sim['min_margin'] == plan.get('min_margin') and sim['spill'] == plan.get('spill'),
+                {'utility': sim['utility'], 'min_margin': sim['min_margin']})
+            add('trajectory_replayed', [t['energy'] for t in sim['trajectory']] == [t['energy'] for t in plan.get('trajectory') or []], {'boundaries': len(sim['trajectory'])})
+        sol = plan.get('solver') or {}
+        add('status_consistent_with_solver', (plan['status'] != 'optimal_within_tolerance' or sol.get('status_code') == 0), {'solver_status_code': sol.get('status_code')})
+    else:
+        add('no_assignments_for_status', plan.get('status') not in ('optimal_within_tolerance', 'feasible_incumbent_no_optimality_claim'), {'status': plan.get('status')})
+    orc = rp.oracle(data, None)
+    if orc is not None:
+        stored = plan.get('oracle')
+        ok = stored is not None and stored.get('combinations') == orc['combinations'] and stored.get('feasible_assignments') == orc['feasible_assignments'] and ((orc['best'] is None) == (stored.get('best') is None)) and (orc['best'] is None or orc['best']['utility'] == stored['best']['utility'])
+        add('oracle_reproduced', ok, {'combinations': orc['combinations'], 'feasible_assignments': orc['feasible_assignments'], 'best_utility': None if orc['best'] is None else orc['best']['utility']})
+        if orc['best'] is not None and plan.get('objective') is not None and plan['status'] == 'optimal_within_tolerance':
+            add('optimum_matches_oracle', plan['objective'] == orc['best']['utility'], {'oracle_utility': orc['best']['utility'], 'stored': plan['objective']})
+        if orc['best'] is None:
+            add('infeasibility_established', plan['status'] in ('infeasible_established_by_enumeration',), {'status': plan['status']})
+    for alt in (plan.get('alternatives') or {}).get('candidates') or []:
+        if alt.get('assignments') is not None:
+            s2 = rp.simulate(data, alt['assignments'])
+            add('alternative_replay_' + str(alt['cost_ceiling']), s2['feasible'] and s2['utility'] == alt['utility'] and s2['cost'] <= alt['cost_ceiling'], {'ceiling': alt['cost_ceiling']})
+    return {'mode': 'reference_replay', 'passed': passed, 'checks': checks, 'tolerance': manifest['verification_policy']['tolerance'],
+            'statement': 'stored assignments replayed feasibly by the exact integer simulator with identical objective, margins and trajectory; the declared solver status is consistent with the solver facts' + ('; the exhaustive oracle was re-run and agrees' if orc is not None else '; instance too large for the oracle: optimality rests on the solver claim') + '. This checks the plan under the declared model, not the hardware.'}
+
+
 def run(kind, data, files, manifest, summary, aux=None):
     if kind == 'temporal_batch':
         return temporal_batch(data, files, manifest)
@@ -151,4 +191,6 @@ def run(kind, data, files, manifest, summary, aux=None):
         return monte_carlo(data, files, manifest, summary)
     if kind == 'calibration_fit':
         return calibration(data, files, manifest, summary, aux)
+    if kind == 'resource_plan':
+        return resource_plan(data, files, manifest, summary, aux)
     return heat(data, files, manifest, summary)

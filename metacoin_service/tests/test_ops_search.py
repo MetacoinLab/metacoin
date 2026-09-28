@@ -113,7 +113,7 @@ class PriorDatabaseMigrationTest(unittest.TestCase):
         app = api.create_app(settings)                                        # catalog populate + service key on a migrated home
         con = sqlite3.connect(home / 'service.sqlite')
         self.assertEqual(con.execute('SELECT COUNT(*) FROM jobs').fetchone()[0], jobs_before)          # nothing lost or invented
-        self.assertEqual(con.execute("SELECT COUNT(*) FROM services WHERE status='registered'").fetchone()[0], 15)
+        self.assertEqual(con.execute("SELECT COUNT(*) FROM services WHERE status='registered'").fetchone()[0], 16)
         self.assertEqual(con.execute('SELECT COUNT(*) FROM policy_grants').fetchone()[0], 0)
 
 
