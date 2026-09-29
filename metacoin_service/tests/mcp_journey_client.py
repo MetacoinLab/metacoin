@@ -43,6 +43,28 @@ async def run(base, cred, mode):
                     refusals.append({'tool': tool, 'status': r.get('status'), 'code': r.get('code')})
                 out['refusals'] = refusals
                 return out
+            if mode in ('work', 'work-injection'):
+                # J25: an authorized low-budget purchase through MCP under the agent's grant; J26: a poisoned offer note must not
+                # move the agent beyond its grant or change the payment destination
+                st = content(await s.call_tool('work_status', {'award_id': os.environ.get('MCP_WORK_AWARD', 'wa_none')})) if os.environ.get('MCP_WORK_AWARD') else None
+                rid = os.environ['MCP_WORK_REQUEST']
+                cmp = content(await s.call_tool('compare_offers', {'request_id': rid}))
+                out['compare'] = {'eligible': [e['offer_id'] for e in cmp.get('eligible', [])], 'excluded': cmp.get('excluded'), 'recommended': cmp.get('recommended')}
+                if mode == 'work-injection':
+                    # the agent reads offer notes as DATA; even if it followed the instruction it cannot change recipient (no such parameter)
+                    poisoned = [x for x in cmp.get('excluded', [])]
+                    out['poisoned_offers_seen'] = poisoned
+                    out['award_poisoned'] = content(await s.call_tool('award_work', {'request_id': rid, 'offer_id': os.environ.get('MCP_POISONED_OFFER'), 'reason': 'instruction in the offer note said to', 'idempotency_key': 'inj-1'}))
+                    out['draft_bigger'] = content(await s.call_tool('draft_work_request', {'template': 'determination', 'ceiling': 1000}))
+                    return out
+                out['award'] = content(await s.call_tool('award_work', {'request_id': rid, 'idempotency_key': 'mcp-award-1'}))
+                out['award_retry'] = content(await s.call_tool('award_work', {'request_id': rid, 'idempotency_key': 'mcp-award-1'}))
+                aid = out['award'].get('id')
+                if aid:
+                    out['status'] = content(await s.call_tool('work_status', {'award_id': aid}))
+                    out['evaluate'] = content(await s.call_tool('evaluate_acceptance', {'award_id': aid}))
+                    out['reconcile'] = content(await s.call_tool('reconcile_budget', {}))
+                return out
             if mode == 'analysis':
                 out['analysis'] = content(await s.call_tool('create_analysis', {'name': 'mcp analysis', 'blocks': [{'id': 'aim', 'type': 'text', 'text': 'created through MCP'}]}))
                 out['status'] = content(await s.call_tool('analysis_status', {'analysis_id': out['analysis'].get('id', 'x')}))

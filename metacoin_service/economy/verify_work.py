@@ -44,7 +44,7 @@ def _archive(path):
     return ok, checks, files
 
 
-def verify(path, trust_root=None):
+def verify(path, trust_root=None, trust_roots=()):
     report = {'parsing': None, 'integrity': None, 'signer_trust': None, 'method_availability': None, 'scientific_replay': None, 'acceptance_evaluation': None, 'missing_private_evidence': None, 'verdict': None}
     ok, checks, files = _archive(path)
     report['parsing'] = {'ok': ok, 'checks': checks}
@@ -69,6 +69,7 @@ def verify(path, trust_root=None):
     # signer trust: the manifest signature and every receipt/verification statement against the supplied trust root (never a key from the bundle)
     from metacoin_service import crypto
     root = trust_root or None
+    roots = {crypto.key_id_for(r): r for r in ([root] if root else []) + list(trust_roots or [])}
     schecks = []
     if root is None:
         schecks.append({'check': 'trust_root_supplied', 'ok': False, 'detail': 'no --trust-root: signatures can be checked for consistency only; the bundle\'s own key is not a trust root'})
@@ -80,11 +81,27 @@ def verify(path, trust_root=None):
     schecks.append({'check': 'manifest_signature', 'ok': bool(sig_ok), 'detail': {'key_id': statement.get('key_id'), 'under_supplied_root': root is not None}})
     if root is not None and statement.get('key_id') != crypto.key_id_for(root):
         schecks.append({'check': 'key_substitution', 'ok': False, 'detail': 'the bundle names a different key than the trust root; refused even if its own signature is mathematically valid'})
+    history = {}
+    if 'trust-history.json' in files:
+        try:
+            history = {h['key_id']: h for h in json.loads(files['trust-history.json'])}
+        except Exception:
+            history = {}
     for name in sorted(files):
         if name.startswith('receipts/') or name.startswith('verifications/'):
             rec = json.loads(files[name])
             msg = _canonical(rec['statement'])
-            schecks.append({'check': name, 'ok': bool(root_for_math and crypto.verify(root_for_math, msg, rec['signature_hex'])), 'detail': rec.get('kind') or rec.get('state')})
+            kid = rec.get('key_id')
+            key = roots.get(kid) if roots else (statement.get('public_key') if kid == statement.get('key_id') else None)
+            if key is None and roots and kid in history and root is not None:
+                # an OLD key named by the bundle's own history: acceptable only when the recipient supplied it as a trust root
+                key = None
+            issued = rec['statement'].get('issued_at')
+            h = history.get(kid)
+            in_interval = h is None or (h['valid_from'] <= (issued or 0) and (h['valid_until'] is None or (issued or 0) <= h['valid_until']))
+            ok = bool(key and crypto.verify(key, msg, rec['signature_hex']) and in_interval)
+            schecks.append({'check': name, 'ok': ok, 'detail': {'kind': rec.get('kind') or rec.get('state'), 'key_id': kid, 'key_supplied_as_root': key is not None, 'issued_within_validity': in_interval,
+                                                                'note': None if ok else ('key not among the supplied trust roots (rotation: pass the historical key too)' if key is None else 'signature or validity interval failed')}})
     report['signer_trust'] = {'ok': all(c['ok'] for c in schecks), 'trusted': root is not None and all(c['ok'] for c in schecks), 'checks': schecks}
     # method availability and scientific replay
     kind = terms['operation']['kind']
@@ -163,9 +180,9 @@ def verify(path, trust_root=None):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(); ap.add_argument('bundle'); ap.add_argument('--trust-root'); ap.add_argument('--json', action='store_true')
+    ap = argparse.ArgumentParser(); ap.add_argument('bundle'); ap.add_argument('--trust-root', action='append', default=[], help='hex ed25519 public key; repeat for historical (rotated) keys'); ap.add_argument('--json', action='store_true')
     a = ap.parse_args(argv)
-    rep = verify(a.bundle, a.trust_root)
+    rep = verify(a.bundle, a.trust_root[0] if a.trust_root else None, a.trust_root[1:])
     if a.json:
         print(json.dumps(rep, indent=1, default=str))
     else:

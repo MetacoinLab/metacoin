@@ -391,6 +391,15 @@ def mount(app, svc, run, read_body, API):
     async def work_status(request: Request):
         return await run(request, False, lambda db, p: (p.require('work:read') and None) or {'counts': economy_ops.counts(db, p.workspace), 'waiting_reasons': economy_ops.waiting_reasons(db, p.workspace)})
 
+    @app.get(API + '/work/keys')
+    async def work_keys(request: Request):
+        return await run(request, True, lambda db, p: (p.require('work:read') and None) or AC.trust_history(db, p))
+
+    @app.post(API + '/work/keys/rotate')
+    async def work_keys_rotate(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: AC.rotate_key(db, p, body), 'work.keys.rotate', raw)
+
     @app.get(API + '/work/contracts/{contract_id}/upgrade-preview')
     async def work_upgrade_preview(request: Request, contract_id: str):
         return await run(request, False, lambda db, p: T.upgrade_preview(db, p, contract_id))

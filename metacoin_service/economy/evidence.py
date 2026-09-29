@@ -152,8 +152,15 @@ class Evidence:
             raise ServiceError('NOT_FOUND', 'receipt')
         st = json.loads(r['statement_json'])
         checks = [{'check': 'structure', 'ok': st.get('schema') == RECEIPT_SCHEMA and st.get('receipt_id') == rid and st.get('kind') == r['kind'], 'detail': st.get('schema')}]
-        trust = body.get('trust_root') or db.execute("SELECT value FROM meta WHERE key='service_signing_public'").fetchone()['value']
-        checks.append({'check': 'signature_under_trust_root', 'ok': crypto.verify(trust, r['statement_json'].encode(), r['signature_hex']) and crypto.key_id_for(trust) == r['key_id'], 'detail': {'key_id': r['key_id'], 'trust_root_key_id': crypto.key_id_for(trust)}})
+        if body.get('trust_root'):
+            trust = body['trust_root']
+            checks.append({'check': 'signature_under_trust_root', 'ok': crypto.verify(trust, r['statement_json'].encode(), r['signature_hex']) and crypto.key_id_for(trust) == r['key_id'], 'detail': {'key_id': r['key_id'], 'trust_root_key_id': crypto.key_id_for(trust)}})
+        else:
+            hist = getattr(self, 'access').trust_history(db) if getattr(self, 'access', None) else {'keys': []}
+            k = next((x for x in hist['keys'] if x['key_id'] == r['key_id']), None)
+            in_interval = k is not None and k['valid_from'] <= st.get('issued_at', r['created_at']) and (k['valid_until'] is None or st.get('issued_at', r['created_at']) <= k['valid_until'])
+            sig_ok = k is not None and crypto.verify(k['public_key_hex'], r['statement_json'].encode(), r['signature_hex'])
+            checks.append({'check': 'signature_under_trust_history', 'ok': bool(sig_ok and in_interval), 'detail': {'key_id': r['key_id'], 'known_key': k is not None, 'issued_within_validity': in_interval, 'note': 'a valid signature by a key outside its interval is a substitution and is refused'}})
         award = db.execute('SELECT id, terms_digest FROM work_awards WHERE id=?', (r['award_id'],)).fetchone()
         checks.append({'check': 'links', 'ok': award is not None and award['terms_digest'] == st.get('terms_digest'), 'detail': {'award': r['award_id'], 'terms_digest': st.get('terms_digest')}})
         avail = {'provider': 'available' if r['kind'] == 'provider' else None}
@@ -649,6 +656,8 @@ class Evidence:
         else:
             undisclosed = ['no evidence committed']
         pub = metering.ensure_service_key(self.settings, db)
+        trust = getattr(self, 'access').trust_history(db) if getattr(self, 'access', None) else None
+        files['trust-history.json'] = merkle.canonical([{k: x[k] for k in ('key_id', 'public_key_hex', 'valid_from', 'valid_until', 'custody')} for x in trust['keys']]) if trust else merkle.canonical([])
         manifest = {'schema': BUNDLE_SCHEMA, 'award_id': aid, 'milestone': key, 'terms_digest': award['terms_digest'], 'evidence_root': ms['evidence_root'], 'scope': scope, 'kind': terms['operation']['kind'],
                     'file_sha256': {k: hashlib.sha256(v).hexdigest() for k, v in files.items()}, 'issuer_key_id': crypto.key_id_for(pub), 'issuer_public_key': pub, 'undisclosed': undisclosed,
                     'trust': 'signatures identify this service key (service custody); the recipient pins the key independently; nothing here is a globally witnessed ledger',

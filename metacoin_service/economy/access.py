@@ -231,6 +231,38 @@ class Access:
         history.record(db, principal.workspace, principal.id, 'artifact.exported', 'work_award', aid, {'milestone': key, 'encrypted_package': True, 'recipient_fingerprint': outer['recipient_key_fingerprint'], 'scope': scope})
         return {'manifest': outer, 'manifest_signature': sig, 'issuer_public_key': pub, 'ciphertext_b64': __import__('base64').b64encode(ct).decode(), 'decrypt_with': 'the recipient\'s own age identity; then run metacoin_service.economy.verify_work on the plaintext zip with --trust-root ' + pub}
 
+    # ---- signer custody and rotation (§39) ------------------------------------------------------------------------------------
+    def trust_history(self, db, principal=None):
+        """Every service signing key with its validity interval; the current key is recorded on first use."""
+        pub = metering.ensure_service_key(self.settings, db)
+        kid = crypto.key_id_for(pub)
+        if db.execute('SELECT 1 FROM signing_keys WHERE key_id=?', (kid,)).fetchone() is None:
+            db.execute('INSERT INTO signing_keys VALUES (?,?,?,?,NULL,?,?,?)', (kid, pub, 'service-custodied (this instance\'s key file; not provider- or independently controlled)', 0, 'bootstrap', 'initial service signing key', now()))
+        rows = [dict(r) for r in db.execute('SELECT * FROM signing_keys ORDER BY valid_from, rowid').fetchall()]
+        return {'keys': rows, 'current_key_id': kid, 'rule': 'a receipt verifies only under the key whose validity interval covers its issue time; a mathematically valid signature by another key is a substitution and is refused',
+                'custody': 'payment signing (synthetic chain accounts), work-receipt signing (service key) and audit read access (grants) are separate authorities'}
+
+    def rotate_key(self, db, principal, body):
+        """Explicit authorization record: the old key's validity ends now; the new key signs from now. Old receipts keep verifying under the old key."""
+        principal.require('admin:keys')
+        hist = self.trust_history(db, principal)
+        old_kid, old_pub = hist['current_key_id'], next(k['public_key_hex'] for k in hist['keys'] if k['key_id'] == hist['current_key_id'])
+        reason = str(body.get('reason', 'scheduled rotation'))[:256]
+        keys_dir = self.settings.keys_dir
+        import shutil
+        shutil.copy2(keys_dir / 'service.ed25519', keys_dir / ('service-%s.ed25519' % old_kid))
+        new_pub = crypto.generate_signing_key(keys_dir / 'service.ed25519.new')
+        (keys_dir / 'service.ed25519.new').replace(keys_dir / 'service.ed25519')
+        new_kid = crypto.key_id_for(new_pub)
+        t = now()
+        db.execute('UPDATE signing_keys SET valid_until=? WHERE key_id=? AND valid_until IS NULL', (t, old_kid))
+        db.execute('INSERT INTO signing_keys VALUES (?,?,?,?,NULL,?,?,?)', (new_kid, new_pub, 'service-custodied (rotated)', t, principal.id, reason, t))
+        db.execute("UPDATE meta SET value=? WHERE key='service_signing_public'", (new_pub,))
+        history.record(db, principal.workspace, principal.id, 'key.rotated', 'service', 'signing-key', {'old_key_id': old_kid, 'new_key_id': new_kid, 'reason': reason, 'compromise_suspected': bool(body.get('compromise_suspected')),
+                                                                                                    'note': 'signatures made before rotation stay valid under the old key\'s interval; information already held by recipients is not revoked'})
+        return dict(self.trust_history(db, principal), rotated_from=old_kid, rotated_to=new_kid, old_key_file='service-%s.ed25519' % old_kid, suspected_compromise=bool(body.get('compromise_suspected')),
+                    uncertain_claims=['receipts issued shortly before a suspected compromise may have been signed by an attacker holding the key: their issue time proves nothing by itself'] if body.get('compromise_suspected') else [])
+
     # ---- retention holds and deletion (§43) ---------------------------------------------------------------------------------
     def hold(self, db, award_id, milestone_id, imposed_by, policy, reason):
         hid = 'hold_' + secrets.token_hex(6)

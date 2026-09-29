@@ -246,7 +246,8 @@ class Money:
             raise ServiceError('CONFLICT', {'code': 'authorization_refused', 'stage': second.type})
         from .ops import fault
         fault(db, self.settings, 'payment_signing')
-        auth_rec = {'headers': headers, 'binding': binding, 'path': '/work/entitlements/' + e['id'], 'nonce': payload.payload['permit2Authorization']['nonce'], 'permitted_amount': payload.payload['permit2Authorization']['permitted']['amount'],
+        genesis = chain.w3.eth.get_block(0)['hash'].hex()
+        auth_rec = {'chain_genesis': genesis, 'headers': headers, 'binding': binding, 'path': '/work/entitlements/' + e['id'], 'nonce': payload.payload['permit2Authorization']['nonce'], 'permitted_amount': payload.payload['permit2Authorization']['permitted']['amount'],
                     'deadline': payload.payload['permit2Authorization'].get('deadline'), 'payload_sha256': hashlib.sha256(payload.model_dump_json(by_alias=True).encode()).hexdigest(), 'signer': i['payer'], 'mechanism': 'permit2 witness (x402 upto proxy)'}
         db.execute("UPDATE payment_intents SET state='authorized', authorization_json=?, requirements_json=?, requirements_digest=?, valid_until=?, updated_at=? WHERE id=?",
                    (json.dumps(auth_rec), second.payment_requirements.model_dump_json(by_alias=True), hashlib.sha256(second.payment_requirements.model_dump_json(by_alias=True).encode()).hexdigest(), int(auth_rec['deadline']) if auth_rec.get('deadline') else now() + 300, now(), iid))
@@ -282,7 +283,7 @@ class Money:
             db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')                                  # the expiry is a durable fact even though this request is refused
             raise ServiceError('EXPIRED', {'code': 'authorization_expired', 'note': 'expiry alone does not prove nothing was paid; reconcile, then reauthorize only after the old state is resolved'})
         env = ENV[self.settings.provider_mode]
-        journal.post(db, principal.workspace, 'submit:%s' % iid, 'submission', i['asset'], i['network'], env, [('liability:payable', final, 0), ('exposure:pending', 0, final)], 'payment_intent', iid, 'settlement submitted; exposure until observed')
+        journal.post(db, principal.workspace, 'submit:%s:%d' % (iid, i['submissions'] + 1), 'submission', i['asset'], i['network'], env, [('liability:payable', final, 0), ('exposure:pending', 0, final)], 'payment_intent', iid, 'settlement submitted (attempt %d); exposure until observed' % (i['submissions'] + 1))
         db.execute("UPDATE payment_intents SET state='submitted', final_amount=?, submissions=submissions+1, updated_at=? WHERE id=?", (final, now(), iid))
         db.execute("UPDATE work_entitlements SET state='submitted', updated_at=? WHERE id=?", (now(), e['id']))
         db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')                                  # durable before the rail is touched
@@ -374,6 +375,11 @@ class Money:
             return dict(self.intent_view(db, principal, iid), reconciliation='application journal intents settle synchronously; state retained')
         chain = self.chain(); auth = json.loads(i['authorization_json'] or '{}'); env = ENV[self.settings.provider_mode]
         obs = {'source': 'chain query', 'at': now(), 'method': None}
+        genesis = chain.w3.eth.get_block(0)['hash'].hex()
+        if auth.get('chain_genesis') and auth['chain_genesis'] != genesis:
+            observations = json.loads(i['observations_json']); observations.append(dict(obs, method='chain_identity', authorized_on=auth['chain_genesis'], current=genesis, result='rail state unavailable'))
+            db.execute('UPDATE payment_intents SET observations_json=?, error=?, updated_at=? WHERE id=?', (json.dumps(observations), 'private in-memory chain restarted since authorization: the observation cannot be made; exposure retained', now(), iid))
+            return dict(self.intent_view(db, principal, iid), reconciliation='rail identity changed (in-memory private chain restarted with the API process): no observation possible; exposure retained as ' + i['state'] + '; a persistent rail would answer this query')
         final = i['final_amount'] or i['max_amount']
         if i['transaction_ref']:
             try:

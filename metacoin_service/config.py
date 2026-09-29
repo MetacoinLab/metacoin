@@ -29,6 +29,7 @@ LIMITS = {
     'model_batch_enabled': 1, 'model_batch_max_items': 128, 'model_batch_max_chars': 400000, 'compute_drain_min_available_bytes': 8 * 1024 ** 3,
     # private knowledge (bounded collections; exact search)
     'calibration_max_age_seconds': 30 * 86400, 'calibrated_scheduling': 1,
+    'test_hooks': 0,   # fault injection and lost-response hooks: enabled only on disposable instances by an explicit override
     'knowledge_max_collections': 20, 'knowledge_max_documents_per_collection': 200, 'knowledge_max_document_bytes': 200_000, 'knowledge_max_csv_rows': 2000, 'knowledge_max_chunks_per_index': 5000,
 }
 

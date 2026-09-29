@@ -440,6 +440,9 @@ MIGRATIONS = [
     ('037_work_notifications', """
     CREATE TABLE notifications (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, recipient_id TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, event_key TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, dismissed_at INTEGER, UNIQUE (recipient_id, event_key));
     """),
+    ('038_signing_key_history', """
+    CREATE TABLE signing_keys (key_id TEXT PRIMARY KEY, public_key_hex TEXT NOT NULL, custody TEXT NOT NULL, valid_from INTEGER NOT NULL, valid_until INTEGER, authorized_by TEXT NOT NULL, reason TEXT, created_at INTEGER NOT NULL);
+    """),
 ]
 
 
