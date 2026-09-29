@@ -208,3 +208,46 @@ integrations/openmct/package-lock.json
 datasets/
 # the parameter-table working copy (protocol/parameter_table.py --generate); the anchored copy ships as protocol/evidence/parameter_table_<hash12>.json
 parameter_table.json
+
+# Reviewed experimental source only. Keep private vaults/generated artifacts
+# ignored; the global *receipt* rule would otherwise hide this source folder.
+!experiments/private_receipts/
+experiments/private_receipts/*
+!experiments/private_receipts/README.md
+!experiments/private_receipts/receipt.py
+!experiments/private_receipts/demo.py
+!experiments/private_receipts/test_receipt.py
+
+# Track only experimental source, never private vaults or SQLite state.
+experiments/work_contracts/*
+!experiments/work_contracts/*.py
+!experiments/work_contracts/README.md
+!experiments/work_contracts/tests/
+experiments/work_contracts/tests/*
+!experiments/work_contracts/tests/*.py
+!experiments/work_contracts/tests/fixtures/
+experiments/work_contracts/tests/fixtures/*
+!experiments/work_contracts/tests/fixtures/*.json
+!experiments/work_contracts/pilot/
+experiments/work_contracts/pilot/*
+!experiments/work_contracts/pilot/*.md
+!experiments/work_contracts/pilot/*.json
+!experiments/work_contracts/pilot/*.sh
+integrations/x402/*
+!integrations/x402/*.py
+!integrations/x402/README.md
+!integrations/x402/local_chain/
+integrations/x402/local_chain/*
+!integrations/x402/local_chain/*.py
+!integrations/x402/local_chain/*.js
+!integrations/x402/local_chain/artifacts.json
+!integrations/x402/local_chain/README.md
+
+# nine-hour session working directory (SESSION_STATE, logs, scratch) — never tracked
+work/nine-hour-session/
+
+# service environment and the real-features session working directory — never tracked
+.venv-service/
+work/real-features-session/
+
+work/workflow-services-session/

@@ -1,0 +1,293 @@
+{
+ "schema": "metacoin-feature-ledger/v1",
+ "order": "Order 08 core work economy",
+ "items": [
+  {
+   "group": "A",
+   "feature": "WorkTerms v1: typed deliverables, declarative acceptance policy, milestones DAG, honest-negative payment rule, deadlines, eligibility, selection policy, privacy, delegation/reassignment policies; unknown fields fail",
+   "entry_points": "POST/GET /api/v1/work/terms, /validate, /{id}/inspect, /compare/{other}, /freeze, /amend, /withdraw; CLI work-terms-*; console /console/work/terms/{id}",
+   "evidence": "test_work_terms; journeys 1, 6",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "A",
+   "feature": "Acceptance evaluation on one server path with predicate trace and four state dimensions",
+   "entry_points": "POST /work/terms/{id}/evaluate, /work/awards/{aid}/milestones/{k}/evaluate; MCP evaluate_acceptance; console evaluation table",
+   "evidence": "test_work_terms \u00a715 fixtures; journeys 8\u201310, 14",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "A",
+   "feature": "Amendments as new revisions with schema-classified differences; counteroffers with expiry; explicit supersession",
+   "entry_points": "/work/terms/{id}/amend, /freeze (supersedes), /compare",
+   "evidence": "test_work_terms, test_work_board; journey 6",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "A",
+   "feature": "Legacy deterministic task bridge kind legacy_task_replay with exact-hash audit (read-only registry)",
+   "entry_points": "kind legacy_task_replay; template independent_replay; verification full_exact",
+   "evidence": "test_work_terms; journeys 11, 39",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "B",
+   "feature": "Provider registration with signed capability revisions, execution type (local worker / enrolled node), declared operator relationship",
+   "entry_points": "POST /work/providers, /revise; CLI work-provider-register",
+   "evidence": "test_work_board; journey 6",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "B",
+   "feature": "Private request board with two-stage access; eligibility with structured reasons; binding offers (application signature, labelled)",
+   "entry_points": "/work/requests (+open/pause/close/validate/eligibility), /offers, /work/offers/{id}/withdraw|decline; MCP submit_offer/check_provider_compatibility",
+   "evidence": "test_work_board; journeys 1\u20133",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "B",
+   "feature": "Deterministic comparison and ranking (lowest price / weighted / manual with reason); excluded offers with reasons",
+   "entry_points": "GET /work/requests/{id}/compare; MCP compare_offers; console comparison page",
+   "evidence": "test_work_board; journey 3",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "B",
+   "feature": "Atomic award with budget reservation, lost-response replay, single-award race, stale offer / revised provider refusals",
+   "entry_points": "POST /work/requests/{id}/award; MCP award_work; CLI work-award",
+   "evidence": "test_work_board; journeys 4, 5",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "B",
+   "feature": "Provider execution through the existing worker system (local fixture) or an enrolled node (signed HTTPS); attempts, acknowledgement, milestone dispatch gated on acceptance",
+   "entry_points": "worker location policy; /work/awards/{id}/ack",
+   "evidence": "test_work_board, test_work_evidence; journeys 7, 24",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "C",
+   "feature": "Typed receipts (provider / verification / acceptance / settlement) with custody labels and resource evidence; receipt inspection and verification against a trust history",
+   "entry_points": "GET /work/awards/{id}/receipts, /work/receipts/{id}, /verify",
+   "evidence": "test_work_evidence; journeys 8, 15, 30",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "C",
+   "feature": "Entitlements (one per milestone and kind) and duplicate-claim prevention",
+   "entry_points": "GET /work/entitlements/{id}",
+   "evidence": "test_work_evidence; journey 15",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "C",
+   "feature": "Verifier assignment with honest independence labels; self-verification permitted by policy; distinct verifier gated on execution custody; sampled challenges via the existing challenge policy",
+   "entry_points": "POST /work/awards/{id}/milestones/{k}/verify",
+   "evidence": "test_work_evidence; journeys 16, 17",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "C",
+   "feature": "Disputes: open/respond/evidence/recheck/decide/appeal/close, resolver authority, append-only superseding decisions, deadline rule, holds",
+   "entry_points": "/work/disputes/*; MCP prepare_dispute/open_dispute; console dispute page",
+   "evidence": "test_work_evidence; journeys 17\u201319",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "C",
+   "feature": "Reassignment under permitted conditions with preserved history; bounded delegation",
+   "entry_points": "POST /work/awards/{id}/reassign, /milestones/{k}/delegate",
+   "evidence": "test_work_evidence; journeys 27\u201329",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "C",
+   "feature": "Portable work bundles and the offline verifier (parsing, integrity, signer trust with rotation history, method availability, replay, acceptance, missing evidence)",
+   "entry_points": "GET /work/awards/{id}/milestones/{k}/bundle; python -m metacoin_service.economy.verify_work",
+   "evidence": "test_work_evidence; journeys 13, 20, 23",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "D",
+   "feature": "Payment intents bound to entitlements with revalidated bindings; local-chain settlement (exact fixed / upto capped); lost-response exposure; reconciliation by receipt hash or Permit2 nonce; chain identity check",
+   "entry_points": "/work/entitlements/{id}/prepare, /work/intents/{id}/authorize|submit|reconcile",
+   "evidence": "test_work_money, test_work_faults; journeys 31\u201334",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "D",
+   "feature": "Double-entry journal with idempotent business events, replay and invariants; fee split with floor rounding; verifier compensation independent of verdict",
+   "entry_points": "GET /work/journal, POST /work/journal/replay; MCP reconcile_budget",
+   "evidence": "test_work_money, test_work_faults; journeys 35, 36, 38",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "D",
+   "feature": "Fee-backed treasury budget (availability from settled fees only), allocation, treasury-funded awards, release at close",
+   "entry_points": "GET /work/treasury, POST /work/treasury/allocate",
+   "evidence": "test_work_money; journey 35",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "D",
+   "feature": "Refunds under a preauthorized local recovery arrangement (partial, duplicate, lost response); application credits labelled as liabilities",
+   "entry_points": "POST /work/entitlements/{id}/refund|credit",
+   "evidence": "test_work_money, test_work_faults; journey 37",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "E",
+   "feature": "Compartments per role; read-only audit grants with purpose, categories, expiry, download policy, access history; revocation honesty",
+   "entry_points": "GET /work/awards/{id}/compartments, /artifacts/{aid}; /work/audit-grants/*",
+   "evidence": "test_work_access_missions; journeys 21, 22",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "E",
+   "feature": "Encrypted offline audit packages (age) with a signed manifest; retention rules, dispute holds honoured by cleanup, deletion keeping commitments",
+   "entry_points": "POST .../package, GET .../retention, POST .../evidence/delete",
+   "evidence": "test_work_access_missions; journeys 23, 24",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "E",
+   "feature": "Projections (private / collaborator / public-ready) with declared omissions and leakage checks; non-anchored candidate records",
+   "entry_points": "POST .../projection, .../anchor-candidate",
+   "evidence": "test_work_access_missions",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "E",
+   "feature": "Service signing-key rotation with a trust history; old receipts verify under the historical key; substitution refused",
+   "entry_points": "GET /work/keys, POST /work/keys/rotate",
+   "evidence": "journey 30",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "F",
+   "feature": "Mission portfolio: read-only import of the anchored verdict, bottleneck\u2192terms drafts, links, contributions with dedup warnings, budget view",
+   "entry_points": "/work/missions/*",
+   "evidence": "test_work_access_missions; journey 39",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "F",
+   "feature": "Honest resource/energy evidence on receipts (measured / estimated / attested; energy unavailable) and the host probe",
+   "entry_points": "GET /work/resource-evidence/probe",
+   "evidence": "test_work_access_missions",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "F",
+   "feature": "Simulated physical-observation boundary (signature, calibration, monotonic timestamps, declared bounds; real hardware refused)",
+   "entry_points": "POST /work/observations",
+   "evidence": "test_work_access_missions",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "ops",
+   "feature": "Notifications deduplicated by business event; work counts and waiting reasons in status/metrics; measurements with sample sizes; fault points; benchmark",
+   "entry_points": "/work/notifications, /work/status, /work/measurements, /api/v1/status, /api/metrics, /ops/faults; benchmark_work.py",
+   "evidence": "test_work_surfaces, test_work_faults",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "ops",
+   "feature": "Console: overview, terms, request comparison and award, contract detail with four dimensions and next authorized action, disputes, budgets/journal/treasury, missions; CLI work-* commands; MCP work tools; HTTP-only client example",
+   "entry_points": "/console/work*, client_cli work-*, mcp_server, examples/work_client.py",
+   "evidence": "test_work_surfaces; browser journey; journeys 25, 26",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "B",
+   "feature": "Evidence-based provider history without a score: dimensions with sample sizes, viewer-scoped population, cohort bands, accepted valid negatives counted as deliveries; provider-curated disclosed portfolio labelled incomplete (\u00a738)",
+   "entry_points": "GET /work/providers/{id}/history, GET/POST /work/providers/{id}/portfolio; console /console/work/providers/{id}; MCP provider_history; CLI work-provider-history / -portfolio / -portfolio-set",
+   "evidence": "test_work_history_interop; browser check 11",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "C",
+   "feature": "Cross-instance package import preview: structural completeness vs replayable evidence, trust requirements (no automatic trust), method availability, local knowledge, sender-reported payment observations, zero accounting effect (\u00a761)",
+   "entry_points": "POST /work/packages/import-preview (raw zip or JSON base64); CLI work-package-preview",
+   "evidence": "test_work_history_interop (clean second instance)",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.8 reconciliation operator console: pending observations with one bounded suggested action each (reconcile / renew / submit); no direct database edits",
+   "entry_points": "GET /work/reconciliation; /console/work/reconciliation with actions",
+   "evidence": "test_work_backlog",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.10 mission learning records: each accepted contribution classified against the declared node verdict (contradicts / confirmed / new evidence / inconclusive); decision changes recorded only by an explicit requester statement; no impact score",
+   "entry_points": "migration 039; portfolio view \"learning\"; POST /work/missions/{pid}/contributions/{cid}/learning",
+   "evidence": "test_work_backlog",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.4 offer amendment negotiation: counteroffers as new terms revisions with schema-classified consequential differences and explicit supersession (delivered in Group A/B)",
+   "entry_points": "/work/terms/{id}/amend, /freeze",
+   "evidence": "test_work_terms, test_work_board; journey 6",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.5 honest-negative templates: determination, infeasibility_witness, independent_replay, diagnostic_delivery with runnable examples (journeys 1, 9, 11, 12, 32)",
+   "entry_points": "POST /work/terms {template}",
+   "evidence": "test_work_terms; journeys 9, 11, 12, 32",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.1 repeated procurement programs: a bounded recurring class of work with per-run and aggregate ceilings and a run limit; every run freezes new terms on fresh inputs (reused input digests refused) and opens a fresh request; the aggregate is enforced inside the award transaction",
+   "entry_points": "POST/GET /work/programs, /work/programs/{id}/runs, /close; CLI work-program-*",
+   "evidence": "test_work_backlog2",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.3 verifier challenge packages: a receipt recipient proposes a bounded counterexample (own inputs, asserted outcome) executed as an ordinary job on the challenger's behalf without reading the contract's private evidence; signed package; attachable to a dispute",
+   "entry_points": "POST /work/receipts/{id}/challenge, GET /work/challenges[/{id}[/package]], dispute evidence {challenge_id}; CLI work-challenge*",
+   "evidence": "test_work_backlog2",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.7 versioned pricing experiments: fixed vs metered policies over a declared synthetic outcome workload under the frozen payment rule; stored and versioned; quotes, terms and the journal untouched",
+   "entry_points": "POST/GET /work/pricing-experiments[/{id}]; CLI work-pricing-experiment(s)",
+   "evidence": "test_work_backlog2",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.2 portfolio budget scenarios: allocations across a mission portfolio's commissioned requests under EXPLICIT declared utilities and costs, solved by the existing robust planner (resource_plan cost sweep); labelled assumption, not truth; awards nothing",
+   "entry_points": "POST/GET /work/missions/{pid}/scenarios[/{sid}]; CLI work-mission-scenario(s)",
+   "evidence": "test_work_backlog PortfolioScenarioTests",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.9 package compatibility, second half: a previewed package seeds a new local draft (operation binding stripped; fresh inputs, request and offers required)",
+   "entry_points": "POST /work/packages/import-preview {draft: true}",
+   "evidence": "test_work_history_interop",
+   "status": "implemented and exercised"
+  }
+ ],
+ "known_limits": [
+  "same-host, same-operator synthetic market: software mechanics, not price discovery",
+  "exact scheme on the chain settles through the upto proxy at the fixed amount (the SDK exact scheme in this checkout uses the facilitator double)",
+  "the private chain is in-memory in the API process: an API restart discards it; reconciliation then reports rail state unavailable",
+  "distinct verifier independence is available only through node execution (separate process, same operator)",
+  "production external settlement unverified and refused by the payer guard",
+  "energy counters unavailable: energy is reported unavailable or as a labelled estimate"
+ ],
+ "not_implemented": [
+  {
+   "item": "\u00a776.6 private provider portfolios",
+   "status": "implemented as the disclosed portfolio of \u00a738 (provider-selected receipts, completeness label); selective per-viewer disclosure policies beyond role scope not implemented"
+  }
+ ]
+}

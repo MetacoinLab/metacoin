@@ -1,0 +1,114 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[1] PASSED: work request from a real scientific operation: typed deliverables validated, determination contract frozen
+[2] PASSED: incompatible offer excluded with structured reasons; only the eligible offer can be awarded
+[3] PASSED: two equally priced eligible offers: the declared deterministic tie-break decides; a manual choice needs a reason
+[4] PASSED: award retried after a lost response returns the same award and reservation; no second obligation
+[5] PASSED: two concurrent awards for a single-award request: exactly one provider obtains the entitlement
+[6] PASSED: price, recipient or threshold changes after freezing require a new agreement; the frozen revision is never mutated
+[7] PASSED: multi-milestone contract: independent nodes run concurrently, the dependent node is gated on ACCEPTANCE and a paid valid negative stops it by policy
+[8] PASSED: correctly verified feasible result: accepted under the frozen policy and paid as agreed (application-journal rail)
+[9] PASSED: correctly verified INFEASIBLE result under an outcome-neutral determination contract: accepted and paid the same as the positive
+[10] PASSED: a crash / timeout presented as an infeasibility result: scientific acceptance refused, the execution-failure record preserved
+[11] PASSED: frozen legacy task replayed through the contract bridge reproduces the registered canonical hash; historic artifacts untouched
+[12] PASSED: numerical witness (resource plan) accepted under its declared class; it cannot be advertised as a legacy exact protocol task
+[13] PASSED: disclosed evidence package verified from a clean separate process without the service database
+[14] PASSED: an artifact from another contract presented against these terms is rejected (binding to contract digest and input root)
+[15] PASSED: the same payable claim re-submitted (new decision request, re-read receipts, different transport key): one entitlement only
+[16] PASSED: output committed before a sampled challenge; altered afterwards; the mismatch is detected without claiming full replay from sampling
+[17] PASSED: conflicting verification records preserved; diagnostic recheck compares inputs and method versions first; resolution linked, nothing overwritten
+[18] PASSED: dispute against a mistaken rejection: valid replay added, an authorized superseding acceptance created, the original decision retained
+[19] PASSED: dispute resolution attempted by unauthorized principals (provider, viewer, requester): refused; the original state unchanged
+[20] PASSED: restricted receipt bundle: the offline verifier reports valid disclosed structure and signatures with limited scientific scope
+[21] PASSED: contract-scoped read-only audit access: required evidence readable; spending, amendments and unrelated artifacts refused
+[22] PASSED: audit grant revoked during a session: future access stops; already disclosed data is stated as not recallable
+[23] PASSED: encrypted offline package for one recipient: correct key decrypts and verifies; the wrong recipient is refused; no private key travels
+[24] PASSED: source revoked while a late worker publishes: the attempt fails, no stale publication restores access
+[25] PASSED: authorized low-budget work purchase through a real MCP client under an agent grant (same server policy as HTTP)
+[26] PASSED: a provider description instructs the agent to raise the budget and change the payment destination: the original grant and the frozen terms are enforced server-side
+[27] PASSED: one permitted subtask delegated to a registered local provider: same data scope, requester charged once, primary provider remains bound
+[28] PASSED: over-budget and over-depth nested delegation refused before signing or dispatch
+[29] PASSED: failed provider reassigned under the permitted policy; old award preserved and released; a stale completion from the old generation cannot become current
+[30] PASSED: service signing key rotated with an authorization record: old receipts verify under the historical key; substitution refused
+[31] PASSED: actual exact payment on the private local chain matched to one accepted entitlement (observed receipt, balances moved once)
+[32] PASSED: capped metered (upto) payment settled below its maximum for a diagnostic delivery; unused reservation released
+[33] PASSED: payment response lost, workers restarted, exact original authorization reconciled by nonce; no second spend
+[34] PASSED: work completed after authorization expiry: expiry is not assumed unpaid; reconciled as unused, renewed as a new identity, settled once
+[35] PASSED: a confirmed fee credited once funds a bounded treasury award that pays an accepted negative; replay cannot credit the fee twice
+[36] PASSED: verifier paid for completed verification work when it correctly rejects provider evidence (verdict-independent); provider unpaid
+[37] PASSED: supported synthetic partial refund observed on the rail; its retry replays; a service credit is labelled as a liability, not returned assets
+[38] PASSED: accounting journal replayed: balances, obligations, reserves and exposure reproduced; no base-supply, identity or ledger change
+[39] PASSED: contract drafted from an original mission bottleneck, completed locally, updating only the service-layer portfolio (anchored verdict unchanged)
+[40] NOT-RUN: reproduce the final source package in a clean environment and verify the delivered patch against its base
+
+   "running": 0,
+   "succeeded": 46,
+   "failed": 3,
+   "cancelled": 1
+  },
+  "queue_after": {
+   "queued": 0,
+   "running": 0,
+   "succeeded": 46,
+   "failed": 3,
+   "cancelled": 1
+  },
+  "drained": [],
+  "worker_alive_at_end": true,
+  "last_award": {
+   "award": "wa_c4108865f9f3da73",
+   "milestones": [
+    {
+     "key": "pos",
+     "state": "accepted",
+     "job_id": "j_7198cd610daceaba",
+     "dimensions": {
+      "execution": "completed",
+      "science": "FEASIBLE",
+      "acceptance": "accepted",
+      "payment": "payable"
+     },
+     "blocked_reason": null
+    },
+    {
+     "key": "neg",
+     "state": "accepted",
+     "job_id": "j_47e9bfa33a51fda0",
+     "dimensions": {
+      "execution": "completed",
+      "science": "INFEASIBLE",
+      "acceptance": "accepted",
+      "payment": "payable"
+     },
+     "blocked_reason": null
+    },
+    {
+     "key": "down",
+     "state": "cancelled",
+     "job_id": null,
+     "dimensions": {
+      "execution": "not_started",
+      "science": "not_applicable",
+      "acceptance": "not_applicable",
+      "payment": "released"
+     },
+     "blocked_reason": "dependency neg concluded INFEASIBLE: downstream work stopped by policy (accepted_positive required)"
+    }
+   ],
+   "job": {
+    "state": "succeeded",
+    "kind": "energy_audit",
+    "error_code": null,
+    "lease_owner": null,
+    "retries_left": 1,
+    "location_policy": null,
+    "error": null
+   }
+  }
+ },
+ "passed": 39,
+ "failed": 0,
+ "blocked": 0,
+ "not_run": 1,
+ "total": 40
+}

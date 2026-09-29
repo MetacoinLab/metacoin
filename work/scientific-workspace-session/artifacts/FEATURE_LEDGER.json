@@ -1,0 +1,463 @@
+{
+ "generated": "2026-09-28T09:25:33Z",
+ "order": "CLAUDE_CODE_SCIENTIFIC_WORKSPACE_EXPANSION_2026-09-28",
+ "items": [
+  {
+   "section": "A",
+   "feature": "Native PDF extraction with page/span provenance (pypdf 6.1.3 in a resource-limited child; active content refused)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /api/v1/documents/import (raw application/pdf or JSON base64)",
+    "GET /documents/{id}/pages/{i}[/preview.png]",
+    "CLI document-import/document/document-page",
+    "/console/documents/{id}/pages/{i}"
+   ],
+   "evidence": [
+    "test_documents",
+    "journeys 1,3",
+    "browser shots 01-03"
+   ],
+   "known_limits": "no layout-analysis engine (Docling not adopted); columns detected by geometry clustering"
+  },
+  {
+   "section": "A",
+   "feature": "Bounded local OCR (rapidocr_onnxruntime 1.4.4, pdftoppm rasterization, pixel/CPU/wall/address-space limits, provenance + diagnostic confidence)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "policy mode native|ocr_needed|ocr_forced",
+    "page inspector ocr facts"
+   ],
+   "evidence": [
+    "test_documents",
+    "journey 2",
+    "document-extraction-results-baseline.json (dev 42/42, held-out 14/14 field matches)"
+   ],
+   "known_limits": "OCR sometimes drops inter-word spaces; field-level matches only; no tesseract"
+  },
+  {
+   "section": "A",
+   "feature": "Tables as inspectable evidence with annotations, mapping schema metacoin-table-mapping/v1, confirmed mapping -> immutable dataset version with row-level provenance",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/documents/tables/{id}",
+    "annotations",
+    "mappings/preview|create|confirm",
+    "CLI table/table-annotate/mapping-*",
+    "/console/documents/tables/{id}"
+   ],
+   "evidence": [
+    "test_documents",
+    "journeys 4,5"
+   ],
+   "known_limits": "regular grid tables; merged cells and nested headers unsupported (reported as ambiguity)"
+  },
+  {
+   "section": "A",
+   "feature": "Units and uncertainty at the boundary: exact Fraction arithmetic, directed rounding, declared locale, refusal of ambiguous values",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "mapping locale/rounding/missing_policy fields",
+    "documents/units.py"
+   ],
+   "evidence": [
+    "test_documents (locale)",
+    "test_resource_plan (directed conversion)",
+    "journey 5"
+   ],
+   "known_limits": "5 dimensions (energy, power, time, temperature, dimensionless)"
+  },
+  {
+   "section": "A",
+   "feature": "Search and citations bound to document revision and page; privacy/retention/removal with removal reports",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "knowledge search results page_number/region",
+    "POST /knowledge/citations/validate",
+    "documents/{id}/remove"
+   ],
+   "evidence": [
+    "test_documents",
+    "journey 1",
+    "privacy regression"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "A",
+   "feature": "Document revision comparison (page/passage/table-cell; layout-only vs content; affected datasets/analyses) [backlog 1]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "GET /documents/{a}/compare/{b}",
+    "CLI document-compare",
+    "/console/documents/{a}/compare/{b}"
+   ],
+   "evidence": [
+    "test_document_compare"
+   ],
+   "known_limits": "tables matched by position or identical header row"
+  },
+  {
+   "section": "B",
+   "feature": "Static generation batching (padded forward pass, per-row stopping, per-row segments and usage, admission by workspace/submitter/revision, KV budget)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /models/batching",
+    "GET /models/runtime generation_batching",
+    "CLI model-batching"
+   ],
+   "evidence": [
+    "test_generation_batching",
+    "journeys 6,7",
+    "generation-batching-benchmark.json"
+   ],
+   "known_limits": "greedy only; equality with singleton 1.0 short / 0.5 mixed prompts"
+  },
+  {
+   "section": "B",
+   "feature": "Continuous generation admission (transformers ContinuousBatchingManager session: cb_add/cancel/cb_end, admission during the session, static fallback) [backlog 2]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "batching modes [\"static\",\"continuous\"]",
+    "model_batches.mode continuous with admission records"
+   ],
+   "evidence": [
+    "test_generation_continuous (real model: 3 members, 2 admitted mid-session, 1 cancelled)",
+    "continuous-equality.json"
+   ],
+   "known_limits": "cuda + chat template required; token-level equality with singleton observed True on the short prompt only (n=1 recorded)"
+  },
+  {
+   "section": "B",
+   "feature": "Per-request cancellation, streaming reconnect from a cursor, credential revocation ends delivery, usage/payment accounting per member incl. two upto requests in one batch",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /jobs/{id}/cancel",
+    "GET /models/jobs/{id}/segments?after=",
+    "x402 upto route"
+   ],
+   "evidence": [
+    "test_generation_batching",
+    "test_upto_route (UptoBatchedGenerationTests)",
+    "journey 7"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "C",
+   "feature": "Typed intent compilation: catalog eligibility filter with reasons before any model choice, clarification/abstention outcomes, bounded repair, evidence-grounded context, continuation tokens",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /agents/intents",
+    "/continue",
+    "MCP compile_intent/continue_intent/intent_status",
+    "CLI intent/intent-continue",
+    "/console/agents"
+   ],
+   "evidence": [
+    "test_intent",
+    "test_intent_model",
+    "journeys 8,9,10"
+   ],
+   "known_limits": "keyword family detection (held-out miss ho-bare-units)"
+  },
+  {
+   "section": "C",
+   "feature": "Evaluation registry intent items with dev/validation/held-out split, category metrics, authority vs quality separation; v1 misses kept as regression",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "evaluation suites item type intent",
+    "eval-set-agent-behavior-v2.json"
+   ],
+   "evidence": [
+    "eval-set-agent-behavior-v2.json: 30/34; dev coverage 0.6 accuracy 1.0; 0 policy violations; misses ho-bare-units, ho-abs, injection-doc, held-out-sel"
+   ],
+   "known_limits": "small model quality misses reported, not tuned away"
+  },
+  {
+   "section": "C",
+   "feature": "Model routing by evaluated task capability (installed revisions only, category accuracy, latency, budget, explicit fallback) [backlog 6]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "GET /models/route",
+    "POST /models/generate route:{category,budget}"
+   ],
+   "evidence": [
+    "test_backlog_late (routing; synthetic evaluation rows labelled)"
+   ],
+   "known_limits": "one generation model installed on this host: ranking exercised with labelled synthetic evidence"
+  },
+  {
+   "section": "D",
+   "feature": "Robust resource planning robust-resource-plan/v1: written model contract, HiGHS MILP with time limit, truthful statuses, exact independent simulator, bounded oracle, witness verification through the verification service, excluded-task explanations",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /compute/resource-plans",
+    "GET /compute/jobs/{id}/plan|plan.svg",
+    "verification classes full_reference/analytical",
+    "CLI resource-plan/plan-view",
+    "MCP plan_resources/plan_result",
+    "/console/compute/new?kind=resource_plan",
+    "job page"
+   ],
+   "evidence": [
+    "test_resource_plan (9: analytic fixtures, 30 random oracle agreements, status mapping with a labelled solver double)",
+    "test_resource_plan_service (4)",
+    "journeys 11,12,13"
+   ],
+   "known_limits": "T<=96 slots, <=24 tasks, <=2000 start variables, <=4 resources; oracle <=6 tasks; journey 13 saw no limit outcome on this host (HiGHS solved within 1 s)"
+  },
+  {
+   "section": "D",
+   "feature": "Epsilon-constraint cost sweep with dedup and dominance witnesses; alternative freeze into workflow drafts; finite sensitivity with a non-monetary value-of-information proxy",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "objectives.cost_sweep, sensitivity[]",
+    "POST /compute/jobs/{id}/freeze-alternative",
+    "plan.svg?alternative="
+   ],
+   "evidence": [
+    "test_resource_plan",
+    "journey 14",
+    "test_resource_plan_service"
+   ],
+   "known_limits": "dominance evaluated among evaluated candidates only (not a complete frontier)"
+  },
+  {
+   "section": "D",
+   "feature": "Scenario branches with typed changes and recorded sources, version-checked heads (stale_branch), deep comparison with per-candidate plan changes and first violations; console comparison page",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /campaigns/{id}/branch changes/expected_head",
+    "GET /campaigns/{id}/head",
+    "compare",
+    "/console/campaigns/{a}/compare/{b}"
+   ],
+   "evidence": [
+    "test_resource_plan_service",
+    "browser shot 11"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "D",
+   "feature": "Budgeted acquisition campaigns over finite authorized candidate sets (predicted improvement + declared exploration, seeded, checkpointed, restart-safe) [+ backlog 10 recovery records]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "campaign adaptive.strategy=acquisition",
+    "adaptive.checkpoint"
+   ],
+   "evidence": [
+    "test_resource_plan_service",
+    "adaptive-campaign-benchmark.json (2 problems, budget 4/9: adaptive and grid both regret 0)",
+    "test_backlog_late (recovery across restart + lease interruption)"
+   ],
+   "known_limits": "no universal superiority claim; interpolation, not a calibrated posterior"
+  },
+  {
+   "section": "E",
+   "feature": "Analysis sessions on notebooks: typed blocks with schema/author/depends_on, optimistic concurrency, freezes, stale marking through declared dependencies and reference drift",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/analyses*",
+    "CLI analysis-*",
+    "MCP create_analysis/analysis_status/analysis_impact",
+    "/console/analyses"
+   ],
+   "evidence": [
+    "test_analyses",
+    "journeys 15,16,20"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "E",
+   "feature": "Dependency graph + bounded impact analysis (direct/transitive/unaffected/unknown, cycles) over declared dependencies and recorded lineage (new edges: model revision, knowledge answer, verification policy)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /analyses/{id}/impact"
+   ],
+   "evidence": [
+    "test_analyses",
+    "journey 15"
+   ],
+   "known_limits": "missing declarations are reported unknown, never unaffected"
+  },
+  {
+   "section": "E",
+   "feature": "Selective regeneration with exact reuse (identical inputs + verifier digest + evidence present; reason codes; reused jobs meter 0)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /analyses/{id}/regeneration-plan|regenerate",
+    "workflows.start_run reuse_nodes"
+   ],
+   "evidence": [
+    "test_analyses (a,b rerun; c reused)",
+    "journey 15"
+   ],
+   "known_limits": "inline-input nodes only for changes; dataset-bound nodes re-quoted at run start"
+  },
+  {
+   "section": "E",
+   "feature": "Evidence-linked reports (deterministic; claims checked; labelled number-checked model interpretation; computed limitations) as Markdown/HTML/manifest bundles; PDF export [backlog 5]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /analyses/{id}/reports",
+    "GET /reports/{id}[/html|/bundle|/pdf]",
+    "/console/reports/{id}"
+   ],
+   "evidence": [
+    "test_analyses",
+    "test_backlog_late (pdf)",
+    "journey 16"
+   ],
+   "known_limits": "Markdown subset renderer"
+  },
+  {
+   "section": "E",
+   "feature": "Reviewable disclosure projections (block/field allowlists, exact preview, indirect-disclosure warnings, service-signed export, scope-honest verifier)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /reports/{id}/projection[/preview]",
+    "POST /reports/projection/verify",
+    "CLI report-projection/projection-verify"
+   ],
+   "evidence": [
+    "test_analyses",
+    "journey 17",
+    "privacy regression"
+   ],
+   "known_limits": "ordinary redaction + signature; not a proof about hidden content"
+  },
+  {
+   "section": "E",
+   "feature": "Decision review queue (stale non-text evidence, contradictory claims, report behind revision, frozen results without verification) [backlog 9]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "GET /review-queue",
+    "CLI review-queue"
+   ],
+   "evidence": [
+    "test_reconciliation"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "F",
+   "feature": "Versioned workflow packages (content-addressed manifests, stripped private inputs, operation/model identities, delivery policy, disclosure defaults, synthetic example), export/import as data, retire",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/packages*",
+    "CLI package-*",
+    "/console/packages"
+   ],
+   "evidence": [
+    "test_packages",
+    "journey 18"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "F",
+   "feature": "Compatibility negotiation (supported / declared-equivalent / optional / blocked) that reserves nothing; upgrade preview [backlog 8]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /packages/compatibility",
+    "GET /packages/{old}/upgrade-preview/{new}",
+    "MCP package_compatibility"
+   ],
+   "evidence": [
+    "test_packages (incl. CPU-only labelled double)",
+    "test_reconciliation (upgrade preview)",
+    "journey 18 (other workspace)"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "F",
+   "feature": "Composite quotes bound to package/definition/input digests with expiry, budget refusal, mismatch and consumption; package runs under the run ceiling",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /packages/{id}/quote|runs",
+    "GET /packages/quotes/{id}"
+   ],
+   "evidence": [
+    "test_packages",
+    "failure campaign (budget refusal)"
+   ],
+   "known_limits": "per-node catalog quotes; verification/report assembly carry no declared charge"
+  },
+  {
+   "section": "F",
+   "feature": "Verification-gated delivery on the existing x402 upto path (settlement withheld until the required class passes; unaccepted -> authorization unused under policy none; retry under the same authorization; fixed-price failure policy disclosed)",
+   "status": "implemented-and-verified (private local chain only)",
+   "entry_points": [
+    "POST /packages/{id}/bind-job",
+    "GET /x402/settlements/{id} delivery_gate",
+    "POST /packages/runs/{id}/retry"
+   ],
+   "evidence": [
+    "test_packages_upto (journal = chain balances)",
+    "journey 19"
+   ],
+   "known_limits": "production settlement not verified; not an escrow"
+  },
+  {
+   "section": "F",
+   "feature": "Signed result bundles (zip: canonical manifest, statement, projections, witness) with the offline verifier verify_bundle.py",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "POST /packages/runs/{id}/bundle",
+    "bundle.zip",
+    "python -m metacoin_service.verify_bundle"
+   ],
+   "evidence": [
+    "test_packages (valid, changed artifact, substituted signer, missing source, restricted, bomb/traversal)",
+    "journey 17/18"
+   ],
+   "known_limits": "witness replay for resource plans only"
+  },
+  {
+   "section": "F",
+   "feature": "Cross-document measurement reconciliation and measurement-request artifacts [backlog 3,4]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "/api/v1/reconciliations",
+    "/api/v1/measurement-requests[/export]",
+    "CLI reconcile/measurement-request"
+   ],
+   "evidence": [
+    "test_reconciliation"
+   ],
+   "known_limits": "result only under an explicit justified rule; requests are local artifacts"
+  },
+  {
+   "section": "ops",
+   "feature": "Ops status stages and waiting reasons; health reports the loaded revision; fault hook only on disposable instances (limits.test_hooks)",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "GET /api/v1/status",
+    "/api/metrics",
+    "POST /ops/faults (test hooks only)"
+   ],
+   "evidence": [
+    "test_ops_search",
+    "test_packages_upto (fault route refused without hooks)",
+    "journey 23 (loaded revision)"
+   ],
+   "known_limits": ""
+  },
+  {
+   "section": "ops",
+   "feature": "Incremental reindexing with vector reuse under identical text/chunker/embedding revision; old citations preserved [backlog 7]",
+   "status": "implemented-and-verified",
+   "entry_points": [
+    "knowledge index build (automatic)",
+    "index job summary reused_vectors/embedded_vectors/reuse_rejected"
+   ],
+   "evidence": [
+    "test_backlog_late"
+   ],
+   "known_limits": "reuse only from the collection latest ready index"
+  }
+ ]
+}

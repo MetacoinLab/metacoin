@@ -1,0 +1,66 @@
+{
+ "schema": "metacoin-journeys-workspace/v1",
+ "provider_mode": "test-http",
+ "revision": "955b751a73338bb16dcfa354648ee34796ed6a15",
+ "dependencies": {
+  "compute_interpreter": {
+   "python": "/usr/bin/python3",
+   "numpy": "2.2.6",
+   "python_version": "3.12.3",
+   "cuda": true,
+   "torch": "2.10.0+cu130",
+   "device": "NVIDIA GB10",
+   "capability": "12.1"
+  },
+  "models_present": true,
+  "python": "3.12.3",
+  "local_chain_artifacts": true
+ },
+ "started_at": 1790588804,
+ "finished_at": 1790588807,
+ "results": [
+  {
+   "journey": 1,
+   "title": "native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page",
+   "status": "passed",
+   "evidence": {
+    "document": "di_b5676f1b9267",
+    "state": "ready",
+    "parser": "metacoin-pdf-extractor/v1",
+    "page_method": "native",
+    "console_page_status": 200,
+    "hit_page": 1,
+    "search_status": 200,
+    "search_error": null,
+    "results": 1,
+    "citation_valid": [
+     true
+    ],
+    "all_valid": true,
+    "checks": {
+     "cli_rc": true,
+     "ready": true,
+     "one_page": true,
+     "native": true,
+     "console_page": true,
+     "console_shows_method": true,
+     "console_shows_spans": true,
+     "hit_version": true,
+     "hit_page_1": true,
+     "citation_valid": true
+    },
+    "hit_version": "kv_0ac34a5eefb6",
+    "doc_version": "kv_0ac34a5eefb6"
+   },
+   "caveat": null,
+   "started_at": 1790588804.8583953,
+   "ended_at": 1790588807.0465095
+  }
+ ],
+ "browser": null,
+ "passed": 1,
+ "failed": 0,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 1
+}

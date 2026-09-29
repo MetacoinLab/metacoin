@@ -1,0 +1,103 @@
+{
+ "schema": "metacoin-fault-campaign/v1",
+ "fault_points": [
+  "award_commit",
+  "reservation_posting",
+  "evidence_publication",
+  "verifier_completion",
+  "acceptance_decision",
+  "payment_signing",
+  "payment_submission",
+  "payment_observation",
+  "fee_credit",
+  "refund_observation"
+ ],
+ "tests": [
+  {
+   "test": "test_adversarial_accounting_cases",
+   "suite": "test_adversarial_accounting_cases",
+   "result": "ok"
+  },
+  {
+   "test": "test_award_and_reservation_faults_leave_no_partial_award",
+   "suite": "test_award_and_reservation_faults_leave_no_partial_award",
+   "result": "ok"
+  },
+  {
+   "test": "test_capped_metered_below_maximum_expiry_and_lost_response",
+   "suite": "test_capped_metered_below_maximum_expiry_and_lost_response",
+   "result": "ok"
+  },
+  {
+   "test": "test_evidence_verifier_and_decision_faults",
+   "suite": "test_evidence_verifier_and_decision_faults",
+   "result": "ok"
+  },
+  {
+   "test": "test_exact_payment_matches_entitlement_refund_and_journal_replay",
+   "suite": "test_exact_payment_matches_entitlement_refund_and_journal_replay",
+   "result": "ok"
+  },
+  {
+   "test": "test_fee_credit_and_refund_observation_faults",
+   "suite": "test_fee_credit_and_refund_observation_faults",
+   "result": "ok"
+  },
+  {
+   "test": "test_fee_credited_once_funds_a_treasury_award_with_accepted_negative_and_verifier_paid_on_rejection",
+   "suite": "test_fee_credited_once_funds_a_treasury_award_with_accepted_negative_and_verifier_paid_on_rejection",
+   "result": "ok"
+  },
+  {
+   "test": "test_payment_faults_never_invent_a_settlement_or_release_exposure",
+   "suite": "test_payment_faults_never_invent_a_settlement_or_release_exposure",
+   "result": "ok"
+  },
+  {
+   "test": "test_refusals_before_signing_and_stale_revision",
+   "suite": "test_refusals_before_signing_and_stale_revision",
+   "result": "ok"
+  },
+  {
+   "test": "test_capped_metered_below_maximum_expiry_and_lost_response",
+   "suite": "test_capped_metered_below_maximum_expiry_and_lost_response",
+   "result": "ok"
+  },
+  {
+   "test": "test_exact_payment_matches_entitlement_refund_and_journal_replay",
+   "suite": "test_exact_payment_matches_entitlement_refund_and_journal_replay",
+   "result": "ok"
+  },
+  {
+   "test": "test_fee_credited_once_funds_a_treasury_award_with_accepted_negative_and_verifier_paid_on_rejection",
+   "suite": "test_fee_credited_once_funds_a_treasury_award_with_accepted_negative_and_verifier_paid_on_rejection",
+   "result": "ok"
+  },
+  {
+   "test": "test_refusals_before_signing_and_stale_revision",
+   "suite": "test_refusals_before_signing_and_stale_revision",
+   "result": "ok"
+  }
+ ],
+ "summary": [
+  "Ran 13 tests in 19.609s",
+  "OK"
+ ],
+ "exit": 0,
+ "seconds": 20.0,
+ "coverage": {
+  "award_commit": "test_award_and_reservation_faults_leave_no_partial_award",
+  "reservation_posting": "test_award_and_reservation_faults_leave_no_partial_award",
+  "evidence_publication": "test_evidence_verifier_and_decision_faults",
+  "verifier_completion": "test_evidence_verifier_and_decision_faults",
+  "acceptance_decision": "test_evidence_verifier_and_decision_faults",
+  "payment_signing": "test_payment_faults_never_invent_a_settlement_or_release_exposure",
+  "payment_submission": "test_payment_faults_never_invent_a_settlement_or_release_exposure",
+  "payment_observation": "test_payment_faults_never_invent_a_settlement_or_release_exposure",
+  "fee_credit": "test_fee_credit_and_refund_observation_faults",
+  "refund_observation": "test_fee_credit_and_refund_observation_faults",
+  "adversarial_accounting (duplicate claims, replayed refunds, stale revisions, recipient substitution, journal replay)": "test_adversarial_accounting_cases"
+ },
+ "method": "fault points armed through /ops/faults on a disposable instance with limits.test_hooks=1; each armed point raises inside the transaction; the test then checks the durable state (no partial award, no invented settlement, exposure retained, journal replay consistent) and disarms explicitly",
+ "stderr_tail": null
+}

@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block body %}
+<h1>Scientific campaigns</h1>
+<div class="tablewrap"><table><tr><th>campaign</th><th>name</th><th>kind</th><th>state</th><th>progress</th><th>updated</th></tr>{% for c in campaigns %}<tr><td><a href="/console/campaigns/{{ c.id }}">{{ c.id }}</a></td><td>{{ c.name }}</td><td>{{ c.kind }}</td><td><span class="badge">{{ c.state }}</span></td><td>{{ c.done }} / {{ c.total_candidates }}</td><td>{{ c.updated_at }}</td></tr>{% endfor %}</table></div>{% endblock %}

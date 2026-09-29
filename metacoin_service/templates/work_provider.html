@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block body %}
+<h1>Provider {{ pv.name }} <code>{{ pv.id }}</code></h1>
+<p class="note">{{ h.evidence }} · population: {{ h.population.label }} (contracts: {{ h.population.contracts }}) · execution {{ h.dimensions.execution_type }} · relationship {{ h.dimensions.operator_relationship.relationship }}</p>
+<h2>History dimensions (no single score)</h2><div class="card"><div class="tablewrap"><table>
+<tr><th>dimension</th><th>value</th></tr>
+<tr><td>task families</td><td>{{ h.dimensions.task_families|tojson }}</td></tr>
+<tr><td>completed / closed contracts</td><td>{{ h.dimensions.completed_contracts }} / {{ h.dimensions.closed_contracts }}</td></tr>
+<tr><td>verification methods</td><td>{{ h.dimensions.verification_methods|tojson }}</td></tr>
+<tr><td>acceptance outcomes</td><td>positive {{ h.dimensions.acceptance_outcomes.accepted_positive }} · <strong>valid negative {{ h.dimensions.acceptance_outcomes.accepted_valid_negative }}</strong> (accepted deliveries, not failures) · diagnostic {{ h.dimensions.acceptance_outcomes.accepted_diagnostic }} · rejected {{ h.dimensions.acceptance_outcomes.rejected }} · pending {{ h.dimensions.acceptance_outcomes.pending }}</td></tr>
+<tr><td>execution</td><td>completed {{ h.dimensions.execution.completed }} · failed {{ h.dimensions.execution.failed }} · running {{ h.dimensions.execution.running }}</td></tr>
+<tr><td>dispute outcomes</td><td>{{ h.dimensions.dispute_outcomes|tojson }}</td></tr>
+<tr><td>observed latency (s)</td><td>{{ h.dimensions.observed_latency_seconds|tojson }}</td></tr>
+<tr><td>price behaviour</td><td>{{ h.dimensions.price_behaviour|tojson }}</td></tr>
+<tr><td>capabilities</td><td>{{ h.dimensions.capabilities.kinds|join(', ') }} · {{ h.dimensions.capabilities.verification_classes|join(', ') }}</td></tr>
+</table></div><ul>{% for r in h.reading %}<li>{{ r }}</li>{% endfor %}</ul></div>
+<h2>Disclosed portfolio</h2><div class="card"><p>{{ pf.completeness.label }} · disclosed {{ pf.completeness.disclosed }} · known to this service: {{ pf.completeness.existing_receipts_known_to_this_service }}<br><span class="note">{{ pf.completeness.note }}</span></p>
+<ul>{% for i in pf["items"] %}<li><code>{{ i.id }}</code> {{ i.kind }}{% if i.decision %} · {{ i.decision }} ({{ i.science }}, {{ i.payment_class }}){% endif %}{% if i.class %} · {{ i.class }} {{ i.outcome }} · {{ i.independence }}{% endif %}{% if i.kind_executed %} · {{ i.kind_executed }} {{ i.execution_state }}{% endif %}</li>{% else %}<li>nothing disclosed</li>{% endfor %}</ul></div>
+<h2>Revisions</h2><div class="card"><ul>{% for r in pv.revisions %}<li>rev {{ r.revision }} · {{ r.execution }} · pay_to <code>{{ r.pay_to }}</code></li>{% endfor %}</ul></div>
+{% endblock %}

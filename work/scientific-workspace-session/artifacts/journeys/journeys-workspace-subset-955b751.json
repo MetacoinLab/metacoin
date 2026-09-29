@@ -1,0 +1,371 @@
+{
+ "schema": "metacoin-journeys-workspace/v1",
+ "provider_mode": "test-http",
+ "revision": "955b751a73338bb16dcfa354648ee34796ed6a15",
+ "dependencies": {
+  "compute_interpreter": {
+   "python": "/usr/bin/python3",
+   "numpy": "2.2.6",
+   "python_version": "3.12.3",
+   "cuda": true,
+   "torch": "2.10.0+cu130",
+   "device": "NVIDIA GB10",
+   "capability": "12.1"
+  },
+  "models_present": true,
+  "python": "3.12.3",
+  "local_chain_artifacts": true
+ },
+ "started_at": 1790588268,
+ "finished_at": 1790588290,
+ "results": [
+  {
+   "journey": 1,
+   "title": "native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page",
+   "status": "failed",
+   "evidence": {
+    "document": "di_7430ef8e3dfb",
+    "state": "ready",
+    "parser": "metacoin-pdf-extractor/v1",
+    "page_method": "native",
+    "console_page_status": 200,
+    "hit_page": 1,
+    "search_status": 200,
+    "search_error": null,
+    "results": 1,
+    "citation_valid": [
+     true
+    ],
+    "all_valid": true
+   },
+   "caveat": null,
+   "started_at": 1790588268.7393074,
+   "ended_at": 1790588271.9196877
+  },
+  {
+   "journey": 11,
+   "title": "small robust resource plan solved, witness verified independently through the verification service, objective equals the exhaustive oracle",
+   "status": "passed",
+   "evidence": {
+    "job": "j_d3a3d1efb0a657a7",
+    "status": "optimal_within_tolerance",
+    "objective": 12,
+    "oracle": 12,
+    "verification": "passed",
+    "checks": {
+     "status_declared": true,
+     "summary_matches_plan": true,
+     "assignments_replay_feasible": true,
+     "objective_replayed": true,
+     "trajectory_replayed": true,
+     "status_consistent_with_solver": true,
+     "oracle_reproduced": true,
+     "optimum_matches_oracle": true,
+     "alternative_replay_0": true,
+     "alternative_replay_3": true,
+     "alternative_replay_6": true
+    }
+   },
+   "caveat": null,
+   "started_at": 1790588272.0838242,
+   "ended_at": 1790588274.1798432
+  },
+  {
+   "journey": 14,
+   "title": "bounded trade-off comparison with at least two incomparable alternatives, their assumptions and verified trajectories",
+   "status": "passed",
+   "evidence": {
+    "job": "j_1157d54a43ab8da4",
+    "alternatives": [
+     [
+      0,
+      0,
+      0,
+      30000,
+      true
+     ],
+     [
+      3,
+      5,
+      3,
+      18000,
+      true
+     ],
+     [
+      6,
+      12,
+      6,
+      18000,
+      true
+     ]
+    ],
+    "alternative_replays": {
+     "alternative_replay_0": true,
+     "alternative_replay_3": true,
+     "alternative_replay_6": true
+    },
+    "console_shows_alternatives": true
+   },
+   "caveat": null,
+   "started_at": 1790588274.6960511,
+   "ended_at": 1790588276.849469
+  },
+  {
+   "journey": 15,
+   "title": "branch an analysis by one changed reviewed value: affected nodes identified, only they regenerate, unaffected results reused",
+   "status": "passed",
+   "evidence": {
+    "analysis": "an_2ca1d75b2c6f",
+    "impact_direct": [
+     "runA"
+    ],
+    "impact_unaffected": [
+     "operation",
+     "runC"
+    ],
+    "plan": {
+     "a": "rerun",
+     "b": "rerun",
+     "c": "reuse",
+     "out": "keep"
+    },
+    "regeneration_run": "run_d17d115b76cabdb8",
+    "c_reused_from": "j_afcc90f7165e43ef",
+    "original_run_state": "completed"
+   },
+   "caveat": null,
+   "started_at": 1790588277.3161097,
+   "ended_at": 1790588280.5023592
+  },
+  {
+   "journey": 16,
+   "title": "report assembled from source, dataset, assumptions, plan, run and verification; evidence references opened through the console",
+   "status": "passed",
+   "evidence": {
+    "analysis": "an_2ca1d75b2c6f",
+    "version": 4,
+    "report": "rp_e84d34cf367d",
+    "artifacts": [
+     [
+      "operation_draft",
+      "workflow_definition"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "comparison",
+      "workflow_run"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "verification",
+      "verification"
+     ]
+    ],
+    "claim_checks": [
+     {
+      "block": "concl",
+      "claim": 0,
+      "key": "plan.objective",
+      "expected": 12,
+      "actual": 12,
+      "ok": true,
+      "reason": null
+     }
+    ],
+    "flags": [],
+    "console_report_status": 200
+   },
+   "caveat": null,
+   "started_at": 1790588280.5982175,
+   "ended_at": 1790588280.7160783
+  },
+  {
+   "journey": 18,
+   "title": "parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs",
+   "status": "passed",
+   "evidence": {
+    "package": "pk_947f764c97d7",
+    "imported_as": "pk_bcb2e44d8d78",
+    "compat_blocking": [],
+    "compat_items": 7,
+    "quote_amount_max": 23,
+    "run": "pr_912cc9476d3b",
+    "delivery_state": "delivered",
+    "cross_workspace_read": 404
+   },
+   "caveat": null,
+   "started_at": 1790588281.5354764,
+   "ended_at": 1790588284.7482505
+  },
+  {
+   "journey": 23,
+   "title": "upgrade and restore an isolated copy of the prior live state: old artifacts, credentials and workflows preserved",
+   "status": "passed",
+   "evidence": {
+    "source_schema": "025_metered_upto",
+    "destination_schema": "031_reconciliation",
+    "migrations_applied": [
+     "026_document_intelligence",
+     "027_generation_batching",
+     "028_agent_intents",
+     "029_analyses",
+     "030_packages",
+     "031_reconciliation"
+    ],
+    "loaded_revision": "955b751a73338bb16dcfa354648ee34796ed6a15",
+    "counts": {
+     "jobs": 23,
+     "artifacts": 92,
+     "principals": 4,
+     "workflow_definitions": 1,
+     "credentials": 5
+    },
+    "artifacts_copied": 90,
+    "old_artifact_read": "a_da180911f8213b086ba24604",
+    "workflows_listed": 1
+   },
+   "caveat": "the live service itself is upgraded by the \u00a764 step with its own backup record; this journey exercises the migration on a consistent SQLite-backup copy",
+   "started_at": 1790588285.1133792,
+   "ended_at": 1790588286.2117143
+  }
+ ],
+ "browser": {
+  "passed": 19,
+  "failed": 1,
+  "checks": [
+   {
+    "check": "documents page lists imports with stages",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "document page shows extraction provenance and pages",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "page inspector shows method, spans and the preview image",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "knowledge search result shows the page number of the hit",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "analyses list renders",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "analysis page shows typed blocks with status badges and the impact form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "impact result rendered from the form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "report page shows the evidence sections and flags",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "report links back to its frozen analysis revision",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "plan job page shows status, alternatives, sensitivity and the schedule SVG",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "schedule SVG carries the reserve line, labelled boundaries and a task legend",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "resource plan sample validates in the compute form with a work-unit estimate",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "packages list renders",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "package compatibility report rendered from the console form",
+    "ok": false,
+    "detail": "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> <title>Refused \u00b7 MetaCoin</title> <link rel=\"stylesheet\" href=\"/console/static/console.css\"></head><body> <header><a href=\"/console/\">Work list</a> <a href=\"/console/contra"
+   },
+   {
+    "check": "scenario comparison page shows the changed assumption path and side-by-side columns",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot open Analyses",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer job page carries no private plan values",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot create or export packages (read allowed, mutation refused)",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer package creation refused",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "narrow width: no horizontal page overflow on the workspace pages",
+    "ok": true,
+    "detail": "{'/console/documents': True, '/console/analyses': True, '/console/packages': True, '/console/compute/new?kind=resource_plan': True, '/console/jobs/j_1157d54a43ab8da4': True, '/console/reports/rp_e84d34cf367d': True}"
+   }
+  ],
+  "screenshots": [
+   "01-documents.png",
+   "02-document.png",
+   "03-page-inspector.png",
+   "04-search-page-citation.png",
+   "05-analysis.png",
+   "06-analysis-impact.png",
+   "07-report.png",
+   "08-plan-job.png",
+   "09-compute-new-plan.png",
+   "10-package-compat.png",
+   "11-scenario-compare.png",
+   "12-narrow-plan-job.png",
+   "13-narrow-analyses.png"
+  ],
+  "crash": null,
+  "rc": 1,
+  "status": "failed"
+ },
+ "passed": 6,
+ "failed": 1,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 7
+}

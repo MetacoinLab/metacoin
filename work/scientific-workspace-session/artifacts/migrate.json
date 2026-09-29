@@ -1,0 +1,43 @@
+{
+  "applied": [
+    "026_document_intelligence",
+    "027_generation_batching",
+    "028_agent_intents",
+    "029_analyses",
+    "030_packages",
+    "031_reconciliation"
+  ],
+  "schema": [
+    "001_initial",
+    "002_batches_templates",
+    "003_datasets_lineage",
+    "004_workflows",
+    "005_campaigns",
+    "006_catalog_quotes_usage",
+    "007_agent_policy_grants",
+    "008_hierarchical_budgets",
+    "009_workers_quotas",
+    "010_reuse_and_sharing",
+    "011_schedules",
+    "012_compute_engine",
+    "013_compute_preemption",
+    "014_local_models",
+    "015_private_knowledge",
+    "016_calibration",
+    "017_verification",
+    "018_federation",
+    "019_approvals",
+    "020_verification_policies",
+    "021_evaluation_registry",
+    "022_notebooks",
+    "023_warmup_batching",
+    "024_agent_plans",
+    "025_metered_upto",
+    "026_document_intelligence",
+    "027_generation_batching",
+    "028_agent_intents",
+    "029_analyses",
+    "030_packages",
+    "031_reconciliation"
+  ]
+}

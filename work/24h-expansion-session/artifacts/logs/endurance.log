@@ -1,0 +1,31 @@
+{
+ "submitted": {
+  "generation": 58,
+  "answer": 35,
+  "batch": 87,
+  "mc": 25,
+  "heat": 15,
+  "audit": 43
+ },
+ "final_jobs_by_state": {
+  "succeeded": 264
+ },
+ "trend": {
+  "api_rss_first": 71282688,
+  "api_rss_last": 72040448,
+  "api_fds_first": 8,
+  "api_fds_last": 11,
+  "worker_rss_first": [
+   48533504,
+   58568704
+  ],
+  "worker_rss_last": [
+   61935616,
+   61952000
+  ],
+  "max_queue_depth": 0,
+  "home_files_first": 38,
+  "home_files_last": 1182
+ }
+}
+exit 0

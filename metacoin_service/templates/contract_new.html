@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block body %}
+<h1>New {{ {'energy_audit':'energy adequacy analysis','safe_runtime':'safe-runtime calculation','plan_comparison':'plan comparison','task_selection':'task selection'}[kind] }}</h1>
+<p class="note">Units: energy in millijoules (mJ), power in milliwatts (mW), duration in seconds (s). All values are integers. Intervals are declared bounds, not probabilities. Freezing commits your inputs (salted Merkle vault) and pins the terms; a frozen contract never changes — amendments create a new version.</p>
+<form method="post" action="/console/contracts"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><input type="hidden" name="kind" value="{{ kind }}">
+<label for="title">Title</label><input id="title" name="title" type="text" maxlength="128" required>
+<label for="inputs">Scientific input (JSON)</label><textarea id="inputs" name="inputs" required>{{ sample }}</textarea>
+<p class="note">The text above is a clearly labeled synthetic sample you may replace with your own data. {% if kind=='energy_audit' %}Fields: available_low/high (mJ), reserve (mJ), segments[duration s, power_low/high mW].{% elif kind=='safe_runtime' %}Fields: usable-energy bounds, fixed segments, the variable segment's power bounds and an application duration cap (s).{% elif kind=='plan_comparison' %}candidates[id, inputs, utility|null], objective max_utility|none.{% else %}base plan plus optional_tasks[id, duration s, power_high mW, value]; exhaustive selection under worst-case energy and the duration cap.{% endif %}</p>
+<label for="reviewer_id">Designated reviewer (may decrypt full evidence)</label><select id="reviewer_id" name="reviewer_id" required>{% for r in reviewers %}<option value="{{ r.id }}">{{ r.name }} ({{ r.id }})</option>{% endfor %}</select>
+<fieldset style="border:1px solid var(--line);padding:.5rem 1rem;max-width:640px;margin-top:.8rem"><legend>Acceptance policy (agreed before execution)</legend>
+{% for o in outcomes %}<label style="display:inline;margin-right:1rem"><input type="checkbox" name="accept_{{ o }}" checked> {{ o }} counts as completed work</label>{% endfor %}
+<p class="note">An honest negative (INFEASIBLE) or an INDETERMINATE result completes the contract only if checked here.</p></fieldset>
+<label><input type="checkbox" name="disclose_outcome" checked> Public openings may show the outcome</label>
+<label><input type="checkbox" name="disclose_explanation"> Public openings may show the margin explanation (numbers become public)</label>
+<label for="amount">Maximum cost of the bounded next-step action (asset units, integer)</label><input id="amount" name="amount" type="number" min="1" value="1">
+<p class="note">Action capability for this instance: <code>{{ capability }}</code> (matches the configured provider mode {{ provider_mode }}).</p>
+<label for="expires">Authorization expiry (seconds from now)</label><input id="expires" name="expires_in_seconds" type="number" min="60" value="86400">
+<p><button type="submit" class="secondary">Save draft</button> <button type="submit" name="freeze_and_submit" value="1">Freeze terms and submit</button></p>
+<p class="note">Freeze consequences: inputs and policy become immutable, the contract digest is pinned in the economic journal, and one action entitlement is created for this version.</p></form>{% endblock %}

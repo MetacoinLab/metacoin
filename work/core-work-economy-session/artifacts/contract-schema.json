@@ -1,0 +1,824 @@
+{
+ "schema": "metacoin-work-terms/v1",
+ "policy_schema": "metacoin-acceptance-policy/v1",
+ "deliverable_types": {
+  "exact_task_output": {
+   "kinds": [
+    "legacy_task_replay"
+   ],
+   "automatic": [
+    "artifact_complete",
+    "exact_output_hash",
+    "source_revision",
+    "schema_valid"
+   ],
+   "review_required": false,
+   "claim": "canonical output of a frozen deterministic task compared exactly with its registered hash (legacy exact protocol rule, unchanged)"
+  },
+  "determination": {
+   "kinds": [
+    "energy_audit",
+    "temporal_energy",
+    "safe_runtime",
+    "task_selection"
+   ],
+   "automatic": [
+    "artifact_complete",
+    "outcome_in",
+    "verification_passed",
+    "source_revision",
+    "schema_valid"
+   ],
+   "review_required": false,
+   "claim": "a valid FEASIBLE / INFEASIBLE / INDETERMINATE determination under the declared exact model; a negative is a first-class deliverable"
+  },
+  "numerical_witness": {
+   "kinds": [
+    "resource_plan"
+   ],
+   "automatic": [
+    "artifact_complete",
+    "status_in",
+    "verification_passed",
+    "source_revision",
+    "schema_valid"
+   ],
+   "review_required": false,
+   "claim": "a schedule/witness checked exactly by the independent integer simulator under the declared model; global optimality is claimed only with the solver status that says so"
+  },
+  "reproducible_workflow_result": {
+   "kinds": [
+    "temporal_batch",
+    "monte_carlo_reliability",
+    "heat_diffusion",
+    "calibration_fit"
+   ],
+   "automatic": [
+    "artifact_complete",
+    "verification_passed",
+    "source_revision",
+    "schema_valid",
+    "numerical_tolerance"
+   ],
+   "review_required": false,
+   "claim": "numerical result replayed or audited under its manifest class and declared tolerance (not the legacy exact rule)"
+  },
+  "reviewed_dataset_transformation": {
+   "kinds": [
+    "document_import"
+   ],
+   "automatic": [
+    "artifact_complete",
+    "source_revision"
+   ],
+   "review_required": true,
+   "claim": "a dataset transformation whose mapping a designated reviewer confirmed; automation checks completeness and provenance only"
+  },
+  "evidence_linked_report": {
+   "kinds": [
+    "analysis_report"
+   ],
+   "automatic": [
+    "artifact_complete",
+    "source_revision"
+   ],
+   "review_required": true,
+   "claim": "a report whose numbers are checked against evidence; interpretation requires an authorized reviewer"
+  },
+  "bounded_model_explanation": {
+   "kinds": [
+    "text_generation"
+   ],
+   "automatic": [
+    "artifact_complete",
+    "schema_valid"
+   ],
+   "review_required": true,
+   "claim": "model output is data; only evidence checks and an authorized review can make it acceptable"
+  }
+ },
+ "predicate_types": [
+  "artifact_complete",
+  "outcome_in",
+  "status_in",
+  "verification_passed",
+  "exact_output_hash",
+  "source_revision",
+  "schema_valid",
+  "numerical_tolerance",
+  "review_signature",
+  "invariants"
+ ],
+ "assets": {
+  "action-units": {
+   "scale": 0,
+   "rail": "application journal (budget units of the workspace action asset)"
+  },
+  "local-chain-token": {
+   "scale": 0,
+   "rail": "private py-evm chain (x402 upto/exact on pinned contracts); synthetic, never production"
+  }
+ },
+ "templates": {
+  "determination": {
+   "schema": "metacoin-work-terms/v1",
+   "title": "Determination: is the scenario feasible under the declared exact model?",
+   "requester": {
+    "principal_id": "p_requester",
+    "workspace": "ws_example"
+   },
+   "operation": {
+    "kind": "energy_audit",
+    "compatibility": "same_verifier_digest"
+   },
+   "payment": {
+    "asset": "action-units",
+    "scale": 0,
+    "ceiling": 10,
+    "scheme": "exact",
+    "verifier_compensation": 0,
+    "fee_policy": {
+     "schema": "metacoin-fee-policy/v1",
+     "treasury_bps": 0,
+     "rounding": "floor_fee_remainder_to_provider"
+    },
+    "funding": "requester"
+   },
+   "privacy": {
+    "inputs": "requester_private",
+    "evidence_disclosure": [
+     "bindings",
+     "outcome"
+    ],
+    "verifier_access": "required_inputs_only",
+    "projection_default": "outcome_and_bindings"
+   },
+   "deadlines": {
+    "offer_seconds": 86400,
+    "acknowledge_seconds": 3600,
+    "delivery_seconds": 86400,
+    "dispute_seconds": 604800,
+    "at_deadline": "eligible"
+   },
+   "eligibility": {
+    "capabilities": [
+     "energy_audit"
+    ],
+    "verification_classes": [
+     "full_exact",
+     "full_reference"
+    ],
+    "payment_schemes": [
+     "exact",
+     "upto"
+    ],
+    "operator_relationships": [
+     "same_operator",
+     "affiliated",
+     "independent_declared",
+     "unknown"
+    ],
+    "execution_types": [
+     "local_worker",
+     "node"
+    ]
+   },
+   "selection": {
+    "policy": "lowest_eligible_price",
+    "tie_break": [
+     "earliest_offer",
+     "provider_id"
+    ]
+   },
+   "failure_treatment": {
+    "execution_failure": "no_payment",
+    "invalid_evidence": "no_payment",
+    "missed_deadline": "reassign_permitted"
+   },
+   "dispute": {
+    "window_seconds": 604800,
+    "resolver": "designated_reviewer",
+    "appeal": false,
+    "max_entries": 20,
+    "at_deadline": "close_unresolved"
+   },
+   "delegation": {
+    "allowed": false
+   },
+   "reassignment": {
+    "allowed": true,
+    "conditions": [
+     "missed_acknowledgement",
+     "terminal_failure"
+    ],
+    "physical_effects": "none_repeatable_computation"
+   },
+   "max_awards": 1,
+   "deliverables": [
+    {
+     "key": "determination",
+     "type": "determination",
+     "schema": "energy-analysis/v0",
+     "required": true,
+     "media": [
+      "application/json"
+     ],
+     "provenance": {
+      "bind_inputs": true,
+      "bind_method": true
+     }
+    }
+   ],
+   "acceptance": {
+    "schema": "metacoin-acceptance-policy/v1",
+    "predicates": [
+     {
+      "id": "complete",
+      "type": "artifact_complete"
+     },
+     {
+      "id": "source",
+      "type": "source_revision"
+     },
+     {
+      "id": "schema",
+      "type": "schema_valid"
+     },
+     {
+      "id": "outcome",
+      "type": "outcome_in",
+      "params": {
+       "outcomes": [
+        "FEASIBLE",
+        "INFEASIBLE",
+        "INDETERMINATE"
+       ]
+      }
+     },
+     {
+      "id": "replay",
+      "type": "verification_passed",
+      "params": {
+       "class": "full_exact",
+       "distinct_verifier": false
+      }
+     }
+    ],
+    "outcomes": {
+     "FEASIBLE": "accept",
+     "INFEASIBLE": "accept",
+     "INDETERMINATE": "accept_diagnostic"
+    },
+    "valid_negative": {
+     "requires": [
+      "verification_passed",
+      "artifact_complete"
+     ],
+     "note": "a verified INFEASIBLE earns the same as a verified FEASIBLE"
+    },
+    "required_verification": {
+     "class": "full_exact",
+     "distinct_verifier": false
+    },
+    "payment_rule": {
+     "complete": 10,
+     "partial": 0,
+     "diagnostic": 5,
+     "outcome_neutral": true
+    }
+   },
+   "milestones": [
+    {
+     "key": "m1",
+     "deliverables": [
+      "determination"
+     ],
+     "max_payment": 10,
+     "depends_on": [],
+     "deadline_seconds": 86400,
+     "on_failure": "stop_downstream"
+    }
+   ]
+  },
+  "infeasibility_witness": {
+   "schema": "metacoin-work-terms/v1",
+   "title": "Numerical witness: a checked schedule or an established infeasibility under the declared integer model",
+   "requester": {
+    "principal_id": "p_requester",
+    "workspace": "ws_example"
+   },
+   "operation": {
+    "kind": "resource_plan",
+    "compatibility": "same_verifier_digest"
+   },
+   "payment": {
+    "asset": "action-units",
+    "scale": 0,
+    "ceiling": 10,
+    "scheme": "exact",
+    "verifier_compensation": 0,
+    "fee_policy": {
+     "schema": "metacoin-fee-policy/v1",
+     "treasury_bps": 0,
+     "rounding": "floor_fee_remainder_to_provider"
+    },
+    "funding": "requester"
+   },
+   "privacy": {
+    "inputs": "requester_private",
+    "evidence_disclosure": [
+     "bindings",
+     "outcome"
+    ],
+    "verifier_access": "required_inputs_only",
+    "projection_default": "outcome_and_bindings"
+   },
+   "deadlines": {
+    "offer_seconds": 86400,
+    "acknowledge_seconds": 3600,
+    "delivery_seconds": 86400,
+    "dispute_seconds": 604800,
+    "at_deadline": "eligible"
+   },
+   "eligibility": {
+    "capabilities": [
+     "resource_plan"
+    ],
+    "verification_classes": [
+     "full_exact",
+     "full_reference"
+    ],
+    "payment_schemes": [
+     "exact",
+     "upto"
+    ],
+    "operator_relationships": [
+     "same_operator",
+     "affiliated",
+     "independent_declared",
+     "unknown"
+    ],
+    "execution_types": [
+     "local_worker",
+     "node"
+    ]
+   },
+   "selection": {
+    "policy": "lowest_eligible_price",
+    "tie_break": [
+     "earliest_offer",
+     "provider_id"
+    ]
+   },
+   "failure_treatment": {
+    "execution_failure": "no_payment",
+    "invalid_evidence": "no_payment",
+    "missed_deadline": "reassign_permitted"
+   },
+   "dispute": {
+    "window_seconds": 604800,
+    "resolver": "designated_reviewer",
+    "appeal": false,
+    "max_entries": 20,
+    "at_deadline": "close_unresolved"
+   },
+   "delegation": {
+    "allowed": false
+   },
+   "reassignment": {
+    "allowed": true,
+    "conditions": [
+     "missed_acknowledgement",
+     "terminal_failure"
+    ],
+    "physical_effects": "none_repeatable_computation"
+   },
+   "max_awards": 1,
+   "deliverables": [
+    {
+     "key": "witness",
+     "type": "numerical_witness",
+     "schema": "robust-resource-plan/v1",
+     "required": true,
+     "media": [
+      "application/json"
+     ],
+     "provenance": {
+      "bind_inputs": true,
+      "bind_method": true
+     }
+    }
+   ],
+   "acceptance": {
+    "schema": "metacoin-acceptance-policy/v1",
+    "predicates": [
+     {
+      "id": "complete",
+      "type": "artifact_complete"
+     },
+     {
+      "id": "source",
+      "type": "source_revision"
+     },
+     {
+      "id": "schema",
+      "type": "schema_valid"
+     },
+     {
+      "id": "status",
+      "type": "status_in",
+      "params": {
+       "statuses": [
+        "optimal_within_tolerance",
+        "feasible_incumbent_no_optimality_claim",
+        "infeasible_by_solver",
+        "infeasible_established_by_enumeration"
+       ]
+      }
+     },
+     {
+      "id": "replay",
+      "type": "verification_passed",
+      "params": {
+       "class": "full_reference",
+       "distinct_verifier": false
+      }
+     }
+    ],
+    "outcomes": {
+     "FEASIBLE": "accept",
+     "INFEASIBLE": "accept",
+     "INDETERMINATE": "reject"
+    },
+    "valid_negative": {
+     "requires": [
+      "verification_passed",
+      "source_revision"
+     ],
+     "note": "infeasible_by_solver is accepted only with the independent simulator/oracle audit; limit_no_candidate is never a negative proof"
+    },
+    "required_verification": {
+     "class": "full_reference",
+     "distinct_verifier": false
+    },
+    "payment_rule": {
+     "complete": 10,
+     "partial": 0,
+     "diagnostic": 0,
+     "outcome_neutral": true
+    }
+   },
+   "milestones": [
+    {
+     "key": "m1",
+     "deliverables": [
+      "witness"
+     ],
+     "max_payment": 10,
+     "depends_on": [],
+     "deadline_seconds": 86400,
+     "on_failure": "stop_downstream"
+    }
+   ]
+  },
+  "independent_replay": {
+   "schema": "metacoin-work-terms/v1",
+   "title": "Independent replay of a frozen deterministic task",
+   "requester": {
+    "principal_id": "p_requester",
+    "workspace": "ws_example"
+   },
+   "operation": {
+    "kind": "legacy_task_replay",
+    "compatibility": "same_verifier_digest"
+   },
+   "payment": {
+    "asset": "action-units",
+    "scale": 0,
+    "ceiling": 10,
+    "scheme": "exact",
+    "verifier_compensation": 0,
+    "fee_policy": {
+     "schema": "metacoin-fee-policy/v1",
+     "treasury_bps": 0,
+     "rounding": "floor_fee_remainder_to_provider"
+    },
+    "funding": "requester"
+   },
+   "privacy": {
+    "inputs": "requester_private",
+    "evidence_disclosure": [
+     "bindings",
+     "outcome"
+    ],
+    "verifier_access": "required_inputs_only",
+    "projection_default": "outcome_and_bindings"
+   },
+   "deadlines": {
+    "offer_seconds": 86400,
+    "acknowledge_seconds": 3600,
+    "delivery_seconds": 86400,
+    "dispute_seconds": 604800,
+    "at_deadline": "eligible"
+   },
+   "eligibility": {
+    "capabilities": [
+     "legacy_task_replay"
+    ],
+    "verification_classes": [
+     "full_exact",
+     "none"
+    ],
+    "payment_schemes": [
+     "exact",
+     "upto"
+    ],
+    "operator_relationships": [
+     "same_operator",
+     "affiliated",
+     "independent_declared",
+     "unknown"
+    ],
+    "execution_types": [
+     "local_worker",
+     "node"
+    ]
+   },
+   "selection": {
+    "policy": "lowest_eligible_price",
+    "tie_break": [
+     "earliest_offer",
+     "provider_id"
+    ]
+   },
+   "failure_treatment": {
+    "execution_failure": "no_payment",
+    "invalid_evidence": "no_payment",
+    "missed_deadline": "reassign_permitted"
+   },
+   "dispute": {
+    "window_seconds": 604800,
+    "resolver": "designated_reviewer",
+    "appeal": false,
+    "max_entries": 20,
+    "at_deadline": "close_unresolved"
+   },
+   "delegation": {
+    "allowed": false
+   },
+   "reassignment": {
+    "allowed": true,
+    "conditions": [
+     "missed_acknowledgement",
+     "terminal_failure"
+    ],
+    "physical_effects": "none_repeatable_computation"
+   },
+   "max_awards": 1,
+   "deliverables": [
+    {
+     "key": "output",
+     "type": "exact_task_output",
+     "schema": "legacy-task-canonical-json",
+     "required": true,
+     "media": [
+      "application/json"
+     ],
+     "provenance": {
+      "bind_inputs": true,
+      "bind_method": true
+     }
+    }
+   ],
+   "acceptance": {
+    "schema": "metacoin-acceptance-policy/v1",
+    "predicates": [
+     {
+      "id": "complete",
+      "type": "artifact_complete"
+     },
+     {
+      "id": "source",
+      "type": "source_revision"
+     },
+     {
+      "id": "schema",
+      "type": "schema_valid"
+     }
+    ],
+    "outcomes": {
+     "not_applicable": "accept"
+    },
+    "valid_negative": {
+     "requires": [
+      "artifact_complete"
+     ],
+     "note": "a task whose registered verdict is false is replayed exactly; the replay does not change the verdict"
+    },
+    "required_verification": {
+     "class": "none",
+     "distinct_verifier": false
+    },
+    "payment_rule": {
+     "complete": 10,
+     "partial": 0,
+     "diagnostic": 0,
+     "outcome_neutral": true
+    }
+   },
+   "milestones": [
+    {
+     "key": "m1",
+     "deliverables": [
+      "output"
+     ],
+     "max_payment": 10,
+     "depends_on": [],
+     "deadline_seconds": 86400,
+     "on_failure": "stop_downstream"
+    }
+   ]
+  },
+  "diagnostic_delivery": {
+   "schema": "metacoin-work-terms/v1",
+   "title": "Diagnostic delivery: a determination or a missing-evidence diagnosis",
+   "requester": {
+    "principal_id": "p_requester",
+    "workspace": "ws_example"
+   },
+   "operation": {
+    "kind": "energy_audit",
+    "compatibility": "same_verifier_digest"
+   },
+   "payment": {
+    "asset": "action-units",
+    "scale": 0,
+    "ceiling": 10,
+    "scheme": "exact",
+    "verifier_compensation": 0,
+    "fee_policy": {
+     "schema": "metacoin-fee-policy/v1",
+     "treasury_bps": 0,
+     "rounding": "floor_fee_remainder_to_provider"
+    },
+    "funding": "requester"
+   },
+   "privacy": {
+    "inputs": "requester_private",
+    "evidence_disclosure": [
+     "bindings",
+     "outcome"
+    ],
+    "verifier_access": "required_inputs_only",
+    "projection_default": "outcome_and_bindings"
+   },
+   "deadlines": {
+    "offer_seconds": 86400,
+    "acknowledge_seconds": 3600,
+    "delivery_seconds": 86400,
+    "dispute_seconds": 604800,
+    "at_deadline": "eligible"
+   },
+   "eligibility": {
+    "capabilities": [
+     "energy_audit"
+    ],
+    "verification_classes": [
+     "full_exact",
+     "full_reference"
+    ],
+    "payment_schemes": [
+     "exact",
+     "upto"
+    ],
+    "operator_relationships": [
+     "same_operator",
+     "affiliated",
+     "independent_declared",
+     "unknown"
+    ],
+    "execution_types": [
+     "local_worker",
+     "node"
+    ]
+   },
+   "selection": {
+    "policy": "lowest_eligible_price",
+    "tie_break": [
+     "earliest_offer",
+     "provider_id"
+    ]
+   },
+   "failure_treatment": {
+    "execution_failure": "no_payment",
+    "invalid_evidence": "no_payment",
+    "missed_deadline": "cancel",
+    "partial_fee_rule": "diagnostic: INDETERMINATE with bounds evidence earns the diagnostic amount; partial: an accepted partial deliverable earns the partial amount"
+   },
+   "dispute": {
+    "window_seconds": 604800,
+    "resolver": "designated_reviewer",
+    "appeal": false,
+    "max_entries": 20,
+    "at_deadline": "close_unresolved"
+   },
+   "delegation": {
+    "allowed": false
+   },
+   "reassignment": {
+    "allowed": true,
+    "conditions": [
+     "missed_acknowledgement",
+     "terminal_failure"
+    ],
+    "physical_effects": "none_repeatable_computation"
+   },
+   "max_awards": 1,
+   "deliverables": [
+    {
+     "key": "determination",
+     "type": "determination",
+     "schema": "energy-analysis/v0",
+     "required": true,
+     "partial_allowed": true,
+     "media": [
+      "application/json"
+     ]
+    }
+   ],
+   "acceptance": {
+    "schema": "metacoin-acceptance-policy/v1",
+    "predicates": [
+     {
+      "id": "complete",
+      "type": "artifact_complete"
+     },
+     {
+      "id": "source",
+      "type": "source_revision"
+     },
+     {
+      "id": "outcome",
+      "type": "outcome_in",
+      "params": {
+       "outcomes": [
+        "FEASIBLE",
+        "INFEASIBLE",
+        "INDETERMINATE"
+       ]
+      }
+     },
+     {
+      "id": "replay",
+      "type": "verification_passed",
+      "params": {
+       "class": "full_exact",
+       "distinct_verifier": false
+      }
+     }
+    ],
+    "outcomes": {
+     "FEASIBLE": "accept",
+     "INFEASIBLE": "accept",
+     "INDETERMINATE": "accept_diagnostic"
+    },
+    "valid_negative": {
+     "requires": [
+      "verification_passed"
+     ],
+     "note": ""
+    },
+    "required_verification": {
+     "class": "full_exact",
+     "distinct_verifier": false
+    },
+    "payment_rule": {
+     "complete": 10,
+     "partial": 3,
+     "diagnostic": 5,
+     "outcome_neutral": true
+    }
+   },
+   "milestones": [
+    {
+     "key": "m1",
+     "deliverables": [
+      "determination"
+     ],
+     "max_payment": 10,
+     "depends_on": [],
+     "deadline_seconds": 86400,
+     "on_failure": "stop_downstream"
+    }
+   ]
+  }
+ },
+ "rules": [
+  "unknown fields fail validation with <section>_unknown_field",
+  "amounts are integers in the smallest unit of the declared asset; no floats anywhere in the canonical form",
+  "milestone operation (contract id, kind, input commitment) is bound at freeze; the frozen digest never changes",
+  "compare() classifies differences as consequential (price, recipient, thresholds, predicates, deadlines, schemes) or cosmetic (title, purpose, notes)",
+  "an accepted negative determination (INFEASIBLE with verification_passed and artifact_complete) earns the complete amount under outcome_neutral payment rules",
+  "fee_policy.treasury_bps splits a settled payment with floor rounding; the remainder goes to the provider"
+ ]
+}

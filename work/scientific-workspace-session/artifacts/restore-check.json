@@ -1,0 +1,36 @@
+{
+  "restored_to": "/tmp/tmp.w5IKUAiTvF/restored-home",
+  "keys_restored": true,
+  "schema": "025_metered_upto",
+  "pending_migrations": [
+    "026_document_intelligence",
+    "027_generation_batching",
+    "028_agent_intents",
+    "029_analyses",
+    "030_packages",
+    "031_reconciliation"
+  ],
+  "note": "ok",
+  "reconciliation_gate": "set; run reconcile on unresolved actions before any new dispatch",
+  "models_and_indexes": {
+    "model_revisions": [
+      {
+        "id": "mr_f7f434f6ffda",
+        "model_id": "qwen2.5-0.5b-instruct",
+        "weights_present": true,
+        "problems": [],
+        "action": null
+      },
+      {
+        "id": "mr_cc75a5b8a7f4",
+        "model_id": "all-minilm-l6-v2",
+        "weights_present": true,
+        "problems": [],
+        "action": null
+      }
+    ],
+    "knowledge_indexes": [],
+    "nodes": "enrolled node rows restored; none re-registered automatically; credentials unchanged (hashes)",
+    "policy": "no automatic download; no index rebuild without an authorized index request"
+  }
+}

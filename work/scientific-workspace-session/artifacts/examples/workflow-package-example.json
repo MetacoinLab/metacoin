@@ -1,0 +1,210 @@
+{
+ "schema": "metacoin-workflow-package/v1",
+ "package": {
+  "schema": "metacoin-workflow-package/v1",
+  "name": "robust-plan-example",
+  "description": "Synthetic example package: one robust resource-planning operation gated on full_reference verification. Inputs are synthetic; the example carries no private data.",
+  "workflow": {
+   "name": "robust-plan-example",
+   "nodes": [
+    {
+     "id": "plan",
+     "type": "resource_plan",
+     "inputs_digest": "2c2739785ace784f6d38122f0f6f18392225e93fca8c69a1d2f6f5f3e1703a8f"
+    },
+    {
+     "depends_on": [
+      "plan"
+     ],
+     "fields": [
+      "outcome",
+      "status"
+     ],
+     "id": "out",
+     "input": "plan",
+     "type": "export"
+    }
+   ],
+   "outputs": [
+    "out"
+   ],
+   "schema": "metacoin-workflow/v1"
+  },
+  "workflow_source_digest": "f39984a66fce6bfef4fde79ad50dc987a1da476005eab506ff822a1de39b38a9",
+  "stripped_inline_inputs": [
+   "plan"
+  ],
+  "input_schemas": {
+   "plan": "robust-resource-plan-input/v1",
+   "out": null
+  },
+  "slots": {},
+  "units": {
+   "energy": "mJ",
+   "power": "mW",
+   "time": "s"
+  },
+  "operations": {
+   "resource_plan": {
+    "model_id": "robust-resource-plan/v1",
+    "result_schema": "robust-resource-plan-result/v1",
+    "verifier_digest": "fabf93347109f0cfd367eddc88dc4ba08e5527c54fe71e2134767c3e0691f49a",
+    "manifest_id": "robust-resource-plan/v1",
+    "manifest_version": 1,
+    "input_schema": "robust-resource-plan-input/v1",
+    "devices": [
+     "cpu"
+    ],
+    "precision": [
+     "integer"
+    ],
+    "backend_equivalence": "cpu only (HiGHS); no device choice"
+   }
+  },
+  "required_models": [],
+  "verification_policy": {
+   "gate": "required_verification",
+   "required_class": "full_reference",
+   "metered_failure_charge": "none",
+   "fixed_price_failure": "an exact (fixed-price) payment settles before computation: on verification failure the result is marked unaccepted and kept private; the application does not refund (no escrow)",
+   "metered_failure": "an upto authorization is left unused (no transfer) when verification fails",
+   "guarantee": "application-level delivery gating; not an on-chain escrow, not a universal refund guarantee"
+  },
+  "resource_bounds": {
+   "service_nodes": 1,
+   "max_job_attempts": 3,
+   "machine_time_upper_bound_seconds": 90,
+   "nodes": 2
+  },
+  "output_schema": {
+   "export_fields": [
+    "outcome",
+    "status"
+   ],
+   "result_schemas": {
+    "resource_plan": "robust-resource-plan-result/v1"
+   }
+  },
+  "disclosure_defaults": {
+   "disclose_inputs": false,
+   "disclose_witness": true,
+   "summary_fields": null
+  },
+  "example": {
+   "plan": {
+    "schema": "robust-resource-plan-input/v1",
+    "slot_seconds": 60,
+    "slots": 6,
+    "capacity": 100000,
+    "initial_low": 50000,
+    "reserve": 20000,
+    "supply_low": [
+     500,
+     500,
+     500,
+     500,
+     500,
+     500
+    ],
+    "supply_high": [
+     600,
+     600,
+     600,
+     600,
+     600,
+     600
+    ],
+    "base_low": [
+     100,
+     100,
+     100,
+     100,
+     100,
+     100
+    ],
+    "base_high": [
+     200,
+     200,
+     200,
+     200,
+     200,
+     200
+    ],
+    "uncertainty_interpretation": "specification_bound",
+    "resources": {
+     "cpu": 2
+    },
+    "tasks": [
+     {
+      "id": "a",
+      "utility": 5,
+      "duration": 2,
+      "power_high": 400,
+      "resources": {
+       "cpu": 1
+      },
+      "cost": 3
+     },
+     {
+      "id": "b",
+      "utility": 4,
+      "duration": 1,
+      "power_high": 300,
+      "resources": {
+       "cpu": 2
+      },
+      "cost": 2,
+      "dependencies": [
+       "a"
+      ]
+     },
+     {
+      "id": "c",
+      "utility": 3,
+      "duration": 3,
+      "power_high": 100,
+      "resources": {
+       "cpu": 1
+      },
+      "cost": 1,
+      "exclusive_with": [
+       "a"
+      ]
+     },
+     {
+      "id": "m",
+      "utility": 0,
+      "duration": 1,
+      "power_high": 50,
+      "mandatory": true,
+      "earliest_start": 4,
+      "latest_start": 5
+     }
+    ],
+    "objectives": {
+     "mode": "cost_sweep",
+     "cost_ceilings": [
+      0,
+      3,
+      6
+     ]
+    },
+    "sensitivity": [
+     {
+      "parameter": "reserve",
+      "value": 60000
+     },
+     {
+      "parameter": "capacity",
+      "value": 200000
+     }
+    ]
+   }
+  },
+  "created_by_workspace": "ws_default",
+  "trust": "executable only through the registered operations named in `operations`; descriptions and examples are data",
+  "digest": "5e665263b7a79f965eabef388c2b2922e2421602069126175bd7860abd7fe089"
+ },
+ "exported_from_version": 1,
+ "contents": "manifest only: workflow structure, operation identities, required model identities, verification/delivery policy, disclosure defaults, synthetic example"
+}

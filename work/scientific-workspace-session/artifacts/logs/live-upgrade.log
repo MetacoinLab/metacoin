@@ -1,0 +1,43 @@
+[2026-09-28T10:04:53Z] candidate 4e841b9f7d1e68d4fb1b98bf8a074885f1b11ae7
+[2026-09-28T10:04:53Z] before: {"ok":true,"revision":"ead4d687027e9af1bafb0c68ee470c9915495e46","provider_mode":"test-http","queued":0,"running":0}
+[2026-09-28T10:04:53Z] schema before 025_metered_upto
+[2026-09-28T10:04:53Z] backup at ~/.local/state/metacoin-service-backups/pre-migration-026-1790589893: 90 ciphertext objects (age) and public bundles schema 025_metered_upto
+[2026-09-28T10:04:54Z] isolated restore opened and migrated: 031_reconciliation
+[2026-09-28T10:04:54Z] pane pids api=1840147 (child 1840173) worker=1840152 (child 1840175)
+[2026-09-28T10:04:54Z] workers: {'registered': 8, 'live_active': 1, 'draining': 0, 'stale_or_offline': 7}
+drain w_2d7553d969ed 200
+drain w_628ab4fd2885 200
+drain w_6a7754a3a421 200
+drain w_6756d70f8b94 200
+drain w_37a009cbf9f2 200
+drain w_13c22f10c602 200
+drain w_8dbfbaae8f27 200
+drain w_2180d2967cac 200
+[2026-09-28T10:04:54Z] running jobs after drain: 0; queued: 0
+[2026-09-28T10:04:54Z] TERM 1840175
+[2026-09-28T10:04:54Z] TERM 1840173
+[2026-09-28T10:04:55Z] old processes stopped (alive=0)
+[2026-09-28T10:04:55Z] migrated: {
+  "applied": [
+    "026_document_intelligence",
+    "027_generation_batching",
+    "028_agent_intents",
+    "029_analyses",
+    "030_packages",
+    "031_reconciliation"
+  ],
+  "schema": [
+    "001_initial",
+    "002_batches_templates",
+    "003_datasets_lineage",
+    "004_workflows",
+    "005_camp
+2317581 api
+2317634 worker
+{"ok":true,"revision":"4e841b9f7d1e68d4fb1b98bf8a074885f1b11ae7","provider_mode":"test-http","queued":0,"running":0}[2026-09-28T10:05:04Z] loaded revision matches candidate
+LISTEN 0      2048                     127.0.0.1:8402       0.0.0.0:*    users:(("python",pid=2317581,fd=6))
+workers {'registered': 9, 'live_active': 1, 'draining': 7, 'stale_or_offline': 8} documents {'by_stage': {}, 'parser_failures': 0, 'awaiting_review': 0} package_runs {}
+old artifact a_da180911f8213b086ba24604 export 200
+[2026-09-28T10:05:07Z] smoke: document di_1f9c934b55e5 generation j_669a88d5926b6a68 plan j_e546a0c5f65bf13d
+[2026-09-28T10:05:16Z] smoke states: document=ready generation=succeeded plan=succeeded (outcome VERIFIED)
+[2026-09-28T10:05:16Z] done

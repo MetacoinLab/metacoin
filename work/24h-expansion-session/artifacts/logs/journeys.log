@@ -1,0 +1,478 @@
+[1] PASSED: register and load a real local model, generate on new input, inspect usage
+[2] PASSED: embeddings for authorized text, versioned private index, expected source retrieved
+[3] PASSED: retrieval-assisted answer with valid citations and an honest insufficient-evidence response
+[4] PASSED: revoke source access: retrieval, cached answers, previews and delivery obey it
+[5] PASSED: hostile document instructions do not create tools, reveal secrets, widen grants or dispatch paid work
+[6] PASSED: fit a stable calibration model, evaluate held-out data, predict a supported case, label extrapolation
+[7] PASSED: approved calibration used in scheduling without bypassing resource or workspace limits
+[8] PASSED: audit a scientific result through an independent reference; reject a deliberately corrupted result
+[9] PASSED: sampled audit with a bound result and recorded challenge; partial scope reported accurately
+[10] PASSED: signed audit projection produced and verified under an independently configured trust policy; tampering detected
+[11] PASSED: enroll an isolated worker identity, transfer data over TLS, execute without coordinator database access, publish a fenced result
+[12] PASSED: interrupt node connectivity after a checkpoint, reassign safely, stale publication rejected, no duplicate useful-work charge
+[13] PASSED: revoke a node: new work and artifact access denied, historical evidence preserved
+[14] PASSED: variable-price (upto) contract behaviour on an isolated local chain and a metered invocation through the application route
+[15] PASSED: purchase a local model operation through the SDK HTTP path; bound usage and result entitlement inspected
+[16] PASSED: separate MCP client discovers a service, submits permitted work, queries status, requests verification, retrieves an allowed result
+[17] PASSED: read-only MCP principal attempts mutation and receives server-side refusals
+[18] PASSED: restore a representative backup into a fresh location: privacy preserved, no automatic economic resubmission, model/index recovery reported
+[19] PASSED: connected console journeys with owner/reviewer/viewer roles at desktop and narrow widths
+[20] BLOCKED: install a clean export and reproduce a representative path from each feature group
+{
+ "provider_mode": "test-http",
+ "revision": "f0f77ba90f6c85dc7fc9a86d85d32f195a79ae97",
+ "compute_interpreter": {
+  "python": "/usr/bin/python3",
+  "numpy": "2.2.6",
+  "python_version": "3.12.3",
+  "cuda": true,
+  "torch": "2.10.0+cu130",
+  "device": "NVIDIA GB10",
+  "capability": "12.1"
+ },
+ "models_present": true,
+ "results": [
+  {
+   "journey": 1,
+   "title": "register and load a real local model, generate on new input, inspect usage",
+   "status": "passed",
+   "evidence": {
+    "revision": "mr_70fb779d766f",
+    "weight_digest": "fdf756fa7fcbe740",
+    "callable_after": true,
+    "runtime": [
+     "cuda"
+    ],
+    "usage": {
+     "input_tokens": 15,
+     "output_tokens": 24,
+     "items": null,
+     "finish_reason": "eos",
+     "max_output_tokens": 24,
+     "max_items": null,
+     "segments": 2,
+     "output_chars": 56,
+     "counting": "measured by the runtime tokenizer after execution; the quote reserved max_output_tokens (or items); nothing is billed from an estimate"
+    },
+    "load_ms": 7342,
+    "wall_s": 9.4,
+    "output_chars": 56
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "embeddings for authorized text, versioned private index, expected source retrieved",
+   "status": "passed",
+   "evidence": {
+    "index": {
+     "id": "ki_36f3f12dafcc",
+     "version": 1,
+     "state": "ready",
+     "chunk_count": 8,
+     "embedding_dim": 384
+    },
+    "embedding_job": "succeeded",
+    "top_documents": [
+     "old-reserve-policy.md",
+     "temporal-model-spec.md",
+     "heat-solver-notes.txt"
+    ],
+    "timing_ms": {
+     "load_ms": 0,
+     "lexical_ms": 0,
+     "semantic_ms": 0,
+     "total_ms": 1
+    }
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "retrieval-assisted answer with valid citations and an honest insufficient-evidence response",
+   "status": "passed",
+   "evidence": {
+    "answered": {
+     "status": "answered",
+     "citations": 1,
+     "grounding": 1,
+     "usage": {
+      "counting": "runtime tokenizer; input = templated prompt tokens; output = generated ids including a terminal end-of-sequence token when emitted",
+      "input_tokens": 466,
+      "output_tokens": 16
+     }
+    },
+    "unsupported": {
+     "status": "insufficient_evidence",
+     "reason": "no source passed the retrieval thresholds (cosine >= 0.30, BM25 >= 1.0, or informative-term coverage >= 0.5); generation skipped"
+    },
+    "citations_valid": true
+   },
+   "caveat": null
+  },
+  {
+   "journey": 4,
+   "title": "revoke source access: retrieval, cached answers, previews and delivery obey it",
+   "status": "passed",
+   "evidence": {
+    "revocation": {
+     "indexes_flagged_stale": 1,
+     "answers_invalidated": [
+      "ka_392d08ecf548",
+      "ka_494b149a4bb0"
+     ]
+    },
+    "retrieval_excludes": true,
+    "answer_withheld": "answer payload withheld: source document revoked: kd_13e696a471be",
+    "preview_status": 403
+   },
+   "caveat": null
+  },
+  {
+   "journey": 5,
+   "title": "hostile document instructions do not create tools, reveal secrets, widen grants or dispatch paid work",
+   "status": "passed",
+   "evidence": {
+    "status": "answered",
+    "answer_excerpt": "The console listens on port 8402 by default.",
+    "jobs_added": 1,
+    "new_kinds": [],
+    "secret_leaked": false
+   },
+   "caveat": null
+  },
+  {
+   "journey": 6,
+   "title": "fit a stable calibration model, evaluate held-out data, predict a supported case, label extrapolation",
+   "status": "passed",
+   "evidence": {
+    "model": "cm_bf84c9befdf4",
+    "eval_rmse": "3.009994600736573e-14",
+    "verified": true,
+    "interpolation": "27.00000000000005",
+    "extrapolation": "extrapolation"
+   },
+   "caveat": null
+  },
+  {
+   "journey": 7,
+   "title": "approved calibration used in scheduling without bypassing resource or workspace limits",
+   "status": "passed",
+   "evidence": {
+    "model": "cm_e60ee9136871",
+    "plan_cpu": {
+     "predicted_duration_ms": "87.18115942028984",
+     "prediction_status": "calibrated",
+     "slots_free": 2
+    },
+    "backend_reason": "automatic: first free device in the evidence-based preference order cpu,cuda; measured evidence prefers cpu for this service at 364 work units; calibration igno",
+    "hard_constraints": {
+     "device_slots": 2,
+     "timeout_seconds": 7200,
+     "cpu_seconds": 7200
+    }
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "audit a scientific result through an independent reference; reject a deliberately corrupted result",
+   "status": "passed",
+   "evidence": {
+    "honest": {
+     "state": "passed",
+     "checked": 364
+    },
+    "corrupted": {
+     "state": "failed",
+     "first_mismatch": {
+      "mismatches": [
+       {
+        "index": 0,
+        "id": "grid-0",
+        "columns": [
+         "outcome"
+        ]
+       }
+      ]
+     }
+    }
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "sampled audit with a bound result and recorded challenge; partial scope reported accurately",
+   "status": "passed",
+   "evidence": {
+    "checked": 32,
+    "total": 364,
+    "challenge": {
+     "policy": "verification-challenge/v1: seed = 16 server-side random bytes drawn after the result commitment; item i ranks by sha256(seed || result_commitment || i); the first k ranks are audited (without replacement)",
+     "drawn_by": "service (server-side CSPRNG), not the producer",
+     "sample_count": 32
+    },
+    "statement": "32 of 364 scenarios recomputed by the temporal-energy/v1 reference and compared exactly; unchecked scenarios are not individually proven (detection of a single "
+   },
+   "caveat": null
+  },
+  {
+   "journey": 10,
+   "title": "signed audit projection produced and verified under an independently configured trust policy; tampering detected",
+   "status": "passed",
+   "evidence": {
+    "verify": {
+     "signature_valid": true,
+     "issuer_trusted_by_this_service": true,
+     "bindings_match": true,
+     "sufficient_for_current_policy": true
+    },
+    "tampered_valid": false,
+    "claim": "challenge-selected scenarios recomputed by temporal-energy/v1 and compared exactly"
+   },
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "title": "enroll an isolated worker identity, transfer data over TLS, execute without coordinator database access, publish a fenced result",
+   "status": "passed",
+   "evidence": {
+    "node": "nd_27d98427ab96",
+    "transport": "https://127.0.0.1:48031 (pinned local CA)",
+    "local_worker_refused_node_only_job": true,
+    "node_ran": [
+     "j_a7953a2cf01b0b65",
+     "succeeded"
+    ],
+    "verification": "exact_all",
+    "transfers": [
+     "input:to_node",
+     "result:from_node"
+    ],
+    "topology": "two processes on one host (not multi-machine)"
+   },
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "title": "interrupt node connectivity after a checkpoint, reassign safely, stale publication rejected, no duplicate useful-work charge",
+   "status": "passed",
+   "evidence": {
+    "node_exit_code": 3,
+    "committed_by_node": 400,
+    "node_generation": 1,
+    "recovered_by": "local worker",
+    "final_generation": 2,
+    "work_units_contiguous": true,
+    "total": 1180
+   },
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "title": "revoke a node: new work and artifact access denied, historical evidence preserved",
+   "status": "passed",
+   "evidence": {
+    "state": "revoked",
+    "node_after_revoke": "on': 'the authenticated principal may not perform this operation on this resource', 'detail': {'code': 'node_revoked'}}\n",
+    "observed_kept": {
+     "completed_by_backend": {
+      "cpu": 1
+     },
+     "last_verified_job": "j_a7953a2cf01b0b65"
+    },
+    "transfers_kept": 4
+   },
+   "caveat": null
+  },
+  {
+   "journey": 14,
+   "title": "variable-price (upto) contract behaviour on an isolated local chain and a metered invocation through the application route",
+   "status": "passed",
+   "evidence": {
+    "unittest_rc": 0,
+    "chain": "eip155:131277322940537",
+    "below_maximum_moved": 640,
+    "refusals": {
+     "over_maximum": "invalid_upto_evm_payload_settlement_exceeds_amount",
+     "wrong_recipient": "invalid_permit2_recipient_mismatch",
+     "wrong_spender": "invalid_permit2_spender",
+     "expired": "permit2_deadline_expired",
+     "wrong_domain": "invalid_permit2_signature",
+     "replay_same_nonce": "invalid_upto_evm_transaction_failed"
+    },
+    "lost_response": {
+     "receipt_wait_attempts_during_first": 2,
+     "total_moved": 700,
+     "moved_after_second": 0
+    },
+    "application_route": {
+     "first_status": 402,
+     "scheme": "upto",
+     "authorized_max": "364",
+     "second_status": 202,
+     "job_state": "succeeded",
+     "error": null,
+     "stderr": null,
+     "settlement": {
+      "state": "SETTLED",
+      "authorized_max": "364",
+      "final_amount": "364",
+      "transaction": "0xd725c2d5867ec41cc83b4c449f509152762f282fdd359249fbd6f188ddfac92a",
+      "network": "eip155:131277322940537",
+      "asset": "0x2946259E0334f33A064106302415aD3391BeD384"
+     }
+    },
+    "categories": {
+     "code_readiness": "quote scheme=upto -> 402 -> authorization -> job -> settlement of the measured amount",
+     "local_protocol_validation": "py-evm chain, pinned contracts, SDK client/server/facilitator paths",
+     "external_production_settlement": "not exercised"
+    }
+   },
+   "caveat": "local py-evm chain with pinned sources; not public-network settlement; SDK canonical addresses redirected to local deployments"
+  },
+  {
+   "journey": 15,
+   "title": "purchase a local model operation through the SDK HTTP path; bound usage and result entitlement inspected",
+   "status": "passed",
+   "evidence": {
+    "quote_max": 12,
+    "x402": {
+     "first_status": 402,
+     "second_status": 202
+    },
+    "settled": true,
+    "measured_tokens": 12,
+    "assessed_charge": 12,
+    "quote_flow_for_audit_service": 201
+   },
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "title": "separate MCP client discovers a service, submits permitted work, queries status, requests verification, retrieves an allowed result",
+   "status": "passed",
+   "evidence": {
+    "protocol": "2025-11-25",
+    "tools": 19,
+    "job": "j_c6eb1bde707a28ce",
+    "verification": "passed",
+    "sdk": "mcp 1.26.0 stdio"
+   },
+   "caveat": null
+  },
+  {
+   "journey": 17,
+   "title": "read-only MCP principal attempts mutation and receives server-side refusals",
+   "status": "passed",
+   "evidence": {
+    "refusals": [
+     [
+      "submit_job",
+      403,
+      "FORBIDDEN"
+     ],
+     [
+      "request_quote",
+      403,
+      "FORBIDDEN"
+     ],
+     [
+      "cancel_job",
+      403,
+      "FORBIDDEN"
+     ],
+     [
+      "request_verification",
+      403,
+      "FORBIDDEN"
+     ]
+    ]
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "restore a representative backup into a fresh location: privacy preserved, no automatic economic resubmission, model/index recovery reported",
+   "status": "passed",
+   "evidence": {
+    "inventory": {
+     "model_revisions": 2,
+     "knowledge_indexes": 1,
+     "knowledge_versions": 8,
+     "calibration_models": 2,
+     "verification_records": 4,
+     "nodes": 1,
+     "approvals": 0
+    },
+    "classes": {
+     "portable_source": "not in this backup (git export)",
+     "operational_state": "service.sqlite + journal.sqlite",
+     "encrypted_payloads": "artifacts/ (age ciphertext: documents, indexes, checkpoints, outputs, calibration rows)",
+     "secret_material": "keys/ only with --include-keys; node credentials are hashes only (the nodes keep their private keys); model weights are NOT included (pinned manifests only)"
+    },
+    "gate": "1",
+    "restore_error": null,
+    "models": [
+     [
+      "qwen2.5-0.5b-instruct",
+      true
+     ],
+     [
+      "all-minilm-l6-v2",
+      true
+     ]
+    ],
+    "indexes": [
+     {
+      "id": "ki_36f3f12dafcc",
+      "state": "ready",
+      "payload_present": true,
+      "action": null
+     }
+    ]
+   },
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "title": "connected console journeys with owner/reviewer/viewer roles at desktop and narrow widths",
+   "status": "passed",
+   "evidence": {
+    "checks": 19,
+    "failed": 0,
+    "screenshots": [
+     "01-models.png",
+     "02-knowledge-search.png",
+     "03-answer.png",
+     "04-calibration.png",
+     "05-verification.png",
+     "06-nodes.png",
+     "07-approvals-owner.png",
+     "08-statement.png",
+     "09-approvals-reviewer.png",
+     "10-viewer-models.png",
+     "11-narrow-models.png",
+     "12-narrow-knowledge.png"
+    ],
+    "details": [],
+    "stderr": null,
+    "rc": 0
+   },
+   "caveat": null
+  },
+  {
+   "journey": 20,
+   "title": "install a clean export and reproduce a representative path from each feature group",
+   "status": "blocked",
+   "evidence": {
+    "reason": "executed by the packaging step (clean-export-logs/) against the final archive, not inside this process"
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 19,
+ "blocked": 1,
+ "total": 20
+}
+exit 0

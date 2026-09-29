@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block body %}
+<h1>Workflows</h1>
+<h2>Definitions</h2><div class="tablewrap"><table><tr><th>name</th><th>nodes</th><th>digest</th><th>created</th></tr>{% for d in definitions %}<tr><td>{{ d.name }}</td><td>{{ d.node_count }}</td><td><code>{{ d.digest[:16] }}…</code></td><td>{{ d.created_at }}</td></tr>{% endfor %}</table></div>
+<h2>Runs</h2><div class="tablewrap"><table><tr><th>run</th><th>definition</th><th>state</th><th>updated</th></tr>{% for r in runs %}<tr><td><a href="/console/runs/{{ r.id }}">{{ r.id }}</a></td><td>{{ r.name }}</td><td><span class="badge {% if r.state=='completed' %}ok{% elif r.state in ['failed','cancelled','blocked','partially_failed'] %}bad{% else %}warn{% endif %}">{{ r.state }}</span></td><td>{{ r.updated_at }}</td></tr>{% endfor %}</table></div>{% endblock %}

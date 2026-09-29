@@ -1,0 +1,189 @@
+{
+ "health": {
+  "ok": true,
+  "revision": "ead4d687027e9af1bafb0c68ee470c9915495e46",
+  "provider_mode": "test-http",
+  "queued": 0,
+  "running": 0
+ },
+ "status": {
+  "ts": 1790572186,
+  "scope": "ws_default",
+  "queue_backlog": {},
+  "jobs_by_state": {
+   "failed": 1,
+   "succeeded": 22
+  },
+  "workers": {
+   "registered": 8,
+   "live_active": 1,
+   "draining": 0,
+   "stale_or_offline": 7
+  },
+  "waiting_review_gates": 0,
+  "review_requested_jobs": 0,
+  "budget_waits": 0,
+  "budget_blocked": 0,
+  "runs_by_state": {
+   "completed": 1
+  },
+  "campaigns_by_state": {
+   "completed": 1
+  },
+  "unresolved_payment_actions": 5,
+  "sales_by_state": {},
+  "invoke_sales_by_state": {},
+  "agent_grants_by_state": {
+   "stopped": 1
+  },
+  "events_latest_seq": 240,
+  "usage_records": 0,
+  "note": "counts of local records; not utilization, revenue, customers or environmental impact"
+ },
+ "models_runtime": {
+  "installed": {
+   "interpreter": "/usr/bin/python3",
+   "torch": "2.10.0+cu130",
+   "cuda": true,
+   "device": "NVIDIA GB10",
+   "registered_revisions": 2,
+   "installed_revisions": 2
+  },
+  "configured": {
+   "model_max_loaded": 2,
+   "model_memory_budget_bytes": 25769803776,
+   "model_memory_headroom_bytes": 17179869184,
+   "model_max_input_tokens": 4096,
+   "model_max_output_tokens": 1024,
+   "model_max_embed_items": 256,
+   "model_idle_unload_seconds": 1800
+  },
+  "defaults": {
+   "generate": "mr_f7f434f6ffda",
+   "embed": "mr_cc75a5b8a7f4"
+  },
+  "currently": {
+   "runtimes": [
+    {
+     "host": "worker:live-worker",
+     "revision_id": "mr_cc75a5b8a7f4",
+     "state": "ready",
+     "device": "cpu",
+     "dtype": "float32",
+     "estimated_bytes": 90261504,
+     "loaded_at": 1790572184,
+     "load_ms": 359,
+     "last_used_at": null,
+     "requests": 0,
+     "desired": "loaded",
+     "error": null,
+     "versions": {
+      "torch": "2.10.0+cu130",
+      "transformers": "5.5.0",
+      "python": "3.12.3",
+      "device": "cpu",
+      "device_name": "cpu",
+      "dtype": "float32",
+      "threads": 4,
+      "tokenizer_class": "BertTokenizer",
+      "model_class": "BertModel",
+      "param_bytes": 90261504
+     },
+     "updated_at": 1790572184,
+     "warm": false,
+     "drain_reason": null,
+     "drained_at": null
+    },
+    {
+     "host": "worker:live-worker",
+     "revision_id": "mr_f7f434f6ffda",
+     "state": "ready",
+     "device": "cuda",
+     "dtype": "bfloat16",
+     "estimated_bytes": 988065536,
+     "loaded_at": 1790572181,
+     "load_ms": 5240,
+     "last_used_at": null,
+     "requests": 0,
+     "desired": "loaded",
+     "error": null,
+     "versions": {
+      "torch": "2.10.0+cu130",
+      "transformers": "5.5.0",
+      "python": "3.12.3",
+      "device": "cuda",
+      "device_name": "NVIDIA GB10",
+      "dtype": "bfloat16",
+      "threads": 4,
+      "tokenizer_class": "Qwen2Tokenizer",
+      "model_class": "Qwen2ForCausalLM",
+      "param_bytes": 988065536
+     },
+     "updated_at": 1790572181,
+     "warm": false,
+     "drain_reason": null,
+     "drained_at": null
+    }
+   ],
+   "mem_available_bytes": 111699439616,
+   "api_host": null
+  },
+  "observed": {
+   "completed_requests_by_revision": {
+    "mr_cc75a5b8a7f4": 1,
+    "mr_f7f434f6ffda": 1
+   }
+  },
+  "warmup": {
+   "policy": null,
+   "resident": [],
+   "batching": {
+    "enabled": true,
+    "max_items": 128,
+    "max_chars": 400000,
+    "scope": "text_embedding jobs of one submitter in one workspace, same revision and truncate flag; no accumulation wait"
+   },
+   "drain_floor_bytes": 8589934592,
+   "meaning": "warm = policy intent recorded per host; state = observed runtime state (a warm revision may be unloaded after a drain)"
+  },
+  "privacy": "prompts, retrieved context, outputs and vectors stay on this host; the runtime child runs offline (HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE, no proxy) and no hosted fallback exists",
+  "note": "a revision is callable only when a runtime host reports state=ready for it; readiness is observed, not inferred from installation"
+ },
+ "smoke": {
+  "registered": {
+   "qwen2.5-0.5b-instruct": {
+    "revision_id": "mr_f7f434f6ffda",
+    "installed": true,
+    "promote_status": 200
+   },
+   "all-minilm-l6-v2": {
+    "revision_id": "mr_cc75a5b8a7f4",
+    "installed": true,
+    "promote_status": 200
+   }
+  },
+  "generation_job": {
+   "id": "j_326562b1df4e2c21",
+   "state": "succeeded"
+  },
+  "embedding_job": {
+   "id": "j_affb39344a80e7a9",
+   "state": "succeeded"
+  },
+  "generation_usage": {
+   "input_tokens": 35,
+   "output_tokens": 3,
+   "finish_reason": "eos"
+  },
+  "generation_timing": {
+   "queue_seconds": 0,
+   "load_ms": 7330,
+   "inference_ms": 582,
+   "started_at": 1790572174,
+   "updated_at": 1790572182
+  }
+ },
+ "schema": 25,
+ "processes": "tmux metacoin-service: window 0 api (serve --port 8402), window 1 worker (live-worker)",
+ "captured_at": 1790572186
+}

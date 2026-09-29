@@ -1,0 +1,76 @@
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-scientific-workspace/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[1] PASSED: native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page
+[2] PASSED: scanned PDF through the local OCR path with provenance; numeric field confirmed against the fixture
+[4] PASSED: regular table extracted, unit mapping reviewed, dataset committed, one output value traced to its source cell
+[6] PASSED: three real generation requests as one supported batch: independent outputs, token counts, terminal states
+[8] PASSED: natural-language scientific request compiled into an authorized typed plan and executed through the normal service path
+[11] PASSED: small robust resource plan solved, witness verified independently through the verification service, objective equals the exhaustive oracle
+[14] PASSED: bounded trade-off comparison with at least two incomparable alternatives, their assumptions and verified trajectories
+[16] PASSED: report assembled from source, dataset, assumptions, plan, run and verification; evidence references opened through the console
+[17] PASSED: restricted signed report projection exported, verified independently, undisclosed fields absent
+[18] PASSED: parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs
+objective",
+      "expected": 12,
+      "actual": 12,
+      "ok": true,
+      "reason": null
+     }
+    ],
+    "flags": [],
+    "console_report_status": 200
+   },
+   "caveat": null,
+   "started_at": 1790591698.136692,
+   "ended_at": 1790591698.2602785
+  },
+  {
+   "journey": 17,
+   "title": "restricted signed report projection exported, verified independently, undisclosed fields absent",
+   "status": "passed",
+   "evidence": {
+    "report": "rp_7c0fa393c7da",
+    "included": [
+     "plan",
+     "concl"
+    ],
+    "omitted": 4,
+    "warnings_acknowledged": 0,
+    "verify": {
+     "signature_valid": true,
+     "issuer_is_this_service": true,
+     "projected_text_matches_statement": true
+    },
+    "hidden_value_absent": true,
+    "withheld_named": true
+   },
+   "caveat": null,
+   "started_at": 1790591699.1274421,
+   "ended_at": 1790591699.334234
+  },
+  {
+   "journey": 18,
+   "title": "parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs",
+   "status": "passed",
+   "evidence": {
+    "package": "pk_753b6cdab4ca",
+    "imported_as": "pk_0dfcd12ca987",
+    "compat_blocking": [],
+    "compat_items": 7,
+    "quote_amount_max": 23,
+    "run": "pr_1d94045536fd",
+    "delivery_state": "delivered",
+    "cross_workspace_read": 404
+   },
+   "caveat": null,
+   "started_at": 1790591699.334257,
+   "ended_at": 1790591701.9720788
+  }
+ ],
+ "browser": null,
+ "passed": 10,
+ "failed": 0,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 10
+}

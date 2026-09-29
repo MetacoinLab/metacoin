@@ -1,0 +1,12 @@
+{
+ "schema": "metacoin-patch-check/v1",
+ "base": "103bde963011cfcaccb3b7986dd403e547f17bbd",
+ "candidate": "3e3412678ab487ee0792807d9f5b902895180584",
+ "patch": "metacoin-core-work-economy-session-vs-103bde9.patch",
+ "patch_sha256": "2312db022b0923412d575346d3d5dd132a1c78b565c7f919621053eb2c5cc6d9",
+ "archive_sha256": "a891e3c4c51e7bc3e12c735ad78cf748fae693b9c73324035a84798f22b3171c",
+ "applied_in_isolated_worktree": true,
+ "paths_differing_outside_work": [],
+ "work_dir_excluded_by_design": true,
+ "result": "equal under the documented exclusion (work/)"
+}

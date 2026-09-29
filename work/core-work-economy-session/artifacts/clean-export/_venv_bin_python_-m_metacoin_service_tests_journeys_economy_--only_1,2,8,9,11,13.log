@@ -1,0 +1,71 @@
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[1] PASSED: work request from a real scientific operation: typed deliverables validated, determination contract frozen
+[2] PASSED: incompatible offer excluded with structured reasons; only the eligible offer can be awarded
+[8] PASSED: correctly verified feasible result: accepted under the frozen policy and paid as agreed (application-journal rail)
+[9] PASSED: correctly verified INFEASIBLE result under an outcome-neutral determination contract: accepted and paid the same as the positive
+[11] PASSED: frozen legacy task replayed through the contract bridge reproduces the registered canonical hash; historic artifacts untouched
+[13] PASSED: disclosed evidence package verified from a clean separate process without the service database
+[15] PASSED: the same payable claim re-submitted (new decision request, re-read receipts, different transport key): one entitlement only
+[18] PASSED: dispute against a mistaken rejection: valid replay added, an authorized superseding acceptance created, the original decision retained
+[31] PASSED: actual exact payment on the private local chain matched to one accepted entitlement (observed receipt, balances moved once)
+[35] PASSED: a confirmed fee credited once funds a bounded treasury award that pays an accepted negative; replay cannot credit the fee twice
+[38] PASSED: accounting journal replayed: balances, obligations, reserves and exposure reproduced; no base-supply, identity or ledger change
+onds": 5.024
+   },
+   "caveat": null
+  },
+  {
+   "journey": 31,
+   "title": "actual exact payment on the private local chain matched to one accepted entitlement (observed receipt, balances moved once)",
+   "status": "passed",
+   "evidence": {
+    "transaction": "0x6685676116aceea31c48ffba5aa7186b531cb136f367d6751ed4f65f63c4be3c",
+    "moved": {
+     "payer": 10,
+     "provider": 10
+    },
+    "entitlement": "paid",
+    "chain": "eip155:131277322940537",
+    "seconds": 5.317
+   },
+   "caveat": "private py-evm chain, synthetic accounts; no public settlement"
+  },
+  {
+   "journey": 35,
+   "title": "a confirmed fee credited once funds a bounded treasury award that pays an accepted negative; replay cannot credit the fee twice",
+   "status": "passed",
+   "evidence": {
+    "fee_revenue": 1,
+    "after_replay": 1,
+    "treasury_spent": 1,
+    "treasury_balance_delta": 0,
+    "science": "INFEASIBLE",
+    "seconds": 10.457
+   },
+   "caveat": null
+  },
+  {
+   "journey": 38,
+   "title": "accounting journal replayed: balances, obligations, reserves and exposure reproduced; no base-supply, identity or ledger change",
+   "status": "passed",
+   "evidence": {
+    "consistent": true,
+    "invariants_failed": [],
+    "scopes": [
+     "action-units@application",
+     "local-chain-token@eip155:131277322940537"
+    ],
+    "protocol_files_unchanged": true,
+    "seconds": 0.019
+   },
+   "caveat": null
+  }
+ ],
+ "browser": null,
+ "passed": 11,
+ "failed": 0,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 11
+}

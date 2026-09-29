@@ -1,0 +1,53 @@
+{
+ "schema_before": "013_compute_preemption",
+ "schema_after": "024_agent_plans",
+ "session_migrations": [
+  {
+   "id": "014_local_models",
+   "note": "model_revisions/model_defaults/model_runtimes/model_requests/model_segments: pinned safetensors registry, promoted defaults, per-host runtime state, request accounting, durable output segments"
+  },
+  {
+   "id": "015_private_knowledge",
+   "note": "knowledge_collections/documents/versions/chunks/indexes/answers: immutable document versions, byte-addressed chunks, encrypted index versions, cached answers with citations"
+  },
+  {
+   "id": "016_calibration",
+   "note": "calibration_datasets/models/defaults + calibrated_scheduling_enabled meta: datasets, fitted models from verified jobs, scheduler signal"
+  },
+  {
+   "id": "017_verification",
+   "note": "verification_jobs: audit requests, challenges, results, signed statements, disputes"
+  },
+  {
+   "id": "018_federation",
+   "note": "nodes/node_transfers + jobs.location_policy: node identities, credentials (hashes), transfers, execution-location policy"
+  },
+  {
+   "id": "019_approvals",
+   "note": "approvals + approval policy meta: bound proposals, decisions, expiry, application records"
+  },
+  {
+   "id": "020_verification_policies",
+   "note": "verification_policies: immutable audit requirement templates"
+  },
+  {
+   "id": "021_evaluation_registry",
+   "note": "evaluation_suites/evaluation_runs: versioned suites with hidden items, scored runs"
+  },
+  {
+   "id": "022_notebooks",
+   "note": "notebooks/notebook_versions: immutable narrative versions with checked links"
+  },
+  {
+   "id": "023_warmup_batching",
+   "note": "model_runtimes.warm/drain_reason/drained_at: warmup residency intent and drain records"
+  },
+  {
+   "id": "024_agent_plans",
+   "note": "agent_plans: typed plan drafts, validation, execution bindings"
+  }
+ ],
+ "transaction_boundaries": "each migration runs in one transaction and is recorded in schema_migrations; migrate is idempotent; live upgrade procedure: backup (SQLite backup API + artifacts + keys) -> migrate -> restart task-owned processes -> smoke test",
+ "backward_compatibility": "additive tables and nullable columns only; a database at 013 migrates forward without data rewrite; no migration deletes or rewrites artifacts",
+ "restore": "restore sets the reconciliation gate; nothing economic is resubmitted on start; model/index recovery report lists weights and index versions present/absent"
+}

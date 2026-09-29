@@ -1,0 +1,165 @@
+{
+ "host": "DGX Spark GB10",
+ "samples": 3,
+ "measurements": {
+  "generation": {
+   "device": "cuda",
+   "model": "qwen2.5-0.5b-instruct",
+   "precision": "bfloat16 (cuda) / float32 (cpu)",
+   "max_output_tokens": 64,
+   "cold": {
+    "wall_s": 10.21,
+    "load_ms": 7944,
+    "inference_ms": 1156,
+    "output_tokens": 64,
+    "input_tokens": 17,
+    "queue_s": 1
+   },
+   "warm": [
+    {
+     "wall_s": 1.31,
+     "load_ms": 0,
+     "inference_ms": 590,
+     "output_tokens": 64,
+     "input_tokens": 17,
+     "queue_s": 1
+    },
+    {
+     "wall_s": 1.19,
+     "load_ms": 0,
+     "inference_ms": 597,
+     "output_tokens": 64,
+     "input_tokens": 17,
+     "queue_s": 0
+    },
+    {
+     "wall_s": 1.2,
+     "load_ms": 0,
+     "inference_ms": 625,
+     "output_tokens": 64,
+     "input_tokens": 17,
+     "queue_s": 0
+    }
+   ],
+   "warm_tokens_per_s_median": 107.2,
+   "includes": "job admission, queue, runtime execution, segment persistence, encrypted artifact commit; cold includes the runtime child load"
+  },
+  "embedding": {
+   "model": "all-minilm-l6-v2",
+   "device": "cpu (model_embed_on_cuda=0)",
+   "items": 128,
+   "runs": [
+    {
+     "wall_s": 3.63,
+     "inference_ms": 221,
+     "items": 128,
+     "items_per_s_inference": 579.2
+    },
+    {
+     "wall_s": 0.59,
+     "inference_ms": 217,
+     "items": 128,
+     "items_per_s_inference": 589.9
+    },
+    {
+     "wall_s": 1.11,
+     "inference_ms": 221,
+     "items": 128,
+     "items_per_s_inference": 579.2
+    }
+   ],
+   "includes": "job path + npy artifact commit"
+  },
+  "index_and_retrieval": {
+   "chunks": 30,
+   "build_wall_s": 1.15,
+   "retrieval_latency": {
+    "lexical": {
+     "first_ms": 13.9,
+     "median_warm_ms": 13.7
+    },
+    "semantic": {
+     "first_ms": 3121.7,
+     "median_warm_ms": 46.9
+    },
+    "hybrid": {
+     "first_ms": 52.2,
+     "median_warm_ms": 45.1
+    }
+   },
+   "note": "first semantic query loads the API-process embedding runtime and the index vectors (cold); exact search in pure Python"
+  },
+  "calibration_fit": {
+   "rows": 500,
+   "features": 2,
+   "wall_s": [
+    0.61,
+    1.09,
+    0.6
+   ],
+   "includes": "job path, numpy lstsq in the child, pure-Python QR reference verification, encrypted outputs"
+  },
+  "audit_cost": {
+   "target": "temporal_batch 364 scenarios",
+   "classes": {
+    "analytical": {
+     "wall_s": 1.06,
+     "checked": 364,
+     "total": 364,
+     "state": "passed"
+    },
+    "sampled_reference": {
+     "wall_s": 1.1,
+     "checked": 64,
+     "total": 364,
+     "state": "passed"
+    },
+    "full_exact": {
+     "wall_s": 1.11,
+     "checked": 364,
+     "total": 364,
+     "state": "passed"
+    }
+   },
+   "includes": "worker process start + signed statement"
+  },
+  "mcp": {
+   "direct_list_services_ms": 3.3,
+   "mcp_session_5_calls_wall_ms": 1437.1,
+   "note": "includes MCP server process start, initialize, list_tools and five tool calls"
+  },
+  "federation": {
+   "node_once_wall_s": 2.04,
+   "local_worker_once_wall_s": 1.04,
+   "transfers": [
+    {
+     "role": "input",
+     "direction": "to_node",
+     "bytes": 1071
+    },
+    {
+     "role": "result",
+     "direction": "from_node",
+     "bytes": 161396
+    }
+   ],
+   "note": "node wall includes process start, TLS handshakes, claim, child execution, chunked upload, coordinator verification; the local figure is the same work through the in-process path"
+  },
+  "bounded_concurrency": {
+   "jobs": 4,
+   "workers": 2,
+   "wall_s": 1.11,
+   "states": [
+    "succeeded",
+    "succeeded",
+    "succeeded",
+    "succeeded"
+   ]
+  }
+ },
+ "notes": [
+  "wall-clock seconds measured by the client process; the worker and API are separate processes on the same host",
+  "verification and encryption are included where stated",
+  "not throughput claims for other hosts"
+ ]
+}

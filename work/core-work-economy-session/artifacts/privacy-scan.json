@@ -1,0 +1,21 @@
+{
+ "schema": "metacoin-privacy-scan/v1",
+ "scanned_files": 32,
+ "patterns": [
+  "bearer_or_node_credential",
+  "age_secret",
+  "private_key_pem",
+  "ed25519_hex_private",
+  "live_state_path",
+  "bootstrap_credentials",
+  "private_fixture_labels",
+  "tailscale_or_ssh",
+  "email"
+ ],
+ "hits": [],
+ "source_patch_hits": [],
+ "notes": [
+  "private fixture labels are synthetic test strings; a hit outside test source means a result file carried fixture inputs and needs review",
+  "the delivery packager repeats these checks on the packaged tree (DELIVERY_SCANS.txt)"
+ ]
+}

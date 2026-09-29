@@ -1,0 +1,171 @@
+{
+ "schema": "metacoin-adaptive-campaign-benchmark/v1",
+ "budget_per_strategy": 4,
+ "problems": [
+  {
+   "problem": "utility_vs_supply_scale",
+   "candidates": 9,
+   "truth_best": 12,
+   "truth_by_candidate": {
+    "{\"supply_scale_percent\": 20}": null,
+    "{\"supply_scale_percent\": 40}": 0,
+    "{\"supply_scale_percent\": 60}": 0,
+    "{\"supply_scale_percent\": 80}": 3,
+    "{\"supply_scale_percent\": 100}": 5,
+    "{\"supply_scale_percent\": 120}": 7,
+    "{\"supply_scale_percent\": 140}": 8,
+    "{\"supply_scale_percent\": 160}": 9,
+    "{\"supply_scale_percent\": 180}": 12
+   },
+   "adaptive": {
+    "state": "budget_exhausted",
+    "best_observed": 12,
+    "evaluated": [
+     {
+      "supply_scale_percent": 120
+     },
+     {
+      "supply_scale_percent": 20
+     },
+     {
+      "supply_scale_percent": 180
+     },
+     {
+      "supply_scale_percent": 60
+     }
+    ],
+    "log": [
+     {
+      "index": 5,
+      "score": null,
+      "predicted": null,
+      "improvement": null,
+      "exploration": null,
+      "reason": "seeded first evaluation (no observation yet)"
+     },
+     {
+      "index": 0,
+      "score": 0.125,
+      "predicted": 7.0,
+      "improvement": 0.0,
+      "exploration": 0.125,
+      "reason": "highest acquisition score (ties by lowest index)"
+     },
+     {
+      "index": 8,
+      "score": 0.07500000000000001,
+      "predicted": 7.0,
+      "improvement": 0.0,
+      "exploration": 0.07500000000000001,
+      "reason": "highest acquisition score (ties by lowest index)"
+     },
+     {
+      "index": 2,
+      "score": 0.25,
+      "predicted": 8.666666668148148,
+      "improvement": 0.0,
+      "exploration": 0.25,
+      "reason": "highest acquisition score (ties by lowest index)"
+     }
+    ],
+    "regret": 0,
+    "seconds": 1.35
+   },
+   "grid": {
+    "state": "completed",
+    "values": [
+     20,
+     80,
+     120,
+     180
+    ],
+    "best_observed": 12,
+    "regret": 0,
+    "seconds": 1.33
+   }
+  },
+  {
+   "problem": "margin_vs_reserve",
+   "candidates": 9,
+   "truth_best": 33000,
+   "truth_by_candidate": {
+    "{\"reserve\": 5000}": 33000,
+    "{\"reserve\": 10000}": 28000,
+    "{\"reserve\": 15000}": 23000,
+    "{\"reserve\": 20000}": 18000,
+    "{\"reserve\": 25000}": 13000,
+    "{\"reserve\": 30000}": 8000,
+    "{\"reserve\": 35000}": 3000,
+    "{\"reserve\": 40000}": 10000,
+    "{\"reserve\": 45000}": 5000
+   },
+   "adaptive": {
+    "state": "budget_exhausted",
+    "best_observed": 33000,
+    "evaluated": [
+     {
+      "reserve": 30000
+     },
+     {
+      "reserve": 5000
+     },
+     {
+      "reserve": 45000
+     },
+     {
+      "reserve": 15000
+     }
+    ],
+    "log": [
+     {
+      "index": 5,
+      "score": null,
+      "predicted": null,
+      "improvement": null,
+      "exploration": null,
+      "reason": "seeded first evaluation (no observation yet)"
+     },
+     {
+      "index": 0,
+      "score": 0.125,
+      "predicted": 8000.0,
+      "improvement": 0.0,
+      "exploration": 0.125,
+      "reason": "highest acquisition score (ties by lowest index)"
+     },
+     {
+      "index": 8,
+      "score": 1875.0,
+      "predicted": 14818.18182644628,
+      "improvement": 0.0,
+      "exploration": 1875.0,
+      "reason": "highest acquisition score (ties by lowest index)"
+     },
+     {
+      "index": 2,
+      "score": 1400.0,
+      "predicted": 19999.999988,
+      "improvement": 0.0,
+      "exploration": 1400.0,
+      "reason": "highest acquisition score (ties by lowest index)"
+     }
+    ],
+    "regret": 0,
+    "seconds": 1.33
+   },
+   "grid": {
+    "state": "completed",
+    "values": [
+     5000,
+     20000,
+     30000,
+     45000
+    ],
+    "best_observed": 33000,
+    "regret": 0,
+    "seconds": 1.36
+   }
+  }
+ ],
+ "statement": "Two synthetic problems with known structure, one seed, equal budgets of 4 evaluations from 9 authorized candidates. Regret = truth_best - best_observed. Results are specific to these problems and this acquisition rule; no universal superiority is claimed. Adaptive stopping means the observed best carries no fixed-sample uncertainty claim."
+}

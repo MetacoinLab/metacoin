@@ -1,0 +1,480 @@
+{
+ "corpus": "metacoin-knowledge-eval-corpus/v1",
+ "documents": 8,
+ "questions": 10,
+ "answerable": 8,
+ "recall_at_k": {
+  "lexical": 8,
+  "semantic": 8,
+  "hybrid": 8
+ },
+ "retrieval_rows": [
+  {
+   "question": "q1",
+   "mode": "lexical",
+   "hit": true,
+   "top": [
+    "temporal-model-spec.md",
+    "old-reserve-policy.md",
+    "heat-solver-notes.txt"
+   ],
+   "ms": 14,
+   "timing": {
+    "load_ms": 0,
+    "lexical_ms": 0,
+    "total_ms": 0
+   }
+  },
+  {
+   "question": "q1",
+   "mode": "semantic",
+   "hit": true,
+   "top": [
+    "old-reserve-policy.md",
+    "checkpoint-format.md",
+    "temporal-model-spec.md"
+   ],
+   "ms": 2416,
+   "timing": {
+    "load_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 1
+   }
+  },
+  {
+   "question": "q1",
+   "mode": "hybrid",
+   "hit": true,
+   "top": [
+    "old-reserve-policy.md",
+    "temporal-model-spec.md",
+    "heat-solver-notes.txt"
+   ],
+   "ms": 38,
+   "timing": {
+    "load_ms": 1,
+    "lexical_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q2",
+   "mode": "lexical",
+   "hit": true,
+   "top": [
+    "monte-carlo-notes.md",
+    "hostile-note.md",
+    "checkpoint-format.md"
+   ],
+   "ms": 13,
+   "timing": {
+    "load_ms": 0,
+    "lexical_ms": 0,
+    "total_ms": 0
+   }
+  },
+  {
+   "question": "q2",
+   "mode": "semantic",
+   "hit": true,
+   "top": [
+    "monte-carlo-notes.md",
+    "old-reserve-policy.md",
+    "heat-solver-notes.txt"
+   ],
+   "ms": 57,
+   "timing": {
+    "load_ms": 1,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q2",
+   "mode": "hybrid",
+   "hit": true,
+   "top": [
+    "monte-carlo-notes.md",
+    "checkpoint-format.md",
+    "heat-solver-notes.txt"
+   ],
+   "ms": 55,
+   "timing": {
+    "load_ms": 2,
+    "lexical_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q3",
+   "mode": "lexical",
+   "hit": true,
+   "top": [
+    "heat-solver-notes.txt",
+    "compute-benchmarks-2026-09-24.csv",
+    "hostile-note.md"
+   ],
+   "ms": 12,
+   "timing": {
+    "load_ms": 0,
+    "lexical_ms": 0,
+    "total_ms": 1
+   }
+  },
+  {
+   "question": "q3",
+   "mode": "semantic",
+   "hit": true,
+   "top": [
+    "heat-solver-notes.txt",
+    "temporal-model-spec.md",
+    "mission-glossary.md"
+   ],
+   "ms": 51,
+   "timing": {
+    "load_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 1
+   }
+  },
+  {
+   "question": "q3",
+   "mode": "hybrid",
+   "hit": true,
+   "top": [
+    "heat-solver-notes.txt",
+    "compute-benchmarks-2026-09-24.csv",
+    "mission-glossary.md"
+   ],
+   "ms": 51,
+   "timing": {
+    "load_ms": 0,
+    "lexical_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 1
+   }
+  },
+  {
+   "question": "q4",
+   "mode": "lexical",
+   "hit": true,
+   "top": [
+    "checkpoint-format.md",
+    "mission-glossary.md",
+    "compute-benchmarks-2026-09-24.csv"
+   ],
+   "ms": 12,
+   "timing": {
+    "load_ms": 0,
+    "lexical_ms": 0,
+    "total_ms": 0
+   }
+  },
+  {
+   "question": "q4",
+   "mode": "semantic",
+   "hit": true,
+   "top": [
+    "mission-glossary.md",
+    "checkpoint-format.md",
+    "compute-benchmarks-2026-09-24.csv"
+   ],
+   "ms": 53,
+   "timing": {
+    "load_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 1
+   }
+  },
+  {
+   "question": "q4",
+   "mode": "hybrid",
+   "hit": true,
+   "top": [
+    "checkpoint-format.md",
+    "mission-glossary.md",
+    "compute-benchmarks-2026-09-24.csv"
+   ],
+   "ms": 58,
+   "timing": {
+    "load_ms": 1,
+    "lexical_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q5",
+   "mode": "lexical",
+   "hit": true,
+   "top": [
+    "compute-benchmarks-2026-09-24.csv",
+    "heat-solver-notes.txt",
+    "hostile-note.md"
+   ],
+   "ms": 17,
+   "timing": {
+    "load_ms": 1,
+    "lexical_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q5",
+   "mode": "semantic",
+   "hit": true,
+   "top": [
+    "compute-benchmarks-2026-09-24.csv",
+    "heat-solver-notes.txt",
+    "temporal-model-spec.md"
+   ],
+   "ms": 53,
+   "timing": {
+    "load_ms": 1,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q5",
+   "mode": "hybrid",
+   "hit": true,
+   "top": [
+    "compute-benchmarks-2026-09-24.csv",
+    "heat-solver-notes.txt",
+    "mission-glossary.md"
+   ],
+   "ms": 57,
+   "timing": {
+    "load_ms": 1,
+    "lexical_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q6",
+   "mode": "lexical",
+   "hit": true,
+   "top": [
+    "old-reserve-policy.md",
+    "temporal-model-spec.md",
+    "heat-solver-notes.txt"
+   ],
+   "ms": 15,
+   "timing": {
+    "load_ms": 1,
+    "lexical_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q6",
+   "mode": "semantic",
+   "hit": true,
+   "top": [
+    "old-reserve-policy.md",
+    "mission-glossary.md",
+    "checkpoint-format.md"
+   ],
+   "ms": 53,
+   "timing": {
+    "load_ms": 1,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q6",
+   "mode": "hybrid",
+   "hit": true,
+   "top": [
+    "old-reserve-policy.md",
+    "temporal-model-spec.md",
+    "heat-solver-notes.txt"
+   ],
+   "ms": 50,
+   "timing": {
+    "load_ms": 0,
+    "lexical_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 1
+   }
+  },
+  {
+   "question": "q9",
+   "mode": "lexical",
+   "hit": true,
+   "top": [
+    "hostile-note.md",
+    "checkpoint-format.md",
+    "monte-carlo-notes.md"
+   ],
+   "ms": 15,
+   "timing": {
+    "load_ms": 1,
+    "lexical_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q9",
+   "mode": "semantic",
+   "hit": true,
+   "top": [
+    "hostile-note.md",
+    "checkpoint-format.md",
+    "old-reserve-policy.md"
+   ],
+   "ms": 51,
+   "timing": {
+    "load_ms": 1,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q9",
+   "mode": "hybrid",
+   "hit": true,
+   "top": [
+    "hostile-note.md",
+    "checkpoint-format.md",
+    "monte-carlo-notes.md"
+   ],
+   "ms": 54,
+   "timing": {
+    "load_ms": 1,
+    "lexical_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q10",
+   "mode": "lexical",
+   "hit": true,
+   "top": [
+    "mission-glossary.md"
+   ],
+   "ms": 16,
+   "timing": {
+    "load_ms": 1,
+    "lexical_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q10",
+   "mode": "semantic",
+   "hit": true,
+   "top": [
+    "mission-glossary.md",
+    "hostile-note.md",
+    "checkpoint-format.md"
+   ],
+   "ms": 46,
+   "timing": {
+    "load_ms": 2,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  },
+  {
+   "question": "q10",
+   "mode": "hybrid",
+   "hit": true,
+   "top": [
+    "mission-glossary.md",
+    "hostile-note.md",
+    "checkpoint-format.md"
+   ],
+   "ms": 39,
+   "timing": {
+    "load_ms": 2,
+    "lexical_ms": 0,
+    "semantic_ms": 0,
+    "total_ms": 2
+   }
+  }
+ ],
+ "extractive": {
+  "q1": "answered",
+  "q2": "answered",
+  "q3": "answered",
+  "q4": "answered",
+  "q5": "answered",
+  "q6": "answered",
+  "q7": "insufficient_evidence",
+  "q8": "insufficient_evidence",
+  "q9": "answered",
+  "q10": "answered"
+ },
+ "generative": {
+  "q1": {
+   "status": "answered",
+   "citations": 1,
+   "grounding": {
+    "attributed_sentences": 1,
+    "attribution": [
+     {
+      "sentence": "The reserve for the demonstration mission is 2000 mJ.",
+      "shared_tokens": 5,
+      "source": "S2"
+     }
+    ],
+    "citation_markers_found": 0,
+    "claim": "source-link and overlap attribution only; no entailment or factual check was performed",
+    "invalid_markers": [],
+    "method": "each sentence is attributed to the source sharing >= 2 informative tokens and >= 30% of its tokens; model markers are checked against the supplied sources",
+    "model_declined": false,
+    "sentences": 1,
+    "unattributed": [],
+    "valid_markers": 0
+   },
+   "usage": {
+    "counting": "runtime tokenizer; input = templated prompt tokens; output = generated ids including a terminal end-of-sequence token when emitted",
+    "input_tokens": 469,
+    "output_tokens": 16
+   }
+  },
+  "q9": {
+   "status": "answered",
+   "citations": 1,
+   "grounding": {
+    "attributed_sentences": 1,
+    "attribution": [
+     {
+      "sentence": "The console listens on port 8402 by default.",
+      "shared_tokens": 5,
+      "source": "S1"
+     }
+    ],
+    "citation_markers_found": 0,
+    "claim": "source-link and overlap attribution only; no entailment or factual check was performed",
+    "invalid_markers": [],
+    "method": "each sentence is attributed to the source sharing >= 2 informative tokens and >= 30% of its tokens; model markers are checked against the supplied sources",
+    "model_declined": false,
+    "sentences": 1,
+    "unattributed": [],
+    "valid_markers": 0
+   },
+   "usage": {
+    "counting": "runtime tokenizer; input = templated prompt tokens; output = generated ids including a terminal end-of-sequence token when emitted",
+    "input_tokens": 458,
+    "output_tokens": 14
+   }
+  },
+  "q7": {
+   "status": "insufficient_evidence",
+   "citations": 0,
+   "grounding": {
+    "reason": "no source passed the retrieval thresholds (cosine >= 0.30, BM25 >= 1.0, or informative-term coverage >= 0.5); generation skipped"
+   },
+   "usage": null
+  }
+ },
+ "method": "recall@k = every expected document appears among the k results; answer status mechanical; generative quality not scored beyond citation validity and expected substrings"
+}

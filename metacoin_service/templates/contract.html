@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block body %}
+<h1>{{ contract.title }} <span class="badge {% if contract.state=='frozen' %}ok{% else %}warn{% endif %}">{{ contract.state }}</span></h1>
+<dl><dt>id</dt><dd><code>{{ contract.id }}</code></dd><dt>kind</dt><dd>{{ contract.kind }}</dd><dt>version</dt><dd>{{ contract.version }} (lineage {{ contract.lineage_id }}{% if contract.previous_id %}, previous {{ contract.previous_id }}{% endif %})</dd>
+<dt>contract pin</dt><dd><code>{{ contract.contract_digest or '— (not frozen)' }}</code></dd><dt>input root</dt><dd><code>{{ contract.input_root or '—' }}</code></dd>
+<dt>policy</dt><dd>accepted outcomes {{ contract.policy.accepted_outcomes|join(', ') }} · outcome public: {{ contract.policy.disclose_outcome }} · explanation public: {{ contract.policy.disclose_explanation }} · max action cost {{ contract.policy.amount }}</dd>
+<dt>reviewer</dt><dd>{{ contract.reviewer_id }}</dd><dt>expires</dt><dd>{{ contract.expires_at or '—' }}</dd></dl>
+{% if contract.state=='draft' and principal.can('contract:freeze') %}<form method="post" action="/console/contracts/{{ contract.id }}/freeze"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><button type="submit">Freeze terms (irreversible for this version)</button></form>{% endif %}
+{% if contract.state=='frozen' and not job_id and principal.can('job:submit') %}<form method="post" action="/console/contracts/{{ contract.id }}/submit"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><button type="submit">Submit job</button></form>{% endif %}
+{% if job_id %}<p>Job: <a href="/console/jobs/{{ job_id }}">{{ job_id }}</a></p>{% endif %}
+{% if contract.terms %}<h2>Frozen terms</h2><pre>{{ contract.terms|tojson(indent=1) }}</pre>{% endif %}
+<h2>History</h2><div class="tablewrap"><table><tr><th>seq</th><th>time</th><th>category</th><th>event</th><th>actor</th><th>reference</th></tr>{% for e in events %}<tr><td>{{ e.seq }}</td><td>{{ e.ts }}</td><td>{{ e.category }}</td><td>{{ e.event_type }}</td><td><code>{{ e.actor_id }}</code></td><td><code>{{ e.ref|tojson }}</code></td></tr>{% endfor %}</table></div>{% endblock %}

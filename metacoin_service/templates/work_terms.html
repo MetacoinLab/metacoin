@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block body %}
+<h1>Work terms {{ t.title }} <span class="badge {% if t.state=='frozen' %}ok{% else %}warn{% endif %}">{{ t.state }}</span></h1>
+<dl><dt>id</dt><dd><code>{{ t.id }}</code> version {{ t.version }}</dd><dt>digest</dt><dd><code>{{ t.digest or '— (draft)' }}</code></dd><dt>kind</dt><dd>{{ t.kind }}</dd></dl>
+<h2>What counts as delivery</h2><div class="card"><pre>{{ inspection.what_counts_as_delivery|tojson(indent=1) }}</pre><p>payment: {{ inspection.payment|tojson }}</p><p class="note">{{ inspection.hidden_defaults }}</p></div>
+{% if t.state == 'draft' and principal.can('contract:freeze') %}<div class="card"><form method="post" action="/console/work/terms/{{ t.id }}/freeze"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><label for="inp">inputs (JSON; bound and committed at freeze)</label><textarea id="inp" name="inputs" rows="6" cols="80">{{ fixture }}</textarea><p><button type="submit">Freeze (bind the operation)</button></p></form></div>{% endif %}
+{% if t.state == 'frozen' and principal.can('work:request') %}<form method="post" action="/console/work/terms/{{ t.id }}/request"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><button type="submit">Open a work request on these terms</button></form>{% endif %}
+<h2>Frozen terms</h2><pre>{{ t.terms|tojson(indent=1) }}</pre>
+{% endblock %}

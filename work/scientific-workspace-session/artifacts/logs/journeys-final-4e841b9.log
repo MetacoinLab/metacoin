@@ -1,0 +1,85 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[1] PASSED: native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page
+[2] PASSED: scanned PDF through the local OCR path with provenance; numeric field confirmed against the fixture
+[3] PASSED: mixed native/scanned document: per-page extraction method shown, no duplicate indexing of the same content
+[4] PASSED: regular table extracted, unit mapping reviewed, dataset committed, one output value traced to its source cell
+[5] PASSED: ambiguous locale: conversion waits for an authorized interpretation (declared locale + recorded exclusion) instead of guessing
+[6] PASSED: three real generation requests as one supported batch: independent outputs, token counts, terminal states
+[7] PASSED: cancel one batch member while another completes; reconnect to the survivor stream without new work
+[8] PASSED: natural-language scientific request compiled into an authorized typed plan and executed through the normal service path
+[9] PASSED: missing units: clarification, same draft continued after the answer; no paid work before resolution
+[10] PASSED: instruction-like passage in a retrieved document is displayed as content and cannot change tools, source scope or spending authority
+[11] PASSED: small robust resource plan solved, witness verified independently through the verification service, objective equals the exhaustive oracle
+[12] PASSED: positive total energy but an early reserve violation: the early schedule is rejected by the exact simulator and a valid later start is selected
+[13] PASSED: optimizer time limit: checked feasible incumbent, no candidate and established optimality are distinguished truthfully
+[14] PASSED: bounded trade-off comparison with at least two incomparable alternatives, their assumptions and verified trajectories
+[15] PASSED: branch an analysis by one changed reviewed value: affected nodes identified, only they regenerate, unaffected results reused
+[16] PASSED: report assembled from source, dataset, assumptions, plan, run and verification; evidence references opened through the console
+[17] PASSED: restricted signed report projection exported, verified independently, undisclosed fields absent
+[18] PASSED: parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs
+[19] PASSED: paid verified package on the private local chain; settlement withheld until verification; lost response reconciled; no duplicate settlement
+[20] PASSED: the same analysis operations through a real MCP client and the CLI with consistent policy outcomes
+[21] PASSED: revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access
+[22] PASSED: bounded concurrent workload (import, generation, optimization, verification) with a responsive API and consistent accounting
+[23] PASSED: upgrade and restore an isolated copy of the prior live state: old artifacts, credentials and workflows preserved
+age compatibility report rendered from the console form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "scenario comparison page shows the changed assumption path and side-by-side columns",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot open Analyses",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer job page carries no private plan values",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot create or export packages (read allowed, mutation refused)",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer package creation refused",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "narrow width: no horizontal page overflow on the workspace pages",
+    "ok": true,
+    "detail": "{'/console/documents': True, '/console/analyses': True, '/console/packages': True, '/console/compute/new?kind=resource_plan': True, '/console/jobs/j_2b15161c8b0be89a': True, '/console/reports/rp_73efd4cd22a1': True}"
+   }
+  ],
+  "screenshots": [
+   "01-documents.png",
+   "02-document.png",
+   "03-page-inspector.png",
+   "04-search-page-citation.png",
+   "05-analysis.png",
+   "06-analysis-impact.png",
+   "07-report.png",
+   "08-plan-job.png",
+   "09-compute-new-plan.png",
+   "10-package-compat.png",
+   "11-scenario-compare.png",
+   "12-narrow-plan-job.png",
+   "13-narrow-analyses.png"
+  ],
+  "crash": null,
+  "rc": 0,
+  "status": "passed"
+ },
+ "passed": 23,
+ "failed": 0,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 23
+}

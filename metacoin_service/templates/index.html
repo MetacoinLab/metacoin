@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block body %}
+<h1>Work list</h1>
+{% if budget %}<div class="card"><strong>Campaign {{ budget.campaign }}</strong> · asset {{ budget.asset }} on {{ budget.network }} · cap {{ budget.cap }} · exposure {{ budget.exposure }} · available {{ budget.available }} ·
+reserved {{ budget.by_state.RESERVED }} / pending {{ budget.by_state.SUBMISSION_PENDING }} / confirmed {{ budget.by_state.CONFIRMED }} / failed {{ budget.by_state.FAILED_CONFIRMED }} / unresolved {{ budget.by_state.OUTCOME_UNKNOWN }} · provider mode {{ budget.provider_mode }}</div>{% endif %}
+<form method="get" action="/console/" class="card">Filter: <label for="state" style="display:inline">execution</label>
+<select id="state" name="state"><option value="">any</option>{% for s in ['queued','running','succeeded','failed','cancelled'] %}<option value="{{ s }}" {% if filters.get('state')==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+<label for="rs" style="display:inline">review</label><select id="rs" name="review_state"><option value="">any</option>{% for s in ['none','requested','accepted','rejected'] %}<option value="{{ s }}" {% if filters.get('review_state')==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+<button type="submit" class="secondary">Apply</button></form>
+{% if drafts %}<h2>Drafts (not yet frozen)</h2><div class="tablewrap"><table><tr><th>title</th><th>kind</th><th>version</th><th></th></tr>{% for d in drafts %}<tr><td><a href="/console/contracts/{{ d.id }}">{{ d.title }}</a></td><td>{{ d.kind }}</td><td>{{ d.version }}</td><td><code>{{ d.id }}</code></td></tr>{% endfor %}</table></div>{% endif %}
+<h2>Jobs</h2>
+{% if not jobs %}<p class="note">No jobs yet. {% if principal.can('contract:create') %}Create a new analysis to begin.{% endif %}</p>{% else %}
+<div class="tablewrap"><table><tr><th>title</th><th>kind</th><th>execution</th><th>review</th><th>payment</th><th>scientific outcome</th><th>created</th></tr>
+{% for j in jobs %}<tr><td><a href="/console/jobs/{{ j.id }}">{{ j.title }}</a></td><td>{{ j.kind }}</td>
+<td><span class="badge {% if j.state=='succeeded' %}ok{% elif j.state in ['failed','cancelled'] %}bad{% else %}warn{% endif %}">{{ j.state }}</span></td>
+<td><span class="badge {% if j.review_state=='accepted' %}ok{% elif j.review_state=='rejected' %}bad{% endif %}">review: {{ j.review_state }}</span></td>
+<td><span class="badge">payment: {{ j.payment.state }}</span></td><td>{{ j.outcome or '—' }}</td><td>{{ j.created_at }}</td></tr>{% endfor %}</table></div>
+{% if more %}<p><a href="/console/?before={{ next_before }}&state={{ filters.get('state','') }}&review_state={{ filters.get('review_state','') }}">Older jobs</a></p>{% endif %}{% endif %}{% endblock %}

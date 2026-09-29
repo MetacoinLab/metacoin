@@ -1,0 +1,147 @@
+[2026-09-29T06:00:19Z] candidate 1fe5e1b12639a94454d97f59306c262ad529b4a4
+[2026-09-29T06:00:19Z] before: {"ok":true,"revision":"db63420ec712fcbb702c0e85a3840cda8fc17277","provider_mode":"test-http","queued":0,"running":0}
+[2026-09-29T06:00:19Z] schema before 031_reconciliation
+[2026-09-29T06:00:20Z] backup at ~/.local/state/metacoin-service-backups/pre-migration-032-1790661619: 122 ciphertext objects (age) and public bundles schema 031_reconciliation
+[2026-09-29T06:00:20Z] isolated restore opened and migrated: 040_work_programs_pricing_challenges
+[2026-09-29T06:00:20Z] pane pids api=2463606 (child ) worker=2463623 (child )
+[2026-09-29T06:00:20Z] workers: {'registered': 10, 'live_active': 1, 'draining': 8, 'stale_or_offline': 9}
+drain w_532f5332a2dc 200
+[2026-09-29T06:00:21Z] running jobs after drain: 0; queued: 0
+[2026-09-29T06:00:21Z] TERM 2463623
+[2026-09-29T06:00:21Z] TERM 2463606
+[2026-09-29T06:00:21Z] old processes stopped (alive=0)
+[2026-09-29T06:00:21Z] migrated: {
+  "applied": [
+    "032_work_terms",
+    "033_request_board",
+    "034_work_evidence",
+    "035_work_money",
+    "036_work_access_missions",
+    "037_work_notifications",
+    "038_signing_key_history",
+    "039_mission_learning",
+    "040_work_programs_pricing_challenges"
+  ],
+  "schema": [
+    "0
+can't find window: worker
+2805617 api
+2805632 worker
+{"ok":true,"revision":"1fe5e1b12639a94454d97f59306c262ad529b4a4","provider_mode":"test-http","queued":0,"running":0}[2026-09-29T06:00:30Z] loaded revision matches candidate
+LISTEN 0      2048                     127.0.0.1:8402       0.0.0.0:*    users:(("python",pid=2805617,fd=6))
+workers {'registered': 11, 'live_active': 1, 'draining': 8, 'stale_or_offline': 10} documents {'by_stage': {'published': 2}, 'parser_failures': 0, 'awaiting_review': 0} package_runs {}
+old artifact a_da180911f8213b086ba24604 export 200
+[2026-09-29T06:00:32Z] work terms drafted wt_bc1cdec33a446f7f (inspect written)
+[2026-09-29T06:00:32Z] journal replay: consistent True
+[2026-09-29T06:00:32Z] smoke: document di_42e122721b13 generation j_2b7dfbcf83a2ba33 plan j_4a3264b2a2274fbd
+[2026-09-29T06:00:42Z] smoke states: document=ready generation=succeeded plan=succeeded (outcome VERIFIED)
+[2026-09-29T06:00:42Z] done
+[2026-09-29T06:03:53Z] candidate 65fe783dc102195538e3eb09028191e7f7f1c16c
+[2026-09-29T06:03:53Z] before: {"ok":true,"revision":"1fe5e1b12639a94454d97f59306c262ad529b4a4","provider_mode":"test-http","queued":0,"running":0}
+[2026-09-29T06:03:53Z] schema before 040_work_programs_pricing_challenges
+[2026-09-29T06:03:53Z] backup at ~/.local/state/metacoin-service-backups/pre-migration-032-1790661833: 138 ciphertext objects (age) and public bundles schema 040_work_programs_pricing_challenges
+[2026-09-29T06:03:53Z] isolated restore opened and migrated: 040_work_programs_pricing_challenges
+[2026-09-29T06:03:54Z] pane pids api=2805617 (child ) worker=2805632 (child 2805717)
+[2026-09-29T06:03:54Z] workers: {'registered': 11, 'live_active': 1, 'draining': 8, 'stale_or_offline': 10}
+drain w_0f07447e6217 200
+[2026-09-29T06:03:54Z] running jobs after drain: 0; queued: 0
+[2026-09-29T06:03:54Z] TERM 2805717
+[2026-09-29T06:03:54Z] TERM 2805632
+[2026-09-29T06:03:54Z] TERM 2805617
+[2026-09-29T06:03:55Z] old processes stopped (alive=0)
+[2026-09-29T06:03:55Z] migrated: {
+  "applied": [],
+  "schema": [
+    "001_initial",
+    "002_batches_templates",
+    "003_datasets_lineage",
+    "004_workflows",
+    "005_campaigns",
+    "006_catalog_quotes_usage",
+    "007_agent_policy_grants",
+    "008_hierarchical_budgets",
+    "009_workers_quotas",
+    "010_reuse_and_sharing",
+can't find session: metacoin-service
+can't find session: metacoin-service
+[2026-09-29T06:05:03Z] LOADED REVISION MISMATCH 
+old artifact a_da180911f8213b086ba24604 export 000
+[2026-09-29T06:05:06Z] work terms drafted  (inspect written)
+[2026-09-29T06:05:06Z] journal replay: 
+[2026-09-29T06:05:06Z] smoke: document  generation  plan 
+[2026-09-29T06:11:28Z] smoke states: document= generation= plan= (outcome )
+[2026-09-29T06:11:28Z] done
+[2026-09-29T06:12:36Z] candidate 65fe783dc102195538e3eb09028191e7f7f1c16c
+[2026-09-29T06:12:36Z] before: {"ok":true,"revision":"65fe783dc102195538e3eb09028191e7f7f1c16c","provider_mode":"test-http","queued":0,"running":0}
+[2026-09-29T06:12:36Z] schema before 040_work_programs_pricing_challenges
+[2026-09-29T06:12:36Z] backup at ~/.local/state/metacoin-service-backups/pre-migration-032-1790662356: 138 ciphertext objects (age) and public bundles schema 040_work_programs_pricing_challenges
+[2026-09-29T06:12:37Z] isolated restore opened and migrated: 040_work_programs_pricing_challenges
+[2026-09-29T06:12:37Z] pane pids api=2813482 (child ) worker=2813487 (child )
+[2026-09-29T06:12:37Z] workers: {'registered': 12, 'live_active': 1, 'draining': 8, 'stale_or_offline': 11}
+drain w_3851e0c3e26e 200
+[2026-09-29T06:12:37Z] running jobs after drain: 0; queued: 
+[2026-09-29T06:12:37Z] TERM 2813487
+[2026-09-29T06:12:37Z] TERM 2813482
+[2026-09-29T06:12:37Z] old processes stopped (alive=0)
+[2026-09-29T06:12:37Z] migrated: {
+  "applied": [],
+  "schema": [
+    "001_initial",
+    "002_batches_templates",
+    "003_datasets_lineage",
+    "004_workflows",
+    "005_campaigns",
+    "006_catalog_quotes_usage",
+    "007_agent_policy_grants",
+    "008_hierarchical_budgets",
+    "009_workers_quotas",
+    "010_reuse_and_sharing",
+can't find window: worker
+2813667 api
+2813687 worker
+{"ok":true,"revision":"65fe783dc102195538e3eb09028191e7f7f1c16c","provider_mode":"test-http","queued":0,"running":0}[2026-09-29T06:12:46Z] loaded revision matches candidate
+LISTEN 0      2048                     127.0.0.1:8402       0.0.0.0:*    users:(("python",pid=2813667,fd=6))
+workers {'registered': 13, 'live_active': 1, 'draining': 8, 'stale_or_offline': 12} documents {'by_stage': {'published': 3}, 'parser_failures': 0, 'awaiting_review': 0} package_runs {}
+old artifact a_da180911f8213b086ba24604 export 200
+[2026-09-29T06:12:49Z] work terms drafted wt_771413e99c876445 (inspect written)
+[2026-09-29T06:12:49Z] journal replay: consistent True
+[2026-09-29T06:12:49Z] smoke: document di_07b717ac94a0 generation j_e99cd2a98ea48cf1 plan j_15a2e2459702f86c
+[2026-09-29T06:12:59Z] smoke states: document=ready generation=succeeded plan=succeeded (outcome VERIFIED)
+[2026-09-29T06:12:59Z] done
+[2026-09-29T06:22:04Z] candidate 3e3412678ab487ee0792807d9f5b902895180584
+[2026-09-29T06:22:04Z] before: {"ok":true,"revision":"65fe783dc102195538e3eb09028191e7f7f1c16c","provider_mode":"test-http","queued":0,"running":0}
+[2026-09-29T06:22:04Z] schema before 040_work_programs_pricing_challenges
+[2026-09-29T06:22:04Z] backup at ~/.local/state/metacoin-service-backups/pre-migration-032-1790662924: 154 ciphertext objects (age) and public bundles schema 040_work_programs_pricing_challenges
+[2026-09-29T06:22:04Z] isolated restore opened and migrated: 040_work_programs_pricing_challenges
+[2026-09-29T06:22:04Z] pane pids api=2813667 (child ) worker=2813687 (child 2813797)
+[2026-09-29T06:22:05Z] workers: {'registered': 13, 'live_active': 1, 'draining': 8, 'stale_or_offline': 12}
+drain w_ff2dc11df2a4 200
+[2026-09-29T06:22:05Z] running jobs after drain: 0; queued: 0
+[2026-09-29T06:22:05Z] TERM 2813797
+[2026-09-29T06:22:05Z] TERM 2813687
+[2026-09-29T06:22:05Z] TERM 2813667
+[2026-09-29T06:22:06Z] old processes stopped (alive=0)
+[2026-09-29T06:22:06Z] migrated: {
+  "applied": [],
+  "schema": [
+    "001_initial",
+    "002_batches_templates",
+    "003_datasets_lineage",
+    "004_workflows",
+    "005_campaigns",
+    "006_catalog_quotes_usage",
+    "007_agent_policy_grants",
+    "008_hierarchical_budgets",
+    "009_workers_quotas",
+    "010_reuse_and_sharing",
+2827392 api
+2827403 worker
+{"ok":true,"revision":"3e3412678ab487ee0792807d9f5b902895180584","provider_mode":"test-http","queued":0,"running":0}[2026-09-29T06:22:15Z] loaded revision matches candidate
+LISTEN 0      2048                     127.0.0.1:8402       0.0.0.0:*    users:(("python",pid=2827392,fd=6))
+workers {'registered': 14, 'live_active': 1, 'draining': 8, 'stale_or_offline': 13} documents {'by_stage': {'published': 4}, 'parser_failures': 0, 'awaiting_review': 0} package_runs {}
+old artifact a_da180911f8213b086ba24604 export 200
+[2026-09-29T06:22:18Z] work terms drafted wt_82359e2e24098e7c (inspect written)
+[2026-09-29T06:22:18Z] journal replay: consistent True
+[2026-09-29T06:22:18Z] smoke: document di_5e6a522885a6 generation j_09907a3aad261f0e plan j_9e112593be135484
+[2026-09-29T06:22:27Z] smoke states: document=ready generation=succeeded plan=succeeded (outcome VERIFIED)
+[2026-09-29T06:22:27Z] done

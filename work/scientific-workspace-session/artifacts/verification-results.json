@@ -1,0 +1,458 @@
+{
+ "schema": "metacoin-verification-results/v1",
+ "revision": "db63420ec712fcbb702c0e85a3840cda8fc17277",
+ "ran_at_utc": "2026-09-28T10:36:20Z",
+ "service_suite": {
+  "log": "suite-final5.log",
+  "ran": 187,
+  "seconds": 579.574,
+  "ok": true,
+  "failures": [],
+  "skipped": [
+   {
+    "test": "(metacoin_service.tests.test_compute_science.HeatKernelTests.test_matches_scalar_reference_and_invariants_on_every_backend)",
+    "reason": "'numpy not installed in this interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_compute_science.HeatKernelTests.test_stability_is_checked_exactly_and_unstable_timesteps_refused)",
+    "reason": "'numpy not installed in this interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_compute_science.HeatKernelTests.test_zero_diffusivity_identity_constant_equilibrium_and_eigenmode)",
+    "reason": "'numpy not installed in this interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_compute_science.MonteCarloKernelTests.test_stream_is_chunk_invariant_and_matches_the_reference_per_sample)",
+    "reason": "'numpy not installed in this interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_compute_science.MonteCarloKernelTests.test_wilson_interval_edge_cases)",
+    "reason": "'numpy not installed in this interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_compute_science.TemporalBatchKernelTests.test_kernel_matches_reference_exactly_on_random_and_edge_scenarios)",
+    "reason": "'numpy not installed in this interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_compute_science.TemporalBatchKernelTests.test_named_edge_semantics)",
+    "reason": "'numpy not installed in this interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_compute_science.TemporalBatchKernelTests.test_overflow_bound_refuses_unsafe_batches_and_accepts_wide_safe_ones)",
+    "reason": "'numpy not installed in this interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_resource_plan.SolverTests.test_analytic_fixtures)",
+    "reason": "'scipy (HiGHS) is only in the compute interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_resource_plan.SolverTests.test_dominated_alternative_is_marked)",
+    "reason": "'scipy (HiGHS) is only in the compute interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_resource_plan.SolverTests.test_solver_matches_oracle_on_random_small_instances)",
+    "reason": "'scipy (HiGHS) is only in the compute interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_resource_plan.SolverTests.test_status_mapping_never_turns_a_timeout_into_infeasible_and_rejects_bad_candidates)",
+    "reason": "'scipy (HiGHS) is only in the compute interpreter'"
+   },
+   {
+    "test": "(metacoin_service.tests.test_resource_plan.SolverTests.test_sweep_dominance_dedup_and_sensitivity_including_negative_findings)",
+    "reason": "'scipy (HiGHS) is only in the compute interpreter'"
+   }
+  ],
+  "rc": null
+ },
+ "science_suite_compute_interpreter": {
+  "log": "science-final5.log",
+  "ran": 18,
+  "seconds": 0.78,
+  "ok": true,
+  "failures": [],
+  "skipped": [],
+  "rc": null
+ },
+ "local_chain_suite": {
+  "log": "local-chain-final5.log",
+  "ran": 6,
+  "seconds": 1.64,
+  "ok": true,
+  "failures": [],
+  "skipped": [],
+  "rc": null
+ },
+ "journeys": {
+  "full_run_at": "a434618bcfc6e7a3f3fcfbc64ae0200ac32a390b",
+  "full_run": [
+   {
+    "journey": 1,
+    "status": "failed",
+    "title": "native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page",
+    "caveat": null
+   },
+   {
+    "journey": 2,
+    "status": "passed",
+    "title": "scanned PDF through the local OCR path with provenance; numeric field confirmed against the fixture",
+    "caveat": null
+   },
+   {
+    "journey": 3,
+    "status": "passed",
+    "title": "mixed native/scanned document: per-page extraction method shown, no duplicate indexing of the same content",
+    "caveat": null
+   },
+   {
+    "journey": 4,
+    "status": "passed",
+    "title": "regular table extracted, unit mapping reviewed, dataset committed, one output value traced to its source cell",
+    "caveat": null
+   },
+   {
+    "journey": 5,
+    "status": "passed",
+    "title": "ambiguous locale: conversion waits for an authorized interpretation (declared locale + recorded exclusion) instead of guessing",
+    "caveat": null
+   },
+   {
+    "journey": 6,
+    "status": "passed",
+    "title": "three real generation requests as one supported batch: independent outputs, token counts, terminal states",
+    "caveat": null
+   },
+   {
+    "journey": 7,
+    "status": "passed",
+    "title": "cancel one batch member while another completes; reconnect to the survivor stream without new work",
+    "caveat": null
+   },
+   {
+    "journey": 8,
+    "status": "passed",
+    "title": "natural-language scientific request compiled into an authorized typed plan and executed through the normal service path",
+    "caveat": null
+   },
+   {
+    "journey": 9,
+    "status": "passed",
+    "title": "missing units: clarification, same draft continued after the answer; no paid work before resolution",
+    "caveat": null
+   },
+   {
+    "journey": 10,
+    "status": "passed",
+    "title": "instruction-like passage in a retrieved document is displayed as content and cannot change tools, source scope or spending authority",
+    "caveat": null
+   },
+   {
+    "journey": 11,
+    "status": "passed",
+    "title": "small robust resource plan solved, witness verified independently through the verification service, objective equals the exhaustive oracle",
+    "caveat": null
+   },
+   {
+    "journey": 12,
+    "status": "passed",
+    "title": "positive total energy but an early reserve violation: the early schedule is rejected by the exact simulator and a valid later start is selected",
+    "caveat": "the early-schedule rejection is the shipped simulator called in-process; the selected plan came through the worker and the full_reference verifier path"
+   },
+   {
+    "journey": 13,
+    "status": "passed",
+    "title": "optimizer time limit: checked feasible incumbent, no candidate and established optimality are distinguished truthfully",
+    "caveat": null
+   },
+   {
+    "journey": 14,
+    "status": "passed",
+    "title": "bounded trade-off comparison with at least two incomparable alternatives, their assumptions and verified trajectories",
+    "caveat": null
+   },
+   {
+    "journey": 15,
+    "status": "passed",
+    "title": "branch an analysis by one changed reviewed value: affected nodes identified, only they regenerate, unaffected results reused",
+    "caveat": null
+   },
+   {
+    "journey": 16,
+    "status": "passed",
+    "title": "report assembled from source, dataset, assumptions, plan, run and verification; evidence references opened through the console",
+    "caveat": null
+   },
+   {
+    "journey": 17,
+    "status": "passed",
+    "title": "restricted signed report projection exported, verified independently, undisclosed fields absent",
+    "caveat": null
+   },
+   {
+    "journey": 18,
+    "status": "passed",
+    "title": "parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs",
+    "caveat": null
+   },
+   {
+    "journey": 19,
+    "status": "passed",
+    "title": "paid verified package on the private local chain; settlement withheld until verification; lost response reconciled; no duplicate settlement",
+    "caveat": "private py-evm chain in this process: local protocol validation, not production settlement; the lost-response reconciliation is the SDK-level scenario of the local-chain test suite; the withheld-until-verified window is asserted deterministically in test_packages_upto (here the live worker may finish the audit before the first settlement probe)"
+   },
+   {
+    "journey": 20,
+    "status": "passed",
+    "title": "the same analysis operations through a real MCP client and the CLI with consistent policy outcomes",
+    "caveat": null
+   },
+   {
+    "journey": 21,
+    "status": "passed",
+    "title": "revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access",
+    "caveat": null
+   },
+   {
+    "journey": 22,
+    "status": "passed",
+    "title": "bounded concurrent workload (import, generation, optimization, verification) with a responsive API and consistent accounting",
+    "caveat": null
+   },
+   {
+    "journey": 23,
+    "status": "failed",
+    "title": "upgrade and restore an isolated copy of the prior live state: old artifacts, credentials and workflows preserved",
+    "caveat": "the live service itself is upgraded by the \u00a764 step with its own backup record; this journey exercises the migration on a consistent SQLite-backup copy"
+   },
+   {
+    "journey": 24,
+    "status": "not-run",
+    "title": "reproduce the packaged candidate in a fresh environment and complete representative journeys",
+    "caveat": null
+   }
+  ],
+  "full_run_counts": {
+   "passed": 21,
+   "failed": 2,
+   "blocked": 0,
+   "not_run": 1,
+   "total": 24
+  },
+  "browser_full_run": {
+   "status": "failed",
+   "passed": 19,
+   "failed": 1
+  },
+  "rerun_at_final_candidate": "db63420ec712fcbb702c0e85a3840cda8fc17277",
+  "rerun": [
+   {
+    "journey": 1,
+    "status": "passed",
+    "title": "native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page",
+    "caveat": null
+   },
+   {
+    "journey": 2,
+    "status": "passed",
+    "title": "scanned PDF through the local OCR path with provenance; numeric field confirmed against the fixture",
+    "caveat": null
+   },
+   {
+    "journey": 3,
+    "status": "passed",
+    "title": "mixed native/scanned document: per-page extraction method shown, no duplicate indexing of the same content",
+    "caveat": null
+   },
+   {
+    "journey": 4,
+    "status": "passed",
+    "title": "regular table extracted, unit mapping reviewed, dataset committed, one output value traced to its source cell",
+    "caveat": null
+   },
+   {
+    "journey": 5,
+    "status": "passed",
+    "title": "ambiguous locale: conversion waits for an authorized interpretation (declared locale + recorded exclusion) instead of guessing",
+    "caveat": null
+   },
+   {
+    "journey": 6,
+    "status": "passed",
+    "title": "three real generation requests as one supported batch: independent outputs, token counts, terminal states",
+    "caveat": null
+   },
+   {
+    "journey": 7,
+    "status": "passed",
+    "title": "cancel one batch member while another completes; reconnect to the survivor stream without new work",
+    "caveat": null
+   },
+   {
+    "journey": 8,
+    "status": "passed",
+    "title": "natural-language scientific request compiled into an authorized typed plan and executed through the normal service path",
+    "caveat": null
+   },
+   {
+    "journey": 9,
+    "status": "passed",
+    "title": "missing units: clarification, same draft continued after the answer; no paid work before resolution",
+    "caveat": null
+   },
+   {
+    "journey": 10,
+    "status": "passed",
+    "title": "instruction-like passage in a retrieved document is displayed as content and cannot change tools, source scope or spending authority",
+    "caveat": null
+   },
+   {
+    "journey": 11,
+    "status": "passed",
+    "title": "small robust resource plan solved, witness verified independently through the verification service, objective equals the exhaustive oracle",
+    "caveat": null
+   },
+   {
+    "journey": 12,
+    "status": "passed",
+    "title": "positive total energy but an early reserve violation: the early schedule is rejected by the exact simulator and a valid later start is selected",
+    "caveat": "the early-schedule rejection is the shipped simulator called in-process; the selected plan came through the worker and the full_reference verifier path"
+   },
+   {
+    "journey": 13,
+    "status": "passed",
+    "title": "optimizer time limit: checked feasible incumbent, no candidate and established optimality are distinguished truthfully",
+    "caveat": null
+   },
+   {
+    "journey": 14,
+    "status": "passed",
+    "title": "bounded trade-off comparison with at least two incomparable alternatives, their assumptions and verified trajectories",
+    "caveat": null
+   },
+   {
+    "journey": 15,
+    "status": "passed",
+    "title": "branch an analysis by one changed reviewed value: affected nodes identified, only they regenerate, unaffected results reused",
+    "caveat": null
+   },
+   {
+    "journey": 16,
+    "status": "passed",
+    "title": "report assembled from source, dataset, assumptions, plan, run and verification; evidence references opened through the console",
+    "caveat": null
+   },
+   {
+    "journey": 17,
+    "status": "passed",
+    "title": "restricted signed report projection exported, verified independently, undisclosed fields absent",
+    "caveat": null
+   },
+   {
+    "journey": 18,
+    "status": "passed",
+    "title": "parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs",
+    "caveat": null
+   },
+   {
+    "journey": 19,
+    "status": "passed",
+    "title": "paid verified package on the private local chain; settlement withheld until verification; lost response reconciled; no duplicate settlement",
+    "caveat": "private py-evm chain in this process: local protocol validation, not production settlement; the lost-response reconciliation is the SDK-level scenario of the local-chain test suite; the withheld-until-verified window is asserted deterministically in test_packages_upto (here the live worker may finish the audit before the first settlement probe)"
+   },
+   {
+    "journey": 20,
+    "status": "passed",
+    "title": "the same analysis operations through a real MCP client and the CLI with consistent policy outcomes",
+    "caveat": null
+   },
+   {
+    "journey": 21,
+    "status": "passed",
+    "title": "revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access",
+    "caveat": null
+   },
+   {
+    "journey": 22,
+    "status": "passed",
+    "title": "bounded concurrent workload (import, generation, optimization, verification) with a responsive API and consistent accounting",
+    "caveat": null
+   },
+   {
+    "journey": 23,
+    "status": "passed",
+    "title": "upgrade and restore an isolated copy of the prior live state: old artifacts, credentials and workflows preserved",
+    "caveat": "the live service itself is upgraded by the \u00a764 step with its own backup record; this journey exercises the migration on a consistent SQLite-backup copy"
+   }
+  ],
+  "rerun_browser": {
+   "status": "passed",
+   "passed": 20,
+   "failed": 0
+  },
+  "journey_24": {
+   "status": "passed",
+   "archive_sha256": "5fd2428195ce6f8795fd31c5839acaf200d519c02efd9ca6240ac78a731df05e",
+   "steps": "fresh venv from requirements.lock (local wheels, --no-index), init, status, 8 focused suites, science suite under /usr/bin/python3, local chain + packages_upto, batching/continuous/late-backlog suites, journeys 1,2,4,6,8,11,14,16,17,18 from the archive",
+   "journeys_from_archive": {
+    "passed": 10,
+    "failed": 0,
+    "blocked": 0
+   },
+   "log": "clean-export-logs/clean-export-run.log",
+   "first_attempt_at_v4": "failed the report-PDF test (pypdf missing from the API lock, issue 35); passed at v5"
+  }
+ },
+ "eval-set-agent-behavior-v2.json": "present",
+ "document-extraction-results-baseline.json": "present",
+ "generation-batching-benchmark.json": "present",
+ "continuous-equality.json": "present",
+ "adaptive-campaign-benchmark.json": "present",
+ "categories": {
+  "authority_boundaries": [
+   "test_privacy_workspace",
+   "test_failure_campaign_workspace",
+   "test_intent (grant scope)",
+   "journeys 10, 20"
+  ],
+  "mathematical_invariants": [
+   "test_resource_plan (analytic, 30 random oracle agreements, solver double)",
+   "test_compute_science",
+   "test_calibration"
+  ],
+  "failure_recovery": [
+   "test_failure_campaign",
+   "test_failure_campaign_workspace",
+   "test_backlog_late (campaign recovery)",
+   "test_failures_workflow"
+  ],
+  "workflows_through_entry_points": [
+   "journeys 1-23",
+   "browser inspection"
+  ],
+  "local_chain_only": [
+   "test_upto_route",
+   "test_packages_upto",
+   "integrations.x402.local_chain"
+  ]
+ },
+ "patch_check": {
+  "schema": "metacoin-patch-check/v1",
+  "base": "be2d60cf489392c9b9b712a17f244c3c005ced64",
+  "candidate": "db63420ec712fcbb702c0e85a3840cda8fc17277",
+  "patch": "metacoin-scientific-workspace-session-vs-be2d60c.patch (the file in this delivery)",
+  "method": "git worktree of the base in an isolated directory; git apply of the delivered patch; git diff-tree -r of the applied tree against the candidate outside work/",
+  "applied_tree": "6b2b47ad5307cc268271163f32f1854a40ea29ba",
+  "diff_lines_outside_work": 0,
+  "shortstat": "104 files changed, 12180 insertions(+), 90 deletions(-)",
+  "result": "the patch applied to the exact base reproduces the candidate source byte for byte (work/ session records excluded by construction)",
+  "at": "2026-09-28T10:20:24Z"
+ },
+ "live": {
+  "upgrade_025_to_031_at": "4e841b9f7d1e68d4fb1b98bf8a074885f1b11ae7 (live-upgrade.json)",
+  "restart_at_final": "db63420ec712fcbb702c0e85a3840cda8fc17277"
+ },
+ "earlier_candidates": {
+  "5e19c8d": "suite 187 with 1 failure (issue 33, test determinism)",
+  "48eda0d": "suite 187 OK",
+  "4e841b9": "suite 187 OK, journeys 23/23, browser 20/20, journey 24 failed (issue 35)"
+ }
+}

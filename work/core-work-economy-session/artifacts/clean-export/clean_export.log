@@ -1,0 +1,14 @@
+runtime data placed from protocol-data/ (59ec7834451e17ab d285945db156863e )
+files: 563
+sha256 of archive: a891e3c4c51e7bc3e12c735ad78cf748fae693b9c73324035a84798f22b3171c
+venv rc=0
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home --provider-mode test-http init
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home status
+rc=0 47s :: .venv/bin/python -m unittest metacoin_service.tests.test_work_terms metacoin_service.tests.test_work_board metacoin_service.tests.test_work_evidence metacoin_service.tests.test_work_access_missions metacoin_service.tests.test_work_surfaces metacoin_service.tests.test_work_history_interop metacoin_service.tests.test_work_backlog metacoin_service.tests.test_verification metacoin_service.tests.test_packages
+rc=0 2s :: /usr/bin/python3 -m unittest metacoin_service.tests.test_resource_plan metacoin_service.tests.test_compute_science
+rc=0 29s :: .venv/bin/python -m unittest metacoin_service.tests.test_service
+rc=0 5s :: .venv/bin/python -m unittest integrations.x402.local_chain.test_local_chain metacoin_service.tests.test_packages_upto
+rc=0 25s :: .venv/bin/python -m unittest metacoin_service.tests.test_work_money metacoin_service.tests.test_work_faults
+rc=0 43s :: .venv/bin/python -m metacoin_service.tests.journeys_economy --only 1,2,8,9,11,13,15,18,31,35,38 --out /tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/o8/clean-export/journeys-from-clean-export.json
+CLEAN_EXPORT rc=0
+exit 0

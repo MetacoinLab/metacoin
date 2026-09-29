@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block body %}
+<h1>Analyses</h1>
+<p class="note">Structured analysis sessions: typed blocks (source notes, dataset references, assumption tables, operation drafts, run results, comparisons, verification records, conclusions) in immutable revisions. Nothing executes; values live in typed fields; a changed assumption creates a new revision and marks dependent blocks stale.</p>
+{% if principal.can('knowledge:write') %}<div class="card"><h2>New analysis</h2><form method="post" action="/console/analyses"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}">
+<label for="aname">Name</label><input id="aname" name="name" type="text" required maxlength="96">
+<label for="adoc">From document (published import id or knowledge version id, optional)</label><input id="adoc" name="from_document" type="text" maxlength="64">
+<label for="awf">From workflow definition (id, optional)</label><input id="awf" name="from_workflow" type="text" maxlength="64">
+<label for="aaim">Aim (text block)</label><textarea id="aaim" name="text" style="min-height:70px"></textarea>
+<p><button type="submit">Create revision 1</button></p></form></div>{% endif %}
+<div class="tablewrap"><table><tr><th>name</th><th>id</th><th>latest revision</th><th>frozen revisions</th><th>updated</th></tr>{% for a in analyses %}<tr><td><a href="/console/analyses/{{ a.id }}">{{ a.name }}</a></td><td><code>{{ a.id }}</code></td><td>{{ a.latest_version }}</td><td>{{ a.frozen_versions }}</td><td>{{ a.updated_at }}</td></tr>{% endfor %}</table></div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{
+ "schema": "metacoin-journeys-workspace/v1",
+ "provider_mode": "test-http",
+ "revision": "dcc5f6e607d6707c947deb4b5eb107da0210fc08",
+ "dependencies": {
+  "compute_interpreter": {
+   "python": "/usr/bin/python3",
+   "numpy": "2.2.6",
+   "python_version": "3.12.3",
+   "cuda": true,
+   "torch": "2.10.0+cu130",
+   "device": "NVIDIA GB10",
+   "capability": "12.1"
+  },
+  "models_present": true,
+  "python": "3.12.3",
+  "local_chain_artifacts": true
+ },
+ "started_at": 1790587377,
+ "finished_at": 1790587389,
+ "results": [
+  {
+   "journey": 19,
+   "title": "paid verified package on the private local chain; settlement withheld until verification; lost response reconciled; no duplicate settlement",
+   "status": "passed",
+   "evidence": {
+    "job": "j_8b5a9e575b2bd053",
+    "payment": "j19-paid-eeeeeeeeeeeeeeeeeeee",
+    "gate_before_verification": null,
+    "delivery": "delivered",
+    "settlement": "SETTLED",
+    "settlement_error": null,
+    "authorized_at": null,
+    "settled_at": 1790587379,
+    "final_amount": "23",
+    "replay_same_job": true,
+    "lost_response_scenario_rc": 0,
+    "local_chain_suite_tail": "ons\n  warnings.warn(  # deprecated in 14.0 - 2024-11-09\n......\n----------------------------------------------------------------------\nRan 6 tests in 0.893s\n\nOK\n",
+    "settlements_recorded": 1
+   },
+   "caveat": "private py-evm chain in this process: local protocol validation, not production settlement; the lost-response reconciliation is the SDK-level scenario of the local-chain test suite; the withheld-until-verified window is asserted deterministically in test_packages_upto (here the live worker may finish the audit before the first settlement probe)",
+   "started_at": 1790587377.525405,
+   "ended_at": 1790587382.359659
+  },
+  {
+   "journey": 21,
+   "title": "revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access",
+   "status": "passed",
+   "evidence": {
+    "document": "kd_e67420529d00",
+    "retrievable_before": true,
+    "retrievable_after": false,
+    "answer_job_state": "succeeded",
+    "answer_submit_status": 202,
+    "answer_submit_error": null,
+    "answer_status": "insufficient_evidence",
+    "answer_used_revoked_source": false,
+    "preview_status_after_revocation": 403
+   },
+   "caveat": null,
+   "started_at": 1790587382.6768744,
+   "ended_at": 1790587388.679827
+  }
+ ],
+ "browser": null,
+ "passed": 2,
+ "failed": 0,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 2
+}

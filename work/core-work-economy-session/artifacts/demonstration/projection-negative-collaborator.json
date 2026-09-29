@@ -1,0 +1,67 @@
+{
+ "schema": "metacoin-contract-projection/v1",
+ "audience": "collaborator",
+ "record": {
+  "award_id": "wa_533a69137a9d2b5b",
+  "milestone": "m1",
+  "terms_digest": "397d5c3ed83641bc2085ab295b88f64dc730cb56445009e1535ace6b85e604a7",
+  "kind": "energy_audit",
+  "title": "Mission question: is the negative energy scenario feasible under the declared exact model?",
+  "operation": {
+   "model_id": "outage-energy-bounds/v0",
+   "verifier_id": "local-energy-audit/v1",
+   "verifier_digest": "11fe580e9d73b92305cce2ff7780e1df56f16b5ef53d6ad0c8398cddc0be619c",
+   "input_root": "71092146f962907d985175b438ee93df559177a5b66f9226ef1288a54e88b0aa",
+   "contract_digest": "d55f27c68afeb2822a5d6e3e38b90a936c7009e78547116b534fa3bbc23e9eaa"
+  },
+  "execution": {
+   "state": "succeeded",
+   "finished_at": 1790661527
+  },
+  "science": {
+   "outcome": "INFEASIBLE",
+   "summary": null
+  },
+  "acceptance": {
+   "decision": "accepted",
+   "payment_class": "complete",
+   "decided_at": 1790661533,
+   "authority": "requester"
+  },
+  "verification": [
+   {
+    "id": "vf_5cd31f62bfa6",
+    "class": "full_exact",
+    "state": "passed"
+   }
+  ],
+  "payment": {
+   "amount": 10,
+   "recipient": null,
+   "asset": "local-chain-token"
+  },
+  "provider": {
+   "id": "pv_035f66af770f",
+   "name": "alpha",
+   "relationship": "same_operator"
+  },
+  "requester": null,
+  "evidence_root": "840d91388789923c1d1f7fbc80f8b795dee968410d5d09d6ce2953c8e73e5422",
+  "verification_claim": "independently replayed: full_exact"
+ },
+ "declared_omissions": [
+  "payment recipient address",
+  "private summary values",
+  "requester identity"
+ ],
+ "leakage_checks": [
+  {
+   "check": "stable_identifiers_present",
+   "note": "award/milestone ids and the terms digest link records over time (kept on purpose: they are what a recipient binds to)",
+   "ids": 2
+  }
+ ],
+ "consistency": "every disclosed fact equals the private record; omissions are declared, never altered",
+ "publication": "outside this order's authority: the record is local until the operator publishes it deliberately",
+ "issued_at": 1790661562
+}

@@ -1,0 +1,140 @@
+{
+ "schema": "metacoin-work-benchmark/v1",
+ "requests": 8,
+ "awards": 8,
+ "errors": [],
+ "latency_seconds": {
+  "terms": {
+   "n": 8,
+   "min": 0.0974,
+   "median": 0.2321,
+   "p90": 0.6114,
+   "max": 0.7116
+  },
+  "freeze": {
+   "n": 8,
+   "min": 0.0169,
+   "median": 0.0333,
+   "p90": 0.1299,
+   "max": 0.3491
+  },
+  "request": {
+   "n": 8,
+   "min": 0.0073,
+   "median": 0.0135,
+   "p90": 0.0165,
+   "max": 0.0282
+  },
+  "offer": {
+   "n": 8,
+   "min": 0.0075,
+   "median": 0.0101,
+   "p90": 0.0115,
+   "max": 0.0204
+  },
+  "award": {
+   "n": 8,
+   "min": 0.0155,
+   "median": 0.0211,
+   "p90": 0.0235,
+   "max": 0.0366
+  },
+  "evaluate": {
+   "n": 15,
+   "min": 0.0028,
+   "median": 0.0058,
+   "p90": 0.0397,
+   "max": 0.136
+  },
+  "decide": {
+   "n": 8,
+   "min": 0.0098,
+   "median": 0.0174,
+   "p90": 0.0444,
+   "max": 0.0912
+  },
+  "pay": {
+   "n": 8,
+   "min": 0.0197,
+   "median": 0.0309,
+   "p90": 0.0349,
+   "max": 0.0992
+  }
+ },
+ "queue_delay_to_execution_seconds": {
+  "n": 8,
+  "min": 0.617,
+  "median": 0.9905,
+  "p90": 1.45,
+  "max": 1.5508
+ },
+ "wall_seconds": 3.58,
+ "journal_consistent": true,
+ "invariants_ok": true,
+ "client_max_rss_mib": 74.8,
+ "measurements": {
+  "sample_sizes": {
+   "requests": 8,
+   "awards": 8,
+   "decisions_current": 8,
+   "deliveries": 8
+  },
+  "accepted_findings_negative_fraction": {
+   "negative": 4,
+   "accepted": 8,
+   "fraction": 0.5,
+   "note": "a correct negative prevents wasted downstream work; this is not a rate to minimise"
+  },
+  "unreconciled_exposure_intents": 0
+ },
+ "conditions": "one host, one API process, external workers as started by the caller; authorization, encryption and journal durability enabled; action-units rail (journal settlement); synthetic energy determinations",
+ "api_process_rss_mib": null,
+ "server_measurements": {
+  "sample_sizes": {
+   "requests": 8,
+   "awards": 8,
+   "decisions_current": 8,
+   "deliveries": 8
+  },
+  "eligible_offers_per_request": {
+   "mean": 1.0,
+   "min": 1,
+   "max": 1
+  },
+  "offers_excluded_with_reasons": 0,
+  "selection_reasons": {
+   "lowest_eligible_price": 8
+  },
+  "time_to_accepted_delivery_seconds": {
+   "n": 8,
+   "median": 3
+  },
+  "verification_records_over_deliveries": {
+   "verifications": 8,
+   "deliveries": 8
+  },
+  "disputed_obligations": 0,
+  "duplicate_claims_refused": "enforced structurally (one entitlement per milestone and kind); refusals are recorded as 409 responses, not counted here",
+  "unreconciled_exposure_intents": 0,
+  "accepted_findings_negative_fraction": {
+   "negative": 4,
+   "accepted": 8,
+   "fraction": 0.5,
+   "note": "a correct negative prevents wasted downstream work; this is not a rate to minimise"
+  },
+  "records_are": "synthetic fixtures on a same-operator local market: software mechanics, not competitive price discovery",
+  "uncertainty": {
+   "operator_relationships": {
+    "same_operator": 3
+   },
+   "independent_verifiers_available": false,
+   "external_rails_tested": false,
+   "resource_metrics": "estimates and device-wide samples; energy counters unavailable"
+  }
+ },
+ "host": {
+  "workers": 2,
+  "api_processes": 1,
+  "note": "shared host; other services running; numbers are indicative for this host only"
+ }
+}

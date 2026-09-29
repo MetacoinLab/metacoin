@@ -1,0 +1,732 @@
+{
+ "schema": "metacoin-journeys-workspace/v1",
+ "provider_mode": "test-http",
+ "revision": "a434618bcfc6e7a3f3fcfbc64ae0200ac32a390b",
+ "dependencies": {
+  "compute_interpreter": {
+   "python": "/usr/bin/python3",
+   "numpy": "2.2.6",
+   "python_version": "3.12.3",
+   "cuda": true,
+   "torch": "2.10.0+cu130",
+   "device": "NVIDIA GB10",
+   "capability": "12.1"
+  },
+  "models_present": true,
+  "python": "3.12.3",
+  "local_chain_artifacts": true
+ },
+ "started_at": 1790587593,
+ "finished_at": 1790587701,
+ "results": [
+  {
+   "journey": 1,
+   "title": "native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page",
+   "status": "failed",
+   "evidence": {
+    "document": "di_8224fc4db973",
+    "state": "ready",
+    "parser": "metacoin-pdf-extractor/v1",
+    "page_method": "native",
+    "console_page_status": 200,
+    "hit_page": null,
+    "citation_valid": [
+     null
+    ],
+    "all_valid": false
+   },
+   "caveat": null,
+   "started_at": 1790587593.0901752,
+   "ended_at": 1790587594.2497482
+  },
+  {
+   "journey": 2,
+   "title": "scanned PDF through the local OCR path with provenance; numeric field confirmed against the fixture",
+   "status": "passed",
+   "evidence": {
+    "document": "di_440b316c822e",
+    "method": "ocr",
+    "engine": "rapidocr_onnxruntime",
+    "dpi": 200,
+    "confidence_meaning": "engine diagnostic per text box; not a probability that the statement is correct",
+    "fixture_value_found": true,
+    "serial_found": true
+   },
+   "caveat": null,
+   "started_at": 1790587594.4642923,
+   "ended_at": 1790587597.5939906
+  },
+  {
+   "journey": 3,
+   "title": "mixed native/scanned document: per-page extraction method shown, no duplicate indexing of the same content",
+   "status": "passed",
+   "evidence": {
+    "document": "di_894f6021046d",
+    "methods": [
+     "native",
+     "ocr"
+    ],
+    "ocr_pages": 1,
+    "hits_for_page2_passage": 1
+   },
+   "caveat": null,
+   "started_at": 1790587597.9092755,
+   "ended_at": 1790587601.0790415
+  },
+  {
+   "journey": 4,
+   "title": "regular table extracted, unit mapping reviewed, dataset committed, one output value traced to its source cell",
+   "status": "passed",
+   "evidence": {
+    "table": "dt_fbe2e9a55f84",
+    "rows_converted": 14,
+    "dataset_version": "dv_ad334e64efad04c2",
+    "first_row": {
+     "duration_s": 60,
+     "power_high_mW": 101,
+     "power_low_mW": 82
+    },
+    "trace": {
+     "source_row": 1,
+     "page_index": 0,
+     "table_id": "dt_fbe2e9a55f84"
+    }
+   },
+   "caveat": null,
+   "started_at": 1790587601.1934483,
+   "ended_at": 1790587602.6310713
+  },
+  {
+   "journey": 5,
+   "title": "ambiguous locale: conversion waits for an authorized interpretation (declared locale + recorded exclusion) instead of guessing",
+   "status": "passed",
+   "evidence": {
+    "undeclared_errors": [
+     "unparseable",
+     "unparseable"
+    ],
+    "comma_errors_rows": [
+     3
+    ],
+    "explicit_exclusion_valid": true,
+    "undeclared_mapping_state": "invalid",
+    "confirm_undeclared_status": 409
+   },
+   "caveat": null,
+   "started_at": 1790587603.097229,
+   "ended_at": 1790587604.247354
+  },
+  {
+   "journey": 6,
+   "title": "three real generation requests as one supported batch: independent outputs, token counts, terminal states",
+   "status": "passed",
+   "evidence": {
+    "batch_id": [
+     "mb_ccca5db72f19"
+    ],
+    "positions": [
+     0,
+     1,
+     2
+    ],
+    "output_tokens": [
+     10,
+     6,
+     24
+    ],
+    "states": [
+     "succeeded",
+     "succeeded",
+     "succeeded"
+    ]
+   },
+   "caveat": null,
+   "started_at": 1790587604.5119555,
+   "ended_at": 1790587614.773806
+  },
+  {
+   "journey": 7,
+   "title": "cancel one batch member while another completes; reconnect to the survivor stream without new work",
+   "status": "passed",
+   "evidence": {
+    "survivor": "succeeded",
+    "cancelled": "cancelled",
+    "cancelled_tokens": 49,
+    "same_batch": true,
+    "reconnected_bytes_equal": true,
+    "jobs_added_by_reconnect": 0
+   },
+   "caveat": null,
+   "started_at": 1790587615.9938576,
+   "ended_at": 1790587627.2708693
+  },
+  {
+   "journey": 8,
+   "title": "natural-language scientific request compiled into an authorized typed plan and executed through the normal service path",
+   "status": "passed",
+   "evidence": {
+    "intent": "in_0186e385c684",
+    "disposition": "plan",
+    "service_kind": "temporal_batch",
+    "plan": "pl_d7a1dbf5041e",
+    "accept_status": "executed",
+    "job": "j_a7233f902a869bb5",
+    "job_state": "succeeded"
+   },
+   "caveat": null,
+   "started_at": 1790587628.4392443,
+   "ended_at": 1790587637.008594
+  },
+  {
+   "journey": 9,
+   "title": "missing units: clarification, same draft continued after the answer; no paid work before resolution",
+   "status": "passed",
+   "evidence": {
+    "intent": "in_dced2164ee51",
+    "unresolved": [
+     "inputs",
+     "units"
+    ],
+    "jobs_before_answer": 0,
+    "continued_state": "plan",
+    "jobs_after_plan": 0,
+    "assumptions": {
+     "units": "mJ"
+    }
+   },
+   "caveat": null,
+   "started_at": 1790587637.5242484,
+   "ended_at": 1790587638.386024
+  },
+  {
+   "journey": 10,
+   "title": "instruction-like passage in a retrieved document is displayed as content and cannot change tools, source scope or spending authority",
+   "status": "passed",
+   "evidence": {
+    "disposition": "clarification",
+    "service_kind": "energy_audit",
+    "passage_retrievable_as_content": true,
+    "grants_unchanged": true,
+    "budget_unchanged": true,
+    "jobs_added": 0
+   },
+   "caveat": null,
+   "started_at": 1790587638.3860657,
+   "ended_at": 1790587638.674382
+  },
+  {
+   "journey": 11,
+   "title": "small robust resource plan solved, witness verified independently through the verification service, objective equals the exhaustive oracle",
+   "status": "passed",
+   "evidence": {
+    "job": "j_b628e855bcfef58b",
+    "status": "optimal_within_tolerance",
+    "objective": 12,
+    "oracle": 12,
+    "verification": "passed",
+    "checks": {
+     "status_declared": true,
+     "summary_matches_plan": true,
+     "assignments_replay_feasible": true,
+     "objective_replayed": true,
+     "trajectory_replayed": true,
+     "status_consistent_with_solver": true,
+     "oracle_reproduced": true,
+     "optimum_matches_oracle": true,
+     "alternative_replay_0": true,
+     "alternative_replay_3": true,
+     "alternative_replay_6": true
+    }
+   },
+   "caveat": null,
+   "started_at": 1790587638.674418,
+   "ended_at": 1790587640.7614777
+  },
+  {
+   "journey": 12,
+   "title": "positive total energy but an early reserve violation: the early schedule is rejected by the exact simulator and a valid later start is selected",
+   "status": "passed",
+   "evidence": {
+    "job": "j_439275877c04eaa8",
+    "selected_start": 2,
+    "min_margin": 4000,
+    "early_schedule_violation": [
+     {
+      "code": "reserve_violated",
+      "boundary": 1,
+      "energy": 9000,
+      "reserve": 20000,
+      "slot": 0,
+      "active": [
+       "a"
+      ]
+     }
+    ],
+    "total_net_energy_positive": true
+   },
+   "caveat": "the early-schedule rejection is the shipped simulator called in-process; the selected plan came through the worker and the full_reference verifier path",
+   "started_at": 1790587641.1269326,
+   "ended_at": 1790587642.6875331
+  },
+  {
+   "journey": 13,
+   "title": "optimizer time limit: checked feasible incumbent, no candidate and established optimality are distinguished truthfully",
+   "status": "passed",
+   "evidence": {
+    "job": "j_6834d1c7ddf3c64d",
+    "main_status": "feasible_incumbent_no_optimality_claim",
+    "statuses_observed": [
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim",
+     "feasible_incumbent_no_optimality_claim"
+    ],
+    "mip_gaps": [
+     "0.8809505562185016",
+     "0.08695576968510492",
+     "4.140754352318005e-07",
+     "0.012820770382837883",
+     "0.6321822367289174"
+    ],
+    "limit_outcomes": 7,
+    "optimal_outcomes": 0,
+    "binary_variables": 1820,
+    "runtime_s": "1.0182"
+   },
+   "caveat": null,
+   "started_at": 1790587643.1032379,
+   "ended_at": 1790587654.7571046
+  },
+  {
+   "journey": 14,
+   "title": "bounded trade-off comparison with at least two incomparable alternatives, their assumptions and verified trajectories",
+   "status": "passed",
+   "evidence": {
+    "job": "j_cdcabb36b1e0ef2a",
+    "alternatives": [
+     [
+      0,
+      0,
+      0,
+      30000,
+      true
+     ],
+     [
+      3,
+      5,
+      3,
+      18000,
+      true
+     ],
+     [
+      6,
+      12,
+      6,
+      18000,
+      true
+     ]
+    ],
+    "alternative_replays": {
+     "alternative_replay_0": true,
+     "alternative_replay_3": true,
+     "alternative_replay_6": true
+    },
+    "console_shows_alternatives": true
+   },
+   "caveat": null,
+   "started_at": 1790587654.8713381,
+   "ended_at": 1790587657.0292907
+  },
+  {
+   "journey": 15,
+   "title": "branch an analysis by one changed reviewed value: affected nodes identified, only they regenerate, unaffected results reused",
+   "status": "passed",
+   "evidence": {
+    "analysis": "an_b510e99dff0a",
+    "impact_direct": [
+     "runA"
+    ],
+    "impact_unaffected": [
+     "operation",
+     "runC"
+    ],
+    "plan": {
+     "a": "rerun",
+     "b": "rerun",
+     "c": "reuse",
+     "out": "keep"
+    },
+    "regeneration_run": "run_01639371a2aeae89",
+    "c_reused_from": "j_0c88b2fd139667bf",
+    "original_run_state": "completed"
+   },
+   "caveat": null,
+   "started_at": 1790587657.3954282,
+   "ended_at": 1790587660.1500692
+  },
+  {
+   "journey": 16,
+   "title": "report assembled from source, dataset, assumptions, plan, run and verification; evidence references opened through the console",
+   "status": "passed",
+   "evidence": {
+    "analysis": "an_b510e99dff0a",
+    "version": 4,
+    "report": "rp_79870f49d01f",
+    "artifacts": [
+     [
+      "operation_draft",
+      "workflow_definition"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "comparison",
+      "workflow_run"
+     ],
+     [
+      "dataset_ref",
+      "dataset_version"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "verification",
+      "verification"
+     ]
+    ],
+    "claim_checks": [
+     {
+      "block": "concl",
+      "claim": 0,
+      "key": "plan.objective",
+      "expected": 12,
+      "actual": 12,
+      "ok": true,
+      "reason": null
+     }
+    ],
+    "flags": [],
+    "console_report_status": 200
+   },
+   "caveat": null,
+   "started_at": 1790587660.615887,
+   "ended_at": 1790587660.734766
+  },
+  {
+   "journey": 17,
+   "title": "restricted signed report projection exported, verified independently, undisclosed fields absent",
+   "status": "passed",
+   "evidence": {
+    "report": "rp_79870f49d01f",
+    "included": [
+     "plan",
+     "concl"
+    ],
+    "omitted": 7,
+    "warnings_acknowledged": 0,
+    "verify": {
+     "signature_valid": true,
+     "issuer_is_this_service": true,
+     "projected_text_matches_statement": true
+    },
+    "hidden_value_absent": true,
+    "withheld_named": true
+   },
+   "caveat": null,
+   "started_at": 1790587661.5517235,
+   "ended_at": 1790587661.7753978
+  },
+  {
+   "journey": 18,
+   "title": "parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs",
+   "status": "passed",
+   "evidence": {
+    "package": "pk_033b6dc2c0f2",
+    "imported_as": "pk_5039d880111f",
+    "compat_blocking": [],
+    "compat_items": 7,
+    "quote_amount_max": 23,
+    "run": "pr_751a764bf8ff",
+    "delivery_state": "delivered",
+    "cross_workspace_read": 404
+   },
+   "caveat": null,
+   "started_at": 1790587661.7754288,
+   "ended_at": 1790587664.48027
+  },
+  {
+   "journey": 19,
+   "title": "paid verified package on the private local chain; settlement withheld until verification; lost response reconciled; no duplicate settlement",
+   "status": "passed",
+   "evidence": {
+    "job": "j_c8a95d6d68657b7a",
+    "payment": "j19-paid-eeeeeeeeeeeeeeeeeeee",
+    "gate_before_verification": null,
+    "delivery": "delivered",
+    "settlement": "SETTLED",
+    "settlement_error": null,
+    "authorized_at": null,
+    "settled_at": 1790587667,
+    "final_amount": "23",
+    "replay_same_job": true,
+    "lost_response_scenario_rc": 0,
+    "local_chain_suite_tail": "ons\n  warnings.warn(  # deprecated in 14.0 - 2024-11-09\n......\n----------------------------------------------------------------------\nRan 6 tests in 0.933s\n\nOK\n",
+    "settlements_recorded": 1
+   },
+   "caveat": "private py-evm chain in this process: local protocol validation, not production settlement; the lost-response reconciliation is the SDK-level scenario of the local-chain test suite; the withheld-until-verified window is asserted deterministically in test_packages_upto (here the live worker may finish the audit before the first settlement probe)",
+   "started_at": 1790587664.8460596,
+   "ended_at": 1790587669.6354349
+  },
+  {
+   "journey": 20,
+   "title": "the same analysis operations through a real MCP client and the CLI with consistent policy outcomes",
+   "status": "passed",
+   "evidence": {
+    "mcp_protocol": "2025-11-25",
+    "mcp_tools": 32,
+    "mcp_analysis": "an_5461002151f6",
+    "mcp_report_refusal": "CONFLICT",
+    "mcp_viewer_refusal": "FORBIDDEN",
+    "cli_owner": "an_9b7991a285fd",
+    "cli_viewer_refusal": "FORBIDDEN",
+    "compat_refusal": "VALIDATION"
+   },
+   "caveat": null,
+   "started_at": 1790587670.0013876,
+   "ended_at": 1790587673.2424378
+  },
+  {
+   "journey": 21,
+   "title": "revoke a source during an in-progress derivative job: the job cannot use it and stale publication cannot restore access",
+   "status": "passed",
+   "evidence": {
+    "document": "kd_29b9b8409444",
+    "retrievable_before": true,
+    "retrievable_after": false,
+    "answer_job_state": "succeeded",
+    "answer_submit_status": 202,
+    "answer_submit_error": null,
+    "answer_status": "answered",
+    "answer_used_revoked_source": false,
+    "preview_status_after_revocation": 403
+   },
+   "caveat": null,
+   "started_at": 1790587673.242505,
+   "ended_at": 1790587681.868354
+  },
+  {
+   "journey": 22,
+   "title": "bounded concurrent workload (import, generation, optimization, verification) with a responsive API and consistent accounting",
+   "status": "passed",
+   "evidence": {
+    "jobs": 9,
+    "states": {
+     "di_cf1d6e754441": "ready",
+     "di_dc2b3ccc1840": "ready",
+     "di_f015b315e26f": "ready",
+     "j_1cce53e97610796e": "succeeded",
+     "j_d3189ceb0da39f30": "succeeded",
+     "j_ad23738ec214016c": "succeeded",
+     "j_10910338b87ad235": "succeeded",
+     "j_b1a877cdafd4cd3a": "succeeded",
+     "j_35ac043fbf9a61f3": "succeeded"
+    },
+    "health_probes": 22,
+    "max_health_latency_s": 0.004,
+    "duplicate_usage_records": 0,
+    "usage_records": 2,
+    "succeeded_quoted_jobs": 2,
+    "verifications": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "workers": 2
+   },
+   "caveat": null,
+   "started_at": 1790587682.7886705,
+   "ended_at": 1790587695.5842545
+  },
+  {
+   "journey": 23,
+   "title": "upgrade and restore an isolated copy of the prior live state: old artifacts, credentials and workflows preserved",
+   "status": "failed",
+   "evidence": {
+    "source_schema": "025_metered_upto",
+    "destination_schema": "031_reconciliation",
+    "migrations_applied": [
+     "026_document_intelligence",
+     "027_generation_batching",
+     "028_agent_intents",
+     "029_analyses",
+     "030_packages",
+     "031_reconciliation"
+    ],
+    "loaded_revision": "a434618bcfc6e7a3f3fcfbc64ae0200ac32a390b",
+    "counts": {
+     "jobs": 23,
+     "artifacts": 92,
+     "principals": 4,
+     "workflow_definitions": 1,
+     "credentials": 5
+    },
+    "artifacts_copied": 90,
+    "old_artifact_read": "a_da180911f8213b086ba24604",
+    "workflows_listed": 1
+   },
+   "caveat": "the live service itself is upgraded by the \u00a764 step with its own backup record; this journey exercises the migration on a consistent SQLite-backup copy",
+   "started_at": 1790587696.5849974,
+   "ended_at": 1790587697.7597125
+  },
+  {
+   "journey": 24,
+   "title": "reproduce the packaged candidate in a fresh environment and complete representative journeys",
+   "status": "not-run",
+   "evidence": {
+    "reason": "executed by the packaging step against the final archive (clean-export-logs/, journeys-from-clean-export.json); merged into this record by the packaging step"
+   },
+   "started_at": null,
+   "ended_at": null
+  }
+ ],
+ "browser": {
+  "passed": 19,
+  "failed": 1,
+  "checks": [
+   {
+    "check": "documents page lists imports with stages",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "document page shows extraction provenance and pages",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "page inspector shows method, spans and the preview image",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "knowledge search result shows the page number of the hit",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "analyses list renders",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "analysis page shows typed blocks with status badges and the impact form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "impact result rendered from the form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "report page shows the evidence sections and flags",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "report links back to its frozen analysis revision",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "plan job page shows status, alternatives, sensitivity and the schedule SVG",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "schedule SVG carries the reserve line, labelled boundaries and a task legend",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "resource plan sample validates in the compute form with a work-unit estimate",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "packages list renders",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "package compatibility report rendered from the console form",
+    "ok": false,
+    "detail": ""
+   },
+   {
+    "check": "scenario comparison page shows the changed assumption path and side-by-side columns",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot open Analyses",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer job page carries no private plan values",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot create or export packages (read allowed, mutation refused)",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer package creation refused",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "narrow width: no horizontal page overflow on the workspace pages",
+    "ok": true,
+    "detail": "{'/console/documents': True, '/console/analyses': True, '/console/packages': True, '/console/compute/new?kind=resource_plan': True, '/console/jobs/j_cdcabb36b1e0ef2a': True, '/console/reports/rp_79870f49d01f': True}"
+   }
+  ],
+  "screenshots": [
+   "01-documents.png",
+   "02-document.png",
+   "03-page-inspector.png",
+   "04-search-page-citation.png",
+   "05-analysis.png",
+   "06-analysis-impact.png",
+   "07-report.png",
+   "08-plan-job.png",
+   "09-compute-new-plan.png",
+   "10-package-compat.png",
+   "11-scenario-compare.png",
+   "12-narrow-plan-job.png",
+   "13-narrow-analyses.png"
+  ],
+  "crash": null,
+  "rc": 1,
+  "status": "failed"
+ },
+ "passed": 21,
+ "failed": 2,
+ "blocked": 0,
+ "not_run": 1,
+ "total": 24
+}

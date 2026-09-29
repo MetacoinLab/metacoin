@@ -1,0 +1,165 @@
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-24h/metacoin-24h-expansion/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[1] PASSED: register and load a real local model, generate on new input, inspect usage
+[2] PASSED: embeddings for authorized text, versioned private index, expected source retrieved
+[3] PASSED: retrieval-assisted answer with valid citations and an honest insufficient-evidence response
+[8] PASSED: audit a scientific result through an independent reference; reject a deliberately corrupted result
+[11] PASSED: enroll an isolated worker identity, transfer data over TLS, execute without coordinator database access, publish a fenced result
+[16] PASSED: separate MCP client discovers a service, submits permitted work, queries status, requests verification, retrieves an allowed result
+{
+ "provider_mode": "test-http",
+ "revision": "unavailable",
+ "compute_interpreter": {
+  "python": "/usr/bin/python3",
+  "numpy": "2.2.6",
+  "python_version": "3.12.3",
+  "cuda": true,
+  "torch": "2.10.0+cu130",
+  "device": "NVIDIA GB10",
+  "capability": "12.1"
+ },
+ "models_present": true,
+ "results": [
+  {
+   "journey": 1,
+   "title": "register and load a real local model, generate on new input, inspect usage",
+   "status": "passed",
+   "evidence": {
+    "revision": "mr_0a759efc603c",
+    "weight_digest": "fdf756fa7fcbe740",
+    "callable_after": true,
+    "runtime": [
+     "cuda"
+    ],
+    "usage": {
+     "input_tokens": 15,
+     "output_tokens": 24,
+     "items": null,
+     "finish_reason": "eos",
+     "max_output_tokens": 24,
+     "max_items": null,
+     "segments": 2,
+     "output_chars": 56,
+     "counting": "measured by the runtime tokenizer after execution; the quote reserved max_output_tokens (or items); nothing is billed from an estimate"
+    },
+    "load_ms": 6888,
+    "wall_s": 8.9,
+    "output_chars": 56
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "embeddings for authorized text, versioned private index, expected source retrieved",
+   "status": "passed",
+   "evidence": {
+    "index": {
+     "id": "ki_b04f569881a3",
+     "version": 1,
+     "state": "ready",
+     "chunk_count": 8,
+     "embedding_dim": 384
+    },
+    "embedding_job": "succeeded",
+    "top_documents": [
+     "old-reserve-policy.md",
+     "temporal-model-spec.md",
+     "heat-solver-notes.txt"
+    ],
+    "timing_ms": {
+     "load_ms": 0,
+     "lexical_ms": 0,
+     "semantic_ms": 0,
+     "total_ms": 1
+    }
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "retrieval-assisted answer with valid citations and an honest insufficient-evidence response",
+   "status": "passed",
+   "evidence": {
+    "answered": {
+     "status": "answered",
+     "citations": 1,
+     "grounding": 1,
+     "usage": {
+      "counting": "runtime tokenizer; input = templated prompt tokens; output = generated ids including a terminal end-of-sequence token when emitted",
+      "input_tokens": 466,
+      "output_tokens": 16
+     }
+    },
+    "unsupported": {
+     "status": "insufficient_evidence",
+     "reason": "no source passed the retrieval thresholds (cosine >= 0.30, BM25 >= 1.0, or informative-term coverage >= 0.5); generation skipped"
+    },
+    "citations_valid": true
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "audit a scientific result through an independent reference; reject a deliberately corrupted result",
+   "status": "passed",
+   "evidence": {
+    "honest": {
+     "state": "passed",
+     "checked": 364
+    },
+    "corrupted": {
+     "state": "failed",
+     "first_mismatch": {
+      "mismatches": [
+       {
+        "index": 0,
+        "id": "grid-0",
+        "columns": [
+         "outcome"
+        ]
+       }
+      ]
+     }
+    }
+   },
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "title": "enroll an isolated worker identity, transfer data over TLS, execute without coordinator database access, publish a fenced result",
+   "status": "passed",
+   "evidence": {
+    "node": "nd_c157c4e92f2e",
+    "transport": "https://127.0.0.1:44117 (pinned local CA)",
+    "local_worker_refused_node_only_job": true,
+    "node_ran": [
+     "j_82719a176631b97b",
+     "succeeded"
+    ],
+    "verification": "exact_all",
+    "transfers": [
+     "input:to_node",
+     "result:from_node"
+    ],
+    "topology": "two processes on one host (not multi-machine)"
+   },
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "title": "separate MCP client discovers a service, submits permitted work, queries status, requests verification, retrieves an allowed result",
+   "status": "passed",
+   "evidence": {
+    "protocol": "2025-11-25",
+    "tools": 19,
+    "job": "j_06541d8f8a0c7036",
+    "verification": "passed",
+    "sdk": "mcp 1.26.0 stdio"
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 6,
+ "blocked": 0,
+ "total": 6
+}

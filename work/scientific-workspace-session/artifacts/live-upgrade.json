@@ -1,0 +1,17 @@
+{
+ "candidate": "4e841b9f7d1e68d4fb1b98bf8a074885f1b11ae7",
+ "loaded_revision": "4e841b9f7d1e68d4fb1b98bf8a074885f1b11ae7",
+ "schema_before": "025_metered_upto",
+ "schema_after": "{\n  \"applied\": [\n    \"026_document_intelligence\",\n    \"027_generation_batching\",\n    \"028_agent_intents\",\n    \"029_analyses\",\n    \"030_packages\",\n    \"031_reconciliation\"\n  ],\n  \"schema\": [\n    \"001_initial\",\n    \"002_batches_templates\",\n    \"003_datasets_lineage\",\n    \"004_workflows\",\n    \"005_camp",
+ "backup": "~/.local/state/metacoin-service-backups/pre-migration-026-1790589893",
+ "backup_includes_keys": true,
+ "smoke": {
+  "document": "di_1f9c934b55e5",
+  "document_state": "ready",
+  "generation": "j_669a88d5926b6a68",
+  "generation_state": "succeeded",
+  "plan": "j_e546a0c5f65bf13d",
+  "plan_state": "succeeded"
+ },
+ "at": "2026-09-28T10:05:16Z"
+}

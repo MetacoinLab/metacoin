@@ -1,0 +1,305 @@
+{
+ "schema": "metacoin-journeys-workspace/v1",
+ "provider_mode": "test-http",
+ "revision": "unavailable",
+ "dependencies": {
+  "compute_interpreter": {
+   "python": "/usr/bin/python3",
+   "numpy": "2.2.6",
+   "python_version": "3.12.3",
+   "cuda": true,
+   "torch": "2.10.0+cu130",
+   "device": "NVIDIA GB10",
+   "capability": "12.1"
+  },
+  "models_present": true,
+  "python": "3.12.3",
+  "local_chain_artifacts": true
+ },
+ "started_at": 1790591661,
+ "finished_at": 1790591702,
+ "results": [
+  {
+   "journey": 1,
+   "title": "native PDF import via API, page extraction inspected in the console, passage search, citation on the correct page",
+   "status": "passed",
+   "evidence": {
+    "document": "di_47a6934e051e",
+    "state": "ready",
+    "parser": "metacoin-pdf-extractor/v1",
+    "page_method": "native",
+    "console_page_status": 200,
+    "hit_page": 1,
+    "search_status": 200,
+    "search_error": null,
+    "results": 1,
+    "citation_valid": [
+     true
+    ],
+    "all_valid": true,
+    "checks": {
+     "cli_rc": true,
+     "ready": true,
+     "one_page": true,
+     "native": true,
+     "console_page": true,
+     "console_shows_method": true,
+     "console_shows_spans": true,
+     "hit_version": true,
+     "hit_page_1": true,
+     "citation_valid": true
+    },
+    "hit_version": "kv_abf72d591815",
+    "doc_version": "kv_abf72d591815"
+   },
+   "caveat": null,
+   "started_at": 1790591661.7008235,
+   "ended_at": 1790591663.8975604
+  },
+  {
+   "journey": 2,
+   "title": "scanned PDF through the local OCR path with provenance; numeric field confirmed against the fixture",
+   "status": "passed",
+   "evidence": {
+    "document": "di_f8a09c42fb59",
+    "method": "ocr",
+    "engine": "rapidocr_onnxruntime",
+    "dpi": 200,
+    "confidence_meaning": "engine diagnostic per text box; not a probability that the statement is correct",
+    "fixture_value_found": true,
+    "serial_found": true
+   },
+   "caveat": null,
+   "started_at": 1790591664.1131237,
+   "ended_at": 1790591667.2474818
+  },
+  {
+   "journey": 4,
+   "title": "regular table extracted, unit mapping reviewed, dataset committed, one output value traced to its source cell",
+   "status": "passed",
+   "evidence": {
+    "table": "dt_e20f39dd3292",
+    "rows_converted": 14,
+    "dataset_version": "dv_abf1e51578156550",
+    "first_row": {
+     "duration_s": 60,
+     "power_high_mW": 101,
+     "power_low_mW": 82
+    },
+    "trace": {
+     "source_row": 1,
+     "page_index": 0,
+     "table_id": "dt_e20f39dd3292"
+    }
+   },
+   "caveat": null,
+   "started_at": 1790591667.664657,
+   "ended_at": 1790591670.0231662
+  },
+  {
+   "journey": 6,
+   "title": "three real generation requests as one supported batch: independent outputs, token counts, terminal states",
+   "status": "passed",
+   "evidence": {
+    "batch_id": [
+     "mb_98b93b00650d"
+    ],
+    "positions": [
+     0,
+     1,
+     2
+    ],
+    "output_tokens": [
+     10,
+     6,
+     24
+    ],
+    "states": [
+     "succeeded",
+     "succeeded",
+     "succeeded"
+    ]
+   },
+   "caveat": null,
+   "started_at": 1790591670.5921931,
+   "ended_at": 1790591681.9013274
+  },
+  {
+   "journey": 8,
+   "title": "natural-language scientific request compiled into an authorized typed plan and executed through the normal service path",
+   "status": "passed",
+   "evidence": {
+    "intent": "in_04784eb22e86",
+    "disposition": "plan",
+    "service_kind": "temporal_batch",
+    "plan": "pl_14cbd64c3e1a",
+    "accept_status": "executed",
+    "job": "j_6f5c5ba0d27656fb",
+    "job_state": "succeeded"
+   },
+   "caveat": null,
+   "started_at": 1790591682.820949,
+   "ended_at": 1790591692.8285415
+  },
+  {
+   "journey": 11,
+   "title": "small robust resource plan solved, witness verified independently through the verification service, objective equals the exhaustive oracle",
+   "status": "passed",
+   "evidence": {
+    "job": "j_3b237ad001c845dc",
+    "status": "optimal_within_tolerance",
+    "objective": 12,
+    "oracle": 12,
+    "verification": "passed",
+    "checks": {
+     "status_declared": true,
+     "summary_matches_plan": true,
+     "assignments_replay_feasible": true,
+     "objective_replayed": true,
+     "trajectory_replayed": true,
+     "status_consistent_with_solver": true,
+     "oracle_reproduced": true,
+     "optimum_matches_oracle": true,
+     "alternative_replay_0": true,
+     "alternative_replay_3": true,
+     "alternative_replay_6": true
+    }
+   },
+   "caveat": null,
+   "started_at": 1790591692.9941194,
+   "ended_at": 1790591695.0908778
+  },
+  {
+   "journey": 14,
+   "title": "bounded trade-off comparison with at least two incomparable alternatives, their assumptions and verified trajectories",
+   "status": "passed",
+   "evidence": {
+    "job": "j_f5ee5341368506cc",
+    "alternatives": [
+     [
+      0,
+      0,
+      0,
+      30000,
+      true
+     ],
+     [
+      3,
+      5,
+      3,
+      18000,
+      true
+     ],
+     [
+      6,
+      12,
+      6,
+      18000,
+      true
+     ]
+    ],
+    "alternative_replays": {
+     "alternative_replay_0": true,
+     "alternative_replay_3": true,
+     "alternative_replay_6": true
+    },
+    "console_shows_alternatives": true
+   },
+   "caveat": null,
+   "started_at": 1790591695.5604882,
+   "ended_at": 1790591697.7167485
+  },
+  {
+   "journey": 16,
+   "title": "report assembled from source, dataset, assumptions, plan, run and verification; evidence references opened through the console",
+   "status": "passed",
+   "evidence": {
+    "analysis": "an_ef137d9f12d9",
+    "version": 2,
+    "report": "rp_7c0fa393c7da",
+    "artifacts": [
+     [
+      "source_note",
+      "knowledge_document_version"
+     ],
+     [
+      "dataset_ref",
+      "dataset_version"
+     ],
+     [
+      "run_result",
+      "job"
+     ],
+     [
+      "verification",
+      "verification"
+     ]
+    ],
+    "claim_checks": [
+     {
+      "block": "concl",
+      "claim": 0,
+      "key": "plan.objective",
+      "expected": 12,
+      "actual": 12,
+      "ok": true,
+      "reason": null
+     }
+    ],
+    "flags": [],
+    "console_report_status": 200
+   },
+   "caveat": null,
+   "started_at": 1790591698.136692,
+   "ended_at": 1790591698.2602785
+  },
+  {
+   "journey": 17,
+   "title": "restricted signed report projection exported, verified independently, undisclosed fields absent",
+   "status": "passed",
+   "evidence": {
+    "report": "rp_7c0fa393c7da",
+    "included": [
+     "plan",
+     "concl"
+    ],
+    "omitted": 4,
+    "warnings_acknowledged": 0,
+    "verify": {
+     "signature_valid": true,
+     "issuer_is_this_service": true,
+     "projected_text_matches_statement": true
+    },
+    "hidden_value_absent": true,
+    "withheld_named": true
+   },
+   "caveat": null,
+   "started_at": 1790591699.1274421,
+   "ended_at": 1790591699.334234
+  },
+  {
+   "journey": 18,
+   "title": "parameterized package created, imported into a separate workspace, compatibility previewed, run with new synthetic inputs",
+   "status": "passed",
+   "evidence": {
+    "package": "pk_753b6cdab4ca",
+    "imported_as": "pk_0dfcd12ca987",
+    "compat_blocking": [],
+    "compat_items": 7,
+    "quote_amount_max": 23,
+    "run": "pr_1d94045536fd",
+    "delivery_state": "delivered",
+    "cross_workspace_read": 404
+   },
+   "caveat": null,
+   "started_at": 1790591699.334257,
+   "ended_at": 1790591701.9720788
+  }
+ ],
+ "browser": null,
+ "passed": 10,
+ "failed": 0,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 10
+}

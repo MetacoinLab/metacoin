@@ -1,0 +1,33 @@
+[2026-09-28T10:35:21Z] candidate db63420ec712fcbb702c0e85a3840cda8fc17277
+[2026-09-28T10:35:22Z] before: {"ok":true,"revision":"4e841b9f7d1e68d4fb1b98bf8a074885f1b11ae7","provider_mode":"test-http","queued":0,"running":0}
+[2026-09-28T10:35:22Z] schema before 031_reconciliation
+[2026-09-28T10:35:22Z] backup at ~/.local/state/metacoin-service-backups/pre-migration-026-1790591721: 106 ciphertext objects (age) and public bundles schema 031_reconciliation
+[2026-09-28T10:35:22Z] isolated restore opened and migrated: 031_reconciliation
+[2026-09-28T10:35:22Z] pane pids api=2317581 (child ) worker=2317634 (child 2318103)
+[2026-09-28T10:35:23Z] workers: {'registered': 9, 'live_active': 1, 'draining': 7, 'stale_or_offline': 8}
+drain w_a9c35eeacdee 200
+[2026-09-28T10:35:23Z] running jobs after drain: 0; queued: 0
+[2026-09-28T10:35:23Z] TERM 2318103
+[2026-09-28T10:35:24Z] old processes stopped (alive=0)
+[2026-09-28T10:35:24Z] migrated: {
+  "applied": [],
+  "schema": [
+    "001_initial",
+    "002_batches_templates",
+    "003_datasets_lineage",
+    "004_workflows",
+    "005_campaigns",
+    "006_catalog_quotes_usage",
+    "007_agent_policy_grants",
+    "008_hierarchical_budgets",
+    "009_workers_quotas",
+    "010_reuse_and_sharing",
+2463606 api
+2463623 worker
+{"ok":true,"revision":"db63420ec712fcbb702c0e85a3840cda8fc17277","provider_mode":"test-http","queued":0,"running":0}[2026-09-28T10:35:33Z] loaded revision matches candidate
+LISTEN 0      2048                     127.0.0.1:8402       0.0.0.0:*    users:(("python",pid=2463606,fd=6))
+workers {'registered': 10, 'live_active': 1, 'draining': 8, 'stale_or_offline': 8} documents {'by_stage': {'published': 1}, 'parser_failures': 0, 'awaiting_review': 0} package_runs {}
+old artifact a_da180911f8213b086ba24604 export 200
+[2026-09-28T10:35:36Z] smoke: document di_0c1a1df18575 generation j_5b09655fb39dc242 plan j_053a3390a6d1a556
+[2026-09-28T10:35:45Z] smoke states: document=ready generation=succeeded plan=succeeded (outcome VERIFIED)
+[2026-09-28T10:35:45Z] done

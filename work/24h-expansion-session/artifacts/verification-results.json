@@ -1,0 +1,258 @@
+{
+ "revision": "ead4d687027e9af1bafb0c68ee470c9915495e46",
+ "ran_at_utc": "2026-09-28T05:06:22Z",
+ "service_suite": {
+  "ran": 135,
+  "seconds": 279.75,
+  "status": "OK",
+  "failures": 0,
+  "errors": 0,
+  "skipped": 8,
+  "skip_reasons": [
+   "8 skips: base-environment variants of model/GPU tests that need the torch interpreter or pinned artifacts (the model-enabled variants ran and passed)"
+  ],
+  "exit": 0,
+  "log": "suite-service.log"
+ },
+ "local_chain_suite": {
+  "ran": 6,
+  "seconds": 0.921,
+  "status": "OK",
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "skip_reasons": [],
+  "exit": 0,
+  "log": "suite-local-chain.log"
+ },
+ "records_run": {
+  "ran": 9,
+  "seconds": 33.469,
+  "status": "OK",
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "skip_reasons": [],
+  "exit": 0,
+  "log": "records.log"
+ },
+ "journeys": {
+  "passed": 19,
+  "blocked": 1,
+  "total": 20,
+  "failed": [],
+  "blocked_items": [
+   [
+    20,
+    "executed by the packaging step (clean-export-logs/) against the final archive, not inside this process"
+   ]
+  ],
+  "models_present": true,
+  "per_journey": [
+   [
+    1,
+    "passed",
+    "register and load a real local model, generate on new input, inspect u"
+   ],
+   [
+    2,
+    "passed",
+    "embeddings for authorized text, versioned private index, expected sour"
+   ],
+   [
+    3,
+    "passed",
+    "retrieval-assisted answer with valid citations and an honest insuffici"
+   ],
+   [
+    4,
+    "passed",
+    "revoke source access: retrieval, cached answers, previews and delivery"
+   ],
+   [
+    5,
+    "passed",
+    "hostile document instructions do not create tools, reveal secrets, wid"
+   ],
+   [
+    6,
+    "passed",
+    "fit a stable calibration model, evaluate held-out data, predict a supp"
+   ],
+   [
+    7,
+    "passed",
+    "approved calibration used in scheduling without bypassing resource or "
+   ],
+   [
+    8,
+    "passed",
+    "audit a scientific result through an independent reference; reject a d"
+   ],
+   [
+    9,
+    "passed",
+    "sampled audit with a bound result and recorded challenge; partial scop"
+   ],
+   [
+    10,
+    "passed",
+    "signed audit projection produced and verified under an independently c"
+   ],
+   [
+    11,
+    "passed",
+    "enroll an isolated worker identity, transfer data over TLS, execute wi"
+   ],
+   [
+    12,
+    "passed",
+    "interrupt node connectivity after a checkpoint, reassign safely, stale"
+   ],
+   [
+    13,
+    "passed",
+    "revoke a node: new work and artifact access denied, historical evidenc"
+   ],
+   [
+    14,
+    "passed",
+    "variable-price (upto) contract behaviour on an isolated local chain an"
+   ],
+   [
+    15,
+    "passed",
+    "purchase a local model operation through the SDK HTTP path; bound usag"
+   ],
+   [
+    16,
+    "passed",
+    "separate MCP client discovers a service, submits permitted work, queri"
+   ],
+   [
+    17,
+    "passed",
+    "read-only MCP principal attempts mutation and receives server-side ref"
+   ],
+   [
+    18,
+    "passed",
+    "restore a representative backup into a fresh location: privacy preserv"
+   ],
+   [
+    19,
+    "passed",
+    "connected console journeys with owner/reviewer/viewer roles at desktop"
+   ],
+   [
+    20,
+    "blocked",
+    "install a clean export and reproduce a representative path from each f"
+   ]
+  ],
+  "revision": "f0f77ba (packaged HEAD: ead4d68 + browser harness fix)",
+  "journey_20_resolution": "blocked inside the journey process by design; satisfied by the clean-export step (see clean_export)"
+ },
+ "knowledge-eval.json": "present",
+ "eval-set-agent-behavior.json": "present",
+ "benchmarks-expansion.json": "present",
+ "endurance-expansion.json": "present",
+ "local-chain-record.json": "present",
+ "agent_behavior_eval": {
+  "passed": 11,
+  "total": 13,
+  "model_selection_outcomes": {
+   "sel-model-heat": true,
+   "sel-model-mc": true,
+   "held-out-sel": false,
+   "injection-doc": false
+  }
+ },
+ "knowledge_eval": {
+  "extractive_statuses": {
+   "q1": "answered",
+   "q2": "answered",
+   "q3": "answered",
+   "q4": "answered",
+   "q5": "answered",
+   "q6": "answered",
+   "q7": "insufficient_evidence",
+   "q8": "insufficient_evidence",
+   "q9": "answered",
+   "q10": "answered"
+  },
+  "recall_at_k": {
+   "lexical": 8,
+   "semantic": 8,
+   "hybrid": 8
+  }
+ },
+ "endurance": {
+  "minutes": 15.0,
+  "submitted": {
+   "generation": 58,
+   "answer": 35,
+   "batch": 87,
+   "mc": 25,
+   "heat": 15,
+   "audit": 43
+  },
+  "final_jobs_by_state": {
+   "succeeded": 264
+  },
+  "trend": {
+   "api_rss_first": 71282688,
+   "api_rss_last": 72040448,
+   "api_fds_first": 8,
+   "api_fds_last": 11,
+   "worker_rss_first": [
+    48533504,
+    58568704
+   ],
+   "worker_rss_last": [
+    61935616,
+    61952000
+   ],
+   "max_queue_depth": 0,
+   "home_files_first": 38,
+   "home_files_last": 1182
+  }
+ },
+ "clean_export": {
+  "present": true,
+  "archive": "metacoin-24h-expansion-source.zip (packaged HEAD)",
+  "venv": "fresh venv from requirements.lock, offline wheel caches, rc=0",
+  "init_status": "rc=0",
+  "tests_from_archive": {
+   "approvals/verification/calibration/federation/mcp/planner/upto/bundles/notebooks/examples": "Ran 17 OK",
+   "compute_science (base python3)": "rc=0",
+   "local_chain": "Ran 6 OK",
+   "models/knowledge (model-enabled)": "Ran 4 OK"
+  },
+  "journeys_from_archive": {
+   "selected": [
+    1,
+    2,
+    3,
+    8,
+    11,
+    16
+   ],
+   "passed": 6,
+   "note": "first selection omitted journey 2 which journey 3 builds on (harness ordering, not a product defect); corrected and re-run"
+  },
+  "journey_20": "passed (this step)"
+ },
+ "categories": {
+  "passed": "unit/integration checks that ran and succeeded",
+  "failed": "checks that ran and did not succeed",
+  "skipped": "checks that did not run on this host (reason recorded)",
+  "blocked": "journeys that depend on a step outside the process (e.g. clean export at packaging)",
+  "evidence_classes": {
+   "local_chain_contracts": "py-evm with pinned contracts",
+   "test_facilitator": "in-process facilitator double / local facilitator",
+   "external_production_settlement": "not exercised"
+  }
+ },
+ "note": "suite, local chain, records, benchmark and endurance ran at ead4d68 from a worktree snapshot; the journeys re-ran at f0f77ba after the browser selector fix (service code identical); the earlier journey run at ead4d68 (19 failed on the selector) is kept as journeys-at-ead4d68-before-browser-fix.log"
+}

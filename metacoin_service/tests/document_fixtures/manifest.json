@@ -1,0 +1,258 @@
+{
+ "schema": "metacoin-document-fixtures/v1",
+ "generator": "metacoin_service.documents.fixtures (reportlab 4.1.0)",
+ "dev": {
+  "report.pdf": {
+   "pages": 1,
+   "method": [
+    "native"
+   ],
+   "passages": [
+    {
+     "page": 1,
+     "text": "keeps a reserve of 2000 mJ"
+    },
+    {
+     "page": 1,
+     "text": "0.62 mJ"
+    }
+   ],
+   "tables": [
+    {
+     "page": 1,
+     "header": [
+      "segment",
+      "duration_s",
+      "power_mW"
+     ],
+     "rows": 3,
+     "cell": {
+      "row": 2,
+      "col": 2,
+      "value": "120"
+     }
+    }
+   ],
+   "expected_import": "ready"
+  },
+  "multicolumn.pdf": {
+   "pages": 1,
+   "method": [
+    "native"
+   ],
+   "passages": [
+    {
+     "page": 1,
+     "text": "stability limit of 0.25"
+    },
+    {
+     "page": 1,
+     "text": "Wilson score interval"
+    }
+   ],
+   "expected_import": "ready",
+   "note": "both columns must be present; column order is not asserted"
+  },
+  "scanned.pdf": {
+   "pages": 1,
+   "method": [
+    "ocr"
+   ],
+   "fields": [
+    {
+     "page": 1,
+     "name": "resistor_ohm",
+     "value": "4700"
+    },
+    {
+     "page": 1,
+     "name": "serial",
+     "value": "SN-2291"
+    }
+   ],
+   "expected_import": "ready",
+   "ocr_tolerance": "field-level exact match; character error rate reported"
+  },
+  "mixed.pdf": {
+   "pages": 2,
+   "method": [
+    "native",
+    "ocr"
+   ],
+   "passages": [
+    {
+     "page": 1,
+     "text": "capacity is 12000 mJ"
+    }
+   ],
+   "fields": [
+    {
+     "page": 2,
+     "name": "leakage_mW",
+     "value": "15"
+    }
+   ],
+   "expected_import": "ready"
+  },
+  "rotated.pdf": {
+   "pages": 1,
+   "method": [
+    "native"
+   ],
+   "rotation": 90,
+   "passages": [
+    {
+     "page": 1,
+     "text": "640 mW at noon"
+    }
+   ],
+   "expected_import": "ready"
+  },
+  "unicode.pdf": {
+   "pages": 1,
+   "method": [
+    "native"
+   ],
+   "passages": [
+    {
+     "page": 1,
+     "text": "−40 °C"
+    },
+    {
+     "page": 1,
+     "text": "ΔE = 12 mJ"
+    }
+   ],
+   "expected_import": "ready",
+   "note": "the minus sign U+2212 must survive; ligature ﬁ may be normalized to fi in retrieval text only"
+  },
+  "repeated-headers.pdf": {
+   "pages": 2,
+   "method": [
+    "native",
+    "native"
+   ],
+   "tables": [
+    {
+     "page": 1,
+     "header": [
+      "slot",
+      "supply_mW",
+      "demand_mW"
+     ],
+     "rows": 14,
+     "continued": true,
+     "cell": {
+      "row": 14,
+      "col": 1,
+      "value": "114"
+     }
+    }
+   ],
+   "expected_import": "ready"
+  },
+  "locale-ambiguous.pdf": {
+   "pages": 1,
+   "method": [
+    "native"
+   ],
+   "tables": [
+    {
+     "page": 1,
+     "header": [
+      "item",
+      "energy",
+      "unit"
+     ],
+     "rows": 3
+    }
+   ],
+   "expected_import": "ready",
+   "conversion": "must wait for a declared locale: 1,250 is ambiguous"
+  },
+  "malformed.pdf": {
+   "expected_import": "failed",
+   "reason_contains": "malformed"
+  },
+  "not-a-pdf.pdf": {
+   "expected_import": "failed",
+   "reason_contains": "not a pdf"
+  }
+ },
+ "heldout": {
+  "h1-report.pdf": {
+   "pages": 1,
+   "method": [
+    "native"
+   ],
+   "passages": [
+    {
+     "page": 1,
+     "text": "reserve requirement is 3500 mJ"
+    }
+   ],
+   "tables": [
+    {
+     "page": 1,
+     "header": [
+      "phase",
+      "duration_s",
+      "power_mW",
+      "temp_C"
+     ],
+     "rows": 3,
+     "cell": {
+      "row": 3,
+      "col": 2,
+      "value": "1400"
+     }
+    }
+   ],
+   "expected_import": "ready"
+  },
+  "h2-scanned.pdf": {
+   "pages": 1,
+   "method": [
+    "ocr"
+   ],
+   "fields": [
+    {
+     "page": 1,
+     "name": "capacitor_uF",
+     "value": "220"
+    },
+    {
+     "page": 1,
+     "name": "batch",
+     "value": "BX-77"
+    }
+   ],
+   "expected_import": "ready"
+  },
+  "h3-continued.pdf": {
+   "pages": 2,
+   "method": [
+    "native",
+    "native"
+   ],
+   "tables": [
+    {
+     "page": 1,
+     "header": [
+      "run",
+      "energy_mJ",
+      "time_s"
+     ],
+     "rows": 10,
+     "continued": true,
+     "cell": {
+      "row": 10,
+      "col": 1,
+      "value": "1070"
+     }
+    }
+   ],
+   "expected_import": "ready"
+  }
+ }
+}

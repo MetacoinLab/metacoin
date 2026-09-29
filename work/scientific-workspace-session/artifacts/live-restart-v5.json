@@ -1,0 +1,18 @@
+{
+ "candidate": "db63420ec712fcbb702c0e85a3840cda8fc17277",
+ "loaded_revision": "db63420ec712fcbb702c0e85a3840cda8fc17277",
+ "schema_before": "031_reconciliation",
+ "schema_after": "{\n  \"applied\": [],\n  \"schema\": [\n    \"001_initial\",\n    \"002_batches_templates\",\n    \"003_datasets_lineage\",\n    \"004_workflows\",\n    \"005_campaigns\",\n    \"006_catalog_quotes_usage\",\n    \"007_agent_policy_grants\",\n    \"008_hierarchical_budgets\",\n    \"009_workers_quotas\",\n    \"010_reuse_and_sharing\",",
+ "backup": "~/.local/state/metacoin-service-backups/pre-migration-026-1790591721",
+ "backup_includes_keys": true,
+ "smoke": {
+  "document": "di_0c1a1df18575",
+  "document_state": "ready",
+  "generation": "j_5b09655fb39dc242",
+  "generation_state": "succeeded",
+  "plan": "j_053a3390a6d1a556",
+  "plan_state": "succeeded"
+ },
+ "at": "2026-09-28T10:35:45Z",
+ "note": "second run of the \u00a764 script at the final candidate v5 (lock-only change): schema already 031, migrate applied nothing, a further keyed backup was taken (schema 031), processes stopped by recorded pane pids and respawned; the first run (live-upgrade.json) performed the 025->031 migration"
+}

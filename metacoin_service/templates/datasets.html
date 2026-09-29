@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block body %}
+<h1>Datasets</h1><p class="note">Every version is immutable and committed; formulas and non-integer values are refused at upload. Retired datasets refuse new work but keep their history.</p>
+<div class="tablewrap"><table><tr><th>name</th><th>kind</th><th>versions</th><th>latest version</th><th>rows</th><th>commitment</th><th>retired</th></tr>
+{% for d in datasets %}<tr><td>{{ d.name }}</td><td>{{ d.kind }}</td><td>{{ d.version_count }}</td><td><code>{{ d.latest_version_id }}</code></td><td>{{ d.latest_rows }}</td><td><code>{{ (d.latest_commitment or '')[:16] }}…</code></td><td>{{ 'yes' if d.retired_at else 'no' }}</td></tr>{% endfor %}</table></div>{% endblock %}

@@ -1,0 +1,514 @@
+{
+ "schema": "metacoin-document-extraction-results/v1",
+ "fixtures": "metacoin_service.documents.fixtures (reportlab 4.1.0)",
+ "sets": {
+  "dev": {
+   "fixtures": 10,
+   "checks_passed": 42,
+   "checks_total": 42,
+   "rows": [
+    {
+     "fixture": "locale-ambiguous.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 1
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native"
+       ]
+      },
+      {
+       "check": "table_page_1",
+       "ok": true,
+       "detail": {
+        "header": [
+         "item",
+         "energy",
+         "unit"
+        ],
+        "rows": 3,
+        "continued": false
+       }
+      },
+      {
+       "check": "conversion_waits_for_locale",
+       "ok": true,
+       "detail": [
+        "unparseable",
+        "unparseable"
+       ]
+      }
+     ],
+     "seconds": 0.24,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "malformed.pdf",
+     "expected_import": "failed",
+     "checks": [
+      {
+       "check": "failed_with_precise_reason",
+       "ok": true,
+       "detail": {
+        "code": "malformed",
+        "reason": "pypdf could not open the file: PdfReadError"
+       }
+      }
+     ],
+     "seconds": 0.16,
+     "import_status": "failed",
+     "error": {
+      "code": "malformed",
+      "reason": "pypdf could not open the file: PdfReadError"
+     }
+    },
+    {
+     "fixture": "mixed.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 2
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native",
+        "ocr"
+       ]
+      },
+      {
+       "check": "passage_on_page:capacity is 12000 mJ",
+       "ok": true,
+       "detail": "page 1"
+      },
+      {
+       "check": "ocr_field:leakage_mW",
+       "ok": true,
+       "value": "15",
+       "cer": 0.0,
+       "method": "ocr",
+       "mean_score": 0.9885
+      }
+     ],
+     "seconds": 1.72,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "multicolumn.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 1
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native"
+       ]
+      },
+      {
+       "check": "passage_on_page:stability limit of 0.25",
+       "ok": true,
+       "detail": "page 1"
+      },
+      {
+       "check": "passage_on_page:Wilson score interval",
+       "ok": true,
+       "detail": "page 1"
+      }
+     ],
+     "seconds": 0.21,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "not-a-pdf.pdf",
+     "expected_import": "failed",
+     "checks": [
+      {
+       "check": "refused_as_expected",
+       "ok": true
+      }
+     ],
+     "import_status": "refused",
+     "http": 422,
+     "reason": {
+      "code": "format_mismatch",
+      "reason": "declared pdf but the bytes do not start with %PDF-"
+     }
+    },
+    {
+     "fixture": "repeated-headers.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 2
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native",
+        "native"
+       ]
+      },
+      {
+       "check": "table_page_1",
+       "ok": true,
+       "detail": {
+        "header": [
+         "slot",
+         "supply_mW",
+         "demand_mW"
+        ],
+        "rows": 14,
+        "continued": true,
+        "cell": "114"
+       }
+      }
+     ],
+     "seconds": 0.27,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "report.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 1
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native"
+       ]
+      },
+      {
+       "check": "passage_on_page:keeps a reserve of 2000 mJ",
+       "ok": true,
+       "detail": "page 1"
+      },
+      {
+       "check": "passage_on_page:0.62 mJ",
+       "ok": true,
+       "detail": "page 1"
+      },
+      {
+       "check": "table_page_1",
+       "ok": true,
+       "detail": {
+        "header": [
+         "segment",
+         "duration_s",
+         "power_mW"
+        ],
+        "rows": 3,
+        "continued": false,
+        "cell": "120"
+       }
+      }
+     ],
+     "seconds": 0.21,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "rotated.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 1
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native"
+       ]
+      },
+      {
+       "check": "rotation_recorded",
+       "ok": true,
+       "detail": 90
+      },
+      {
+       "check": "passage_on_page:640 mW at noon",
+       "ok": true,
+       "detail": "page 1"
+      }
+     ],
+     "seconds": 0.24,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "scanned.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 1
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "ocr"
+       ]
+      },
+      {
+       "check": "ocr_field:resistor_ohm",
+       "ok": true,
+       "value": "4700",
+       "cer": 0.0,
+       "method": "ocr",
+       "mean_score": 0.9775
+      },
+      {
+       "check": "ocr_field:serial",
+       "ok": true,
+       "value": "SN-2291",
+       "cer": 0.0,
+       "method": "ocr",
+       "mean_score": 0.9775
+      }
+     ],
+     "seconds": 1.7,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "unicode.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 1
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native"
+       ]
+      },
+      {
+       "check": "passage_on_page:\u221240 \u00b0C",
+       "ok": true,
+       "detail": "page 1"
+      },
+      {
+       "check": "passage_on_page:\u0394E = 12 mJ",
+       "ok": true,
+       "detail": "page 1"
+      }
+     ],
+     "seconds": 0.2,
+     "import_status": "ready",
+     "error": null
+    }
+   ]
+  },
+  "heldout": {
+   "fixtures": 3,
+   "checks_passed": 14,
+   "checks_total": 14,
+   "rows": [
+    {
+     "fixture": "h1-report.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 1
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native"
+       ]
+      },
+      {
+       "check": "passage_on_page:reserve requirement is 3500 mJ",
+       "ok": true,
+       "detail": "page 1"
+      },
+      {
+       "check": "table_page_1",
+       "ok": true,
+       "detail": {
+        "header": [
+         "phase",
+         "duration_s",
+         "power_mW",
+         "temp_C"
+        ],
+        "rows": 3,
+        "continued": false,
+        "cell": "1400"
+       }
+      }
+     ],
+     "seconds": 0.23,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "h2-scanned.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 1
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "ocr"
+       ]
+      },
+      {
+       "check": "ocr_field:capacitor_uF",
+       "ok": true,
+       "value": "220",
+       "cer": 0.0,
+       "method": "ocr",
+       "mean_score": 0.983
+      },
+      {
+       "check": "ocr_field:batch",
+       "ok": true,
+       "value": "BX-77",
+       "cer": 0.0,
+       "method": "ocr",
+       "mean_score": 0.983
+      }
+     ],
+     "seconds": 1.57,
+     "import_status": "ready",
+     "error": null
+    },
+    {
+     "fixture": "h3-continued.pdf",
+     "expected_import": "ready",
+     "checks": [
+      {
+       "check": "import_state",
+       "ok": true,
+       "detail": "ready"
+      },
+      {
+       "check": "page_count",
+       "ok": true,
+       "detail": 2
+      },
+      {
+       "check": "methods",
+       "ok": true,
+       "detail": [
+        "native",
+        "native"
+       ]
+      },
+      {
+       "check": "table_page_1",
+       "ok": true,
+       "detail": {
+        "header": [
+         "run",
+         "energy_mJ",
+         "time_s"
+        ],
+        "rows": 10,
+        "continued": true,
+        "cell": "1070"
+       }
+      }
+     ],
+     "seconds": 0.26,
+     "import_status": "ready",
+     "error": null
+    }
+   ]
+  }
+ },
+ "method": "known-answer manifest written by the fixture generator (independent of parser output); extraction checks (page count, method per page, rotation, passages on the expected page), OCR field presence with a bounded character error rate, table header/row/continuation/cell checks and a locale-refusal check; held-out fixtures were never used during development"
+}

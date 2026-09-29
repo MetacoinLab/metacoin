@@ -1,0 +1,45 @@
+{
+ "singleton_vs_continuous_equal_short_prompt": true,
+ "singleton": "Hello! How can I assist you today",
+ "continuous": "Hello! How can I assist you today",
+ "batch": {
+  "id": "mb_7f5c5b7ebcca",
+  "workspace": "ws_default",
+  "host": "worker:w_06c62788abaf",
+  "revision_id": "mr_cfc339719154",
+  "mode": "continuous",
+  "members": 3,
+  "member_jobs_json": "[\"j_31d468994df52fdd\", \"j_6ff4e8b2111af967\", \"j_d3b042b124dd825f\"]",
+  "prompt_tokens": 125,
+  "max_new_tokens": 200,
+  "decode_steps": 146,
+  "padded_prompt_length": null,
+  "ms": 4448,
+  "kv_estimate_bytes": 44126208,
+  "cuda_peak_delta_bytes": 13467280896,
+  "cancelled_members": 1,
+  "outcome_json": "{\"note\": \"paged-attention continuous batching (transformers ContinuousBatchingManager); admission and removal during the session; outputs may differ from padded static batching at the token level\", \"admissions\": [{\"request_id\": \"r71f345ea4eca\", \"position\": 0, \"at\": 1790586390, \"input_tokens\": 45}, {\"request_id\": \"r48ee22a03a5c\", \"position\": 1, \"at\": 1790586392, \"input_tokens\": 45}, {\"request_id\": \"rd1a0e1bd4146\", \"position\": 2, \"at\": 1790586392, \"input_tokens\": 35}], \"admitted_during_session\": 2}",
+  "started_at": 1790586390,
+  "finished_at": 1790586395
+ },
+ "admissions": [
+  {
+   "request_id": "r71f345ea4eca",
+   "position": 0,
+   "at": 1790586390,
+   "input_tokens": 45
+  },
+  {
+   "request_id": "r48ee22a03a5c",
+   "position": 1,
+   "at": 1790586392,
+   "input_tokens": 45
+  },
+  {
+   "request_id": "rd1a0e1bd4146",
+   "position": 2,
+   "at": 1790586392,
+   "input_tokens": 35
+  }
+ ]
+}

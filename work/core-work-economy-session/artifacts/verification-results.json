@@ -1,0 +1,71 @@
+{
+ "schema": "metacoin-verification-results/v1",
+ "candidate": "3e3412678ab487ee0792807d9f5b902895180584",
+ "suites": {
+  "unit_full": {
+   "log": "unit-full.log",
+   "tests": 250,
+   "seconds": 516.187,
+   "ok": true,
+   "failures": null,
+   "exit": "0"
+  },
+  "science": {
+   "log": "science.log",
+   "tests": 18,
+   "seconds": 0.805,
+   "ok": true,
+   "failures": null,
+   "exit": "0"
+  },
+  "local_chain": {
+   "log": "chain.log",
+   "tests": 7,
+   "seconds": 3.835,
+   "ok": true,
+   "failures": null,
+   "exit": "0"
+  }
+ },
+ "journeys": {
+  "revision": "1fe5e1b12639a94454d97f59306c262ad529b4a4",
+  "passed": 40,
+  "failed": 0,
+  "blocked": 0,
+  "not_run": 0,
+  "total": 40
+ },
+ "browser": {
+  "passed": 23,
+  "failed": 0,
+  "status": "passed"
+ },
+ "demonstration": {
+  "revision": "1fe5e1b12639a94454d97f59306c262ad529b4a4",
+  "passed": 17,
+  "failed": 0
+ },
+ "benchmark": {
+  "requests": 8,
+  "awards": 8,
+  "errors": [],
+  "wall_seconds": 3.58,
+  "journal_consistent": true,
+  "invariants_ok": true
+ },
+ "fault_campaign": {
+  "exit": 0,
+  "tests": 13,
+  "summary": [
+   "Ran 13 tests in 19.609s",
+   "OK"
+  ]
+ },
+ "verification_revision": "1fe5e1b12639a94454d97f59306c262ad529b4a4",
+ "client_example": true,
+ "journey_40": {
+  "archive_sha256": "a891e3c4c51e7bc3e12c735ad78cf748fae693b9c73324035a84798f22b3171c",
+  "ok": true,
+  "steps": 8
+ }
+}
