@@ -20,7 +20,7 @@ class Jobs:
             raise ServiceError('CAPABILITY_UNAVAILABLE', 'campaign not initialized for workspace')
         return Journal(self.settings.journal_path, row['campaign_id'], row['cap'])
 
-    def _check_submittable(self, db, principal, contract_id, queued_extra=0):
+    def _check_submittable(self, db, principal, contract_id, queued_extra=0, supersede=None):
         row = db.execute('SELECT * FROM contracts WHERE id=? AND workspace=?', (contract_id, principal.workspace)).fetchone()
         if row is None:
             raise ServiceError('NOT_FOUND', 'contract')
@@ -28,8 +28,14 @@ class Jobs:
             raise ServiceError('CONFLICT', 'contract must be frozen before submission')
         if row['expires_at'] <= now():
             raise ServiceError('EXPIRED', 'contract expired')
-        if db.execute('SELECT 1 FROM jobs WHERE contract_id=?', (contract_id,)).fetchone():
+        existing = db.execute('SELECT id, state FROM jobs WHERE contract_id=? ORDER BY created_at DESC', (contract_id,)).fetchall()
+        if existing and supersede is None:
             raise ServiceError('CONFLICT', 'a job already exists for this contract version')
+        if existing and supersede is not None:
+            # economy reassignment / new attempt: only when every earlier job for this contract is terminal (its evidence stays)
+            live = [j['id'] for j in existing if j['state'] in ('queued', 'running')]
+            if live or supersede not in [j['id'] for j in existing]:
+                raise ServiceError('CONFLICT', {'code': 'attempt_still_live', 'jobs': live})
         queued = db.execute("SELECT COUNT(*) FROM jobs WHERE workspace=? AND state IN ('queued','running')", (principal.workspace,)).fetchone()[0]
         if queued + queued_extra >= self.settings.limits['max_queued_per_workspace']:
             raise ServiceError('RATE_LIMITED')
@@ -67,9 +73,9 @@ class Jobs:
         add_edge(db, principal.workspace, 'contract', row['id'], 'job', jid, 'used_input')
         return jid
 
-    def submit(self, db, principal, contract_id, reuse=False):
+    def submit(self, db, principal, contract_id, reuse=False, supersede=None):
         principal.require('job:submit')
-        row = self._check_submittable(db, principal, contract_id)
+        row = self._check_submittable(db, principal, contract_id, supersede=supersede)
         if reuse:
             from . import reuse as reuse_mod, agents
             found = reuse_mod.lookup(db, principal, row)

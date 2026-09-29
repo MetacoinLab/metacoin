@@ -16,7 +16,9 @@ contracts.py (job contracts: draft/freeze/amend, input vault, params bound per k
 A `economy/terms.py` WorkTerms v1 (typed deliverables, declarative acceptance policy, milestones DAG, honest-negative payment rules, amendments/counteroffers) + migration 032 → B request board, provider profiles, eligibility, binding offers, deterministic comparison, atomic award + reservation, provider execution (local worker fixture + enrolled node over real transport) → C receipts (provider/verification/acceptance/settlement), entitlements, challenges, disputes, corrections, portable verifier → D payment intents, journal (double-entry, integer base units), local-chain settlement bound to entitlements, fee split, treasury budgets, refunds/credits, reconciliation → E audit grants, compartments, encrypted offline packages, projections → F mission portfolio, bottleneck→request, legacy bridge kind `legacy_task_replay`, contributions, resource evidence, physical-work boundary → §61–68 API/CLI/MCP/console/events/metrics → journeys 1–40, fault campaign → freeze, upgrade, package.
 
 ## Done
-- baseline inventory (03:06–03:40Z)
+- baseline inventory (03:07–03:20Z)
+- Group A (commit 7edca35, 03:20–03:28Z): economy/terms.py WorkTerms v1 + acceptance policy, economy/acceptance.py (one evaluation path, 4 dimensions), economy/legacy_bridge.py + kind legacy_task_replay (contracts/catalog/worker_exec/verification), energy_audit full audit in verification.compute_audit, migration 032 (work_terms, work_evaluations), routes /api/v1/work/terms*, tests test_work_terms (6). Regression fixes: catalog expectation (+legacy_task_replay), restore fixture generic.
+- Group B (03:28–03:35Z): auth role provider + work:* permissions, migration 033 (principals CHECK rebuilt with foreign_keys off in migrate(); providers, provider_revisions, work_requests, work_offers, work_awards, work_milestones, work_attempts), economy/board.py (providers with signed revisions, eligibility reasons, board states, binding offers, deterministic comparison, atomic award + budget reservation under a per-award budget node, milestone instantiation, dispatch gated on acceptance, attempts, ack), jobs.submit(supersede=), tests test_work_board (5: J1–J7 shapes incl. race, retry, stale offer, provider revision, counteroffer expiry, multi-milestone gating).
 
 ## Task-owned background producers (identity, log, start, timeout, expected output, exit)
 (none yet)
@@ -28,4 +30,4 @@ A `economy/terms.py` WorkTerms v1 (typed deliverables, declarative acceptance po
 (none yet)
 
 ## Exact next action
-Write `metacoin_service/economy/terms.py` + migration 032 + tests, then the request board.
+Group C: economy/evidence.py (receipts provider/verification/acceptance/settlement, entitlements, acceptance decisions append-only, challenges, disputes, corrections, reassignment, delegation) + migration 034 + portable verifier `python -m metacoin_service.economy.verify_work` + tests.

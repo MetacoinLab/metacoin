@@ -297,7 +297,7 @@ def validate(terms, mode='draft'):
         _err('milestones', allowed='1..%d' % LIMITS['milestones'])
     mkeys = []
     for m in ms:
-        _keys(m, ('key', 'deliverables', 'max_payment', 'depends_on', 'deadline_seconds', 'on_failure', 'consume_partial', 'requires_acceptance_of'), 'milestone', required=('key', 'deliverables', 'max_payment', 'depends_on', 'deadline_seconds', 'on_failure'))
+        _keys(m, ('key', 'deliverables', 'max_payment', 'depends_on', 'deadline_seconds', 'on_failure', 'consume_partial', 'requires_acceptance_of', 'operation'), 'milestone', required=('key', 'deliverables', 'max_payment', 'depends_on', 'deadline_seconds', 'on_failure'))
         _str(m['key'], 'milestone_key', 64)
         if m['key'] in mkeys:
             _err('milestone_key_duplicate', key=m['key'])
@@ -312,6 +312,9 @@ def validate(terms, mode='draft'):
             _err('milestone_consume_partial')
         if type(m['depends_on']) is not list or len(m['depends_on']) > LIMITS['list_items']:
             _err('milestone_depends_on')
+        if 'operation' in m:
+            _keys(m['operation'], ('contract_id', 'contract_digest', 'input_root', 'kind'), 'milestone_operation', required=('contract_id', 'contract_digest', 'input_root'))
+            merkle._hex(m['operation']['contract_digest']); merkle._hex(m['operation']['input_root'])
     for m in ms:
         if not set(m['depends_on']) <= set(mkeys) or m['key'] in m['depends_on']:
             _err('milestone_dependency_unknown', milestone=m['key'], allowed=mkeys)

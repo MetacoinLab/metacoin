@@ -138,6 +138,18 @@ class Terms:
             self.svc.contracts.freeze(db, principal, cid)
             c = db.execute('SELECT * FROM contracts WHERE id=?', (cid,)).fetchone()
         doc = json.loads(c['contract_json'])
+        mi = body.get('milestone_inputs') or {}
+        if type(mi) is not dict or set(mi) - {m['key'] for m in t['milestones']}:
+            raise ServiceError('VALIDATION', {'code': 'milestone_inputs', 'allowed': [m['key'] for m in t['milestones']]})
+        main_assigned = False
+        for m in t['milestones']:
+            if m['key'] in mi:
+                mcid = self.svc.contracts.create_draft(db, principal, kind=kind, title=(t['title'] + ' / ' + m['key'])[:128], inputs=mi[m['key']], policy=dict(pol) if not body.get('contract_id') else {'reviewer_id': c['reviewer_id']}, datasets=self.svc.datasets)
+                self.svc.contracts.freeze(db, principal, mcid)
+                mc = db.execute('SELECT * FROM contracts WHERE id=?', (mcid,)).fetchone()
+                m['operation'] = {'contract_id': mc['id'], 'contract_digest': mc['contract_digest'], 'input_root': mc['input_root'], 'kind': kind}
+            elif not main_assigned:
+                m['operation'] = {'contract_id': c['id'], 'contract_digest': c['contract_digest'], 'input_root': c['input_root'], 'kind': kind}; main_assigned = True
         t['operation'] = dict(t['operation'], contract_id=c['id'], contract_digest=c['contract_digest'], input_root=c['input_root'], inputs_digest=c['inputs_digest'] if 'inputs_digest' in c.keys() else None,
                               model_id=doc.get('model_id'), verifier_id=doc.get('verifier_id'), verifier_digest=doc.get('verifier_digest'))
         digest = terms_mod.digest(t)
@@ -199,6 +211,8 @@ class Terms:
             return self.freeze(db, principal, tid, body)
         if r['expires_at'] is not None and r['expires_at'] < now():
             db.execute("UPDATE work_terms SET state='withdrawn', updated_at=? WHERE id=?", (now(), tid))
+            history.record(db, principal.workspace, principal.id, 'work.terms_superseded', 'work_terms', tid, {'expired': True, 'state': 'withdrawn'})
+            db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')          # the expiry is a durable fact even though this request is refused
             raise ServiceError('EXPIRED', {'code': 'proposed_revision_expired', 'note': 'preserved as an audit record; it cannot be awarded'})
         prev = db.execute('SELECT * FROM work_terms WHERE id=?', (r['previous_id'],)).fetchone()
         if prev['state'] == 'superseded':

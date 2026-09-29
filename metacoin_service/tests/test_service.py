@@ -496,12 +496,21 @@ class ServiceMatrix(unittest.TestCase):
         # pending migrations; migrate then completes it. A newer or unknown schema is still refused.
         import shutil, sqlite3
         old = Path(self.inst.temp.name) / 'backup-old'; shutil.copytree(dest, old)
-        c = sqlite3.connect(old / 'service.sqlite'); c.execute('DROP TABLE reconciliations'); c.execute('DROP TABLE measurement_requests'); c.execute("DELETE FROM schema_migrations WHERE name='031_reconciliation'"); c.commit(); c.close()
+        # simulate a backup taken before the migrations that follow 030: drop their tables and their migration rows (generic: any later order keeps this test valid)
+        import re
+        later = [(n, sql) for n, sql in database.MIGRATIONS if n > '030_packages']
+        c = sqlite3.connect(old / 'service.sqlite')
+        for n, sql in reversed(later):
+            for tbl in reversed(re.findall(r'CREATE TABLE (\w+)', sql)):
+                if tbl != 'principals_new':                          # 033 rebuilds principals in place (not a new table)
+                    c.execute('DROP TABLE IF EXISTS ' + tbl)
+            c.execute('DELETE FROM schema_migrations WHERE name=?', (n,))
+        c.commit(); c.close()
         rs3 = config.Settings(home=Path(self.inst.temp.name) / 'restored3')
         out3 = ops.restore(old, rs3, keys_dir=self.inst.settings.keys_dir)
-        self.assertEqual(out3['pending_migrations'], ['031_reconciliation']); self.assertEqual(out3['schema'], '030_packages')
-        self.assertEqual(database.migrate(rs3.db_path), ['031_reconciliation'])
-        self.assertEqual(database.check_schema(rs3.db_path)[-1], '031_reconciliation')
+        self.assertEqual(out3['pending_migrations'], [n for n, _ in later]); self.assertEqual(out3['schema'], '030_packages')
+        self.assertEqual(database.migrate(rs3.db_path), [n for n, _ in later])
+        self.assertEqual(database.check_schema(rs3.db_path)[-1], database.MIGRATIONS[-1][0])
         c = sqlite3.connect(old / 'service.sqlite'); c.execute("INSERT INTO schema_migrations VALUES ('999_future', 0)"); c.commit(); c.close()
         with self.assertRaises(RuntimeError):
             database.check_schema(old / 'service.sqlite', allow_older=True)

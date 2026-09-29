@@ -69,9 +69,10 @@ def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None):
             ok = bool(job['evidence_artifact_id'] and job['evidence_root'])
             add(p['id'], pt, 'passed' if ok else 'failed', 'evidence vault committed with root' if ok else 'evidence artifact missing', {'required_deliverables': keys, 'evidence_root': job['evidence_root']})
         elif pt == 'source_revision':
-            ok = contract is not None and contract['contract_digest'] == terms['operation']['contract_digest'] and contract['input_root'] == terms['operation']['input_root']
+            expected = ms.get('operation') or terms['operation']
+            ok = contract is not None and contract['contract_digest'] == expected['contract_digest'] and contract['input_root'] == expected['input_root']
             add(p['id'], pt, 'passed' if ok else 'failed', 'evidence produced under the frozen operation (contract digest and input root)' if ok else 'evidence belongs to a different contract revision or input root',
-                {'expected_contract_digest': terms['operation']['contract_digest'], 'actual': contract['contract_digest'] if contract else None})
+                {'expected_contract_digest': expected['contract_digest'], 'actual': contract['contract_digest'] if contract else None})
         elif pt == 'schema_valid':
             want_model = params.get('model_id') or terms['operation'].get('model_id'); want_schema = params.get('result_schema')
             ok = doc.get('model_id') == want_model and (want_schema is None or summary.get('result_schema', doc.get('result_schema', want_schema)) == want_schema)

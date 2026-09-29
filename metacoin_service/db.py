@@ -394,6 +394,23 @@ MIGRATIONS = [
     CREATE INDEX work_terms_lineage ON work_terms (lineage_id, version);
     CREATE TABLE work_evaluations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, terms_id TEXT NOT NULL REFERENCES work_terms(id), milestone_key TEXT NOT NULL, job_id TEXT, evaluation_json TEXT NOT NULL, decision_candidate TEXT NOT NULL, science TEXT NOT NULL, execution TEXT NOT NULL, payment_class TEXT NOT NULL, evaluated_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     """),
+    ('033_request_board', """
+    -- requires foreign_keys=off;
+    CREATE TABLE principals_new (id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('owner','worker','reviewer','viewer','provider')), workspace TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER);
+    INSERT INTO principals_new SELECT id, name, role, workspace, created_at, revoked_at FROM principals;
+    DROP TABLE principals;
+    ALTER TABLE principals_new RENAME TO principals;
+    CREATE INDEX principals_ws ON principals(workspace);
+    CREATE TABLE providers (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, principal_id TEXT NOT NULL UNIQUE REFERENCES principals(id), name TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, execution_json TEXT NOT NULL, capabilities_json TEXT NOT NULL, relationship_json TEXT NOT NULL, pay_to TEXT NOT NULL, evidence_json TEXT NOT NULL, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, key_id TEXT NOT NULL, state TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE provider_revisions (id TEXT PRIMARY KEY, provider_id TEXT NOT NULL REFERENCES providers(id), revision INTEGER NOT NULL, execution_json TEXT NOT NULL, capabilities_json TEXT NOT NULL, relationship_json TEXT NOT NULL, pay_to TEXT NOT NULL, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, key_id TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (provider_id, revision));
+    CREATE TABLE work_requests (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, requester_id TEXT NOT NULL REFERENCES principals(id), terms_id TEXT NOT NULL REFERENCES work_terms(id), terms_digest TEXT NOT NULL, state TEXT NOT NULL CHECK (state IN ('draft','open','paused','awarded','closed','expired')), audience_json TEXT NOT NULL, max_awards INTEGER NOT NULL, opened_at INTEGER, closes_at INTEGER, closed_at INTEGER, close_reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE work_offers (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, request_id TEXT NOT NULL REFERENCES work_requests(id), terms_digest TEXT NOT NULL, provider_id TEXT NOT NULL REFERENCES providers(id), provider_revision INTEGER NOT NULL, price_amount INTEGER NOT NULL, asset TEXT NOT NULL, scale INTEGER NOT NULL, scheme TEXT NOT NULL, window_seconds INTEGER NOT NULL, verification_json TEXT NOT NULL, privacy_terms TEXT NOT NULL, pay_to TEXT NOT NULL, expires_at INTEGER NOT NULL, state TEXT NOT NULL, eligibility_json TEXT NOT NULL, reason TEXT, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, key_id TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX work_offers_request ON work_offers (request_id, state);
+    CREATE TABLE work_awards (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, request_id TEXT NOT NULL REFERENCES work_requests(id), offer_id TEXT NOT NULL UNIQUE REFERENCES work_offers(id), terms_id TEXT NOT NULL REFERENCES work_terms(id), terms_digest TEXT NOT NULL, provider_id TEXT NOT NULL REFERENCES providers(id), provider_revision INTEGER NOT NULL, pay_to TEXT NOT NULL, state TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, ceiling INTEGER NOT NULL, reserved INTEGER NOT NULL, budget_node_id TEXT, reservation_id TEXT, ack_deadline INTEGER NOT NULL, delivery_deadline INTEGER NOT NULL, selection_json TEXT NOT NULL, awarded_by TEXT NOT NULL, awarded_at INTEGER NOT NULL, acknowledged_at INTEGER, closed_at INTEGER, close_reason TEXT, replaced_by TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE UNIQUE INDEX work_awards_single ON work_awards (request_id, offer_id);
+    CREATE TABLE work_milestones (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, award_id TEXT NOT NULL REFERENCES work_awards(id), key TEXT NOT NULL, state TEXT NOT NULL, max_payment INTEGER NOT NULL, depends_json TEXT NOT NULL, deadline_at INTEGER NOT NULL, contract_id TEXT REFERENCES contracts(id), job_id TEXT, blocked_reason TEXT, evidence_root TEXT, decision_id TEXT, entitlement_id TEXT, delivered_at INTEGER, updated_at INTEGER NOT NULL, UNIQUE (award_id, key));
+    CREATE TABLE work_attempts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, award_id TEXT NOT NULL REFERENCES work_awards(id), milestone_id TEXT NOT NULL REFERENCES work_milestones(id), provider_id TEXT NOT NULL, generation INTEGER NOT NULL, job_id TEXT NOT NULL, state TEXT NOT NULL, started_at INTEGER NOT NULL, finished_at INTEGER, evidence_root TEXT, receipt_id TEXT, note TEXT, UNIQUE (milestone_id, generation));
+    """),
 ]
 
 
@@ -427,6 +444,23 @@ def migrate(path):
         for name, sql in MIGRATIONS:
             if name in done:
                 continue
+            if FK_OFF_MARKER in sql:
+                # a table rebuild (e.g. widening a CHECK constraint on a referenced table) needs foreign keys off, which SQLite
+                # only allows outside a transaction: commit what was applied so far, rebuild in its own transaction, verify
+                # referential integrity before committing, then restore enforcement
+                db.execute('COMMIT'); db.execute('PRAGMA foreign_keys=OFF'); db.execute('BEGIN IMMEDIATE')
+                try:
+                    [db.execute(stmt) for stmt in _statements(sql)]
+                    broken = db.execute('PRAGMA foreign_key_check').fetchall()
+                    if broken:
+                        raise RuntimeError('migration %s would break referential integrity: %s' % (name, [tuple(b) for b in broken[:5]]))
+                    db.execute('INSERT INTO schema_migrations VALUES (?, ?)', (name, int(time.time())))
+                    db.execute('COMMIT')
+                except BaseException:
+                    db.execute('ROLLBACK'); db.execute('PRAGMA foreign_keys=ON'); raise
+                db.execute('PRAGMA foreign_keys=ON'); db.execute('BEGIN IMMEDIATE')
+                applied.append(name)
+                continue
             db.executescript(sql) if False else [db.execute(stmt) for stmt in _statements(sql)]
             db.execute('INSERT INTO schema_migrations VALUES (?, ?)', (name, int(time.time())))
             applied.append(name)
@@ -439,8 +473,11 @@ def migrate(path):
     return applied
 
 
+FK_OFF_MARKER = '-- requires foreign_keys=off'
+
+
 def _statements(sql):
-    return [s.strip() for s in sql.split(';') if s.strip()]
+    return [s.strip() for s in sql.split(';') if s.strip() and not s.strip().startswith('--')]
 
 
 def schema_version(path):
