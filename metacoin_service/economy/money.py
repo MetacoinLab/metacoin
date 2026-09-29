@@ -555,6 +555,29 @@ class Money:
             sql += ' AND state=?'; args.append(state)
         return [self.intent_view(db, principal, r['id']) for r in db.execute(sql + ' ORDER BY created_at DESC LIMIT 200', args).fetchall()]
 
+    def pending_observations(self, db, principal):
+        """Operator reconciliation view (Order 08 §76.8): every intent whose rail outcome is not yet a recorded observation, with
+        the one bounded action that applies. Nothing here edits the database directly; every action is the same authenticated
+        operation the API exposes."""
+        principal.require('work:read')
+        rows = db.execute("SELECT * FROM payment_intents WHERE workspace=? AND state IN ('submitted','unknown','expired','authorized') ORDER BY created_at", (principal.workspace,)).fetchall()
+        items = []
+        for i in rows:
+            expired = bool(i['valid_until'] and now() > i['valid_until'])
+            if i['state'] in ('submitted', 'unknown'):
+                action, why = 'reconcile', 'sent to the rail, outcome not observed: query by transaction hash or Permit2 nonce; exposure stays until observed'
+            elif i['state'] == 'expired':
+                action, why = 'renew', 'authorization expired and its nonce was never used: a renewal is a NEW intent identity for the same entitlement'
+            elif expired:
+                action, why = 'reconcile', 'authorized and past its validity: reconcile to learn whether the nonce was used before expiry'
+            else:
+                action, why = 'submit_or_wait', 'signed but never sent; it can only be exercised by this service (submit) or left to expire'
+            e = db.execute('SELECT award_id, kind, amount, state FROM work_entitlements WHERE id=?', (i['entitlement_id'],)).fetchone()
+            items.append({'intent_id': i['id'], 'kind': i['kind'], 'state': i['state'], 'rail': i['rail'], 'scheme': i['scheme'], 'asset': i['asset'], 'max_amount': i['max_amount'], 'submissions': i['submissions'], 'valid_until': i['valid_until'], 'expired': expired,
+                          'age_seconds': now() - i['created_at'], 'entitlement_id': i['entitlement_id'], 'award_id': e['award_id'] if e else None, 'entitlement_state': e['state'] if e else None, 'suggested_action': action, 'why': why})
+        return {'schema': 'metacoin-reconciliation-view/v1', 'items': items, 'actions': {'reconcile': 'POST /work/intents/{id}/reconcile (records an observation or the honest absence of one)', 'renew': 'POST /work/entitlements/{id}/prepare after an expired-unused reconciliation (new identity)', 'submit_or_wait': 'POST /work/intents/{id}/submit or nothing'},
+                'rule': 'no action invents a settlement: a payment is settled only by an observed transfer; a lost response keeps its exposure until the rail answers or the authorization is shown unused'}
+
     def exposure(self, db, principal):
         principal.require('work:read')
         rows = db.execute("SELECT id, state, max_amount, final_amount, asset, network FROM payment_intents WHERE workspace=? AND state IN ('submitted','unknown','expired','authorized')", (principal.workspace,)).fetchall()

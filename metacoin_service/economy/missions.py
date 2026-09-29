@@ -74,10 +74,15 @@ class Missions:
                 entry['awards'].append({'award_id': a['id'], 'state': a['state'], 'ceiling': a['ceiling'], 'findings': findings})
             commissioned.append(entry)
         contribs = [dict(c) for c in db.execute('SELECT * FROM contributions WHERE portfolio_id=? ORDER BY rowid', (pid,)).fetchall()]
+        for c in contribs:
+            c['learning'] = json.loads(c.pop('learning_json') or 'null')
+        learning = {'by_class': {k: sum(1 for c in contribs if (c['learning'] or {}).get('class') == k) for k in self.LEARNING_CLASSES}, 'decisions_changed': [c['id'] for c in contribs if (c['learning'] or {}).get('decision_changed')],
+                    'records': [{'contribution_id': c['id'], 'node': c['affected_node'], 'class': (c['learning'] or {}).get('class'), 'declared_verdict': (c['learning'] or {}).get('declared_verdict'), 'commissioned_science': (c['learning'] or {}).get('commissioned_science'), 'decision_changed': (c['learning'] or {}).get('decision_changed', False)} for c in contribs],
+                    'note': 'which findings contradicted, confirmed or left the declared record unresolved; a decision change is recorded only when the requester says so; no impact score'}
         unresolved = [b for b in snap['bottlenecks'] if not any(c['affected_node'] == b['task'] and c['contribution_kind'] != 'reused_artifact' for c in contribs)]
         return {'id': pid, 'mission_id': r['mission_id'], 'name': r['name'], 'imported': {k: snap[k] for k in ('verdict_hash', 'mission_feasible', 'source_sha256', 'imported_at', 'rule', 'honest_boundary')},
                 'objectives_and_constraints': {'constraining_nodes': [k for k, v in snap['node_verdicts'].items() if v['role'] == 'constraining'], 'node_verdicts': snap['node_verdicts'], 'dag_edges': len(snap['dag']['edges']), 'not_modeled': snap['not_modeled']},
-                'bottlenecks': snap['bottlenecks'], 'unresolved_bottlenecks': [b['task'] for b in unresolved], 'what_would_flip_it': snap.get('what_would_flip_it'), 'commissioned_work': commissioned, 'budget': budget, 'contributions': contribs, 'drafts': drafts['drafts'],
+                'bottlenecks': snap['bottlenecks'], 'unresolved_bottlenecks': [b['task'] for b in unresolved], 'what_would_flip_it': snap.get('what_would_flip_it'), 'commissioned_work': commissioned, 'budget': budget, 'contributions': contribs, 'learning': learning, 'drafts': drafts['drafts'],
                 'distinctions': 'model feasibility (anchored verdict) != experimental evidence != engineering deployment; accepted findings here update only this service-layer portfolio'}
 
     def list_portfolios(self, db, principal):
@@ -161,11 +166,50 @@ class Missions:
         else:
             kind = 'new_finding'
         cid = 'wc_' + secrets.token_hex(6)
-        db.execute('INSERT INTO contributions VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (cid, award['workspace'], link['portfolio_id'], award['id'], decision_id, award['provider_id'], ms['evidence_root'], link['node'], link['question'][:512], ctype, kind, str(job['outcome']),
+        learning = self._learning(db, link['portfolio_id'], link['node'], science, kind, job)
+        db.execute('INSERT INTO contributions (id, workspace, portfolio_id, award_id, decision_id, contributor_provider_id, evidence_root, affected_node, reason, contribution_type, contribution_kind, evidence_outcome, dedup_json, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (cid, award['workspace'], link['portfolio_id'], award['id'], decision_id, award['provider_id'], ms['evidence_root'], link['node'], link['question'][:512], ctype, kind, str(job['outcome']),
                                                                                     json.dumps({'duplicate_of_award': prior['award_id'], 'note': 'same input root and outcome accepted before; a commissioned recheck is valuable as replication, an accidental duplicate is not a second entitlement'} if prior else None), now()))
+        db.execute('UPDATE contributions SET learning_json=? WHERE id=?', (json.dumps(learning), cid))
         history.record(db, award['workspace'], 'service', 'work.contribution', 'contribution', cid, {'award_id': award['id'], 'node': link['node'], 'type': ctype, 'kind': kind, 'science': science, 'duplicate_warning': prior is not None,
                                                                                                   'not': 'no usefulness score, no issuance eligibility'})
         return cid
+
+    # ---- mission learning records (§76.10) -------------------------------------------------------------------------------------
+    LEARNING_CLASSES = ('contradicts_declared_verdict', 'confirmed_declared_verdict', 'new_evidence_for_unassessed_node', 'inconclusive')
+
+    def _learning(self, db, pid, node, science, kind, job):
+        """What an accepted finding means against the DECLARED node verdict of the imported (read-only) mission record. It never
+        changes the declared decision: that takes a new verdict record, and the requester records such a change explicitly."""
+        r = db.execute('SELECT snapshot_json FROM mission_portfolios WHERE id=?', (pid,)).fetchone()
+        declared = (json.loads(r['snapshot_json'])['node_verdicts'].get(node) or {}).get('verdict') if r else None
+        if kind == 'commissioned_replication' and job is not None and job['outcome'] == 'EXACT_MATCH':
+            cls = 'confirmed_declared_verdict'; note = 'exact replay of the registered output confirms the existing evidence for this node'
+        elif science in ('FEASIBLE', 'INFEASIBLE'):
+            found = science == 'FEASIBLE'
+            if declared is None:
+                cls, note = 'new_evidence_for_unassessed_node', 'the declared record carried no verdict for this node'
+            elif found == declared:
+                cls, note = 'confirmed_declared_verdict', 'commissioned determination agrees with the declared verdict'
+            else:
+                cls, note = 'contradicts_declared_verdict', 'commissioned determination disagrees with the declared verdict; a decision change requires a new verdict record and an explicit requester record'
+        else:
+            cls, note = 'inconclusive', 'no scientific conclusion (diagnostic or not applicable)'
+        return {'class': cls, 'declared_verdict': declared, 'commissioned_science': science, 'decision_changed': False, 'decision_change_note': None, 'note': note, 'no_impact_score': True}
+
+    def record_learning(self, db, principal, pid, cid, body):
+        """The requester states whether a finding actually changed a declared decision (explicit, attributable; never inferred)."""
+        principal.require('work:request')
+        self.portfolio_row(db, principal, pid)
+        c = db.execute('SELECT * FROM contributions WHERE id=? AND portfolio_id=?', (cid, pid)).fetchone()
+        if c is None:
+            raise ServiceError('NOT_FOUND', 'contribution')
+        if type(body.get('decision_changed')) is not bool or (body.get('note') is not None and type(body['note']) is not str):
+            raise ServiceError('VALIDATION', {'code': 'fields', 'required': {'decision_changed': 'bool'}, 'optional': {'note': 'str'}})
+        learning = json.loads(c['learning_json'] or '{}') or self._learning(db, pid, c['affected_node'], c['evidence_outcome'], c['contribution_kind'], None)
+        learning.update({'decision_changed': body['decision_changed'], 'decision_change_note': (body.get('note') or '')[:400], 'recorded_by': principal.id, 'recorded_at': now()})
+        db.execute('UPDATE contributions SET learning_json=? WHERE id=?', (json.dumps(learning), cid))
+        history.record(db, principal.workspace, principal.id, 'work.mission_learning', 'contribution', cid, {'decision_changed': body['decision_changed'], 'class': learning['class']})
+        return dict(dict(c), learning=learning)
 
     # ---- honest resource / energy evidence (§59) --------------------------------------------------------------------------------
     def resource_probe(self, db, principal):

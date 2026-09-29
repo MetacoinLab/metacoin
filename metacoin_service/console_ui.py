@@ -826,6 +826,33 @@ def mount(app, svc):
             return render(request, 'work_budget.html', principal=p, replay=journal_mod.replay(db, p.workspace), entries=journal_mod.entries(db, p.workspace, 200), exposure=E.money.exposure(db, p), treasury=treasury, rails=rails, tree=budgets.tree(db, p) if p.can('budget:read') else None)
         return await page(request, fn)
 
+    @app.get('/console/work/providers/{prid}', response_class=HTMLResponse)
+    async def work_provider_page(request: Request, prid: str):
+        from .economy import provider_history
+        return await page(request, lambda db, p: render(request, 'work_provider.html', principal=p, pv=E.providers.view(db, p, E.providers.row(db, p, prid)), h=provider_history.build(db, p, E.providers, prid), pf=provider_history.portfolio_view(db, p, E.providers, prid)))
+
+    @app.get('/console/work/reconciliation', response_class=HTMLResponse)
+    async def work_reconciliation_page(request: Request):
+        return await page(request, lambda db, p: render(request, 'work_reconciliation.html', principal=p, v=E.money.pending_observations(db, p), exposure=E.money.exposure(db, p)))
+
+    @app.post('/console/work/reconciliation/{iid}/{action}', response_class=HTMLResponse)
+    async def work_reconciliation_action(request: Request, iid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            if action == 'reconcile':
+                E.money.reconcile(db, p, iid)
+            elif action == 'renew':
+                i = E.money.intent_view(db, p, iid)
+                if i['state'] != 'expired':
+                    raise ServiceError('CONFLICT', {'code': 'intent_state', 'state': i['state'], 'note': 'renewal applies to an expired, reconciled-unused intent'})
+                E.money.prepare(db, p, i['entitlement_id'], {})
+            elif action == 'submit':
+                E.money.submit(db, p, iid, {})
+            else:
+                raise ServiceError('VALIDATION', {'code': 'action', 'allowed': ['reconcile', 'renew', 'submit']})
+            return RedirectResponse('/console/work/reconciliation', status_code=303)
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/work/missions/{pid}', response_class=HTMLResponse)
     async def work_mission_page(request: Request, pid: str):
         return await page(request, lambda db, p: render(request, 'work_mission.html', principal=p, m=E.missions.portfolio_view(db, p, pid)))

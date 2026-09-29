@@ -443,6 +443,9 @@ MIGRATIONS = [
     ('038_signing_key_history', """
     CREATE TABLE signing_keys (key_id TEXT PRIMARY KEY, public_key_hex TEXT NOT NULL, custody TEXT NOT NULL, valid_from INTEGER NOT NULL, valid_until INTEGER, authorized_by TEXT NOT NULL, reason TEXT, created_at INTEGER NOT NULL);
     """),
+    ('039_mission_learning', """
+    ALTER TABLE contributions ADD COLUMN learning_json TEXT;
+    """),
 ]
 
 

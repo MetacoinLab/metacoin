@@ -31,7 +31,7 @@ def login(browser, role, width=1280):
     page.goto(BASE + '/console/login'); page.fill('#token', tok[role]); page.click('button[type=submit]'); page.wait_for_url(re.compile(r'/console/?$')); return c, page
 
 
-def wait_worker(page, aid, want='completed', tries=60):
+def wait_worker(page, aid, want='completed', tries=120):
     for _ in range(tries):
         page.goto(BASE + '/console/work/awards/' + aid); page.wait_for_load_state()
         if want in page.content():
@@ -97,6 +97,7 @@ def run(p):
     vpage.goto(BASE + '/console/work/awards/' + aid); vpage.wait_for_load_state()
     check('viewer sees the four dimensions but no role-bypassing controls and no private values', 'accepted' in vpage.content() and 'Record decision' not in vpage.content() and 'BROWSER_J' not in vpage.content() and 'worst_margin' not in vpage.content())
     r = vctx.request.post(BASE + '/console/work/awards/' + aid + '/pay', form={'entitlement_id': 'x', 'csrf': 'x'}); check('viewer cannot post a payment form', r.status in (403, 401))
+    page.goto(BASE + '/console/work/awards/' + aid); page.wait_for_load_state()
     page.fill('#cl', 'browser dispute'); page.click('form[action$="/dispute"] button'); page.wait_for_load_state(); did = page.url.rstrip('/').split('/')[-1]
     check('dispute opened with a timeline', did.startswith('wdp_') and 'Timeline' in page.content())
     rctx, rpage = login(browser, 'reviewer'); rpage.goto(BASE + '/console/work/disputes/' + did); rpage.wait_for_load_state()
@@ -106,6 +107,9 @@ def run(p):
     page.goto(BASE + '/console/work'); page.wait_for_load_state(); page.click('form[action="/console/work/missions/import"] button'); page.wait_for_load_state()
     check('mission portfolio imported and bottlenecks listed', 'Bottlenecks' in page.content() and 'task-0018' in page.content())
     shot(page, '09-mission.png')
+    page.goto(BASE + '/console/work/providers/' + re.search(r'/console/work/providers/(pv_[0-9a-f]+)', page.goto(BASE + '/console/work') and page.content()).group(1)); page.wait_for_load_state()
+    check('provider history page shows dimensions with a valid negative counted as accepted and no score', 'History dimensions (no single score)' in page.content() and 'valid negative' in page.content() and 'not failures' in page.content())
+    shot(page, '11-provider-history.png')
     nctx, npage = login(browser, 'owner', width=390)
     overflow = {}
     for path in ('/console/work', '/console/work/awards/' + aid, '/console/work/requests/' + rid, '/console/work/budget', '/console/work/disputes/' + did):

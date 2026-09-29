@@ -10,6 +10,7 @@ is one guarded transaction: request state, offer validity, requester authority, 
 milestone instantiation and dispatch of the first ready milestones. A lost response returns the same award."""
 import hashlib
 import json
+import re
 import secrets
 
 from experiments.private_receipts import receipt as merkle
@@ -183,6 +184,8 @@ class Providers:
             reasons.append({'code': 'insufficient_resource_bound', 'ceiling': terms['payment']['ceiling'], 'provider_max': lim['max_ceiling']})
         if provider_row['state'] != 'active':
             reasons.append({'code': 'provider_retired'})
+        if terms['payment']['asset'] == 'local-chain-token' and not re.fullmatch(r'0x[0-9a-fA-F]{40}', provider_row['pay_to'] or ''):
+            reasons.append({'code': 'recipient_invalid_for_rail', 'asset': terms['payment']['asset'], 'note': 'the registered payout address is not an address of the chain rail; a chain payment could never be signed to it'})
         if offer is not None:
             if offer['scheme'] not in el['payment_schemes'] or offer['scheme'] not in caps.get('payment_schemes', []):
                 reasons.append({'code': 'wrong_payment_scheme', 'offered': offer['scheme'], 'required_any_of': el['payment_schemes']})
@@ -502,7 +505,7 @@ class Board:
         approval_gate(self.svc.approvals, db, principal, 'work_award')
         from ..agents import grant_of, guard
         if grant_of(principal):
-            guard(db, principal, 'invoke', service_kind=terms['operation']['kind'], amount=o['price_amount'] + terms['payment'].get('verifier_compensation', 0), precheck_jobs=1)
+            guard(db, principal, 'work:award', service_kind=terms['operation']['kind'], amount=o['price_amount'] + terms['payment'].get('verifier_compensation', 0), precheck_jobs=1)
         aid = 'wa_' + secrets.token_hex(8)
         ceiling = o['price_amount'] + terms_mod.fee_amount(terms['payment'], o['price_amount']) + terms['payment'].get('verifier_compensation', 0)
         if terms['payment'].get('funding', 'requester') == 'treasury':

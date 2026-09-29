@@ -474,7 +474,7 @@ def expansion(args, go):
 WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-freeze', 'work-terms-amend', 'work-terms-inspect', 'work-terms-evaluate', 'work-providers', 'work-provider-register', 'work-request-create', 'work-requests', 'work-request',
                  'work-request-action', 'work-offer', 'work-compare', 'work-award', 'work-awards', 'work-award-view', 'work-ack', 'work-evaluate', 'work-decide', 'work-verify', 'work-receipts', 'work-receipt-verify', 'work-dispute-open', 'work-dispute',
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
-                 'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close')
+                 'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview')
 
 
 def work(args, go):
@@ -543,6 +543,15 @@ def work(args, go):
         return go('POST', '/api/v1/work/awards/%s/milestones/%s/verify' % (args.award_id, args.milestone), {'class': args.verification_class} if args.verification_class else {}, idempotency_key=key)
     if c == 'work-receipts':
         return go('GET', '/api/v1/work/awards/' + args.award_id + '/receipts')
+    if c == 'work-provider-history':
+        return go('GET', '/api/v1/work/providers/' + args.provider_id + '/history' + ('?scope=disclosed' if args.disclosed else ''))
+    if c == 'work-provider-portfolio':
+        return go('GET', '/api/v1/work/providers/' + args.provider_id + '/portfolio')
+    if c == 'work-provider-portfolio-set':
+        return go('POST', '/api/v1/work/providers/' + args.provider_id + '/portfolio', {'receipt_ids': args.receipt_ids.split(','), 'note': args.note or ''})
+    if c == 'work-package-preview':
+        import base64
+        return go('POST', '/api/v1/work/packages/import-preview', {'package_b64': base64.b64encode(open(args.package, 'rb').read()).decode(), 'trust_roots': [x for x in (args.trust_roots or '').split(',') if x]})
     if c == 'work-receipt-verify':
         return go('POST', '/api/v1/work/receipts/' + args.receipt_id + '/verify', {'trust_root': args.trust_root} if args.trust_root else {})
     if c == 'work-dispute-open':
@@ -792,6 +801,10 @@ def main(argv=None):
     w = sub.add_parser('work-verify'); w.add_argument('award_id'); w.add_argument('--milestone', default='m1'); w.add_argument('--verification-class'); w.add_argument('--idempotency-key')
     w = sub.add_parser('work-receipts'); w.add_argument('award_id')
     w = sub.add_parser('work-receipt-verify'); w.add_argument('receipt_id'); w.add_argument('--trust-root')
+    w = sub.add_parser('work-provider-history', help='evidence-based provider history (dimensions with sample sizes; no score)'); w.add_argument('provider_id'); w.add_argument('--disclosed', action='store_true')
+    w = sub.add_parser('work-provider-portfolio'); w.add_argument('provider_id')
+    w = sub.add_parser('work-provider-portfolio-set', help='provider: select receipts of your own contracts to disclose'); w.add_argument('provider_id'); w.add_argument('--receipt-ids', required=True); w.add_argument('--note')
+    w = sub.add_parser('work-package-preview', help='validate a contract/evidence bundle from another instance without awarding, paying or trusting anything'); w.add_argument('package'); w.add_argument('--trust-roots')
     w = sub.add_parser('work-dispute-open'); w.add_argument('award_id'); w.add_argument('--milestone', default='m1'); w.add_argument('--claim', required=True); w.add_argument('--scope', default='acceptance'); w.add_argument('--idempotency-key')
     w = sub.add_parser('work-dispute', help='view, or act: --action respond|evidence|recheck|decide|appeal|close with --file body'); w.add_argument('dispute_id'); w.add_argument('--action'); w.add_argument('--file'); w.add_argument('--idempotency-key')
     sub.add_parser('work-disputes')

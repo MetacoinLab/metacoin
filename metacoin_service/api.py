@@ -185,10 +185,23 @@ def create_app(settings):
             response = JSONResponse(exc.body(), status_code=exc.status)
         except Exception as exc:
             err = from_exception(exc)
+            _log_defect(request, exc, err.code)
             response = JSONResponse(err.body(), status_code=err.status)
         for key, value in SENSITIVE_HEADERS.items():
             response.headers.setdefault(key, value)
         return response
+
+    def _log_defect(request, exc, code):
+        """Unexpected exceptions never reach the client; their trace goes to a private operator log (no bodies, no headers)."""
+        try:
+            import traceback
+            svc.settings.logs_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            path = svc.settings.logs_dir / 'defects.log'
+            with open(path, 'a') as fh:
+                fh.write('%s %s %s %s\n%s\n' % (now(), code, request.method, request.url.path, ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-4000:]))
+            os.chmod(path, 0o600)
+        except Exception:
+            pass
 
     def run_sync(request, mutating, fn, operation=None, raw=b''):
         with tracing.span('api.request', route=request.url.path.split('/api/v1/')[-1][:40], operation=operation or 'read'):

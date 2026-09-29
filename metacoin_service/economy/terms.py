@@ -483,7 +483,7 @@ def template(name, requester, workspace, *, ceiling=10, amount=None, kind=None, 
         t['acceptance'] = {'schema': POLICY_SCHEMA, 'predicates': [{'id': 'complete', 'type': 'artifact_complete'}, {'id': 'source', 'type': 'source_revision'}, {'id': 'schema', 'type': 'schema_valid'},
                                                                    {'id': 'status', 'type': 'status_in', 'params': {'statuses': ['optimal_within_tolerance', 'feasible_incumbent_no_optimality_claim', 'infeasible_by_solver', 'infeasible_established_by_enumeration']}},
                                                                    {'id': 'replay', 'type': 'verification_passed', 'params': {'class': 'full_reference', 'distinct_verifier': False}}],
-                           'outcomes': {'not_applicable': 'accept'}, 'valid_negative': {'requires': ['verification_passed'], 'note': 'infeasible_by_solver is accepted only with the independent simulator/oracle audit; limit_no_candidate is never a negative proof'},
+                           'outcomes': {'FEASIBLE': 'accept', 'INFEASIBLE': 'accept', 'INDETERMINATE': 'reject'}, 'valid_negative': {'requires': ['verification_passed', 'source_revision'], 'note': 'infeasible_by_solver is accepted only with the independent simulator/oracle audit; limit_no_candidate is never a negative proof'},
                            'required_verification': {'class': 'full_reference', 'distinct_verifier': False}, 'payment_rule': {'complete': amount, 'partial': 0, 'diagnostic': 0, 'outcome_neutral': True}}
         t['milestones'] = [{'key': 'm1', 'deliverables': ['witness'], 'max_payment': amount, 'depends_on': [], 'deadline_seconds': 86400, 'on_failure': 'stop_downstream'}]
         return t

@@ -1,6 +1,8 @@
 """HTTP routes of the work economy under /api/v1/work/…, mounted from api.create_app with the same run()/read_body helpers
 (authentication, idempotency, JSON limits and error mapping are the API's)."""
 from fastapi import Request
+from . import interop, provider_history
+from ..errors import ServiceError
 
 
 def mount(app, svc, run, read_body, API):
@@ -79,6 +81,19 @@ def mount(app, svc, run, read_body, API):
     @app.get(API + '/work/providers/{prid}')
     async def work_provider(request: Request, prid: str):
         return await run(request, False, lambda db, p: P.view(db, p, P.row(db, p, prid)))
+
+    @app.get(API + '/work/providers/{prid}/history')
+    async def work_provider_history(request: Request, prid: str):
+        return await run(request, False, lambda db, p: provider_history.build(db, p, P, prid, disclosed_only=request.query_params.get('scope') == 'disclosed'))
+
+    @app.get(API + '/work/providers/{prid}/portfolio')
+    async def work_provider_portfolio(request: Request, prid: str):
+        return await run(request, False, lambda db, p: provider_history.portfolio_view(db, p, P, prid))
+
+    @app.post(API + '/work/providers/{prid}/portfolio')
+    async def work_provider_portfolio_set(request: Request, prid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: provider_history.set_portfolio(db, p, P, prid, body), 'work.provider.portfolio', raw)
 
     @app.post(API + '/work/providers/{prid}/revise')
     async def work_provider_revise(request: Request, prid: str):
@@ -350,6 +365,11 @@ def mount(app, svc, run, read_body, API):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, True, lambda db, p: (MS.draft_from_bottleneck(db, p, pid, task, body), 201), 'work.mission.draft', raw)
 
+    @app.post(API + '/work/missions/{pid}/contributions/{cid}/learning')
+    async def work_mission_learning(request: Request, pid: str, cid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: MS.record_learning(db, p, pid, cid, body), 'work.mission.learning', raw)
+
     @app.post(API + '/work/missions/{pid}/link')
     async def work_mission_link(request: Request, pid: str):
         raw = await request.body(); body = read_body(request, raw)
@@ -390,6 +410,26 @@ def mount(app, svc, run, read_body, API):
     @app.get(API + '/work/status')
     async def work_status(request: Request):
         return await run(request, False, lambda db, p: (p.require('work:read') and None) or {'counts': economy_ops.counts(db, p.workspace), 'waiting_reasons': economy_ops.waiting_reasons(db, p.workspace)})
+
+    @app.post(API + '/work/packages/import-preview')
+    async def work_package_preview(request: Request):
+        """Raw zip (Content-Type application/zip or application/octet-stream; query trust_roots=hex,hex) or JSON {package_b64, trust_roots}."""
+        raw = await request.body(); ctype = request.headers.get('content-type', '')
+        if ctype.startswith('application/zip') or ctype.startswith('application/octet-stream'):
+            pkg = raw; roots = [x for x in (request.query_params.get('trust_roots') or '').split(',') if x]
+        else:
+            body = read_body(request, raw)
+            import base64
+            try:
+                pkg = base64.b64decode(body.get('package_b64') or '', validate=True)
+            except Exception:
+                raise ServiceError('VALIDATION', {'code': 'package_b64'})
+            roots = body.get('trust_roots') or []
+        return await run(request, True, lambda db, p: interop.import_preview(db, p, svc.settings, AC, pkg, roots))
+
+    @app.get(API + '/work/reconciliation')
+    async def work_reconciliation(request: Request):
+        return await run(request, False, lambda db, p: M.pending_observations(db, p))
 
     @app.get(API + '/work/keys')
     async def work_keys(request: Request):

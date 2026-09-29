@@ -24,6 +24,9 @@ def science_conclusion(kind, job):
     if job is None or job['state'] != 'succeeded':
         return 'unknown' if (job is not None and job['state'] in ('queued', 'running')) else 'not_applicable' if job is None else 'no_valid_evidence'
     out = job['outcome']
+    if kind == 'resource_plan':                                                          # the job outcome is the checker verdict; the solver status is in the summary
+        summary = json.loads(job['summary_json']) if job['summary_json'] else {}
+        out = summary.get('status', out)
     if kind in ('energy_audit', 'temporal_energy'):
         return out if out in energy.OUTCOMES else 'unknown'
     if kind == 'resource_plan':
@@ -81,8 +84,9 @@ def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, 
             ok = job['outcome'] in params['outcomes']
             add(p['id'], pt, 'passed' if ok else 'failed', 'outcome %s is in the accepted set' % job['outcome'] if ok else 'outcome %s is not an accepted determination outcome' % job['outcome'], {'outcome': job['outcome']})
         elif pt == 'status_in':
-            ok = job['outcome'] in params['statuses']
-            add(p['id'], pt, 'passed' if ok else 'failed', 'solver status %s is an accepted status' % job['outcome'] if ok else 'status %s is not accepted (a limit or failure is never a witness)' % job['outcome'], {'status': job['outcome']})
+            status = summary.get('status', job['outcome'])                                  # solver status (summary) for numerical witnesses; job outcome otherwise
+            ok = status in params['statuses']
+            add(p['id'], pt, 'passed' if ok else 'failed', 'solver status %s is an accepted status' % status if ok else 'status %s is not accepted (a limit or failure is never a witness)' % status, {'status': status, 'checker_outcome': job['outcome']})
         elif pt == 'exact_output_hash':
             got = summary.get(params.get('field', 'output_hash'))
             ok = got == params['registered_hash']

@@ -291,6 +291,11 @@ def build(api=None):
         s, b = api.call('GET', '/api/v1/work/awards/' + award_id + '/receipts')
         return ok_or_refused(s, b)
 
+    @mcp.tool(name='provider_history', description='Evidence-based history of one provider as structured dimensions with sample sizes and the population visible to the caller (task families, verification methods, acceptance outcomes incl. accepted valid negatives, execution failures, disputes, latency, prices, relationship). No single score. Read-only.', annotations=READ)
+    def provider_history(provider_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/work/providers/' + provider_id + '/history')
+        return ok_or_refused(s, b)
+
     @mcp.tool(name='evaluate_acceptance', description='Acceptance candidate for a milestone under the frozen policy with a predicate trace. Read-only: it never accepts, pays or publishes.', annotations=READ)
     def evaluate_acceptance(award_id: str, milestone: str = 'm1') -> dict:
         s, b = api.call('POST', '/api/v1/work/awards/%s/milestones/%s/evaluate' % (award_id, milestone), {})
