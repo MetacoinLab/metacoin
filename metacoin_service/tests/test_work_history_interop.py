@@ -70,6 +70,11 @@ class PackagePreviewTests(EvidenceBase):
         self.assertEqual(oc.get('/api/v1/work/keys', headers=oh).json()['keys'].__len__(), 1)                        # the foreign key was not added to the trust history
         # the originating instance recognises its own award; a corrupted archive is rejected before parsing
         home = self.c.post('/api/v1/work/packages/import-preview', headers=dict(self.H, **{'Content-Type': 'application/zip'}), content=full).json(); self.assertTrue(home['local_knowledge']['award_known_here']); self.assertTrue(home['trust_requirements'][0]['trusted'])
+        # §76.9: the package can seed a NEW local draft (operation binding stripped); it still awards, pays and trusts nothing
+        dr = oc.post('/api/v1/work/packages/import-preview', headers=oh, json={'package_b64': base64.b64encode(restricted).decode(), 'draft': True}); self.assertEqual(dr.status_code, 200, dr.text); dr = dr.json()
+        self.assertEqual(dr['draft']['state'], 'draft'); nt = oc.get('/api/v1/work/terms/' + dr['draft']['terms_id'], headers=oh).json()
+        self.assertEqual(nt['terms']['operation']['kind'], 'energy_audit'); self.assertNotIn('contract_id', nt['terms']['operation']); self.assertEqual(nt['terms']['requester']['workspace'], nt['workspace'] if 'workspace' in nt else nt['terms']['requester']['workspace'])
+        self.assertEqual(oc.get('/api/v1/work/awards', headers=oh).json()['items'], []); self.assertEqual(oc.get('/api/v1/work/journal', headers=oh).json(), j0)
         bad = oc.post('/api/v1/work/packages/import-preview', headers=dict(oh, **{'Content-Type': 'application/zip'}), content=full[:-40] + b'x' * 40).json(); self.assertFalse(bad['structural']['ok'])
 
 

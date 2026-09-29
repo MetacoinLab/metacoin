@@ -174,6 +174,77 @@ class Missions:
                                                                                                   'not': 'no usefulness score, no issuance eligibility'})
         return cid
 
+    # ---- portfolio budget scenarios (§76.2) -------------------------------------------------------------------------------------
+    MAX_SCENARIO_TASKS = 24
+
+    def scenario_create(self, db, principal, pid, body):
+        """Compare allocations across the portfolio's commissioned work requests under EXPLICIT utility assumptions using the
+        existing robust planner (a resource_plan job with cost as the binding resource). The chosen utilities are assumptions the
+        requester declares; the scenario never calls them truth and never awards anything."""
+        principal.require('work:request')
+        r = self.portfolio_row(db, principal, pid)
+        if type(body) is not dict or set(body) - {'name', 'budget_ceilings', 'utilities', 'costs', 'notes'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['name', 'budget_ceilings', 'utilities', 'costs', 'notes']})
+        ceilings = body.get('budget_ceilings'); utils = body.get('utilities'); costs = body.get('costs') or {}
+        if type(ceilings) is not list or not 1 <= len(ceilings) <= 8 or any(type(c) is not int or c < 0 for c in ceilings) or type(utils) is not dict or type(costs) is not dict:
+            raise ServiceError('VALIDATION', {'code': 'scenario', 'rule': 'budget_ceilings: 1..8 non-negative integers; utilities: {node: int >= 0} for every candidate; costs: {node: int > 0} optional'})
+        links = db.execute('SELECT * FROM mission_links WHERE portfolio_id=? ORDER BY rowid', (pid,)).fetchall()
+        cands = {}
+        for l in links:
+            if l['node'] in cands:
+                continue
+            cost = costs.get(l['node'])
+            if cost is None and l['terms_id']:
+                t = db.execute('SELECT terms_json FROM work_terms WHERE id=?', (l['terms_id'],)).fetchone(); cost = json.loads(t['terms_json'])['payment']['ceiling'] if t else None
+            cands[l['node']] = {'node': l['node'], 'question': l['question'], 'cost': cost if type(cost) is int and cost > 0 else 1, 'cost_source': 'declared' if l['node'] in costs else ('linked terms ceiling' if l['terms_id'] else 'default 1')}
+        if not cands:
+            raise ServiceError('CONFLICT', {'code': 'no_candidates', 'note': 'draft or link work requests to the portfolio first'})
+        if len(cands) > self.MAX_SCENARIO_TASKS:
+            raise ServiceError('VALIDATION', {'code': 'too_many_candidates', 'max': self.MAX_SCENARIO_TASKS})
+        missing = [n for n in cands if type(utils.get(n)) is not int or utils[n] < 0]
+        if missing:
+            raise ServiceError('VALIDATION', {'code': 'utility_required', 'nodes': missing, 'note': 'every candidate needs an explicit declared utility; nothing is inferred'})
+        from ..compute import resource_plan as rp
+        n = len(cands); slots = max(2, n + 1)
+        inputs = {'schema': rp.SCHEMA, 'slot_seconds': 60, 'slots': slots, 'capacity': 10 ** 9, 'initial_low': 10 ** 9, 'reserve': 0, 'supply_low': [0] * slots, 'supply_high': [0] * slots, 'base_low': [0] * slots, 'base_high': [0] * slots,
+                  'uncertainty_interpretation': 'specification_bound', 'resources': {'cpu': n}, 'objectives': {'mode': 'cost_sweep', 'cost_ceilings': sorted(set(ceilings))},
+                  'tasks': [{'id': c['node'], 'utility': utils[c['node']], 'duration': 1, 'power_high': 1, 'cost': c['cost'], 'resources': {'cpu': 1}} for c in cands.values()], 'private_label': 'SCENARIO_' + pid, 'device_policy': 'cpu'}
+        from ..api import quick_submit
+        sub = quick_submit(self.svc, db, principal, 'resource_plan', inputs, ('portfolio scenario: ' + (body.get('name') or 'scenario'))[:128])
+        sid = 'ms_' + secrets.token_hex(6)
+        assumptions = {'budget_ceilings': sorted(set(ceilings)), 'utilities': {n_: utils[n_] for n_ in cands}, 'candidates': list(cands.values()), 'notes': (body.get('notes') or '')[:400],
+                       'reading': 'utilities are the requester\'s declared assumptions; the selection is optimal only under them; energy and time constraints are switched off so cost is the binding resource; no award follows from a scenario'}
+        db.execute('INSERT INTO mission_scenarios VALUES (?,?,?,?,?,?,?,?)', (sid, principal.workspace, pid, body.get('name') or 'scenario', json.dumps(assumptions), sub['job_id'], principal.id, now()))
+        history.record(db, principal.workspace, principal.id, 'work.mission_scenario', 'mission_scenario', sid, {'portfolio_id': pid, 'job_id': sub['job_id'], 'candidates': n, 'ceilings': sorted(set(ceilings))})
+        return self.scenario_view(db, principal, pid, sid)
+
+    def scenario_view(self, db, principal, pid, sid):
+        principal.require('work:read')
+        self.portfolio_row(db, principal, pid)
+        r = db.execute('SELECT * FROM mission_scenarios WHERE id=? AND portfolio_id=?', (sid, pid)).fetchone()
+        if r is None:
+            raise ServiceError('NOT_FOUND', 'scenario')
+        job = db.execute('SELECT * FROM jobs WHERE id=?', (r['job_id'],)).fetchone()
+        out = {'schema': 'metacoin-portfolio-scenario/v1', 'id': sid, 'portfolio_id': pid, 'name': r['name'], 'assumptions': json.loads(r['assumptions_json']), 'job_id': r['job_id'], 'job_state': job['state'], 'planner': 'robust-resource-plan/v1 (existing compute kind resource_plan)', 'created_at': r['created_at']}
+        if job['state'] == 'succeeded':
+            from ..compute import service as compute_svc
+            try:
+                _, plan = compute_svc.plan_json(db, principal, self.svc.jobs, self.svc.store, r['job_id'])
+                alts = (plan.get('alternatives') or {}).get('alternatives') or (plan.get('alternatives') or {}).get('candidates') or []
+                out['allocations'] = [{'budget_ceiling': a.get('cost_ceiling'), 'status': a.get('status'), 'selected': sorted(a['assignments']) if a.get('assignments') else None, 'declared_utility_total': a.get('utility'), 'cost': a.get('cost'), 'pareto_within_sweep': a.get('pareto_within_sweep'), 'also_optimal_for_ceilings': a.get('also_optimal_for_ceilings')} for a in alts]
+                out['unconstrained'] = {'status': plan.get('status'), 'selected': plan.get('selected'), 'declared_utility_total': plan.get('objective'), 'cost': plan.get('cost')}
+                out['reading'] = 'each row is the planner\'s selection under the declared utilities at that budget; "pareto_within_sweep" compares only the evaluated ceilings; the utility objective is an assumption, not truth'
+            except ServiceError as exc:
+                out['allocations'] = None; out['note'] = 'plan not readable: ' + str(exc.code)
+        elif job['state'] in ('failed', 'cancelled'):
+            out['allocations'] = None; out['note'] = 'planner did not conclude: ' + str(job['error_code'])
+        return out
+
+    def scenarios(self, db, principal, pid):
+        principal.require('work:read')
+        self.portfolio_row(db, principal, pid)
+        return [self.scenario_view(db, principal, pid, r['id']) for r in db.execute('SELECT id FROM mission_scenarios WHERE portfolio_id=? ORDER BY rowid', (pid,)).fetchall()]
+
     # ---- mission learning records (§76.10) -------------------------------------------------------------------------------------
     LEARNING_CLASSES = ('contradicts_declared_verdict', 'confirmed_declared_verdict', 'new_evidence_for_unassessed_node', 'inconclusive')
 

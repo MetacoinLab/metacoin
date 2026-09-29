@@ -7,6 +7,7 @@ from metacoin_service.tests.test_work_money import WorkMoneyTests, HAVE_CHAIN
 from metacoin_service.tests import test_work_money as money_mod, test_work_access_missions as missions_mod
 from metacoin_service.tests.test_work_access_missions import WorkAccessMissionTests
 from metacoin_service.economy import legacy_bridge
+from metacoin_service.tests.test_compute_engine import HAVE_RUNTIME
 
 
 @unittest.skipUnless(HAVE_CHAIN, 'needs the built local-chain artifacts')
@@ -65,6 +66,30 @@ class MissionLearningTests(WorkAccessMissionTests):
         rec = self.c.post('/api/v1/work/missions/%s/contributions/%s/learning' % (pf['id'], c['id']), headers=self.H, json={'decision_changed': True, 'note': 'replication confirmed; the plan keeps task-0018 as a constraining node'}); self.assertEqual(rec.status_code, 200, rec.text)
         view2 = self.c.get('/api/v1/work/missions/' + pf['id'], headers=self.H).json(); self.assertEqual(view2['learning']['decisions_changed'], [c['id']]); self.assertEqual(view2['contributions'][0]['learning']['recorded_by'], self.inst.ids['owner'])
         self.assertEqual(self.c.post('/api/v1/work/missions/%s/contributions/wc_nope/learning' % pf['id'], headers=self.H, json={'decision_changed': False}).status_code, 404)
+
+
+@unittest.skipUnless(HAVE_RUNTIME, 'needs the numpy/scipy compute interpreter')
+class PortfolioScenarioTests(WorkAccessMissionTests):
+    locals().update({n: None for n in dir(WorkAccessMissionTests) if n.startswith('test_')})
+
+    def test_scenarios_compare_allocations_under_declared_utilities_without_awarding(self):
+        pf = self.c.post('/api/v1/work/missions/import', headers=self.H, json={}).json()
+        d1 = self.c.post('/api/v1/work/missions/%s/bottlenecks/task-0018/draft' % pf['id'], headers=self.H, json={'ceiling': 3}).json()
+        others = [b['task'] for b in pf['bottlenecks'] if b['task'] != 'task-0018'][:2]
+        for t in others:
+            self.assertEqual(self.c.post('/api/v1/work/missions/%s/bottlenecks/%s/draft' % (pf['id'], t), headers=self.H, json={'ceiling': 4}).status_code, 201)
+        nodes = ['task-0018'] + others
+        missing = self.c.post('/api/v1/work/missions/%s/scenarios' % pf['id'], headers=self.H, json={'name': 's', 'budget_ceilings': [3, 7, 20], 'utilities': {'task-0018': 5}}); self.assertEqual(missing.status_code, 422); self.assertEqual(missing.json()['detail']['code'], 'utility_required')
+        utils = {n: u for n, u in zip(nodes, (5, 4, 3))}
+        sc = self.c.post('/api/v1/work/missions/%s/scenarios' % pf['id'], headers=self.H, json={'name': 'which bottlenecks first', 'budget_ceilings': [3, 7, 20], 'utilities': utils}); self.assertEqual(sc.status_code, 201, sc.text); sc = sc.json()
+        self.assertEqual(sc['job_state'], 'queued'); self.assertIn('assumptions', sc['assumptions']['reading']); self.run_worker(2)
+        v = self.c.get('/api/v1/work/missions/%s/scenarios/%s' % (pf['id'], sc['id']), headers=self.H).json(); self.assertEqual(v['job_state'], 'succeeded', v)
+        by = {a['budget_ceiling']: a for a in v['allocations']}
+        self.assertEqual(by[3]['selected'], ['task-0018']); self.assertEqual(by[3]['cost'], 3)
+        self.assertEqual(sorted(by[20]['selected']), sorted(nodes)); self.assertEqual(by[20]['declared_utility_total'], 12)
+        self.assertLessEqual(by[7]['cost'], 7); self.assertIn('assumption, not truth', v['reading'])
+        self.assertEqual(self.c.get('/api/v1/work/awards', headers=self.H).json()['items'], []); self.assertEqual(self.c.get('/api/v1/work/journal', headers=self.H).json()['entries'], [])
+        self.assertEqual(len(self.c.get('/api/v1/work/missions/%s/scenarios' % pf['id'], headers=self.H).json()['items']), 1)
 
 
 if __name__ == '__main__':

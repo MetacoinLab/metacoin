@@ -16,7 +16,7 @@ MANDATORY = ('manifest.json', 'statement.json', 'terms.json', 'offer.json', 'awa
 MAX_PACKAGE_BYTES = 64 * 1024 * 1024
 
 
-def import_preview(db, principal, settings, access, raw, trust_roots=()):
+def import_preview(db, principal, settings, access, raw, trust_roots=(), draft=False, economy=None):
     principal.require('work:read')
     if not raw or len(raw) > MAX_PACKAGE_BYTES:
         raise ServiceError('VALIDATION', {'code': 'package_bytes', 'max': MAX_PACKAGE_BYTES})
@@ -77,6 +77,19 @@ def import_preview(db, principal, settings, access, raw, trust_roots=()):
            'payment_observations': [{'entitlement_id': s.get('claims', {}).get('entitlement_id'), 'rail': s.get('claims', {}).get('rail'), 'final_amount': s.get('claims', {}).get('final_amount'), 'status': 'sender-reported observation; not a live rail query by this instance; creates no revenue, entitlement or journal entry here'} for s in settlements],
            'effects': _effects(db, journal_before), 'next_steps': ['pass the signer keys you trust as trust_roots to turn "unknown signer" into a verified signature',
                                                                    'to execute the same operation here, draft new terms from the package terms (a fresh request, fresh inputs and fresh offers are required); nothing is awarded by importing']}
+    if draft:
+        # §76.9: execute the same class of work HERE as a new local agreement: a draft copied from the package terms with the
+        # operation binding, requester and workspace stripped; inputs, freeze, request and offers are all fresh local steps
+        if not structural['complete'] or not methods['installed_here']:
+            raise ServiceError('CONFLICT', {'code': 'package_not_draftable', 'structural_complete': structural['complete'], 'installed_here': methods['installed_here']})
+        doc = json.loads(json.dumps(terms))
+        doc['operation'] = {'kind': kind, 'compatibility': (doc.get('operation') or {}).get('compatibility', 'same_verifier_digest')}
+        for m in doc.get('milestones', []):
+            m.pop('operation', None)
+        doc.pop('requester', None)
+        d = economy.terms.create(db, principal, {'terms': doc})
+        out['draft'] = {'terms_id': d['id'], 'state': d['state'], 'note': 'a new draft of this instance: bind fresh inputs (freeze), open a request and collect fresh offers; nothing from the package is awarded, paid or trusted'}
+        history.record(db, principal.workspace, principal.id, 'work.package_preview', 'package', digest[:16], {'outcome': 'drafted', 'terms_id': d['id']})
     history.record(db, principal.workspace, principal.id, 'work.package_preview', 'package', digest[:16], {'outcome': 'previewed', 'structural_complete': structural['complete'], 'trusted_keys': sum(t['trusted'] for t in trust), 'bytes': len(raw)})
     return out
 

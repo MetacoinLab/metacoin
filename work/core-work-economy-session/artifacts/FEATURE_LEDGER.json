@@ -260,6 +260,20 @@
    "entry_points": "POST/GET /work/pricing-experiments[/{id}]; CLI work-pricing-experiment(s)",
    "evidence": "test_work_backlog2",
    "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.2 portfolio budget scenarios: allocations across a mission portfolio's commissioned requests under EXPLICIT declared utilities and costs, solved by the existing robust planner (resource_plan cost sweep); labelled assumption, not truth; awards nothing",
+   "entry_points": "POST/GET /work/missions/{pid}/scenarios[/{sid}]; CLI work-mission-scenario(s)",
+   "evidence": "test_work_backlog PortfolioScenarioTests",
+   "status": "implemented and exercised"
+  },
+  {
+   "group": "backlog",
+   "feature": "\u00a776.9 package compatibility, second half: a previewed package seeds a new local draft (operation binding stripped; fresh inputs, request and offers required)",
+   "entry_points": "POST /work/packages/import-preview {draft: true}",
+   "evidence": "test_work_history_interop",
+   "status": "implemented and exercised"
   }
  ],
  "known_limits": [
@@ -272,16 +286,8 @@
  ],
  "not_implemented": [
   {
-   "item": "\u00a776.2 portfolio budget scenarios with explicit utility assumptions",
-   "status": "unfinished: not started"
-  },
-  {
    "item": "\u00a776.6 private provider portfolios",
    "status": "implemented as the disclosed portfolio of \u00a738 (provider-selected receipts, completeness label); selective per-viewer disclosure policies beyond role scope not implemented"
-  },
-  {
-   "item": "\u00a776.9 cross-instance package compatibility",
-   "status": "import preview implemented (\u00a761); execution of an imported package as a new local contract is a manual draft step"
   }
  ]
 }

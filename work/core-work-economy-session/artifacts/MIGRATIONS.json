@@ -87,9 +87,10 @@
     "work_programs",
     "work_program_runs",
     "pricing_experiments",
-    "work_challenges"
+    "work_challenges",
+    "mission_scenarios"
    ],
-   "note": "additive; \u00a776.1 repeated procurement, \u00a776.7 pricing experiments, \u00a776.3 verifier challenge packages"
+   "note": "additive; \u00a776.1 repeated procurement, \u00a776.7 pricing experiments, \u00a776.3 verifier challenge packages; \u00a776.2 portfolio scenarios"
   }
  ],
  "transaction_notes": "each migration runs in one transaction; 033 rebuilds the principals table with PRAGMA foreign_keys=OFF outside the batch transaction and runs PRAGMA foreign_key_check before committing; all others are additive",

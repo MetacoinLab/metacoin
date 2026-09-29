@@ -474,7 +474,7 @@ def expansion(args, go):
 WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-freeze', 'work-terms-amend', 'work-terms-inspect', 'work-terms-evaluate', 'work-providers', 'work-provider-register', 'work-request-create', 'work-requests', 'work-request',
                  'work-request-action', 'work-offer', 'work-compare', 'work-award', 'work-awards', 'work-award-view', 'work-ack', 'work-evaluate', 'work-decide', 'work-verify', 'work-receipts', 'work-receipt-verify', 'work-dispute-open', 'work-dispute',
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
-                 'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation')
+                 'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
 
 def work(args, go):
@@ -563,6 +563,10 @@ def work(args, go):
         return go('GET', '/api/v1/work/challenges' + ('/' + args.challenge_id if args.challenge_id else ''))
     if c == 'work-challenge-package':
         return go('GET', '/api/v1/work/challenges/' + args.challenge_id + '/package', raw_out=args.out) if 'raw_out' in go.__code__.co_varnames else go('GET', '/api/v1/work/challenges/' + args.challenge_id)
+    if c == 'work-mission-scenario':
+        return go('POST', '/api/v1/work/missions/' + args.portfolio_id + '/scenarios', jf())
+    if c == 'work-mission-scenarios':
+        return go('GET', '/api/v1/work/missions/' + args.portfolio_id + '/scenarios' + ('/' + args.scenario_id if args.scenario_id else ''))
     if c == 'work-reconciliation':
         return go('GET', '/api/v1/work/reconciliation')
     if c == 'work-provider-history':
@@ -833,6 +837,8 @@ def main(argv=None):
     w = sub.add_parser('work-challenge', help='propose a bounded counterexample against a receipt (JSON file: counterexample_inputs)'); w.add_argument('receipt_id'); w.add_argument('--claim', required=True); w.add_argument('--asserted', required=True); w.add_argument('--file', required=True); w.add_argument('--idempotency-key')
     w = sub.add_parser('work-challenges'); w.add_argument('challenge_id', nargs='?')
     w = sub.add_parser('work-challenge-package'); w.add_argument('challenge_id'); w.add_argument('--out')
+    w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
+    w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
     w = sub.add_parser('work-reconciliation', help='pending payment observations with the one bounded action that applies to each')
     w = sub.add_parser('work-provider-history', help='evidence-based provider history (dimensions with sample sizes; no score)'); w.add_argument('provider_id'); w.add_argument('--disclosed', action='store_true')
     w = sub.add_parser('work-provider-portfolio'); w.add_argument('provider_id')

@@ -365,6 +365,19 @@ def mount(app, svc, run, read_body, API):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, True, lambda db, p: (MS.draft_from_bottleneck(db, p, pid, task, body), 201), 'work.mission.draft', raw)
 
+    @app.post(API + '/work/missions/{pid}/scenarios', status_code=201)
+    async def work_mission_scenario_create(request: Request, pid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (MS.scenario_create(db, p, pid, body), 201), 'work.mission.scenario', raw)
+
+    @app.get(API + '/work/missions/{pid}/scenarios')
+    async def work_mission_scenarios(request: Request, pid: str):
+        return await run(request, False, lambda db, p: {'items': MS.scenarios(db, p, pid)})
+
+    @app.get(API + '/work/missions/{pid}/scenarios/{sid}')
+    async def work_mission_scenario(request: Request, pid: str, sid: str):
+        return await run(request, False, lambda db, p: MS.scenario_view(db, p, pid, sid))
+
     @app.post(API + '/work/missions/{pid}/contributions/{cid}/learning')
     async def work_mission_learning(request: Request, pid: str, cid: str):
         raw = await request.body(); body = read_body(request, raw)
@@ -425,7 +438,8 @@ def mount(app, svc, run, read_body, API):
             except Exception:
                 raise ServiceError('VALIDATION', {'code': 'package_b64'})
             roots = body.get('trust_roots') or []
-        return await run(request, True, lambda db, p: interop.import_preview(db, p, svc.settings, AC, pkg, roots))
+        draft = bool((body.get('draft') if 'body' in dir() else False) or request.query_params.get('draft') == '1')
+        return await run(request, True, lambda db, p: interop.import_preview(db, p, svc.settings, AC, pkg, roots, draft=draft, economy=svc.economy))
 
     @app.get(API + '/work/reconciliation')
     async def work_reconciliation(request: Request):

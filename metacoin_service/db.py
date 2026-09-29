@@ -451,6 +451,7 @@ MIGRATIONS = [
     CREATE TABLE work_program_runs (id TEXT PRIMARY KEY, program_id TEXT NOT NULL REFERENCES work_programs(id), run_no INTEGER NOT NULL, terms_id TEXT NOT NULL REFERENCES work_terms(id), request_id TEXT REFERENCES work_requests(id), input_root TEXT, created_at INTEGER NOT NULL, UNIQUE (program_id, run_no));
     CREATE INDEX work_program_runs_request ON work_program_runs (request_id);
     CREATE TABLE pricing_experiments (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, record_json TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (workspace, name, version));
+    CREATE TABLE mission_scenarios (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, portfolio_id TEXT NOT NULL REFERENCES mission_portfolios(id), name TEXT NOT NULL, assumptions_json TEXT NOT NULL, job_id TEXT NOT NULL REFERENCES jobs(id), created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     CREATE TABLE work_challenges (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, receipt_id TEXT NOT NULL REFERENCES work_receipts(id), award_id TEXT NOT NULL REFERENCES work_awards(id), challenger_id TEXT NOT NULL, claim TEXT NOT NULL, inputs_json TEXT NOT NULL, asserted_outcome TEXT NOT NULL, kind TEXT NOT NULL, contract_id TEXT NOT NULL REFERENCES contracts(id), job_id TEXT NOT NULL REFERENCES jobs(id), state TEXT NOT NULL, result_json TEXT, created_at INTEGER NOT NULL);
     """),
 ]
