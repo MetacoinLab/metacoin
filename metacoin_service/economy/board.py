@@ -504,18 +504,25 @@ class Board:
         if grant_of(principal):
             guard(db, principal, 'invoke', service_kind=terms['operation']['kind'], amount=o['price_amount'] + terms['payment'].get('verifier_compensation', 0), precheck_jobs=1)
         aid = 'wa_' + secrets.token_hex(8)
-        ceiling = o['price_amount'] + terms['payment'].get('verifier_compensation', 0)
-        root = budgets.root(db, principal.workspace)
-        node = budgets.create_child(db, principal.workspace, root['id'], 'campaign', 'award:' + aid, min(ceiling, root['ceiling']))
-        try:
-            rsv = budgets.reserve(db, principal.workspace, node, ceiling, 'work_award', aid)
-        except ServiceError as exc:
-            db.execute('DELETE FROM budget_nodes WHERE id=?', (node,))
-            raise ServiceError('BUDGET_EXHAUSTED', dict(exc.detail if isinstance(exc.detail, dict) else {}, note='nothing awarded; nothing reserved'))
+        ceiling = o['price_amount'] + terms_mod.fee_amount(terms['payment'], o['price_amount']) + terms['payment'].get('verifier_compensation', 0)
+        if terms['payment'].get('funding', 'requester') == 'treasury':
+            node, rsv = None, None
+            if not db.execute("SELECT id FROM treasury_allocations WHERE terms_id=? AND state='reserved'", (t['id'],)).fetchone():
+                raise ServiceError('CONFLICT', {'code': 'treasury_allocation_required', 'note': 'allocate the treasury budget for these terms before awarding'})
+        else:
+            root = budgets.root(db, principal.workspace)
+            node = budgets.create_child(db, principal.workspace, root['id'], 'campaign', 'award:' + aid, min(ceiling, root['ceiling']))
+            try:
+                rsv = budgets.reserve(db, principal.workspace, node, ceiling, 'work_award', aid)
+            except ServiceError as exc:
+                db.execute('DELETE FROM budget_nodes WHERE id=?', (node,))
+                raise ServiceError('BUDGET_EXHAUSTED', dict(exc.detail if isinstance(exc.detail, dict) else {}, note='nothing awarded; nothing reserved'))
         db.execute('INSERT INTO work_awards (id, workspace, request_id, offer_id, terms_id, terms_digest, provider_id, provider_revision, pay_to, state, active, ceiling, reserved, budget_node_id, reservation_id, ack_deadline, delivery_deadline, selection_json, awarded_by, awarded_at, created_at, updated_at) '
                    'VALUES (?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?)',
                    (aid, principal.workspace, rid, oid, t['id'], t['digest'], prow['id'], prow['revision'], o['pay_to'], 'awarded', ceiling, ceiling, node, rsv, now() + terms['deadlines']['acknowledge_seconds'], now() + min(o['window_seconds'], terms['deadlines']['delivery_seconds']),
                     json.dumps(selection), principal.id, now(), now(), now()))
+        if terms['payment'].get('funding', 'requester') == 'treasury':
+            getattr(self, 'treasury').on_award(db, {'id': aid, 'terms_id': t['id']}, terms)
         db.execute("UPDATE work_offers SET state='awarded', updated_at=? WHERE id=?", (now(), oid))
         for other in db.execute("SELECT id FROM work_offers WHERE request_id=? AND state='offered' AND id!=?", (rid, oid)).fetchall():
             if active + 1 >= r['max_awards']:
@@ -658,13 +665,13 @@ class Board:
 
     def award_view(self, db, principal, a):
         principal.require('work:read')
-        self.tick(db, a['id'])
+        (getattr(self, 'evidence', None).tick(db, a['id']) if getattr(self, 'evidence', None) is not None else self.tick(db, a['id']))
         a = db.execute('SELECT * FROM work_awards WHERE id=?', (a['id'],)).fetchone()
         t, terms = _terms(db, a['terms_id'])
         prow = db.execute('SELECT * FROM providers WHERE id=?', (a['provider_id'],)).fetchone()
         is_party = principal.id in (a['awarded_by'], prow['principal_id']) or principal.can('work:award') or principal.role == 'reviewer'
         ms = []
-        for m in db.execute('SELECT * FROM work_milestones WHERE award_id=? ORDER BY updated_at, id', (a['id'],)).fetchall():
+        for m in db.execute('SELECT * FROM work_milestones WHERE award_id=? ORDER BY rowid', (a['id'],)).fetchall():
             job = db.execute('SELECT state, outcome, error_code, evidence_root, finished_at FROM jobs WHERE id=?', (m['job_id'],)).fetchone() if m['job_id'] else None
             ent = db.execute('SELECT id, state, amount FROM work_entitlements WHERE id=?', (m['entitlement_id'],)).fetchone() if m['entitlement_id'] and self._has_table(db, 'work_entitlements') else None
             ms.append({'id': m['id'], 'key': m['key'], 'state': m['state'], 'max_payment': m['max_payment'], 'depends_on': json.loads(m['depends_json']), 'deadline_at': m['deadline_at'], 'contract_id': m['contract_id'], 'job_id': m['job_id'],
@@ -673,7 +680,7 @@ class Board:
                                       'science': (job['outcome'] if job and job['state'] == 'succeeded' and is_party else ('no_valid_evidence' if job and job['state'] in ('failed', 'cancelled') else 'unknown' if job else 'not_applicable')),
                                       'acceptance': {'pending': 'pending', 'ready': 'pending', 'executing': 'pending', 'delivered': 'pending', 'accepted': 'accepted', 'rejected': 'rejected', 'disputed': 'disputed', 'cancelled': 'not_applicable', 'superseded': 'superseded'}[m['state']],
                                       'payment': (ent['state'] if ent else ('reserved' if m['state'] not in ('cancelled',) else 'released'))},
-                       'attempts': [dict(x) for x in db.execute('SELECT id, generation, job_id, state, started_at, finished_at, evidence_root, receipt_id, note FROM work_attempts WHERE milestone_id=? ORDER BY generation', (m['id'],)).fetchall()]})
+                       'attempts': [dict(x) for x in db.execute('SELECT id, generation, job_id, state, started_at, finished_at, evidence_root, receipt_id, note FROM work_attempts WHERE milestone_id=? ORDER BY generation, rowid', (m['id'],)).fetchall()]})
         out = {'id': a['id'], 'state': a['state'], 'active': bool(a['active']), 'request_id': a['request_id'], 'offer_id': a['offer_id'], 'terms_id': a['terms_id'], 'terms_digest': a['terms_digest'], 'provider_id': a['provider_id'], 'provider_revision': a['provider_revision'],
                'provider_execution': json.loads(prow['execution_json'])['type'], 'provider_relationship': json.loads(prow['relationship_json'])['relationship'], 'pay_to': a['pay_to'] if is_party else None,
                'ceiling': a['ceiling'], 'reserved': a['reserved'], 'budget_node_id': a['budget_node_id'], 'reservation_id': a['reservation_id'], 'funds': 'allocated in the application budget tree (reservation); not on-chain escrow; nothing authorized or transferred by the award',

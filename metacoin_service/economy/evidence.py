@@ -119,6 +119,9 @@ class Evidence:
                           'claim': st.get('claim'), 'challenge_digest': st.get('challenge_digest'), 'sampling': 'sampled evidence is a distinct class; it never establishes full replay' if v['class'] == 'sampled_reference' else None,
                           'independence': indep, 'statement_signature': {'key_id': v['key_id'], 'signature_hex': v['signature_hex']}}
                 self._receipt(db, 'verification', award, ms, None, v['id'], claims, st.get('auditor_id')); n += 1
+                if getattr(self, 'money', None) is not None:
+                    t, terms = _terms(db, award['terms_id'])
+                    self.money.on_verification(db, award, ms, v['id'], terms)
         return n
 
     def receipt_view(self, db, principal, rid):
@@ -139,7 +142,7 @@ class Evidence:
 
     def list_receipts(self, db, principal, aid):
         award = self.award(db, principal, aid); self.tick(db, aid)
-        return [self.receipt_view(db, principal, r['id']) for r in db.execute('SELECT id FROM work_receipts WHERE award_id=? ORDER BY created_at, id', (aid,)).fetchall()]
+        return [self.receipt_view(db, principal, r['id']) for r in db.execute('SELECT id FROM work_receipts WHERE award_id=? ORDER BY rowid', (aid,)).fetchall()]
 
     def verify_receipt(self, db, principal, rid, body=None):
         """Structure, signature under a supplied or the instance trust root, and links — reported separately (§27)."""
@@ -215,6 +218,8 @@ class Evidence:
             ent_id = self._entitlement(db, award, ms, did, amount, terms)
         elif ent_id:
             db.execute("UPDATE work_entitlements SET state='void', updated_at=? WHERE id=? AND state='payable'", (now(), ent_id))
+        if getattr(self, 'money', None) is not None:
+            self.money.on_decision(db, award, ms, did, amount, terms)
         history.record(db, award['workspace'], principal.id, 'work.decision', 'work_decision', did, {'award_id': award['id'], 'milestone': ms['key'], 'decision': decision, 'execution': ev['execution'], 'science': ev['science'], 'payment_class': pay_class, 'payable_amount': amount, 'authority': authority, 'supersedes': supersedes, 'dispute_id': dispute_id})
         self.board.dispatch_ready(db, award['id'])
         self._maybe_close(db, award['id'])
@@ -223,7 +228,7 @@ class Evidence:
     def _entitlement(self, db, award, ms, did, amount, terms):
         """Stable entitlement identity per milestone (UNIQUE): re-signing, a new salt, another archive, key rotation or a lost
         response cannot create a second payable claim. Amount is bound to the decision."""
-        ex = db.execute('SELECT * FROM work_entitlements WHERE milestone_id=?', (ms['id'],)).fetchone()
+        ex = db.execute("SELECT * FROM work_entitlements WHERE milestone_id=? AND kind='provider'", (ms['id'],)).fetchone()
         if ex is not None:
             if ex['state'] in ('paid', 'exposed', 'submitted', 'authorized'):
                 db.execute("UPDATE work_entitlements SET decision_id=?, updated_at=? WHERE id=?", (did, now(), ex['id']))
@@ -231,7 +236,7 @@ class Evidence:
             db.execute("UPDATE work_entitlements SET decision_id=?, amount=?, state='payable', updated_at=? WHERE id=?", (did, amount, now(), ex['id']))
             return ex['id']
         eid = 'wen_' + secrets.token_hex(8)
-        db.execute('INSERT INTO work_entitlements VALUES (?,?,?,?,?,?,?,?,?,?,NULL,?,?)', (eid, award['workspace'], award['id'], ms['id'], did, award['pay_to'], amount, terms['payment']['asset'], terms['payment']['scale'], 'payable', now(), now()))
+        db.execute("INSERT INTO work_entitlements VALUES (?,?,?,?,?,?,?,?,?,?,NULL,?,?,'provider')", (eid, award['workspace'], award['id'], ms['id'], did, award['pay_to'], amount, terms['payment']['asset'], terms['payment']['scale'], 'payable', now(), now()))
         db.execute('UPDATE work_milestones SET entitlement_id=? WHERE id=?', (eid, ms['id']))
         history.record(db, award['workspace'], 'service', 'work.entitlement', 'work_entitlement', eid, {'award_id': award['id'], 'milestone': ms['key'], 'amount': amount, 'asset': terms['payment']['asset'], 'recipient_bound': True})
         return eid
@@ -250,14 +255,14 @@ class Evidence:
         award = db.execute('SELECT * FROM work_awards WHERE id=?', (d['award_id'],)).fetchone(); party = self._party(db, principal, award)
         if not (party['requester'] or party['provider'] or party['reviewer'] or principal.can('work:award')):
             ev = {'decision_candidate': ev['decision_candidate'], 'science': ev['science'], 'execution': ev['execution']}
-        ent = db.execute('SELECT * FROM work_entitlements WHERE milestone_id=?', (d['milestone_id'],)).fetchone()
+        ent = db.execute("SELECT * FROM work_entitlements WHERE milestone_id=? AND kind='provider'", (d['milestone_id'],)).fetchone()
         return {'id': did, 'award_id': d['award_id'], 'milestone_id': d['milestone_id'], 'decision': d['decision'], 'payment_class': d['payment_class'], 'payable_amount': d['payable_amount'], 'evidence_root': d['evidence_root'], 'policy_digest': d['policy_digest'],
                 'decided_by': d['decided_by'], 'authority': d['authority'], 'supersedes': d['supersedes'], 'superseded_by': d['superseded_by'], 'dispute_id': d['dispute_id'], 'created_at': d['created_at'], 'evaluation': ev,
                 'entitlement': ({'id': ent['id'], 'state': ent['state'], 'amount': ent['amount'], 'asset': ent['asset']} if ent else None), 'current': d['superseded_by'] is None}
 
     def decisions(self, db, principal, aid, key):
         ms = self.milestone(db, principal, aid, key)
-        return [self.decision_view(db, principal, d['id']) for d in db.execute('SELECT id FROM work_decisions WHERE milestone_id=? ORDER BY created_at, id', (ms['id'],)).fetchall()]
+        return [self.decision_view(db, principal, d['id']) for d in db.execute('SELECT id FROM work_decisions WHERE milestone_id=? ORDER BY rowid', (ms['id'],)).fetchall()]
 
     def entitlement_view(self, db, principal, eid):
         principal.require('work:read')
@@ -452,7 +457,7 @@ class Evidence:
             result['follow_up'] = 'settle the entitlement'
         elif outcome == 'reverse_acceptance':
             newd = self._record_decision(db, principal, award, ms, ev, 'rejected', 'none', 0, 'dispute_resolution', reason, supersedes=cur['id'] if cur else None, dispute_id=d['id'])
-            ent = db.execute('SELECT * FROM work_entitlements WHERE milestone_id=?', (ms['id'],)).fetchone()
+            ent = db.execute("SELECT * FROM work_entitlements WHERE milestone_id=? AND kind='provider'", (ms['id'],)).fetchone()
             if ent and ent['state'] in ('paid', 'exposed', 'submitted'):
                 db.execute("UPDATE work_entitlements SET state='refund_pending', updated_at=? WHERE id=?", (now(), ent['id']))
                 result['monetary_consequence'] = {'entitlement_id': ent['id'], 'refund_required': ent['amount'], 'state': 'refund_pending', 'note': 'an obligation until a reverse transfer is observed; never a fabricated completed refund'}
@@ -461,7 +466,7 @@ class Evidence:
                 result['monetary_consequence'] = {'entitlement_id': ent['id'], 'state': 'void'}
         elif outcome == 'uphold':
             db.execute("UPDATE work_milestones SET state=?, updated_at=? WHERE id=?", (cur['decision'] if cur else 'delivered', now(), ms['id']))
-            ent = db.execute('SELECT * FROM work_entitlements WHERE milestone_id=?', (ms['id'],)).fetchone()
+            ent = db.execute("SELECT * FROM work_entitlements WHERE milestone_id=? AND kind='provider'", (ms['id'],)).fetchone()
             if ent and ent['state'] == 'held':
                 db.execute("UPDATE work_entitlements SET state='payable', updated_at=? WHERE id=?", (now(), ent['id']))
         else:
@@ -606,9 +611,9 @@ class Evidence:
         files = {'terms.json': merkle.canonical({'terms': terms, 'digest': t['digest'], 'id': t['id']}), 'offer.json': merkle.canonical({'statement': json.loads(offer['statement_json']), 'signature_hex': offer['signature_hex'], 'key_id': offer['key_id']}),
                  'award.json': merkle.canonical({k: award[k] for k in ('id', 'request_id', 'offer_id', 'terms_id', 'terms_digest', 'provider_id', 'provider_revision', 'state', 'ceiling', 'awarded_at')} | {'selection': json.loads(award['selection_json'])}),
                  'milestone.json': merkle.canonical({k: ms[k] for k in ('id', 'key', 'state', 'max_payment', 'contract_id', 'job_id', 'evidence_root', 'decision_id', 'entitlement_id')})}
-        for r in db.execute('SELECT * FROM work_receipts WHERE milestone_id=? OR (award_id=? AND milestone_id IS NULL) ORDER BY created_at', (ms['id'], aid)).fetchall():
+        for r in db.execute('SELECT * FROM work_receipts WHERE milestone_id=? OR (award_id=? AND milestone_id IS NULL) ORDER BY rowid', (ms['id'], aid)).fetchall():
             files['receipts/%s.json' % r['id']] = merkle.canonical({'statement': json.loads(r['statement_json']), 'signature_hex': r['signature_hex'], 'key_id': r['key_id'], 'kind': r['kind']})
-        for d in db.execute('SELECT * FROM work_decisions WHERE milestone_id=? ORDER BY created_at', (ms['id'],)).fetchall():
+        for d in db.execute('SELECT * FROM work_decisions WHERE milestone_id=? ORDER BY rowid', (ms['id'],)).fetchall():
             files['decisions/%s.json' % d['id']] = merkle.canonical({'id': d['id'], 'decision': d['decision'], 'payment_class': d['payment_class'], 'payable_amount': d['payable_amount'], 'evidence_root': d['evidence_root'], 'policy_digest': d['policy_digest'], 'supersedes': d['supersedes'], 'superseded_by': d['superseded_by'], 'authority': d['authority'], 'created_at': d['created_at']})
         for v in db.execute('SELECT * FROM verification_jobs WHERE target_job_id=? AND statement_json IS NOT NULL ORDER BY created_at', (ms['job_id'],)).fetchall() if ms['job_id'] else []:
             files['verifications/%s.json' % v['id']] = merkle.canonical({'statement': json.loads(v['statement_json']), 'signature_hex': v['signature_hex'], 'key_id': v['key_id'], 'state': v['state']})

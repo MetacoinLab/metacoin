@@ -208,6 +208,79 @@ def mount(app, svc, run, read_body, API):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, True, lambda db, p: E.dispute_action(db, p, did, action, body), 'work.dispute.' + action, raw)
 
+    # ---- money: intents, settlement, refunds, journal, treasury (Group D) ----------------------------------------------------
+    M, TR = svc.economy.money, svc.economy.treasury
+
+    @app.get(API + '/work/rails')
+    async def work_rails(request: Request):
+        return await run(request, False, lambda db, p: M.rails(db, p))
+
+    @app.post(API + '/work/entitlements/{eid}/{action}')
+    async def work_entitlement_action(request: Request, eid: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        if action == 'prepare':
+            return await run(request, True, lambda db, p: (M.prepare(db, p, eid, body), 201), 'work.pay.prepare', raw)
+        if action == 'refund':
+            return await run(request, True, lambda db, p: (M.refund(db, p, eid, body), 201), 'work.refund', raw)
+        if action == 'credit':
+            return await run(request, True, lambda db, p: (M.credit(db, p, eid, body), 201), 'work.credit', raw)
+        from ..errors import ServiceError
+        raise ServiceError('NOT_FOUND', 'entitlement action')
+
+    @app.get(API + '/work/intents')
+    async def work_intents(request: Request, state: str = None):
+        return await run(request, False, lambda db, p: {'items': M.list_intents(db, p, state)})
+
+    @app.get(API + '/work/intents/{iid}')
+    async def work_intent(request: Request, iid: str):
+        return await run(request, False, lambda db, p: M.intent_view(db, p, iid))
+
+    @app.post(API + '/work/intents/{iid}/{action}')
+    async def work_intent_action(request: Request, iid: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        if action == 'authorize':
+            return await run(request, True, lambda db, p: M.authorize(db, p, iid), 'work.pay.authorize', raw)
+        if action == 'submit':
+            return await run(request, True, lambda db, p: M.submit(db, p, iid, body), 'work.pay.submit', raw)
+        if action == 'reconcile':
+            return await run(request, True, lambda db, p: M.reconcile_refund(db, p, iid) if M.intent_row(db, p, iid)['kind'] == 'refund' else M.reconcile(db, p, iid), 'work.pay.reconcile', raw)
+        from ..errors import ServiceError
+        raise ServiceError('NOT_FOUND', 'intent action')
+
+    @app.post(API + '/work/awards/{aid}/close')
+    async def work_award_close(request: Request, aid: str):
+        raw = await request.body()
+        return await run(request, True, lambda db, p: M.close_award(db, p, aid), 'work.award.close', raw)
+
+    @app.get(API + '/work/journal')
+    async def work_journal(request: Request):
+        from . import journal as journal_mod
+        def fn(db, p):
+            p.require('budget:read')
+            return {'entries': journal_mod.entries(db, p.workspace), 'balances': journal_mod.scope_balances(db, p.workspace)}
+        return await run(request, False, fn)
+
+    @app.post(API + '/work/journal/replay')
+    async def work_journal_replay(request: Request):
+        from . import journal as journal_mod
+        def fn(db, p):
+            p.require('budget:read')
+            return journal_mod.replay(db, p.workspace)
+        return await run(request, False, fn)
+
+    @app.get(API + '/work/exposure')
+    async def work_exposure(request: Request):
+        return await run(request, False, lambda db, p: M.exposure(db, p))
+
+    @app.get(API + '/work/treasury')
+    async def work_treasury(request: Request, asset: str = 'local-chain-token'):
+        return await run(request, False, lambda db, p: TR.view(db, p, asset))
+
+    @app.post(API + '/work/treasury/allocate', status_code=201)
+    async def work_treasury_allocate(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (TR.allocate(db, p, body), 201), 'work.treasury.allocate', raw)
+
     @app.get(API + '/work/contracts/{contract_id}/upgrade-preview')
     async def work_upgrade_preview(request: Request, contract_id: str):
         return await run(request, False, lambda db, p: T.upgrade_preview(db, p, contract_id))

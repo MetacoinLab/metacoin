@@ -122,6 +122,18 @@ def settle(db, ref_type, ref_id, outcome):
     return state
 
 
+def release_partial(db, ref_type, ref_id, keep):
+    """Commit `keep` of a reservation and release the rest (award close: only paid/payable amounts stay committed). Idempotent."""
+    r = db.execute('SELECT * FROM budget_reservations WHERE ref_type=? AND ref_id=?', (ref_type, ref_id)).fetchone()
+    if r is None or r['state'] != 'reserved':
+        return r['state'] if r else None
+    keep = max(0, min(int(keep), r['amount']))
+    for level in chain(db, r['node_id']):
+        db.execute('UPDATE budget_nodes SET reserved=reserved-?, committed=committed+? WHERE id=?', (r['amount'], keep, level['id']))
+    db.execute("UPDATE budget_reservations SET state='committed', amount=?, updated_at=? WHERE id=?", (keep, now(), r['id']))
+    return 'committed'
+
+
 def view_node(db, row, depth=0):
     children = db.execute('SELECT * FROM budget_nodes WHERE parent_id=? ORDER BY created_at, id', (row['id'],)).fetchall()
     reservations = db.execute("SELECT ref_type, ref_id, amount, state FROM budget_reservations WHERE node_id=? ORDER BY created_at", (row['id'],)).fetchall()

@@ -2,6 +2,8 @@
 from .service import Terms
 from .board import Providers, Board
 from .evidence import Evidence
+from .money import Money
+from .treasury import Treasury
 
 
 class Economy:
@@ -11,6 +13,11 @@ class Economy:
         self.providers = Providers(settings, services)
         self.board = Board(settings, services, self.providers)
         self.evidence = Evidence(settings, services, self.board)
+        self.money = Money(settings, services, self.board, self.evidence)
+        self.treasury = Treasury(settings, services, self.money)
+        self.evidence.money = self.money
+        self.board.evidence = self.evidence
+        self.board.treasury = self.treasury
 
     def tick(self, db):
         """Scheduler pass (worker loop): request expiry, attempts/milestones from jobs, receipts, dispute deadlines."""

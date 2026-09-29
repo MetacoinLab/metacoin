@@ -239,7 +239,16 @@ def validate(terms, mode='draft'):
     if review_needed and not any(p['type'] == 'review_signature' for p in terms['acceptance']['predicates']):
         _err('review_signature_required', note='these deliverable types need an explicitly authorized reviewer; add a review_signature predicate')
     pay = terms['payment']
-    _keys(pay, ('asset', 'scale', 'ceiling', 'scheme', 'verifier_compensation', 'currency_note'), 'payment', required=('asset', 'scale', 'ceiling', 'scheme'))
+    _keys(pay, ('asset', 'scale', 'ceiling', 'scheme', 'verifier_compensation', 'currency_note', 'fee_policy', 'funding', 'verifier_pay_to'), 'payment', required=('asset', 'scale', 'ceiling', 'scheme'))
+    if pay.get('funding', 'requester') not in ('requester', 'treasury'):
+        _err('payment_funding', allowed=['requester', 'treasury'])
+    fp = pay.get('fee_policy', {'schema': 'metacoin-fee-policy/v1', 'treasury_bps': 0, 'rounding': 'floor_fee_remainder_to_provider'})
+    _keys(fp, ('schema', 'treasury_bps', 'rounding'), 'fee_policy', required=('schema', 'treasury_bps'))
+    if fp['schema'] != 'metacoin-fee-policy/v1' or fp.get('rounding', 'floor_fee_remainder_to_provider') != 'floor_fee_remainder_to_provider':
+        _err('fee_policy_schema', allowed=['metacoin-fee-policy/v1 with rounding floor_fee_remainder_to_provider'])
+    _int(fp['treasury_bps'], 0, 5000, 'fee_policy_treasury_bps')
+    if 'verifier_pay_to' in pay:
+        _str(pay['verifier_pay_to'], 'verifier_pay_to', 128)
     if pay['asset'] not in ASSETS:
         _err('payment_asset', allowed=list(ASSETS))
     if pay['scale'] != ASSETS[pay['asset']]['scale']:
@@ -249,8 +258,9 @@ def validate(terms, mode='draft'):
         _err('payment_scheme', allowed=list(SCHEMES))
     _int(pay.get('verifier_compensation', 0), 0, 10 ** 15, 'verifier_compensation')
     pr = terms['acceptance']['payment_rule']
-    if max(pr['complete'], pr['partial'], pr['diagnostic']) + pay.get('verifier_compensation', 0) > pay['ceiling']:
-        _err('payment_rule_exceeds_ceiling', ceiling=pay['ceiling'], note='provider and verifier obligations must fit under the ceiling before dispatch')
+    top = max(pr['complete'], pr['partial'], pr['diagnostic'])
+    if top + fee_amount(pay, top) + pay.get('verifier_compensation', 0) > pay['ceiling']:
+        _err('payment_rule_exceeds_ceiling', ceiling=pay['ceiling'], note='provider payment, treasury fee and verifier compensation must fit under the ceiling before dispatch')
     priv = terms['privacy']
     _keys(priv, ('inputs', 'evidence_disclosure', 'verifier_access', 'projection_default', 'provider_retention_seconds'), 'privacy', required=('inputs', 'evidence_disclosure', 'verifier_access', 'projection_default'))
     if priv['inputs'] not in ('requester_private', 'shared_with_provider_after_award', 'public_synthetic'):
@@ -367,6 +377,12 @@ def validate(terms, mode='draft'):
     return terms
 
 
+def fee_amount(payment, base):
+    """Treasury fee in integer base units: floor(base * bps / 10000); the remainder stays with the provider (documented rule)."""
+    fp = payment.get('fee_policy') or {}
+    return base * int(fp.get('treasury_bps', 0)) // 10000
+
+
 def digest(terms):
     validate(terms, 'frozen')
     return hashlib.sha256(DIGEST_TAG + merkle.canonical(terms)).hexdigest()
@@ -437,7 +453,7 @@ def upgrade_preview(v0_contract):
 # ---- templates (§76-5): reusable determination / infeasibility-witness / independent-replay / diagnostic-delivery ----
 def _base(requester, workspace, kind, title, ceiling, asset='action-units'):
     return {'schema': SCHEMA, 'title': title, 'requester': {'principal_id': requester, 'workspace': workspace}, 'operation': {'kind': kind, 'compatibility': 'same_verifier_digest'},
-            'payment': {'asset': asset, 'scale': ASSETS[asset]['scale'], 'ceiling': ceiling, 'scheme': 'exact', 'verifier_compensation': 0},
+            'payment': {'asset': asset, 'scale': ASSETS[asset]['scale'], 'ceiling': ceiling, 'scheme': 'exact', 'verifier_compensation': 0, 'fee_policy': {'schema': 'metacoin-fee-policy/v1', 'treasury_bps': 0, 'rounding': 'floor_fee_remainder_to_provider'}, 'funding': 'requester'},
             'privacy': {'inputs': 'requester_private', 'evidence_disclosure': ['bindings', 'outcome'], 'verifier_access': 'required_inputs_only', 'projection_default': 'outcome_and_bindings'},
             'deadlines': {'offer_seconds': 86400, 'acknowledge_seconds': 3600, 'delivery_seconds': 86400, 'dispute_seconds': 7 * 86400, 'at_deadline': 'eligible'},
             'eligibility': {'capabilities': [kind], 'verification_classes': ['full_exact', 'full_reference'], 'payment_schemes': ['exact', 'upto'], 'operator_relationships': ['same_operator', 'affiliated', 'independent_declared', 'unknown'], 'execution_types': ['local_worker', 'node']},
