@@ -706,7 +706,11 @@ def create_app(settings):
     async def status_view(request: Request):
         def fn(db, p):
             p.require('history:read')
-            return observability.status(db, p.workspace)
+            out = observability.status(db, p.workspace)
+            from .economy import ops as economy_ops
+            out['work'] = economy_ops.counts(db, p.workspace); out['work_waiting_reasons'] = economy_ops.waiting_reasons(db, p.workspace)
+            out['loaded_revision'] = _revision()
+            return out
         return await run(request, False, fn)
 
     @app.get('/api/metrics')
@@ -2186,8 +2190,17 @@ def create_app(settings):
             p.require('admin:credentials')
             if not settings.limits.get('test_hooks'):
                 raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'test_hooks_disabled'})
+            from .economy.ops import FAULT_POINTS
+            if body.get('fault') in FAULT_POINTS:
+                key = 'fault:' + body['fault']
+                if body.get('disarm'):
+                    db.execute('DELETE FROM meta WHERE key=?', (key,))
+                    return {'fault': body['fault'], 'armed': False}
+                db.execute('INSERT OR REPLACE INTO meta VALUES (?, ?)', (key, '1'))
+                history.record(db, p.workspace, p.id, 'ops.fault', 'service', body['fault'], {'armed': True, 'point': body['fault'], 'disposable_instance_only': True})
+                return {'fault': body['fault'], 'armed': True, 'note': 'raises at the named checkpoint until disarmed; disposable instances only'}
             if body.get('fault') != 'verification_fail' or type(body.get('job_id')) is not str:
-                raise ServiceError('VALIDATION', {'code': 'fault', 'allowed': ['verification_fail'], 'fields': ['job_id']})
+                raise ServiceError('VALIDATION', {'code': 'fault', 'allowed': ['verification_fail'] + list(FAULT_POINTS), 'fields': ['job_id']})
             key = 'fault:verification_fail:' + body['job_id']
             if body.get('clear'):
                 db.execute('DELETE FROM meta WHERE key=?', (key,))

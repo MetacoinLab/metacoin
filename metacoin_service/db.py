@@ -437,6 +437,9 @@ MIGRATIONS = [
     CREATE TABLE contributions (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, portfolio_id TEXT NOT NULL REFERENCES mission_portfolios(id), award_id TEXT NOT NULL, decision_id TEXT NOT NULL, contributor_provider_id TEXT NOT NULL, evidence_root TEXT, affected_node TEXT NOT NULL, reason TEXT NOT NULL, contribution_type TEXT NOT NULL, contribution_kind TEXT NOT NULL, evidence_outcome TEXT, dedup_json TEXT, created_at INTEGER NOT NULL);
     CREATE TABLE physical_observations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, device_id TEXT NOT NULL, device_public_key_hex TEXT NOT NULL, digest TEXT NOT NULL, package_json TEXT NOT NULL, checks_json TEXT NOT NULL, label TEXT NOT NULL, ingested_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     """),
+    ('037_work_notifications', """
+    CREATE TABLE notifications (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, recipient_id TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, event_key TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, dismissed_at INTEGER, UNIQUE (recipient_id, event_key));
+    """),
 ]
 
 

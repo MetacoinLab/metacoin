@@ -250,6 +250,80 @@ def build(api=None):
         s, b = api.call('GET', '/api/v1/usage')
         return ok_or_refused(s, b)
 
+
+    # ---- work economy (Order 08 §64): read tools inspect; consequential tools state their authority and idempotency ------------
+    @mcp.tool(name='draft_work_request', description='Draft WorkTerms from a template (determination | infeasibility_witness | independent_replay | diagnostic_delivery) with a ceiling; returns the inspection of what counts as delivery. Creates a draft only; nothing is opened, reserved or spent.', annotations=CREATE)
+    def draft_work_request(template: str, ceiling: int = 10, asset: str = 'action-units', title: str | None = None) -> dict:
+        body = {'template': template, 'ceiling': ceiling, 'asset': asset}
+        if title:
+            body['title'] = title
+        s, b = api.call('POST', '/api/v1/work/terms', body)
+        if s != 201:
+            return refused(s, b)
+        s2, insp = api.call('GET', '/api/v1/work/terms/' + b['id'] + '/inspect')
+        return {'terms_id': b['id'], 'state': b['state'], 'inspection': insp if s2 == 200 else None}
+
+    @mcp.tool(name='check_provider_compatibility', description='Eligibility of the calling provider (or a named provider, for requesters) for a work request, with structured reasons. Read-only.', annotations=READ)
+    def check_provider_compatibility(request_id: str, provider_id: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/work/requests/' + request_id + '/eligibility', {'provider_id': provider_id} if provider_id else {})
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='compare_offers', description='Eligible offers ranked under the request\'s declared selection policy, excluded offers with reasons, side-by-side differences. Read-only; requester view.', annotations=READ)
+    def compare_offers(request_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/work/requests/' + request_id + '/compare')
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='award_work', description='CONSEQUENTIAL: award a request to an offer in one guarded transaction (reserves the ceiling under the workspace budget, dispatches ready milestones). Requires work:award as the requester; a manual choice needs a reason. Idempotent under idempotency_key and by offer: a retry returns the same award.', annotations=CREATE)
+    def award_work(request_id: str, offer_id: str | None = None, reason: str | None = None, idempotency_key: str | None = None) -> dict:
+        body = {}
+        if offer_id: body['offer_id'] = offer_id
+        if reason: body['reason'] = reason
+        s, b = api.call('POST', '/api/v1/work/requests/' + request_id + '/award', body, idempotency_key=idempotency_key)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='work_status', description='An award with its milestones in four separate dimensions (execution, science, acceptance, payment), attempts and blocked reasons. Read-only.', annotations=READ)
+    def work_status(award_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/work/awards/' + award_id)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='inspect_evidence', description='Receipts of an award (provider claims, verification records, acceptance decisions, settlement observations) with custody labels; private payloads are not returned. Read-only.', annotations=READ)
+    def inspect_evidence(award_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/work/awards/' + award_id + '/receipts')
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='evaluate_acceptance', description='Acceptance candidate for a milestone under the frozen policy with a predicate trace. Read-only: it never accepts, pays or publishes.', annotations=READ)
+    def evaluate_acceptance(award_id: str, milestone: str = 'm1') -> dict:
+        s, b = api.call('POST', '/api/v1/work/awards/%s/milestones/%s/evaluate' % (award_id, milestone), {})
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='prepare_dispute', description='Draft what a dispute would contain (scope, snapshot of evidence, resolver policy) WITHOUT opening it; no hold, no state change. Opening needs open_dispute.', annotations=READ)
+    def prepare_dispute(award_id: str, milestone: str = 'm1', claim: str = '') -> dict:
+        s, b = api.call('GET', '/api/v1/work/awards/' + award_id)
+        if s != 200:
+            return refused(s, b)
+        ms = next((m for m in b['milestones'] if m['key'] == milestone), None)
+        if ms is None:
+            return {'ok': False, 'code': 'NOT_FOUND', 'detail': 'milestone'}
+        s2, t = api.call('GET', '/api/v1/work/terms/' + b['terms_id'])
+        pol = (t.get('terms') or {}).get('dispute') if s2 == 200 else None
+        return {'draft': {'award_id': award_id, 'milestone': milestone, 'scope': 'acceptance', 'claim': claim, 'evidence_root': ms['evidence_root'], 'decision_id': ms['decision_id'], 'milestone_state': ms['state']}, 'policy': pol, 'note': 'not opened; nothing paused'}
+
+    @mcp.tool(name='open_dispute', description='CONSEQUENTIAL: open a dispute on a milestone (freezes the evidence snapshot, pauses acceptance transitions and release of the reserved obligation). Parties only.', annotations=CANCEL)
+    def open_dispute(award_id: str, claim: str, milestone: str = 'm1', scope: str = 'acceptance', idempotency_key: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/work/awards/%s/milestones/%s/dispute' % (award_id, milestone), {'claim': claim, 'scope': scope}, idempotency_key=idempotency_key)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='reconcile_budget', description='Journal replay (balances rebuilt from postings vs live views, invariants) plus unresolved payment exposure. Read-only; it never releases reserves or submits payments.', annotations=READ)
+    def reconcile_budget() -> dict:
+        s, b = api.call('POST', '/api/v1/work/journal/replay', {})
+        s2, e = api.call('GET', '/api/v1/work/exposure')
+        return {'journal': b if s == 200 else refused(s, b), 'exposure': e if s2 == 200 else refused(s2, e)}
+
+    @mcp.tool(name='submit_offer', description='CONSEQUENTIAL for providers: submit a binding offer on an open request (price, scheme, window, verification arrangement). Excluded offers are stored with reasons.', annotations=CREATE)
+    def submit_offer(request_id: str, price_amount: int, scheme: str = 'exact', window_seconds: int = 3600, verification_class: str = 'full_exact', asset: str = 'action-units', idempotency_key: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/work/requests/' + request_id + '/offers', {'price_amount': price_amount, 'asset': asset, 'scheme': scheme, 'window_seconds': window_seconds, 'verification': {'class': verification_class, 'distinct_verifier': False}}, idempotency_key=idempotency_key)
+        return ok_or_refused(s, b)
+
     @mcp.resource('metacoin://services', name='services', description='Installed services catalog (JSON).', mime_type='application/json')
     def services_resource() -> str:
         s, b = api.call('GET', '/api/v1/services')

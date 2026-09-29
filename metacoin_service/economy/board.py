@@ -517,6 +517,8 @@ class Board:
             except ServiceError as exc:
                 db.execute('DELETE FROM budget_nodes WHERE id=?', (node,))
                 raise ServiceError('BUDGET_EXHAUSTED', dict(exc.detail if isinstance(exc.detail, dict) else {}, note='nothing awarded; nothing reserved'))
+        from .ops import fault
+        fault(db, self.settings, 'reservation_posting')
         db.execute('INSERT INTO work_awards (id, workspace, request_id, offer_id, terms_id, terms_digest, provider_id, provider_revision, pay_to, state, active, ceiling, reserved, budget_node_id, reservation_id, ack_deadline, delivery_deadline, selection_json, awarded_by, awarded_at, created_at, updated_at) '
                    'VALUES (?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?,?,?,?)',
                    (aid, principal.workspace, rid, oid, t['id'], t['digest'], prow['id'], prow['revision'], o['pay_to'], 'awarded', ceiling, ceiling, node, rsv, now() + terms['deadlines']['acknowledge_seconds'], now() + min(o['window_seconds'], terms['deadlines']['delivery_seconds']),
@@ -535,6 +537,7 @@ class Board:
         from ..datasets import add_edge
         add_edge(db, principal.workspace, 'work_request', rid, 'work_award', aid, 'awarded'); add_edge(db, principal.workspace, 'work_offer', oid, 'work_award', aid, 'bound_offer')
         self.dispatch_ready(db, aid)
+        fault(db, self.settings, 'award_commit')
         return self.award_view(db, principal, db.execute('SELECT * FROM work_awards WHERE id=?', (aid,)).fetchone())
 
     # ---- milestones, dispatch and attempts (§16, §19) --------------------------------------------------------------------------

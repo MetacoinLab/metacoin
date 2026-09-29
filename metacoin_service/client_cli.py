@@ -471,6 +471,151 @@ def expansion(args, go):
                      'trust_boundary': 'the OS process and the credential file; every tool call is authorized server-side under that principal', 'protocol': 'MCP (mcp SDK 1.26.0), stdio; no network MCP transport is exposed'}
     return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
 
+WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-freeze', 'work-terms-amend', 'work-terms-inspect', 'work-terms-evaluate', 'work-providers', 'work-provider-register', 'work-request-create', 'work-requests', 'work-request',
+                 'work-request-action', 'work-offer', 'work-compare', 'work-award', 'work-awards', 'work-award-view', 'work-ack', 'work-evaluate', 'work-decide', 'work-verify', 'work-receipts', 'work-receipt-verify', 'work-dispute-open', 'work-dispute',
+                 'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
+                 'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close')
+
+
+def work(args, go):
+    """Work-economy commands: every call is one authenticated HTTP request (or a documented short sequence); idempotency keys
+    are passed through unchanged so a retry never creates a second award, decision or payment identity."""
+    c = args.command
+    jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    key = getattr(args, 'idempotency_key', None)
+    if c == 'work-terms-create':
+        body = jf() if args.file else {'template': args.template, 'ceiling': args.ceiling}
+        if args.file and args.template:
+            body['template'] = args.template
+        return go('POST', '/api/v1/work/terms', body, idempotency_key=key)
+    if c == 'work-terms':
+        return go('GET', '/api/v1/work/terms' + ('?state=' + args.state if args.state else ''))
+    if c == 'work-term':
+        return go('GET', '/api/v1/work/terms/' + args.terms_id)
+    if c == 'work-terms-inspect':
+        return go('GET', '/api/v1/work/terms/' + args.terms_id + '/inspect')
+    if c == 'work-terms-freeze':
+        body = jf()
+        if args.contract_id:
+            body['contract_id'] = args.contract_id
+        return go('POST', '/api/v1/work/terms/' + args.terms_id + '/freeze', body, idempotency_key=key)
+    if c == 'work-terms-amend':
+        body = {'terms': jf()}
+        if args.expected_version is not None:
+            body['expected_version'] = args.expected_version
+        return go('POST', '/api/v1/work/terms/' + args.terms_id + '/amend', body, idempotency_key=key)
+    if c == 'work-terms-evaluate':
+        return go('POST', '/api/v1/work/terms/' + args.terms_id + '/evaluate', {'job_id': args.job_id} if args.job_id else {})
+    if c == 'work-providers':
+        return go('GET', '/api/v1/work/providers')
+    if c == 'work-provider-register':
+        return go('POST', '/api/v1/work/providers', jf(), idempotency_key=key)
+    if c == 'work-request-create':
+        return go('POST', '/api/v1/work/requests', {'terms_id': args.terms_id}, idempotency_key=key)
+    if c == 'work-requests':
+        return go('GET', '/api/v1/work/requests' + ('?state=' + args.state if args.state else ''))
+    if c == 'work-request':
+        return go('GET', '/api/v1/work/requests/' + args.request_id)
+    if c == 'work-request-action':
+        return go('POST', '/api/v1/work/requests/' + args.request_id + '/' + args.action, jf(), idempotency_key=key)
+    if c == 'work-offer':
+        body = jf() if args.file else {'price_amount': args.price, 'asset': args.asset, 'scheme': args.scheme, 'window_seconds': args.window, 'verification': {'class': args.verification_class, 'distinct_verifier': False}}
+        return go('POST', '/api/v1/work/requests/' + args.request_id + '/offers', body, idempotency_key=key)
+    if c == 'work-compare':
+        return go('GET', '/api/v1/work/requests/' + args.request_id + '/compare')
+    if c == 'work-award':
+        body = {}
+        if args.offer_id: body['offer_id'] = args.offer_id
+        if args.reason: body['reason'] = args.reason
+        if args.expected_price is not None: body['expected_price'] = args.expected_price
+        return go('POST', '/api/v1/work/requests/' + args.request_id + '/award', body, idempotency_key=key)
+    if c == 'work-awards':
+        return go('GET', '/api/v1/work/awards' + ('?state=' + args.state if args.state else ''))
+    if c == 'work-award-view':
+        return go('GET', '/api/v1/work/awards/' + args.award_id)
+    if c == 'work-ack':
+        return go('POST', '/api/v1/work/awards/' + args.award_id + '/ack', {}, idempotency_key=key)
+    if c == 'work-evaluate':
+        return go('POST', '/api/v1/work/awards/%s/milestones/%s/evaluate' % (args.award_id, args.milestone), {})
+    if c == 'work-decide':
+        return go('POST', '/api/v1/work/awards/%s/milestones/%s/decide' % (args.award_id, args.milestone), {'decision': args.decision, 'reason': args.reason}, idempotency_key=key)
+    if c == 'work-verify':
+        return go('POST', '/api/v1/work/awards/%s/milestones/%s/verify' % (args.award_id, args.milestone), {'class': args.verification_class} if args.verification_class else {}, idempotency_key=key)
+    if c == 'work-receipts':
+        return go('GET', '/api/v1/work/awards/' + args.award_id + '/receipts')
+    if c == 'work-receipt-verify':
+        return go('POST', '/api/v1/work/receipts/' + args.receipt_id + '/verify', {'trust_root': args.trust_root} if args.trust_root else {})
+    if c == 'work-dispute-open':
+        return go('POST', '/api/v1/work/awards/%s/milestones/%s/dispute' % (args.award_id, args.milestone), {'claim': args.claim, 'scope': args.scope}, idempotency_key=key)
+    if c == 'work-dispute':
+        if args.action:
+            return go('POST', '/api/v1/work/disputes/%s/%s' % (args.dispute_id, args.action), jf(), idempotency_key=key)
+        return go('GET', '/api/v1/work/disputes/' + args.dispute_id)
+    if c == 'work-disputes':
+        return go('GET', '/api/v1/work/disputes')
+    if c == 'work-bundle':
+        status, content = go('GET', '/api/v1/work/awards/%s/milestones/%s/bundle?scope=%s' % (args.award_id, args.milestone, args.scope), raw=True)
+        if status == 200:
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(content)
+            return status, {'written': args.out, 'bytes': len(content)}
+        return status, json.loads(content)
+    if c == 'work-audit-grant':
+        return go('POST', '/api/v1/work/awards/' + args.award_id + '/audit-grants', {'grantee_id': args.grantee, 'purpose': args.purpose, 'categories': args.categories.split(','), 'expires_in_seconds': args.expires}, idempotency_key=key)
+    if c == 'work-audit-use':
+        return go('POST', '/api/v1/work/audit-grants/' + args.grant_id + '/use', {})
+    if c == 'work-audit-revoke':
+        return go('POST', '/api/v1/work/audit-grants/' + args.grant_id + '/revoke', {}, idempotency_key=key)
+    if c == 'work-pay':
+        st, i = go('POST', '/api/v1/work/entitlements/' + args.entitlement_id + '/prepare', {}, idempotency_key=key)
+        if st >= 400:
+            return st, i
+        st2, a = go('POST', '/api/v1/work/intents/' + i['id'] + '/authorize', {}, idempotency_key=(key + '-auth') if key else None)
+        if st2 >= 400 or args.authorize_only:
+            return st2, a
+        return go('POST', '/api/v1/work/intents/' + i['id'] + '/submit', {}, idempotency_key=(key + '-submit') if key else None)
+    if c == 'work-intents':
+        return go('GET', '/api/v1/work/intents' + ('?state=' + args.state if args.state else ''))
+    if c == 'work-intent':
+        return go('GET', '/api/v1/work/intents/' + args.intent_id)
+    if c == 'work-reconcile':
+        return go('POST', '/api/v1/work/intents/' + args.intent_id + '/reconcile', {}, idempotency_key=key)
+    if c == 'work-refund':
+        return go('POST', '/api/v1/work/entitlements/' + args.entitlement_id + '/refund', {'amount': args.amount, 'provider_preauthorized': True, 'request_key': args.request_key}, idempotency_key=key)
+    if c == 'work-journal':
+        return go('GET', '/api/v1/work/journal')
+    if c == 'work-journal-replay':
+        return go('POST', '/api/v1/work/journal/replay', {})
+    if c == 'work-treasury':
+        return go('GET', '/api/v1/work/treasury?asset=' + args.asset)
+    if c == 'work-treasury-allocate':
+        return go('POST', '/api/v1/work/treasury/allocate', {'terms_id': args.terms_id}, idempotency_key=key)
+    if c == 'work-exposure':
+        return go('GET', '/api/v1/work/exposure')
+    if c == 'work-status':
+        return go('GET', '/api/v1/work/status')
+    if c == 'work-notifications':
+        return go('GET', '/api/v1/work/notifications')
+    if c == 'work-measurements':
+        return go('GET', '/api/v1/work/measurements')
+    if c == 'work-mission-import':
+        return go('POST', '/api/v1/work/missions/import', {}, idempotency_key=key)
+    if c == 'work-missions':
+        return go('GET', '/api/v1/work/missions')
+    if c == 'work-mission':
+        return go('GET', '/api/v1/work/missions/' + args.portfolio_id)
+    if c == 'work-mission-draft':
+        body = jf(); body.setdefault('ceiling', args.ceiling)
+        return go('POST', '/api/v1/work/missions/%s/bottlenecks/%s/draft' % (args.portfolio_id, args.task), body, idempotency_key=key)
+    if c == 'work-observation':
+        return go('POST', '/api/v1/work/observations', {'package': jf()}, idempotency_key=key)
+    if c == 'work-rails':
+        return go('GET', '/api/v1/work/rails')
+    if c == 'work-close':
+        return go('POST', '/api/v1/work/awards/' + args.award_id + '/close', {}, idempotency_key=key)
+    raise SystemExit('unknown work command')
+
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='metacoin-client', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -622,6 +767,50 @@ def main(argv=None):
     se = sub.add_parser('search'); se.add_argument('--type'); se.add_argument('--status'); se.add_argument('--model'); se.add_argument('--limit', type=int)
     rl = sub.add_parser('reuse-lookup'); rl.add_argument('contract_id')
     ar = sub.add_parser('artifacts'); ar.add_argument('job_id')
+
+    # ---- work economy (Order 08) ------------------------------------------------------------------------------------------
+    w = sub.add_parser('work-terms-create', help='draft WorkTerms from a template (--template) or a JSON file (--file {terms:{...}})'); w.add_argument('--template'); w.add_argument('--ceiling', type=int, default=10); w.add_argument('--file'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-terms'); w.add_argument('--state')
+    w = sub.add_parser('work-term'); w.add_argument('terms_id')
+    w = sub.add_parser('work-terms-inspect', help='what counts as delivery, before reserving anything'); w.add_argument('terms_id')
+    w = sub.add_parser('work-terms-freeze', help='bind the operation: --file {inputs:{...}, milestone_inputs?} or --contract-id'); w.add_argument('terms_id'); w.add_argument('--file'); w.add_argument('--contract-id'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-terms-amend', help='new revision from a JSON file of changed top-level fields'); w.add_argument('terms_id'); w.add_argument('--file', required=True); w.add_argument('--expected-version', type=int); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-terms-evaluate'); w.add_argument('terms_id'); w.add_argument('--job-id')
+    sub.add_parser('work-providers'); w = sub.add_parser('work-provider-register', help='operator registers a provider from a JSON file {name, capabilities, execution?, relationship?, pay_to?}'); w.add_argument('--file', required=True); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-request-create'); w.add_argument('terms_id'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-requests'); w.add_argument('--state')
+    w = sub.add_parser('work-request'); w.add_argument('request_id')
+    w = sub.add_parser('work-request-action', help='open | pause | close | validate | eligibility'); w.add_argument('request_id'); w.add_argument('action'); w.add_argument('--file'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-offer', help='provider submits a binding offer'); w.add_argument('request_id'); w.add_argument('--price', type=int); w.add_argument('--asset', default='action-units'); w.add_argument('--scheme', default='exact'); w.add_argument('--window', type=int, default=3600); w.add_argument('--verification-class', default='full_exact'); w.add_argument('--file'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-compare', help='eligible offers ranked under the declared policy; excluded with reasons'); w.add_argument('request_id')
+    w = sub.add_parser('work-award', help='award (recommended offer, or --offer-id with --reason for a manual choice); one guarded transaction'); w.add_argument('request_id'); w.add_argument('--offer-id'); w.add_argument('--reason'); w.add_argument('--expected-price', type=int); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-awards'); w.add_argument('--state')
+    w = sub.add_parser('work-award-view'); w.add_argument('award_id')
+    w = sub.add_parser('work-ack'); w.add_argument('award_id'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-evaluate', help='acceptance candidate with predicate trace (read-only)'); w.add_argument('award_id'); w.add_argument('--milestone', default='m1')
+    w = sub.add_parser('work-decide'); w.add_argument('award_id'); w.add_argument('decision', choices=('accept', 'reject')); w.add_argument('--milestone', default='m1'); w.add_argument('--reason'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-verify'); w.add_argument('award_id'); w.add_argument('--milestone', default='m1'); w.add_argument('--verification-class'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-receipts'); w.add_argument('award_id')
+    w = sub.add_parser('work-receipt-verify'); w.add_argument('receipt_id'); w.add_argument('--trust-root')
+    w = sub.add_parser('work-dispute-open'); w.add_argument('award_id'); w.add_argument('--milestone', default='m1'); w.add_argument('--claim', required=True); w.add_argument('--scope', default='acceptance'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-dispute', help='view, or act: --action respond|evidence|recheck|decide|appeal|close with --file body'); w.add_argument('dispute_id'); w.add_argument('--action'); w.add_argument('--file'); w.add_argument('--idempotency-key')
+    sub.add_parser('work-disputes')
+    w = sub.add_parser('work-bundle', help='portable work bundle (zip) for the offline verifier'); w.add_argument('award_id'); w.add_argument('--milestone', default='m1'); w.add_argument('--scope', default='restricted'); w.add_argument('--out', required=True)
+    w = sub.add_parser('work-audit-grant'); w.add_argument('award_id'); w.add_argument('--grantee', required=True); w.add_argument('--purpose', required=True); w.add_argument('--categories', default='terms,receipts'); w.add_argument('--expires', type=int, default=3600); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-audit-use'); w.add_argument('grant_id')
+    w = sub.add_parser('work-audit-revoke'); w.add_argument('grant_id'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-pay', help='prepare -> authorize -> submit for one entitlement (stable identity; safe to retry with the same key)'); w.add_argument('entitlement_id'); w.add_argument('--authorize-only', action='store_true'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-intents'); w.add_argument('--state')
+    w = sub.add_parser('work-intent'); w.add_argument('intent_id')
+    w = sub.add_parser('work-reconcile'); w.add_argument('intent_id'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-refund'); w.add_argument('entitlement_id'); w.add_argument('--amount', type=int, required=True); w.add_argument('--request-key', required=True); w.add_argument('--idempotency-key')
+    sub.add_parser('work-journal'); sub.add_parser('work-journal-replay'); w = sub.add_parser('work-treasury'); w.add_argument('--asset', default='local-chain-token')
+    w = sub.add_parser('work-treasury-allocate'); w.add_argument('terms_id'); w.add_argument('--idempotency-key')
+    sub.add_parser('work-exposure'); sub.add_parser('work-status'); sub.add_parser('work-notifications'); sub.add_parser('work-measurements'); sub.add_parser('work-rails')
+    w = sub.add_parser('work-mission-import'); w.add_argument('--idempotency-key'); sub.add_parser('work-missions'); w = sub.add_parser('work-mission'); w.add_argument('portfolio_id')
+    w = sub.add_parser('work-mission-draft', help='deterministic draft from a named bottleneck'); w.add_argument('portfolio_id'); w.add_argument('task'); w.add_argument('--ceiling', type=int, default=3); w.add_argument('--file'); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-observation', help='ingest a signed simulated observation package (JSON file)'); w.add_argument('--file', required=True); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-close'); w.add_argument('award_id'); w.add_argument('--idempotency-key')
     args = parser.parse_args(argv)
     token = load_token(args.credential_file)
     go = lambda *a, **k: call(args.base, token, *a, **k)
@@ -860,6 +1049,8 @@ def main(argv=None):
             out = json.loads(content)
     elif args.command == 'compute-log':
         status, out = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/log')
+    elif args.command in WORK_COMMANDS:
+        status, out = work(args, go)
     elif args.command in EXPANSION_COMMANDS:
         status, out = expansion(args, go)
     elif args.command == 'share':

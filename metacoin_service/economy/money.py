@@ -244,6 +244,8 @@ class Money:
         if second.type != 'payment-verified':
             db.execute("UPDATE payment_intents SET state='failed', error=?, updated_at=? WHERE id=?", ('authorization refused by the resource server: ' + str(second.type), now(), iid))
             raise ServiceError('CONFLICT', {'code': 'authorization_refused', 'stage': second.type})
+        from .ops import fault
+        fault(db, self.settings, 'payment_signing')
         auth_rec = {'headers': headers, 'binding': binding, 'path': '/work/entitlements/' + e['id'], 'nonce': payload.payload['permit2Authorization']['nonce'], 'permitted_amount': payload.payload['permit2Authorization']['permitted']['amount'],
                     'deadline': payload.payload['permit2Authorization'].get('deadline'), 'payload_sha256': hashlib.sha256(payload.model_dump_json(by_alias=True).encode()).hexdigest(), 'signer': i['payer'], 'mechanism': 'permit2 witness (x402 upto proxy)'}
         db.execute("UPDATE payment_intents SET state='authorized', authorization_json=?, requirements_json=?, requirements_digest=?, valid_until=?, updated_at=? WHERE id=?",
@@ -284,6 +286,8 @@ class Money:
         db.execute("UPDATE payment_intents SET state='submitted', final_amount=?, submissions=submissions+1, updated_at=? WHERE id=?", (final, now(), iid))
         db.execute("UPDATE work_entitlements SET state='submitted', updated_at=? WHERE id=?", (now(), e['id']))
         db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')                                  # durable before the rail is touched
+        from .ops import fault
+        fault(db, self.settings, 'payment_submission')
         if i['rail'] == 'application-journal':
             obs = {'source': 'application journal', 'at': now(), 'amount': final, 'reference': 'journal:' + iid, 'confirmation': 'internal ledger transfer; final by construction'}
             return self._observe_settled(db, principal, iid, e, award, terms, final, 'journal:' + iid, obs)
@@ -304,6 +308,12 @@ class Money:
             db.execute("UPDATE payment_intents SET state='unknown', error=?, updated_at=? WHERE id=?", ('settlement outcome unknown: ' + type(exc).__name__, now(), iid))
             db.execute("UPDATE work_entitlements SET state='exposed', updated_at=? WHERE id=?", (now(), e['id']))
             history.record(db, principal.workspace, principal.id, 'work.payment', 'payment_intent', iid, {'state': 'unknown', 'reason': type(exc).__name__})
+            return dict(self.intent_view(db, principal, iid), note='exposure retained; reconcile by identifier/nonce before any retry')
+        try:
+            fault(db, self.settings, 'payment_observation')
+        except RuntimeError as exc:
+            db.execute("UPDATE payment_intents SET state='unknown', error=?, updated_at=? WHERE id=?", ('settlement outcome unknown: ' + str(exc)[:80], now(), iid))
+            db.execute("UPDATE work_entitlements SET state='exposed', updated_at=? WHERE id=?", (now(), e['id']))
             return dict(self.intent_view(db, principal, iid), note='exposure retained; reconcile by identifier/nonce before any retry')
         resp = settled.settle_response.model_dump(by_alias=True, exclude_none=True) if settled.settle_response else {}
         if not settled.success:
@@ -336,6 +346,8 @@ class Money:
         posts = [('exposure:pending', final, 0), ('asset:payer_cash', 0, final)]
         journal.post(db, principal.workspace, 'settle:%s' % iid, 'settlement', i['asset'], i['network'], env, posts, 'payment_intent', iid, 'transfer observed on the rail (%s)' % i['rail'])
         if e['kind'] == 'fee':
+            from .ops import fault
+            fault(db, self.settings, 'fee_credit')
             journal.post(db, principal.workspace, 'fee-credit:%s' % iid, 'fee_credit', i['asset'], i['network'], env, [('treasury:cash', final, 0), ('treasury:revenue', 0, final)], 'payment_intent', iid, 'platform fee observed as settled to the treasury address; credited once per settlement event')
         if e['amount'] > final:
             journal.post(db, principal.workspace, 'headroom:%s' % iid, 'unused_authorization', i['asset'], i['network'], env, [('liability:payable', e['amount'] - final, 0), ('expense:work_accepted', 0, e['amount'] - final)], 'work_entitlement', e['id'], 'metered: the accepted amount below the ceiling was settled; the difference was never owed')
@@ -491,6 +503,8 @@ class Money:
 
     def _observe_refund(self, db, principal, rid, e, orig, amount, txref):
         env = ENV[self.settings.provider_mode]
+        from .ops import fault
+        fault(db, self.settings, 'refund_observation')
         r = self.intent_row(db, principal, rid)
         obs = json.loads(r['observations_json']); obs.append({'source': 'local facilitator settle response', 'at': now(), 'transaction': txref, 'amount': amount})
         db.execute("UPDATE payment_intents SET state='settled', transaction_ref=?, observations_json=?, updated_at=? WHERE id=?", (txref, json.dumps(obs), now(), rid))

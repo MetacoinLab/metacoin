@@ -251,6 +251,8 @@ class Verification:
                 result = {'outcome': 'failed', 'checked': 1, 'total': 1, 'checks': [{'check': 'full_private_recomputation', 'ok': False, 'detail': str(exc)[:200]}], 'statement': SUPPORT['energy_audit']['full_exact']}
         else:
             result = audit(kind, cls, tinputs, files, values['result'], params, challenge, run)
+        from .economy.ops import fault as _fault
+        _fault(db, self.settings, 'verifier_completion')
         fault = db.execute("SELECT value FROM meta WHERE key=?", ('fault:verification_fail:' + target['id'],)).fetchone() if self.settings.limits.get('test_hooks') else None
         if fault is not None:
             result = {'outcome': 'failed', 'checked': result.get('checked', 0), 'total': result.get('total', 0), 'checks': result.get('checks', []) + [{'check': 'fault_injection', 'ok': False, 'detail': 'FAULT INJECTED (test hook): forced verification failure'}],

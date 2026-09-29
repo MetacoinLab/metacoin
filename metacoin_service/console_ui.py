@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.concurrency import run_in_threadpool
 import jinja2
 from experiments.work_contracts import energy_analysis as energy, fixtures
-from . import auth, history, metering, scheduling
+from . import budgets, auth, history, metering, scheduling
 from .compute import service as compute_svc, manifests as compute_manifests, inputs as compute_inputs
 from .models import service as model_svc
 from .knowledge import retrieval as retrieval_mod, engine as knowledge_engine
@@ -668,6 +668,184 @@ def mount(app, svc):
         return await page(request, fn, mutating=True)
 
     # ---- Group F: packages --------------------------------------------------------------------------------------------
+
+    # ---- work economy (Order 08 §63): Missions, Work Requests, Contracts, Providers, Evidence, Disputes, Budgets -------------
+    E = svc.economy
+
+    @app.get('/console/work', response_class=HTMLResponse)
+    async def work_overview(request: Request):
+        def fn(db, p):
+            p.require('work:read')
+            from .economy import ops as economy_ops
+            economy_ops.notify(db)
+            ctx = {'requests': E.board.list_requests(db, p), 'awards': E.board.list_awards(db, p), 'providers': E.providers.list(db, p), 'disputes': E.evidence.list_disputes(db, p),
+                   'missions': E.missions.list_portfolios(db, p), 'notifications': economy_ops.notifications(db, p), 'counts': economy_ops.counts(db, p.workspace), 'waiting': economy_ops.waiting_reasons(db, p.workspace),
+                   'terms': E.terms.list(db, p), 'templates': __import__('metacoin_service.economy.terms', fromlist=['TEMPLATES']).TEMPLATES}
+            return render(request, 'work_overview.html', principal=p, **ctx)
+        return await page(request, fn)
+
+    @app.post('/console/work/terms', response_class=HTMLResponse)
+    async def work_terms_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            t = E.terms.create(db, p, {'template': f.get('template', 'determination'), 'ceiling': int(f.get('ceiling') or 10), 'asset': f.get('asset') or 'action-units'})
+            return RedirectResponse('/console/work/terms/' + t['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/work/terms/{tid}', response_class=HTMLResponse)
+    async def work_terms_page(request: Request, tid: str):
+        def fn(db, p):
+            t = E.terms.view(db, p, E.terms.row(db, p, tid))
+            return render(request, 'work_terms.html', principal=p, t=t, inspection=E.terms.inspect(db, p, tid), fixture=json.dumps(__import__('experiments.work_contracts.fixtures', fromlist=['inputs']).inputs('FEASIBLE') if t['kind'] == 'energy_audit' else {}))
+        return await page(request, fn)
+
+    @app.post('/console/work/terms/{tid}/{action}', response_class=HTMLResponse)
+    async def work_terms_action(request: Request, tid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            if action == 'freeze':
+                E.terms.freeze_amendment(db, p, tid, {'inputs': json.loads(f.get('inputs') or 'null')} if f.get('inputs') else {})
+                return RedirectResponse('/console/work/terms/' + tid, status_code=303)
+            if action == 'request':
+                r = E.board.create_request(db, p, {'terms_id': tid}); E.board.request_state(db, p, r['id'], 'open')
+                return RedirectResponse('/console/work/requests/' + r['id'], status_code=303)
+            raise ServiceError('NOT_FOUND', 'action')
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/work/requests/{rid}', response_class=HTMLResponse)
+    async def work_request_page(request: Request, rid: str):
+        def fn(db, p):
+            r = E.board.request_view(db, p, E.board.request_row(db, p, rid))
+            cmp = E.board.compare_offers(db, p, rid) if (p.id == r['requester_id'] or p.can('work:award')) else None
+            return render(request, 'work_request.html', principal=p, r=r, cmp=cmp)
+        return await page(request, fn)
+
+    @app.post('/console/work/requests/{rid}/{action}', response_class=HTMLResponse)
+    async def work_request_action(request: Request, rid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            if action == 'award':
+                body = {k: v for k, v in (('offer_id', f.get('offer_id') or None), ('reason', f.get('reason') or None)) if v}
+                if f.get('expected_price'):
+                    body['expected_price'] = int(f['expected_price'])
+                a = E.board.award(db, p, rid, body)
+                return RedirectResponse('/console/work/awards/' + a['id'], status_code=303)
+            if action == 'offer':
+                E.board.submit_offer(db, p, rid, {'price_amount': int(f.get('price_amount') or 0), 'asset': f.get('asset') or 'action-units', 'scheme': f.get('scheme') or 'exact', 'window_seconds': int(f.get('window_seconds') or 3600), 'verification': {'class': f.get('verification_class') or 'full_exact', 'distinct_verifier': False}})
+                return RedirectResponse('/console/work/requests/' + rid, status_code=303)
+            E.board.request_state(db, p, rid, action, {'reason': f.get('reason', '')})
+            return RedirectResponse('/console/work/requests/' + rid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    def _award_ctx(db, p, aid, **extra):
+        a = E.board.award_view(db, p, E.board.award_row(db, p, aid))
+        trow = db.execute('SELECT * FROM work_terms WHERE id=?', (a['terms_id'],)).fetchone()
+        terms = json.loads(trow['terms_json'])
+        prov = E.providers.view(db, p, E.providers.row(db, p, a['provider_id']))
+        receipts = E.evidence.list_receipts(db, p, aid)
+        evals = {}
+        for m in a['milestones']:
+            try:
+                evals[m['key']] = E.evidence.evaluate(db, p, aid, m['key'])
+            except ServiceError:
+                evals[m['key']] = None
+        ents = [E.evidence.entitlement_view(db, p, e['id']) for e in db.execute('SELECT id FROM work_entitlements WHERE award_id=? ORDER BY rowid', (aid,)).fetchall()]
+        intents = [E.money.intent_view(db, p, i['id']) for i in db.execute("SELECT id FROM payment_intents WHERE entitlement_id IN (SELECT id FROM work_entitlements WHERE award_id=?) ORDER BY rowid", (aid,)).fetchall()]
+        events = history.for_object(db, p.workspace, 'work_award', aid)
+        disputes = E.evidence.list_disputes(db, p, aid)
+        nxt = []
+        for m in a['milestones']:
+            ev = evals.get(m['key'])
+            if m['state'] == 'delivered' and ev and ev['decision_candidate'] == 'pending' and p.can('work:accept'):
+                nxt.append(('verify', m['key'], 'request the required verification (%s)' % terms['acceptance']['required_verification']['class']))
+            elif m['state'] == 'delivered' and ev and p.can('work:accept'):
+                nxt.append(('decide', m['key'], 'record the acceptance decision (candidate: %s)' % ev['decision_candidate']))
+        for e in ents:
+            if e['state'] == 'payable' and p.can('work:pay'):
+                nxt.append(('pay', e['id'], 'prepare, authorize and submit payment for %s (%d %s)' % (e['milestone'], e['amount'], e['asset'])))
+        for i in intents:
+            if i['state'] in ('submitted', 'unknown', 'expired') and p.can('work:pay'):
+                nxt.append(('reconcile', i['id'], 'payment %s: reconcile before any retry' % i['state']))
+        ctx = dict(a=a, terms=terms, prov=prov, receipts=receipts, evals=evals, ents=ents, intents=intents, events=events, disputes=disputes, next_actions=nxt, custody='service-custodied (application signatures by this instance\'s key on behalf of authenticated principals)')
+        ctx.update(extra)
+        return ctx
+
+    @app.get('/console/work/awards/{aid}', response_class=HTMLResponse)
+    async def work_award_page(request: Request, aid: str):
+        return await page(request, lambda db, p: render(request, 'work_award.html', principal=p, **_award_ctx(db, p, aid)))
+
+    @app.post('/console/work/awards/{aid}/{action}', response_class=HTMLResponse)
+    async def work_award_action(request: Request, aid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            key = f.get('milestone', 'm1')
+            if action == 'verify':
+                E.evidence.verify(db, p, aid, key, {'class': f.get('class') or None})
+            elif action == 'decide':
+                E.evidence.decide(db, p, aid, key, {'decision': f.get('decision'), 'reason': f.get('reason') or None, 'expected_evidence_root': f.get('expected_evidence_root') or None})
+            elif action == 'pay':
+                i = E.money.prepare(db, p, f['entitlement_id'], {})
+                E.money.authorize(db, p, i['id']); E.money.submit(db, p, i['id'], {})
+            elif action == 'reconcile':
+                E.money.reconcile(db, p, f['intent_id'])
+            elif action == 'dispute':
+                d = E.evidence.open_dispute(db, p, aid, key, {'claim': f.get('claim', ''), 'scope': f.get('scope', 'acceptance')})
+                return RedirectResponse('/console/work/disputes/' + d['id'], status_code=303)
+            elif action == 'ack':
+                E.board.acknowledge(db, p, aid)
+            elif action == 'close':
+                E.money.close_award(db, p, aid)
+            else:
+                raise ServiceError('NOT_FOUND', 'action')
+            return RedirectResponse('/console/work/awards/' + aid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/work/disputes/{did}', response_class=HTMLResponse)
+    async def work_dispute_page(request: Request, did: str):
+        return await page(request, lambda db, p: render(request, 'work_dispute.html', principal=p, d=E.evidence.dispute_view(db, p, did)))
+
+    @app.post('/console/work/disputes/{did}/{action}', response_class=HTMLResponse)
+    async def work_dispute_action(request: Request, did: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            body = {k: v for k, v in f.items() if k != 'csrf' and v != ''}
+            E.evidence.dispute_action(db, p, did, action, body)
+            return RedirectResponse('/console/work/disputes/' + did, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/work/budget', response_class=HTMLResponse)
+    async def work_budget_page(request: Request):
+        def fn(db, p):
+            from .economy import journal as journal_mod
+            p.require('budget:read')
+            rails = E.money.rails(db, p)
+            try:
+                treasury = E.treasury.view(db, p, 'local-chain-token')
+            except ServiceError:
+                treasury = None
+            return render(request, 'work_budget.html', principal=p, replay=journal_mod.replay(db, p.workspace), entries=journal_mod.entries(db, p.workspace, 200), exposure=E.money.exposure(db, p), treasury=treasury, rails=rails, tree=budgets.tree(db, p) if p.can('budget:read') else None)
+        return await page(request, fn)
+
+    @app.get('/console/work/missions/{pid}', response_class=HTMLResponse)
+    async def work_mission_page(request: Request, pid: str):
+        return await page(request, lambda db, p: render(request, 'work_mission.html', principal=p, m=E.missions.portfolio_view(db, p, pid)))
+
+    @app.post('/console/work/missions/{pid}/draft', response_class=HTMLResponse)
+    async def work_mission_draft(request: Request, pid: str):
+        f = await form(request)
+        def fn(db, p):
+            d = E.missions.draft_from_bottleneck(db, p, pid, f.get('task', ''), {'ceiling': int(f.get('ceiling') or 3)})
+            return RedirectResponse('/console/work/terms/' + d['terms']['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/work/missions/import', response_class=HTMLResponse)
+    async def work_mission_import(request: Request):
+        await form(request)
+        def fn(db, p):
+            m = E.missions.import_mission(db, p, {})
+            return RedirectResponse('/console/work/missions/' + m['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/packages', response_class=HTMLResponse)
     async def packages_page(request: Request):
         def fn(db, p):

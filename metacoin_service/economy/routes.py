@@ -368,6 +368,29 @@ def mount(app, svc, run, read_body, API):
     async def work_observation_view(request: Request, oid: str):
         return await run(request, False, lambda db, p: MS.observation_view(db, p, oid))
 
+    # ---- notifications, measurements (§65, §67) --------------------------------------------------------------------------------
+    from . import ops as economy_ops
+
+    @app.get(API + '/work/notifications')
+    async def work_notifications(request: Request, all: str = None):
+        def fn(db, p):
+            svc.economy.tick(db); economy_ops.notify(db)
+            return {'items': economy_ops.notifications(db, p, include_dismissed=bool(all))}
+        return await run(request, True, fn)
+
+    @app.post(API + '/work/notifications/{nid}/dismiss')
+    async def work_notification_dismiss(request: Request, nid: str):
+        raw = await request.body()
+        return await run(request, True, lambda db, p: economy_ops.dismiss(db, p, nid), 'work.notification.dismiss', raw)
+
+    @app.get(API + '/work/measurements')
+    async def work_measurements(request: Request):
+        return await run(request, False, lambda db, p: economy_ops.measurements(db, p))
+
+    @app.get(API + '/work/status')
+    async def work_status(request: Request):
+        return await run(request, False, lambda db, p: (p.require('work:read') and None) or {'counts': economy_ops.counts(db, p.workspace), 'waiting_reasons': economy_ops.waiting_reasons(db, p.workspace)})
+
     @app.get(API + '/work/contracts/{contract_id}/upgrade-preview')
     async def work_upgrade_preview(request: Request, contract_id: str):
         return await run(request, False, lambda db, p: T.upgrade_preview(db, p, contract_id))

@@ -208,6 +208,8 @@ class Evidence:
               'execution': ev['execution'], 'science': ev['science'], 'payment_class': pay_class, 'payable_amount': amount, 'asset': terms['payment']['asset'], 'policy_digest': ev['policy_digest'], 'trace': [{k: x[k] for k in ('predicate', 'type', 'result')} for x in ev['trace']],
               'authority': authority, 'decided_by': principal.id, 'reason': reason, 'supersedes': supersedes, 'dispute_id': dispute_id, 'decided_at': now()}
         db.execute('INSERT INTO work_decisions VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (did, award['workspace'], award['id'], ms['id'], json.dumps(ev), decision, pay_class, amount, ev['evidence_root'], ev['policy_digest'], principal.id, authority, supersedes, None, dispute_id, now()))
+        from .ops import fault
+        fault(db, self.settings, 'acceptance_decision')
         if supersedes:
             db.execute('UPDATE work_decisions SET superseded_by=? WHERE id=?', (did, supersedes))
         self._receipt(db, 'acceptance', award, ms, None, did, st, principal.id)

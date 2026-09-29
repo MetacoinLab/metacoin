@@ -215,6 +215,8 @@ class Worker:
                                        intended_use='private-evidence;owner-and-designated-reviewer', job_id=job['id'],
                                        contract_id=job['contract_id'], retention_deadline=now() + pol['retention_seconds'])
                 root = result['evidence_vault']['receipt']['root']
+                from .economy.ops import fault as _fault
+                _fault(db, self.settings, 'evidence_publication')
                 db.execute("UPDATE jobs SET state='succeeded', evidence_artifact_id=?, evidence_root=?, outcome=?, summary_json=?, "
                            "lease_owner=NULL, lease_expires=NULL, updated_at=?, finished_at=? WHERE id=?",
                            (aid, root, result['outcome'], json.dumps(result['summary']), now(), now(), job['id']))
@@ -277,7 +279,9 @@ class Worker:
             with self.db.tx() as db:
                 advanced = svc.workflows.advance_all(db) + svc.campaigns.tick_all(db) + svc.schedules.tick(db) + svc.packages.tick_all(db)
                 ticked = svc.verification.tick(db)
-                return advanced + ([{'verification_finalized': ticked}] if ticked else [])
+                from .economy import ops as economy_ops
+                eco = svc.economy.tick(db) + economy_ops.notify(db)
+                return advanced + ([{'verification_finalized': ticked}] if ticked else []) + ([{'economy_advanced': eco}] if eco else [])
         except Exception:
             return None
 

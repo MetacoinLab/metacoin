@@ -61,6 +61,16 @@ def metrics_text(db):
             lbl = ','.join('%s="%s"' % (k, v) for k, v in labels.items())
             lines.append('%s{%s} %d' % (name, lbl, value) if lbl else '%s %d' % (name, value))
     s = status(db)
+    try:
+        from .economy import ops as economy_ops
+        ws = db.execute('SELECT workspace FROM campaigns LIMIT 1').fetchone()
+        w = economy_ops.counts(db, ws['workspace']) if ws else {}
+    except Exception:
+        w = {}
+    for name, key in (('metacoin_work_requests', 'requests_by_state'), ('metacoin_work_awards', 'awards_by_state'), ('metacoin_work_milestones', 'milestones_by_state'), ('metacoin_work_entitlements', 'entitlements_by_state'), ('metacoin_work_intents', 'intents_by_state'), ('metacoin_work_disputes', 'disputes_by_state'), ('metacoin_treasury_allocations', 'treasury_allocations_by_state')):
+        gauge(name, key.replace('_', ' '), [({'state': k}, v) for k, v in sorted((w.get(key) or {}).items())])
+    gauge('metacoin_work_pending_settlements', 'payment intents awaiting settlement or reconciliation', [({}, w.get('pending_settlements', 0))])
+    gauge('metacoin_work_evidence_awaiting_verification', 'delivered milestones without a passed verification', [({}, w.get('evidence_awaiting_verification', 0))])
     gauge('metacoin_jobs', 'jobs by state', [({'state': k}, v) for k, v in sorted(s['jobs_by_state'].items())])
     gauge('metacoin_queue_backlog', 'queued jobs by kind', [({'kind': k}, v) for k, v in sorted(s['queue_backlog'].items())])
     gauge('metacoin_workers', 'workers by liveness', [({'class': k}, v) for k, v in sorted(s['workers'].items())])

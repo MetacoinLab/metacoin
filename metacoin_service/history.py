@@ -34,6 +34,7 @@ CATEGORIES = {'budget.ceiling_set': 'economic', 'compute.progress': 'scientific'
     'work.awarded': 'economic', 'work.acknowledged': 'administrative', 'work.milestone_state': 'scientific', 'work.attempt': 'scientific', 'work.award_state': 'administrative',
     'work.intent': 'economic', 'work.payment': 'economic', 'work.refund': 'economic', 'work.journal': 'economic', 'work.treasury': 'economic', 'work.award_closed': 'economic', 'work.reconciled': 'economic',
     'work.audit_grant': 'administrative', 'work.mission': 'administrative', 'work.contribution': 'scientific', 'work.observation': 'scientific', 'work.hold': 'administrative',
+    'work.notification': 'administrative',
     'work.receipt': 'scientific', 'work.decision': 'scientific', 'work.entitlement': 'economic', 'work.verification_requested': 'scientific', 'work.dispute': 'administrative', 'work.dispute_opened': 'administrative', 'work.dispute_decided': 'scientific', 'work.delegated': 'administrative',
     'work.terms_created': 'administrative', 'work.terms_frozen': 'scientific', 'work.terms_amended': 'administrative', 'work.terms_superseded': 'administrative', 'work.acceptance_evaluated': 'scientific',
     'approval.proposed': 'administrative', 'approval.decided': 'administrative', 'approval.applied': 'administrative', 'approval.expired': 'administrative',
