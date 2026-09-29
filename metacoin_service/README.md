@@ -145,6 +145,45 @@ Verify: `PYTHONPATH=. .venv-service/bin/python -m unittest discover -s metacoin_
 the pinned artifacts under the model store and a torch-capable interpreter). Journeys: `python -m metacoin_service.tests.journeys_expansion`.
 Local chain: `python -m integrations.x402.local_chain.build` then `python -m unittest integrations.x402.local_chain.test_local_chain`.
 
+## Core work economy (order 2026-09-29)
+
+Binding contracts, provider offers, verifiable evidence, accepted negative findings, private audit access, bounded
+payments, fee-backed treasury work and mission bottlenecks on the same application. Schema: migrations 032-040. Code:
+`metacoin_service/economy/` (terms, acceptance, board, evidence, money, journal, treasury, access, missions,
+provider_history, interop, programs, pricing, challenges); routes under `/api/v1/work/*`; console `/console/work*`;
+CLI `work-*`; 44 MCP tools; HTTP-only client example `metacoin_service/examples/work_client.py`; portable verifier
+`python -m metacoin_service.economy.verify_work <bundle.zip> --trust-root <hex>`. Delivery and evidence:
+`work/core-work-economy-session/` (feature ledger, forty journeys, fault campaign, benchmark, demonstration).
+
+| Area | What works (exercised) | Evidence |
+|---|---|---|
+| Terms and acceptance | typed deliverables, declarative acceptance policy with a predicate trace, milestones DAG, outcome-neutral payment rules (a verified INFEASIBLE earns the complete amount), amendments as new revisions with classified differences, legacy deterministic task replay bound to registered hashes | test_work_terms, journeys 1-12 |
+| Request board | signed provider capability revisions, private requests, structured eligibility reasons, binding offers, deterministic comparison under a declared policy, one-transaction award with budget reservation, execution through the existing worker or an enrolled node | test_work_board, journeys 1-7 |
+| Evidence | typed receipts (provider / verification / acceptance / settlement) with custody labels, one entitlement per milestone and kind, verifier assignment with honest independence labels, disputes with append-only superseding decisions, reassignment, bounded delegation, offline bundles | test_work_evidence, journeys 13-30 |
+| Money | payment intents bound to entitlements, application-journal and private local-chain settlement (exact and capped), lost-response reconciliation by receipt hash or Permit2 nonce, double-entry journal with replay and invariants, fee split, verifier pay independent of verdict, treasury availability from settled fees only, preauthorized refunds | test_work_money, test_work_faults, journeys 31-38 |
+| Access | role compartments, read-only audit grants with access history, encrypted age packages, retention with dispute holds, projections with declared omissions, signing-key rotation with a trust history | test_work_access_missions, journeys 20-24, 30 |
+| Missions | read-only import of the anchored verdict, bottleneck-derived drafts, contributions with learning records, portfolio budget scenarios under declared utilities, honest resource evidence, simulated observation boundary | test_work_access_missions, test_work_backlog, journey 39 |
+| Extensions | provider history without a score, package import preview, reconciliation console, recurring procurement programs, verifier challenge packages, versioned pricing experiments | test_work_history_interop, test_work_backlog, test_work_backlog2 |
+
+**Actual limitations (stated, not fixed):**
+- **Service-custodied signing.** Offers, receipts, projections and bundle manifests are Ed25519-signed by this instance's
+  service key on behalf of the authenticated principal. Two records signed by the same key do not establish separation of
+  duties, and the offer signature is not an interoperable x402 signed offer (the pinned SDK 2.24.0 has no offer-receipt
+  extension). Payment signing (synthetic chain accounts), receipt signing and audit read access are separate authorities.
+- **Process-level verifier independence only.** A "distinct verifier" is a separate worker process (or an enrolled node)
+  on the same host under the same operator. Nothing here shows organizational independence, anonymity or price discovery:
+  one operator plays every role in every test.
+- **In-memory private local chain.** The local-chain rail is a py-evm chain inside the API process with synthetic
+  accounts; an API restart discards it, after which reconciliation reports "rail identity changed" and keeps the exposure.
+  External settlement on a public network is refused by the payer guard and has not been verified.
+- **Work payments never mint base supply.** The journal has no account for META; Test-META is zero-value; `action-units`
+  and `local-chain-token` are rail assets. Anchor candidates are never appended to the protocol ledger.
+- **Runtime data.** The anchored ledger and mission verdict are read from the operator's working copies
+  (`protocol/ledger_data.jsonl`, `mission_verdict.json`, gitignored by design) when present, else from the tracked
+  records (`protocol/ledger_published.json`, `protocol/evidence/mission_verdict_<hash12>.json`), which carry the same
+  entries; an exported tree or a CI checkout therefore needs no extra files.
+- **Energy evidence** is reported unavailable or as a labelled estimate; no energy counter exists on this host.
+
 ## Capability matrix (installed / configured / available / externally validated)
 
 Machine-readable: `GET /api/v1/capabilities`. Three classes:

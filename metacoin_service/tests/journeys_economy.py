@@ -280,7 +280,7 @@ class Journeys(ExpansionJourneys):
         import importlib; mod = importlib.import_module(reg['module']); direct = mod.output_hash(mod.compute())
         v = self.aview(a['id']); job = self.job(v['milestones'][0]['job_id'])
         st, d = self.decide(a['id'])
-        before = hashlib.sha256((ROOT / 'protocol' / 'ledger_data.jsonl').read_bytes()).hexdigest()
+        before = hashlib.sha256(legacy_bridge.ledger_source().read_bytes()).hexdigest()
         ok = job['summary']['output_hash'] == direct == reg['registered_hash'] and job['outcome'] == 'EXACT_MATCH' and d['decision'] == 'accepted'
         self.rec(11, 'frozen legacy task replayed through the contract bridge reproduces the registered canonical hash; historic artifacts untouched', ok, {'task': 'task-0018', 'hash': direct[:16], 'registered': reg['registered_hash'][:16], 'ledger_sha256': before[:16], 'accepted': d['decision']}, t0=t0)
 
@@ -614,8 +614,8 @@ class Journeys(ExpansionJourneys):
     def j38(self, t0):
         rep = self.call('post', '/api/v1/work/journal/replay')[1]
         supply = self.call('get', '/api/v1/work/rails')[1]['local-chain-token'].get('balances') if self.acct else None
-        digests = {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in ('README.md', 'WHITEPAPER.md', 'TOKENOMICS.md', 'protocol/ledger_data.jsonl', 'protocol/ledger_anchor.json', 'mission_verdict.json')}
-        base = dict(l.split('  ', 1)[::-1] for l in (ROOT / 'work/core-work-economy-session/artifacts/BASELINE_DIGESTS.txt').read_text().splitlines() if '  ' in l) if (ROOT / 'work/core-work-economy-session/artifacts/BASELINE_DIGESTS.txt').exists() else {}
+        digests = self._digests()
+        base = self.ctx.get('digests0') or digests                                                                  # captured before journey 1; identical when run alone
         unchanged = all(base.get(p, d) == d for p, d in digests.items())
         ok = rep['consistent'] and all(c['ok'] for c in rep['invariants']) and unchanged
         self.rec(38, 'accounting journal replayed: balances, obligations, reserves and exposure reproduced; no base-supply, identity or ledger change', ok, {'consistent': rep['consistent'], 'invariants_failed': [c['check'] for c in rep['invariants'] if not c['ok']], 'scopes': list(rep['scopes']), 'protocol_files_unchanged': unchanged}, t0=t0)
@@ -658,7 +658,13 @@ class Journeys(ExpansionJourneys):
         self.stop_workers()
         return dict(out, rc=p.returncode, status='passed' if p.returncode == 0 and out.get('failed', 1) == 0 else 'failed', queue_before=before, queue_after=after, drained=[x for x in drained if x], worker_alive_at_end=alive, last_award=diag)
 
+    def _digests(self):
+        d = {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in ('README.md', 'WHITEPAPER.md', 'TOKENOMICS.md', 'protocol/ledger_anchor.json') if (ROOT / p).exists()}
+        d.update({'ledger': hashlib.sha256(legacy_bridge.ledger_source().read_bytes()).hexdigest(), 'mission_verdict': hashlib.sha256(missions_mod.verdict_source().read_bytes()).hexdigest()})
+        return d
+
     def run_all(self, only=None):
+        self.ctx['digests0'] = self._digests()                                                                       # identity / protocol digests before any journey
         for n in range(1, 41):
             if only and n not in only:
                 continue

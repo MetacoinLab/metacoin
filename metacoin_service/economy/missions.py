@@ -16,7 +16,19 @@ from . import legacy_bridge, terms as terms_mod
 from .board import _terms
 
 ROOT = Path(__file__).resolve().parents[2]
-VERDICT = ROOT / 'mission_verdict.json'
+VERDICT = ROOT / 'mission_verdict.json'                           # the operator's working copy (gitignored by the public repo)
+
+
+def verdict_source():
+    """The anchored mission verdict this process reads: the working copy when present, else the tracked evidence copy named
+    by the LAST mission_verdict_recorded entry of the anchored ledger (protocol/evidence/mission_verdict_<hash12>.json)."""
+    if VERDICT.exists():
+        return VERDICT
+    from .legacy_bridge import ledger_entries
+    recorded = [e for e in ledger_entries() if (e.get('payload') or {}).get('event') == 'mission_verdict_recorded' and (e.get('payload') or {}).get('verdict_hash')]
+    if recorded:
+        return ROOT / 'protocol' / 'evidence' / ('mission_verdict_%s.json' % recorded[-1]['payload']['verdict_hash'][:12])
+    return VERDICT
 CONTRIBUTION_TYPES = ('verified_computation', 'reviewed_interpretation', 'measured_observation', 'proposed_hypothesis')
 CONTRIBUTION_KINDS = ('new_finding', 'commissioned_replication', 'reused_artifact', 'accepted_negative_closing_branch')
 OBSERVATION_SCHEMA = 'metacoin-physical-observation/v1'
@@ -33,8 +45,11 @@ class Missions:
         src = body.get('source', 'mission_verdict.json')
         if src != 'mission_verdict.json':
             raise ServiceError('VALIDATION', {'code': 'source', 'allowed': ['mission_verdict.json']})
-        doc = json.loads(VERDICT.read_text())
-        digest = hashlib.sha256(VERDICT.read_bytes()).hexdigest()
+        src_path = verdict_source()
+        if not src_path.exists():
+            raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'mission_verdict_unavailable', 'note': 'neither mission_verdict.json nor the tracked evidence copy is present'})
+        doc = json.loads(src_path.read_text())
+        digest = hashlib.sha256(src_path.read_bytes()).hexdigest()
         mid = doc['mission_id']
         ex = db.execute('SELECT id FROM mission_portfolios WHERE workspace=? AND mission_id=?', (principal.workspace, mid)).fetchone()
         if ex:

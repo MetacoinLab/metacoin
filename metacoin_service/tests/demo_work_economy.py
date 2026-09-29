@@ -33,8 +33,9 @@ def main(out_dir):
         j.start_api(); rec['revision'] = j.http.get('/api/health').json().get('revision')
         if not j.acct:
             rec['blocked'] = 'local chain unavailable'; return 2
-        base = {'README.md', 'WHITEPAPER.md', 'TOKENOMICS.md', 'protocol/ledger_data.jsonl', 'protocol/ledger_anchor.json', 'mission_verdict.json'}
-        digest0 = {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in base}
+        from metacoin_service.economy import legacy_bridge, missions as missions_mod
+        base = [ROOT / p for p in ('README.md', 'WHITEPAPER.md', 'TOKENOMICS.md', 'protocol/ledger_anchor.json') if (ROOT / p).exists()] + [legacy_bridge.ledger_source(), missions_mod.verdict_source()]
+        digest0 = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in base}
         supply0 = j.call('get', '/api/v1/work/rails')[1]['local-chain-token']
         payer0 = j.bal('requester_payer'); tre0 = j.bal('treasury'); prov0 = {k: j.bal(k) for k in ('provider_a', 'provider_b')}
         # ---- 1. two related determination instances, two eligible offers each, visible selection, reservation --------------------------
@@ -98,7 +99,7 @@ def main(out_dir):
         st, s5 = j.pay(d5['entitlement']['id']); tv2 = j.call('get', '/api/v1/work/treasury')[1]
         step('fee-backed treasury award: confirmed fee revenue funds a bounded award that pays an accepted negative from the treasury account', tv['confirmed_revenue'] >= 2 and s5['payer_authority'] == 'treasury' and d5['evaluation']['science'] == 'INFEASIBLE' and tv2['settled_spending'] == 1, revenue_before=tv['confirmed_revenue'], settled_spending=tv2['settled_spending'], available_after=tv2['available'])
         rep = j.call('post', '/api/v1/work/journal/replay', json={})[1]
-        digest1 = {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in base}
+        digest1 = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in base}
         step('journal replay consistent, invariants hold, identity/protocol files and base issuance untouched', rep['consistent'] and all(c['ok'] for c in rep['invariants']) and digest0 == digest1, scopes=list(rep['scopes']), invariants_failed=[c['check'] for c in rep['invariants'] if not c['ok']], differences=rep.get('differences'), protocol_files_unchanged=digest0 == digest1)
         # ---- 7. artifacts: complete bundle of the negative contract, restricted bundle, projections, offline verifier -------------------
         recs = j.call('get', '/api/v1/work/awards/' + neg + '/receipts')[1]['items']; pub = recs[0]['public_key_hex']

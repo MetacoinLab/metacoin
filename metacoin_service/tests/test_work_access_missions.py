@@ -113,7 +113,7 @@ class WorkAccessMissionTests(EvidenceBase):
     # §44 projections and anchor candidate ------------------------------------------------------------------------------------------
     def test_projections_declare_omissions_and_candidate_is_not_anchored(self):
         t, a, d = self.accepted_award('INFEASIBLE')
-        ledger = ROOT / 'protocol' / 'ledger_data.jsonl'; before = hashlib.sha256(ledger.read_bytes()).hexdigest()
+        ledger = legacy_bridge.ledger_source(); before = hashlib.sha256(ledger.read_bytes()).hexdigest()
         priv = self.c.post('/api/v1/work/awards/%s/milestones/m1/projection' % a['id'], headers=self.H, json={'audience': 'private'}).json()
         col = self.c.post('/api/v1/work/awards/%s/milestones/m1/projection' % a['id'], headers=self.H, json={'audience': 'collaborator'}).json()
         pub = self.c.post('/api/v1/work/awards/%s/milestones/m1/projection' % a['id'], headers=self.H, json={'audience': 'public_ready', 'sign': True}).json()
@@ -130,7 +130,7 @@ class WorkAccessMissionTests(EvidenceBase):
 
     # J39 + §56–§58 ----------------------------------------------------------------------------------------------------------------
     def test_mission_bottleneck_to_contract_updates_only_the_portfolio(self):
-        verdict = json.loads((ROOT / 'mission_verdict.json').read_text()); before = hashlib.sha256((ROOT / 'mission_verdict.json').read_bytes()).hexdigest()
+        vsrc = missions_mod.verdict_source(); verdict = json.loads(vsrc.read_text()); before = hashlib.sha256(vsrc.read_bytes()).hexdigest()
         pf = self.c.post('/api/v1/work/missions/import', headers=self.H, json={}); self.assertEqual(pf.status_code, 201, pf.text); pf = pf.json()
         self.assertEqual((pf['mission_id'], pf['imported']['verdict_hash'], pf['imported']['mission_feasible']), (verdict['mission_id'], verdict['verdict_hash'], False))
         self.assertIn('task-0018', pf['unresolved_bottlenecks'])
@@ -153,7 +153,7 @@ class WorkAccessMissionTests(EvidenceBase):
         self.assertEqual((c['affected_node'], c['contribution_type'], c['contribution_kind'], c['evidence_outcome']), ('task-0018', 'verified_computation', 'commissioned_replication', 'EXACT_MATCH'))
         self.assertNotIn('task-0018', view['unresolved_bottlenecks'])
         self.assertEqual(view['objectives_and_constraints']['node_verdicts']['task-0018']['verdict'], False)                    # the anchored negative is unchanged
-        self.assertEqual(view['imported']['verdict_hash'], verdict['verdict_hash']); self.assertEqual(hashlib.sha256((ROOT / 'mission_verdict.json').read_bytes()).hexdigest(), before)
+        self.assertEqual(view['imported']['verdict_hash'], verdict['verdict_hash']); self.assertEqual(hashlib.sha256(vsrc.read_bytes()).hexdigest(), before)
         self.assertEqual(view['commissioned_work'][0]['awards'][0]['findings'][0]['acceptance'], 'accepted'); self.assertEqual(view['budget']['ceilings'], 3)
         # an accepted negative on a linked determination closes a branch; a second identical replay is flagged as a duplicate, not a second entitlement
         dr2 = self.c.post('/api/v1/work/missions/%s/bottlenecks/task-0018/draft' % pf['id'], headers=self.H, json={'ceiling': 3}).json()

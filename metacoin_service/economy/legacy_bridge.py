@@ -13,7 +13,29 @@ from experiments.private_receipts import receipt as merkle
 
 ROOT = Path(__file__).resolve().parents[2]
 TASK_DIR = ROOT / 'demo' / 'tasks'
-LEDGER = ROOT / 'protocol' / 'ledger_data.jsonl'
+LEDGER = ROOT / 'protocol' / 'ledger_data.jsonl'                  # the operator's working copy (gitignored by the public repo)
+LEDGER_PUBLISHED = ROOT / 'protocol' / 'ledger_published.json'    # the tracked point-in-time snapshot of the same anchored entries
+
+
+def ledger_source():
+    """Which anchored-ledger record this process reads: the working copy when present, else the tracked published snapshot
+    (entry-for-entry the same records; an exported tree or a CI checkout has only the snapshot)."""
+    return LEDGER if LEDGER.exists() else LEDGER_PUBLISHED
+
+
+def ledger_entries():
+    src = ledger_source()
+    if not src.exists():
+        return []
+    if src.suffix == '.jsonl':
+        out = []
+        for line in src.read_text().splitlines():
+            try:
+                out.append(json.loads(line))
+            except ValueError:
+                continue
+        return out
+    return list((json.loads(src.read_text()) or {}).get('entries') or [])
 INPUT_SCHEMA = 'legacy-task-replay/v1'
 RESULT_SCHEMA = 'legacy-task-canonical-json'
 MODEL_ID = 'legacy-deterministic-task-registry/read-only'
@@ -31,12 +53,8 @@ def registry():
     for f in sorted(TASK_DIR.glob('task_*.py')):
         num = f.name[5:9]
         tasks['task-' + num] = {'module': 'demo.tasks.' + f.stem, 'file': str(f.relative_to(ROOT)), 'source_sha256': hashlib.sha256(f.read_bytes()).hexdigest(), 'registered_hash': None, 'registered_at_index': None}
-    if LEDGER.exists():
-        for line in LEDGER.read_text().splitlines():
-            try:
-                e = json.loads(line)
-            except ValueError:
-                continue
+    for e in ledger_entries():
+        if True:
             p = e.get('payload') or {}
             tid = p.get('task_id')
             if tid in tasks and tasks[tid]['registered_hash'] is None:
