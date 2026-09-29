@@ -1,0 +1,881 @@
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpttb_we4v/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpn_v8qf6_/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpaaia3g24/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpw6o9891s/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpjv7um4aa/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmppnsj0p_1/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp_winb8xv/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp7bokny6l/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpw92cqvd5/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpophv_zf4/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpjqepmxof/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpq4qcflag/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmplltrg4gn/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp4i8465t_/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpk6dngbfi/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp1tv9q7om/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp94tqugya/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp3j_fpf_7/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp5qhctquu/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp8o2n_44p/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp5r_gy0ai/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmproacpefr/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpc9sajyqy/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmptd1439t3/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpmoqyf727/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_work_surfaces.py:158: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/client_cli.py' mode='r' encoding='UTF-8'>
+  src = open(client_cli.__file__).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpclycykeg/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/.venv/lib/python3.12/site-packages/starlette/testclient.py:463: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+  return super().request(
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp6es7d2ou/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/.venv/lib/python3.12/site-packages/pydantic_settings/sources/utils.py:47: IncompleteFieldDefinitionWarning: Field 'lifespan' has an incomplete definition: its annotation contains an unresolved forward reference, so settings sources may fail to correctly resolve its value. Call `model_rebuild()` on the model where the field is defined, once all the referenced types are defined.
+  warnings.warn(
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp5oi_hcr0/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_b94c303558a594e8/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_f11d2a5c82bf5a40/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_f11d2a5c82bf5a40/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_f11d2a5c82bf5a40/award "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/notifications "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/notifications "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/notifications/nt_b7b259d48e48/dismiss "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/notifications "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/notifications?all=1 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/notifications "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/status "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/status "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/metrics "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/events?types=work.awarded,work.milestone_state "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/measurements "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpgbt74oh1/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_89b74c77db9f26f2/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2c3d1adb7bce1af2/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2c3d1adb7bce1af2/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2c3d1adb7bce1af2/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_5a566044d9f006f4/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_5a566044d9f006f4/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5a566044d9f006f4/milestones/m1/bundle?scope=full "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5a566044d9f006f4/milestones/m1/bundle?scope=restricted "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5a566044d9f006f4/receipts "HTTP/1.1 200 OK"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpy9s4xkup/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: GET http://testserver/api/v1/work/journal "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/packages/import-preview "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/packages/import-preview "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/journal "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/keys "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/packages/import-preview "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/packages/import-preview "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/terms/wt_b16ef4c117fb2d93 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/journal "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/packages/import-preview "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpn0d4wcei/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_b9a7cd92e3e8e17b/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2baa538a9ebc5f35/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2baa538a9ebc5f35/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2baa538a9ebc5f35/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_1e38d5c1a37fc2f2/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_1e38d5c1a37fc2f2/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_29c992e3e951bcf1/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_ba664a136c965faf/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_ba664a136c965faf/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_ba664a136c965faf/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_46476d53ac0c716a/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_46476d53ac0c716a/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_f1b35bbe189bd496/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_ac02588bd3391c36/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_ac02588bd3391c36/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_ac02588bd3391c36/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_95d43ed3857fa7f6/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_95d43ed3857fa7f6/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c1e16f3ecf5bb15f/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2f7a778369e40c78/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2f7a778369e40c78/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2f7a778369e40c78/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_31d69d01a79189c5/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_31d69d01a79189c5/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_4db801093ea3d4ce/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_33dd552ab60bb4f2/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_33dd552ab60bb4f2/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_33dd552ab60bb4f2/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/providers/pv_cea8f82f6bc7/history "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/providers/pv_3aa18b2b125b/history "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/providers/pv_8b98d10a9ba8/history "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/providers/pv_cea8f82f6bc7/history "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/providers/pv_cea8f82f6bc7/history "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_31d69d01a79189c5/receipts "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_f732e16268fe0d66/receipts "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers/pv_cea8f82f6bc7/portfolio "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/work/providers/pv_cea8f82f6bc7/portfolio "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/work/providers/pv_cea8f82f6bc7/portfolio "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/providers/pv_cea8f82f6bc7/portfolio "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/providers/pv_cea8f82f6bc7/history "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpwz0cd5_x/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/import "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_8a97bc7184e3/bottlenecks/task-0018/draft "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_a2af83a966cc982a/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_c76a90bf1604c59d/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_8a97bc7184e3/link "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_c76a90bf1604c59d/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_c76a90bf1604c59d/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_93148d3f006bf349/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/missions/mp_8a97bc7184e3 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_8a97bc7184e3/contributions/wc_1e6330144677/learning "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_8a97bc7184e3/contributions/wc_1e6330144677/learning "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_8a97bc7184e3/contributions/wc_1e6330144677/learning "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/missions/mp_8a97bc7184e3 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_8a97bc7184e3/contributions/wc_nope/learning "HTTP/1.1 404 Not Found"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpfbthwdy9/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/import "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_b0514e472701/bottlenecks/task-0018/draft "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_b0514e472701/bottlenecks/task-0034/draft "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_b0514e472701/bottlenecks/task-0020/draft "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_b0514e472701/scenarios "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_b0514e472701/scenarios "HTTP/1.1 201 Created"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2829547/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2829547/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:211: ResourceWarning: unclosed file <_io.BufferedReader name=6>
+  return self._supervise(job, contract, spec, run, man, workdir, backend, latest)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: GET http://testserver/api/v1/work/missions/mp_b0514e472701/scenarios/ms_f4812ec0fce2 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/journal "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/missions/mp_b0514e472701/scenarios "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp40unhg2q/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+HTTP Request: GET http://testserver/api/v1/work/rails "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_f4f5dbe1de5d1c79 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_f4f5dbe1de5d1c79/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_a811d62a7bf28ae7/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_a811d62a7bf28ae7/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_a811d62a7bf28ae7/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9447c4e9d53f130d/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9447c4e9d53f130d/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_ca2d989158d06599/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_f34eea49c6616407/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_f34eea49c6616407/submit "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_52a277a3e1e089c2 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_52a277a3e1e089c2/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_179f8cf2e0b4abe1/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_179f8cf2e0b4abe1/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_179f8cf2e0b4abe1/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_16cfc6581d5c1a78/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_16cfc6581d5c1a78/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_48133b3a8d737e0a/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_f3852140ef983ebd/authorize "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/reconciliation "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/login "HTTP/1.1 303 See Other"
+HTTP Request: GET http://testserver/console/work/reconciliation "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/work/reconciliation/pi_f34eea49c6616407/reconcile "HTTP/1.1 303 See Other"
+HTTP Request: GET http://testserver/api/v1/work/intents/pi_f34eea49c6616407 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/work/reconciliation/pi_f3852140ef983ebd/reconcile "HTTP/1.1 303 See Other"
+HTTP Request: GET http://testserver/api/v1/work/reconciliation "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/work/reconciliation/pi_f3852140ef983ebd/renew "HTTP/1.1 303 See Other"
+HTTP Request: GET http://testserver/api/v1/work/intents "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/work/reconciliation/pi_f3852140ef983ebd/renew "HTTP/1.1 303 See Other"
+HTTP Request: GET http://testserver/api/v1/work/intents "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/work/reconciliation/pi_f3852140ef983ebd/void "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/work/journal/replay "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/logout "HTTP/1.1 303 See Other"
+HTTP Request: POST http://testserver/console/login "HTTP/1.1 303 See Other"
+HTTP Request: GET http://testserver/console/work/reconciliation "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp4pbid5wq/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_550ec320c4c56cbf/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_9b9fa2e09dd4a32b/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_9b9fa2e09dd4a32b/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_9b9fa2e09dd4a32b/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_5942060376e7ca65/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_5942060376e7ca65/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/compartments?milestone=m1 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/compartments?milestone=m1 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/compartments?milestone=m1 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/compartments?milestone=m1 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/artifacts/a_2f572c491e4165afb77aa3c2 "HTTP/1.1 403 Forbidden"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/artifacts/a_2f572c491e4165afb77aa3c2 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_5942060376e7ca65/audit-grants "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/audit-grants/ag_1b9661b7a68bbcdc/use "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/artifacts/a_82c0120f43a05dc08c112aef "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/artifacts/a_2f572c491e4165afb77aa3c2 "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_e1425819e5f6edef/prepare "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_550ec320c4c56cbf/amend "HTTP/1.1 403 Forbidden"
+HTTP Request: GET http://testserver/api/v1/work/audit-grants/ag_1b9661b7a68bbcdc "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/audit-grants/ag_1b9661b7a68bbcdc/use "HTTP/1.1 400 Bad Request"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_5942060376e7ca65/artifacts/a_82c0120f43a05dc08c112aef "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_5942060376e7ca65/audit-grants "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/audit-grants/ag_0f598d20cc922e1c/use "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/audit-grants/ag_0f598d20cc922e1c/revoke "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/audit-grants/ag_0f598d20cc922e1c/use "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/work/audit-grants/ag_0f598d20cc922e1c/use "HTTP/1.1 403 Forbidden"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp3oig95lu/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_1066e03a059bda7c/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_a4f22a7aadd79fcb/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_a4f22a7aadd79fcb/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_a4f22a7aadd79fcb/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_60385f8626258e74/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_60385f8626258e74/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_60385f8626258e74/milestones/m1/package "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_60385f8626258e74/milestones/m1/package "HTTP/1.1 422 Unprocessable Entity"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpss82fbm4/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/import "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/import "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_1c6e09be2b80/bottlenecks/task-0018/draft "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/journal "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_1c6e09be2b80/bottlenecks/task-9999/draft "HTTP/1.1 404 Not Found"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_3e632ccbd5ab6ec6/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_f98ad1f28b21c537/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_1c6e09be2b80/link "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_f98ad1f28b21c537/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_f98ad1f28b21c537/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_2f898ed516f133a8/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/missions/mp_1c6e09be2b80 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_1c6e09be2b80/bottlenecks/task-0018/draft "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_312f4d9ef5dd8c3e/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_64a16604e22ea39e/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/missions/mp_1c6e09be2b80/link "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_64a16604e22ea39e/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_64a16604e22ea39e/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_5d5d9de4f7271be9/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/missions/mp_1c6e09be2b80 "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp5636ftlu/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_3435d1fe7ef849f6/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_af54c4bec918895d/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_af54c4bec918895d/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_af54c4bec918895d/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9acb45a4dcf89495/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9acb45a4dcf89495/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9acb45a4dcf89495/milestones/m1/projection "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9acb45a4dcf89495/milestones/m1/projection "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9acb45a4dcf89495/milestones/m1/projection "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9acb45a4dcf89495/milestones/m1/anchor-candidate "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9acb45a4dcf89495/milestones/m1/projection "HTTP/1.1 403 Forbidden"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp8qnciapq/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/resource-evidence/probe "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/observations "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/observations/obs_33772a00a249 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/observations "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/work/observations "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/work/observations "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/work/observations "HTTP/1.1 501 Not Implemented"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpz1cqyfsa/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_b04f4d0b5c139b26/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_084e7319fec85572/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_084e7319fec85572/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_084e7319fec85572/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5/milestones/m1/dispute "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5/milestones/m1/retention "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5/milestones/m1/evidence/delete "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/work/disputes/wdp_13399aec91a776b9/close "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5/milestones/m1/retention "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5/milestones/m1/evidence/delete "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_cc8fbadb0761e9c5/milestones/m1/bundle "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_36aed63b1c98ec5e/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2c6019bf2ca377ca/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2c6019bf2ca377ca/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2c6019bf2ca377ca/award "HTTP/1.1 201 Created"
+HTTP Request: DELETE http://testserver/api/v1/artifacts/a_c66e5680ec2e899e5a8262e9 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_d8d04aa5a9bee212 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_d8d04aa5a9bee212/milestones/m1/evaluate "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpdv35e5s7/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/rails "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_d69b844cf9e5584e "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_d69b844cf9e5584e/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_bcb2cf5d2fedbe5b/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_bcb2cf5d2fedbe5b/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_bcb2cf5d2fedbe5b/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_0ded3937b6f9606d/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_0ded3937b6f9606d/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_a14a5318b5ca8ef0/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_6e273590d5a23dec/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_6e273590d5a23dec/submit "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_0ded3937b6f9606d "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/budgets/tree "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_6e273590d5a23dec/submit "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_ca5ec10f625232d7 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_ca5ec10f625232d7/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2de5cac2c8df4c89/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2de5cac2c8df4c89/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_2de5cac2c8df4c89/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_99d10b696fc719d6/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_99d10b696fc719d6/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_cc9bfa454035ea66/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_af0880d96cca5f3b/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_af0880d96cca5f3b/submit "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_af0880d96cca5f3b/submit "HTTP/1.1 409 Conflict"
+HTTP Request: GET http://testserver/api/v1/work/exposure "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_af0880d96cca5f3b/reconcile "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_e8553e3d35016569 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_e8553e3d35016569/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_638ab16e1af1e34f/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_638ab16e1af1e34f/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_638ab16e1af1e34f/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_72fe774e1d5b53df/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_72fe774e1d5b53df/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_5803c0920731ab64/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_ac8fa5cac2e2a5b8/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_ac8fa5cac2e2a5b8/submit "HTTP/1.1 400 Bad Request"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_ac8fa5cac2e2a5b8/reconcile "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/entitlements/wen_5803c0920731ab64 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_5803c0920731ab64/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_9059a715dda18f59/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_9059a715dda18f59/submit "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/intents "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/journal/replay "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpkmgcz1kx/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/rails "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c00715cb097ff577 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c00715cb097ff577/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_d3a21f3dd02263f5/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_d3a21f3dd02263f5/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_d3a21f3dd02263f5/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_4085c4df1b534216/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_4085c4df1b534216/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_9e85d7e315999cce/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_4003a15b31dcb888/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_4003a15b31dcb888/submit "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/entitlements/wen_9e85d7e315999cce "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_4085c4df1b534216/receipts "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_4003a15b31dcb888/submit "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_4085c4df1b534216 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_9e85d7e315999cce/refund "HTTP/1.1 403 Forbidden"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_9e85d7e315999cce/refund "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_9e85d7e315999cce/refund "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_9e85d7e315999cce/refund "HTTP/1.1 409 Conflict"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_9e85d7e315999cce/refund "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_308687e15fc7c7ea/reconcile "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_9e85d7e315999cce/credit "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/journal/replay "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/journal "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpazyh13su/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/rails "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_f7c8ec341d08a286 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_f7c8ec341d08a286/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_9be3916dca68d898/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_9be3916dca68d898/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_9be3916dca68d898/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_054d75e07da74317/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_054d75e07da74317/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_e09358d7f4ea7d1d/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_6eca2cd77500afeb/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_6eca2cd77500afeb/submit "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_b7745d74a56364a4/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_9a6194ab84eb9159/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_9a6194ab84eb9159/submit "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_97a8d07b0bf97dbe/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_2678bf4089d2d94d/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_2678bf4089d2d94d/submit "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/treasury "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/entitlements/wen_b7745d74a56364a4 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_9a6194ab84eb9159/reconcile "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_9a6194ab84eb9159/submit "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/treasury "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/treasury/allocate "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_e736381a89818e45 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_e736381a89818e45/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/treasury/allocate "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_80aa3418f1420744/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_80aa3418f1420744/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_80aa3418f1420744/award "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/treasury "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_f2086b49a366108b/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_f2086b49a366108b/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_52e705f898ef0c33/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_c1ca4d8c30e189b6/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_c1ca4d8c30e189b6/submit "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/treasury "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_57ddcfda88a77054 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_57ddcfda88a77054/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/treasury/allocate "HTTP/1.1 400 Bad Request"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c48c75406ba78307 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c48c75406ba78307/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_69e719ff1dd8bc5e/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_69e719ff1dd8bc5e/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_69e719ff1dd8bc5e/award "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_9ed14288daf99093 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9ed14288daf99093/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_9ed14288daf99093 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_a6664f5992d80804/prepare "HTTP/1.1 201 Created"
+EthAccountSigner.sign_typed_data: primaryType=PermitWitnessTransferFrom domain_keys=['name', 'chainId', 'verifyingContract'] type_names=['PermitWitnessTransferFrom', 'TokenPermissions', 'Witness']
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_3275ef1fae5425de/authorize "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/intents/pi_3275ef1fae5425de/submit "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_9ed14288daf99093/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/journal/replay "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp4dt4xcza/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/work/rails "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/providers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c1b4885640f8e615 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c1b4885640f8e615/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_d194e1c120180418/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_d194e1c120180418/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_d194e1c120180418/award "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_02e995b6fb441f90/milestones/m1/verify "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/work/awards/wa_02e995b6fb441f90/milestones/m1/decide "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_0e9c6fcf0d6f8055/prepare "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_0e9c6fcf0d6f8055/prepare "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_0e9c6fcf0d6f8055/prepare "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_0e9c6fcf0d6f8055/prepare "HTTP/1.1 409 Conflict"
+HTTP Request: GET http://testserver/api/v1/work/intents "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c4c504de9302b8ac "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c4c504de9302b8ac/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_3f68cfa004e44c52/open "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_3f68cfa004e44c52/offers "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/requests/wr_3f68cfa004e44c52/award "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/work/awards/wa_ca8ad915c3861fc0 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_c1b4885640f8e615/amend "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/work/terms/wt_8ad27e128c043a81/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_0e9c6fcf0d6f8055/prepare "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/work/entitlements/wen_0e9c6fcf0d6f8055/prepare "HTTP/1.1 403 Forbidden"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpzmwrts17/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/contracts/ct_59bc637df463dfc5/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830292/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830292/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:211: ResourceWarning: unclosed file <_io.BufferedReader name=6>
+  return self._supervise(job, contract, spec, run, man, workdir, backend, latest)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/verification/preview "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification/preview "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_21205048ee30 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_6f7db4352a32 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_f0462b472387 "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/jobs/j_da04739e59bcdaca "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/verification/vf_21205048ee30/statement "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification/verify-statement "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification/verify-statement "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification/verify-statement "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/verification/vf_6f7db4352a32 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_ebe9d372fa71 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/contracts/ct_979f5d95502fc05f/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830336/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830336/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/jobs/j_31fca1a9b9795f45/review-request "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_76338b2d71da "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs/j_31fca1a9b9795f45/review-request "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_44ab30103f64 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs/j_31fca1a9b9795f45/review-request "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/reviews/j_31fca1a9b9795f45/decision "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/contracts/ct_b2e9cd14fe530f23/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830362/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830362/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_636ef35b3b1d "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/jobs/j_e928e3aa15b8f3cc "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/contracts/ct_d7809dd1bfa85cd3/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830378/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830378/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_c952b7512ba9 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_7063deb320bf "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_6d208d445244 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/contracts/ct_7e6922716adc0aa1/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830400/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830400/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_5c3c72b1ccd2 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs/j_298b9b9f7e756898/review-request "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/contracts/ct_0de74e392d7f522f/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830416/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830416/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_5fc5cfa06f7b "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_02591b7c4cd2 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_574f8943d692 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/contracts/ct_6b0ea9401b8905b6/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830438/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830438/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/contracts "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/contracts/ct_a1d45ae956a59cdd/freeze "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/jobs "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830468/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830468/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/verification/vf_25257788b171 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830479/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830479/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:211: ResourceWarning: unclosed file <_io.BufferedReader name=6>
+  return self._supervise(job, contract, spec, run, man, workdir, backend, latest)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: GET http://testserver/api/v1/verification/vf_db2b1a27bddc "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification "HTTP/1.1 202 Accepted"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830498/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830498/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:211: ResourceWarning: unclosed file <_io.BufferedReader name=6>
+  return self._supervise(job, contract, spec, run, man, workdir, backend, latest)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: GET http://testserver/api/v1/verification/vf_89dc8e3b929d "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/verification/vf_89dc8e3b929d/resolve "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/verification/vf_89dc8e3b929d/resolve "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/verification?job_id=j_d0f7de63b1d5261c "HTTP/1.1 200 OK"
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmps81q9q_h/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: POST http://testserver/api/v1/workflows "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages "HTTP/1.1 201 Created"
+HTTP Request: GET http://testserver/api/v1/packages/pk_c68a93fdbdcb/export "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/import "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/import "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/packages/import "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/packages/import "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/packages/import "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/packages/compatibility "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/import "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/packages/compatibility "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/compatibility "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/compatibility "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/workflows "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/instantiate "HTTP/1.1 422 Unprocessable Entity"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/instantiate "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/quote "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/instantiate "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/quote "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/runs "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/quote "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/runs "HTTP/1.1 409 Conflict"
+HTTP Request: GET http://testserver/api/v1/budget "HTTP/1.1 200 OK"
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/runs "HTTP/1.1 409 Conflict"
+HTTP Request: PUT http://testserver/api/v1/budgets/workspace "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/runs "HTTP/1.1 202 Accepted"
+HTTP Request: GET http://testserver/api/v1/packages/quotes/pq_c8c6f7bf6774 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/runs "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/packages/runs/pr_6e6c762297ef/bundle "HTTP/1.1 409 Conflict"
+HTTP Request: GET http://testserver/api/v1/packages/runs/pr_6e6c762297ef "HTTP/1.1 200 OK"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:350: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830592/stat' mode='r' encoding='UTF-8'>
+  fields = open('/proc/%d/stat' % pid).read().split(')')[-1].split()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:352: ResourceWarning: unclosed file <_io.TextIOWrapper name='/proc/2830592/status' mode='r' encoding='UTF-8'>
+  for line in open('/proc/%d/status' % pid):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/metacoin_service/compute/engine.py:211: ResourceWarning: unclosed file <_io.BufferedReader name=6>
+  return self._supervise(job, contract, spec, run, man, workdir, backend, latest)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+HTTP Request: GET http://testserver/api/v1/packages/runs/pr_6e6c762297ef "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/packages/runs/pr_6e6c762297ef "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/pk_bcfdb19a46bb/retire "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/pk_bcfdb19a46bb/instantiate "HTTP/1.1 409 Conflict"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/quote "HTTP/1.1 201 Created"
+HTTP Request: POST http://testserver/api/v1/packages/pk_c68a93fdbdcb/runs "HTTP/1.1 202 Accepted"
+HTTP Request: POST http://testserver/api/v1/runs/run_a5d6556a6f77858b/cancel "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/packages/runs/pr_4c96f2a85075 "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/runs/pr_6e6c762297ef/bundle "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/api/v1/capabilities "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/runs/pr_6e6c762297ef/bundle "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/session "HTTP/1.1 200 OK"
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-core-work-economy/.venv/lib/python3.12/site-packages/starlette/testclient.py:463: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+  return super().request(
+HTTP Request: GET http://testserver/console/packages "HTTP/1.1 200 OK"
+HTTP Request: GET http://testserver/console/packages/pk_c68a93fdbdcb "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/packages/pk_c68a93fdbdcb/compatibility "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/console/packages/pk_c68a93fdbdcb/instantiate "HTTP/1.1 200 OK"
+HTTP Request: POST http://testserver/api/v1/packages/runs/pr_6e6c762297ef/bundle "HTTP/1.1 403 Forbidden"
+HTTP Request: POST http://testserver/api/v1/packages "HTTP/1.1 403 Forbidden"
+.
+----------------------------------------------------------------------
+Ran 45 tests in 45.141s
+
+OK
+archive                ok
+    no_duplicate_members                     ok 5
+    safe_member_names                        ok ""
+    no_symlink_members                       ok ""
+    decompression_bounds                     ok {"uncompressed": 7338, "compressed": 3621, "max_total": 67108864, "max_ratio": 100}
+manifest               ok
+    schema                                   ok "metacoin-result-bundle/v1"
+    structure                                ok ["delivery_policy", "delivery_state", "file_sha256", "issued_at", "issued_by", "issuer_key_id", "nodes", "operations", "package", "package_run_id", "run_id", "s
+    canonical_encoding                       ok "manifest bytes are the canonical encoding of their content"
+digests                ok
+    file:files/plan/inputs.json              ok "digest matches"
+    file:files/plan/summary.json             ok "digest matches"
+    file:files/plan/witness.json             ok "digest matches"
+    no_unlisted_files                        ok ""
+    statement_binds_manifest                 ok "8977c538f895ac09"
+signature              ok
+    valid signature from a key the caller trusts: the issuing service produced this bundle
+verification_records   ok
+    verification:vf_7b69320c12f4             ok "statement signed by the same issuer key"
+witness                ok
+    witness:plan                             scope "disclosed inputs omit private fields, so the commitment cannot be re-derived byte-for-byte; the replay below uses the disclosed inputs"
+    witness_replay:plan                      ok {"feasible": true, "objective": 12, "min_margin": 18000, "violations": []}
+scope                  n/a
+    this verifier checked archive safety, manifest structure, file digests, the issuer signature and the carried verification statements; the disclosed witness was replayed. Undisclosed inputs are not verified.

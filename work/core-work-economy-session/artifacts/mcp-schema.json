@@ -1,6 +1,6 @@
 {
  "schema": "metacoin-mcp-tools/v1",
- "count": 43,
+ "count": 44,
  "tools": [
   {
    "name": "list_services",
@@ -1331,6 +1331,30 @@
      "award_id"
     ],
     "title": "inspect_evidenceArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "provider_history",
+   "description": "Evidence-based history of one provider as structured dimensions with sample sizes and the population visible to the caller (task families, verification methods, acceptance outcomes incl. accepted valid negatives, execution failures, disputes, latency, prices, relationship). No single score. Read-only.",
+   "inputSchema": {
+    "properties": {
+     "provider_id": {
+      "title": "Provider Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "provider_id"
+    ],
+    "title": "provider_historyArguments",
     "type": "object"
    },
    "annotations": {

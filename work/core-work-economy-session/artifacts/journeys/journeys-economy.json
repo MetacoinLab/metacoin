@@ -1,0 +1,879 @@
+{
+ "schema": "metacoin-journeys-economy/v1",
+ "provider_mode": "test-http",
+ "revision": "1fe5e1b12639a94454d97f59306c262ad529b4a4",
+ "dependencies": {
+  "compute_interpreter": true,
+  "torch": true,
+  "python": "3.12.3",
+  "local_chain": true
+ },
+ "started_at": 1790661343,
+ "finished_at": 1790661522,
+ "results": [
+  {
+   "journey": 1,
+   "title": "work request from a real scientific operation: typed deliverables validated, determination contract frozen",
+   "status": "passed",
+   "evidence": {
+    "terms_id": "wt_c5137a010b446878",
+    "digest": "08156a374cad03cc4042e1e57c5a73543caa04df3ee2fb27790adeae71141079",
+    "deliverables": [
+     "determination"
+    ],
+    "operation": "energy_audit",
+    "seconds": 0.049
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "incompatible offer excluded with structured reasons; only the eligible offer can be awarded",
+   "status": "passed",
+   "evidence": {
+    "excluded": [
+     {
+      "offer_id": "wo_63f9f1870a6b1423",
+      "provider_id": "pv_abd42179948e",
+      "state": "excluded",
+      "reasons": [
+       "price_above_ceiling"
+      ]
+     }
+    ],
+    "awarded": "wa_4b4e886aeac076fe",
+    "reserved": 6,
+    "seconds": 0.137
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "two equally priced eligible offers: the declared deterministic tie-break decides; a manual choice needs a reason",
+   "status": "passed",
+   "evidence": {
+    "policy": {
+     "schema": "metacoin-selection-policy/v1",
+     "policy": "lowest_eligible_price",
+     "tie_break": [
+      "earliest_offer",
+      "provider_id"
+     ],
+     "weights": null,
+     "rule": "eligibility first; then the lowest fixed price (or cap); ties by the declared tie-breaks in order; then offer id"
+    },
+    "ranked": [
+     "wo_3eb43d860bfb5f57",
+     "wo_0abbd1cf22f542e3"
+    ],
+    "awarded": "wo_3eb43d860bfb5f57",
+    "seconds": 0.129
+   },
+   "caveat": null
+  },
+  {
+   "journey": 4,
+   "title": "award retried after a lost response returns the same award and reservation; no second obligation",
+   "status": "passed",
+   "evidence": {
+    "award": "wa_d200a75f26d5a2fc",
+    "replayed": true,
+    "reservation_nodes": 1,
+    "reserved": 4,
+    "seconds": 0.117
+   },
+   "caveat": null
+  },
+  {
+   "journey": 5,
+   "title": "two concurrent awards for a single-award request: exactly one provider obtains the entitlement",
+   "status": "passed",
+   "evidence": {
+    "codes": [
+     201,
+     409
+    ],
+    "winner_offer": "wo_a0b89d0f3d771d4a",
+    "seconds": 0.127
+   },
+   "caveat": null
+  },
+  {
+   "journey": 6,
+   "title": "price, recipient or threshold changes after freezing require a new agreement; the frozen revision is never mutated",
+   "status": "passed",
+   "evidence": {
+    "edit_refused": 409,
+    "amendment_version": 2,
+    "consequential": true,
+    "old_digest_unchanged": true,
+    "recipient_substitution": [
+     "recipient_differs_from_registered"
+    ],
+    "seconds": 0.13
+   },
+   "caveat": null
+  },
+  {
+   "journey": 7,
+   "title": "multi-milestone contract: independent nodes run concurrently, the dependent node is gated on ACCEPTANCE and a paid valid negative stops it by policy",
+   "status": "passed",
+   "evidence": {
+    "initial": {
+     "pos": "executing",
+     "neg": "executing",
+     "down": "pending"
+    },
+    "final": {
+     "pos": [
+      "accepted",
+      {
+       "execution": "completed",
+       "science": "FEASIBLE",
+       "acceptance": "accepted",
+       "payment": "payable"
+      }
+     ],
+     "neg": [
+      "accepted",
+      {
+       "execution": "completed",
+       "science": "INFEASIBLE",
+       "acceptance": "accepted",
+       "payment": "payable"
+      }
+     ],
+     "down": [
+      "cancelled",
+      {
+       "execution": "not_started",
+       "science": "not_applicable",
+       "acceptance": "not_applicable",
+       "payment": "released"
+      }
+     ]
+    },
+    "reserved": 10,
+    "seconds": 13.279
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "correctly verified feasible result: accepted under the frozen policy and paid as agreed (application-journal rail)",
+   "status": "passed",
+   "evidence": {
+    "award": "wa_a5186297fb909766",
+    "dimensions": {
+     "execution": "completed",
+     "science": "FEASIBLE",
+     "acceptance": "accepted",
+     "payment": "paid"
+    },
+    "payment": {
+     "state": "settled",
+     "final_amount": 10,
+     "rail": "application-journal"
+    },
+    "assertions": {
+     "signature": "receipts signed by service key",
+     "science": "FEASIBLE",
+     "acceptance": "accepted",
+     "payment": "settled"
+    },
+    "seconds": 4.948
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "correctly verified INFEASIBLE result under an outcome-neutral determination contract: accepted and paid the same as the positive",
+   "status": "passed",
+   "evidence": {
+    "award": "wa_552222461204ff5f",
+    "reason": "verified negative conclusion accepted under the outcome-neutral rule",
+    "amount": 10,
+    "equal_to_j8": true,
+    "seconds": 4.856
+   },
+   "caveat": null
+  },
+  {
+   "journey": 10,
+   "title": "a crash / timeout presented as an infeasibility result: scientific acceptance refused, the execution-failure record preserved",
+   "status": "passed",
+   "evidence": {
+    "execution": "failed",
+    "science": "no_valid_evidence",
+    "candidate": "rejected",
+    "attempt": "failed",
+    "worker_rc": 0,
+    "seconds": 18.524
+   },
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "title": "frozen legacy task replayed through the contract bridge reproduces the registered canonical hash; historic artifacts untouched",
+   "status": "passed",
+   "evidence": {
+    "task": "task-0018",
+    "hash": "d31160104ffb8495",
+    "registered": "d31160104ffb8495",
+    "ledger_sha256": "59ec7834451e17ab",
+    "accepted": "accepted",
+    "seconds": 2.504
+   },
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "title": "numerical witness (resource plan) accepted under its declared class; it cannot be advertised as a legacy exact protocol task",
+   "status": "passed",
+   "evidence": {
+    "class": "numerical_witness",
+    "science": "FEASIBLE",
+    "legacy_relabel_refused": "deliverable_type_kind_mismatch",
+    "seconds": 6.441
+   },
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "title": "disclosed evidence package verified from a clean separate process without the service database",
+   "status": "passed",
+   "evidence": {
+    "parsing": true,
+    "integrity": true,
+    "signer_trust": true,
+    "replay": "INFEASIBLE",
+    "acceptance": "accepted",
+    "cwd_files": [
+     "bundle.zip"
+    ],
+    "seconds": 0.062
+   },
+   "caveat": null
+  },
+  {
+   "journey": 14,
+   "title": "an artifact from another contract presented against these terms is rejected (binding to contract digest and input root)",
+   "status": "passed",
+   "evidence": {
+    "candidate": "rejected",
+    "failed": [
+     "source"
+    ],
+    "seconds": 2.405
+   },
+   "caveat": null
+  },
+  {
+   "journey": 15,
+   "title": "the same payable claim re-submitted (new decision request, re-read receipts, different transport key): one entitlement only",
+   "status": "passed",
+   "evidence": {
+    "second_decision": 409,
+    "provider_receipts": 1,
+    "entitlement": "wen_a6e9b4aac5284764",
+    "seconds": 4.921
+   },
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "title": "output committed before a sampled challenge; altered afterwards; the mismatch is detected without claiming full replay from sampling",
+   "status": "passed",
+   "evidence": {
+    "first": "passed",
+    "after_alteration": "failed",
+    "claim": "challenge-selected scenarios recomputed by temporal-energy/v1 and compared exactly",
+    "challenge_seed_recorded": true,
+    "seconds": 8.615
+   },
+   "caveat": "server-generated seed on a same-operator instance: recorded, not an unbiased public beacon"
+  },
+  {
+   "journey": 17,
+   "title": "conflicting verification records preserved; diagnostic recheck compares inputs and method versions first; resolution linked, nothing overwritten",
+   "status": "passed",
+   "evidence": {
+    "records": [
+     "passed",
+     "failed"
+    ],
+    "diagnostic": {
+     "input_root_matches_terms": true,
+     "contract_digest_matches_terms": true,
+     "method_version": {
+      "terms": "11fe580e9d73b92305cce2ff7780e1df56f16b5ef53d6ad0c8398cddc0be619c",
+      "contract": "11fe580e9d73b92305cce2ff7780e1df56f16b5ef53d6ad0c8398cddc0be619c"
+     },
+     "evidence_root_unchanged": true,
+     "method_version_matches": true
+    },
+    "resolution": "uphold",
+    "seconds": 9.818
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "dispute against a mistaken rejection: valid replay added, an authorized superseding acceptance created, the original decision retained",
+   "status": "passed",
+   "evidence": {
+    "decisions": [
+     [
+      "rejected",
+      "requester",
+      false
+     ],
+     [
+      "accepted",
+      "dispute_resolution",
+      true
+     ]
+    ],
+    "entitlement": {
+     "entitlement_id": "wen_837e66d61a0452ec",
+     "payable_amount": 10
+    },
+    "seconds": 4.874
+   },
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "title": "dispute resolution attempted by unauthorized principals (provider, viewer, requester): refused; the original state unchanged",
+   "status": "passed",
+   "evidence": {
+    "codes": [
+     403,
+     403,
+     403
+    ],
+    "dispute_state": "open",
+    "decisions": 1,
+    "seconds": 4.894
+   },
+   "caveat": null
+  },
+  {
+   "journey": 20,
+   "title": "restricted receipt bundle: the offline verifier reports valid disclosed structure and signatures with limited scientific scope",
+   "status": "passed",
+   "evidence": {
+    "integrity": true,
+    "signatures": true,
+    "replay_performed": false,
+    "missing": [
+     "inputs (commitment only)",
+     "full evidence vault (disclosed fields only)"
+    ],
+    "verdict": "structurally valid, signatures trusted, scientific scope limited",
+    "seconds": 0.059
+   },
+   "caveat": null
+  },
+  {
+   "journey": 21,
+   "title": "contract-scoped read-only audit access: required evidence readable; spending, amendments and unrelated artifacts refused",
+   "status": "passed",
+   "evidence": {
+    "grant": "ag_4373f27b949f6cb5",
+    "evidence_read": 200,
+    "inputs_read": 403,
+    "pay": 403,
+    "amend": 403,
+    "seconds": 0.072
+   },
+   "caveat": null
+  },
+  {
+   "journey": 22,
+   "title": "audit grant revoked during a session: future access stops; already disclosed data is stated as not recallable",
+   "status": "passed",
+   "evidence": {
+    "before": 200,
+    "after": 403,
+    "limits": "revocation and expiry stop FUTURE service access; evidence already disclosed or downloaded cannot be recalled",
+    "seconds": 0.041
+   },
+   "caveat": null
+  },
+  {
+   "journey": 23,
+   "title": "encrypted offline package for one recipient: correct key decrypts and verifies; the wrong recipient is refused; no private key travels",
+   "status": "passed",
+   "evidence": {
+    "wrong_key_refused": true,
+    "inner_sha256": "79dcb40c7e59f135",
+    "replay": "INFEASIBLE",
+    "seconds": 0.067
+   },
+   "caveat": null
+  },
+  {
+   "journey": 24,
+   "title": "source revoked while a late worker publishes: the attempt fails, no stale publication restores access",
+   "status": "passed",
+   "evidence": {
+    "delete": 200,
+    "execution": "failed",
+    "evidence_root": null,
+    "seconds": 2.424
+   },
+   "caveat": null
+  },
+  {
+   "journey": 25,
+   "title": "authorized low-budget work purchase through a real MCP client under an agent grant (same server policy as HTTP)",
+   "status": "passed",
+   "evidence": {
+    "protocol": "2025-11-25",
+    "tools": 44,
+    "award": "wa_c0faf5aacae03947",
+    "retry_same": true,
+    "grant": "g_9efce913afbfbc15",
+    "stderr": null,
+    "seconds": 1.595
+   },
+   "caveat": "the agent principal is the owner's scoped credential under an issued grant; award authority follows the grant ceiling"
+  },
+  {
+   "journey": 26,
+   "title": "a provider description instructs the agent to raise the budget and change the payment destination: the original grant and the frozen terms are enforced server-side",
+   "status": "passed",
+   "evidence": {
+    "poisoned_offer_state": "excluded",
+    "agent_award_attempt": {
+     "ok": false,
+     "code": "CONFLICT",
+     "status": 409
+    },
+    "awards": [],
+    "seconds": 1.669
+   },
+   "caveat": null
+  },
+  {
+   "journey": 27,
+   "title": "one permitted subtask delegated to a registered local provider: same data scope, requester charged once, primary provider remains bound",
+   "status": "passed",
+   "evidence": {
+    "delegation": "wdl_31d59425b9ec",
+    "attempts": [
+     "superseded",
+     "completed"
+    ],
+    "entitlement_recipient_is_primary": true,
+    "amount": 10,
+    "seconds": 6.105
+   },
+   "caveat": null
+  },
+  {
+   "journey": 28,
+   "title": "over-budget and over-depth nested delegation refused before signing or dispatch",
+   "status": "passed",
+   "evidence": {
+    "budget": "BUDGET_EXHAUSTED",
+    "depth": 409,
+    "attempts": 1,
+    "seconds": 0.162
+   },
+   "caveat": null
+  },
+  {
+   "journey": 29,
+   "title": "failed provider reassigned under the permitted policy; old award preserved and released; a stale completion from the old generation cannot become current",
+   "status": "passed",
+   "evidence": {
+    "old": "reassigned",
+    "released": true,
+    "new_provider": "pv_abd42179948e",
+    "old_job": "failed",
+    "new_decision": "accepted",
+    "seconds": 25.637
+   },
+   "caveat": null
+  },
+  {
+   "journey": 30,
+   "title": "service signing key rotated with an authorization record: old receipts verify under the historical key; substitution refused",
+   "status": "passed",
+   "evidence": {
+    "rotated_from": "k_4bef216f32924efdc76cf424",
+    "rotated_to": "k_b41b68cc9ebfbbaac7f85bf0",
+    "old_receipt_after_rotation": true,
+    "substitution_refused": true,
+    "trust_history": 2,
+    "seconds": 5.097
+   },
+   "caveat": null
+  },
+  {
+   "journey": 31,
+   "title": "actual exact payment on the private local chain matched to one accepted entitlement (observed receipt, balances moved once)",
+   "status": "passed",
+   "evidence": {
+    "transaction": "0x80606b81db7f4984eff49fe3fc3812905c81871c02cb396cd1259dc04c8cfb8c",
+    "moved": {
+     "payer": 10,
+     "provider": 10
+    },
+    "entitlement": "paid",
+    "chain": "eip155:131277322940537",
+    "seconds": 5.072
+   },
+   "caveat": "private py-evm chain, synthetic accounts; no public settlement"
+  },
+  {
+   "journey": 32,
+   "title": "capped metered (upto) payment settled below its maximum for a diagnostic delivery; unused reservation released",
+   "status": "passed",
+   "evidence": {
+    "authorized_max": 10,
+    "final": 5,
+    "reservation": {
+     "reserved": 0,
+     "committed": 5
+    },
+    "seconds": 5.126
+   },
+   "caveat": null
+  },
+  {
+   "journey": 33,
+   "title": "payment response lost, workers restarted, exact original authorization reconciled by nonce; no second spend",
+   "status": "passed",
+   "evidence": {
+    "before": "unknown",
+    "retry_refused": 409,
+    "after": "settled",
+    "method": "permit2_nonce_bitmap",
+    "moved": 10,
+    "seconds": 6.273
+   },
+   "caveat": "not exercised here: restarting the API process discards the in-memory private chain; reconcile then reports rail identity changed and retains exposure (see money.reconcile)"
+  },
+  {
+   "journey": 34,
+   "title": "work completed after authorization expiry: expiry is not assumed unpaid; reconciled as unused, renewed as a new identity, settled once",
+   "status": "passed",
+   "evidence": {
+    "expired_intent": "pi_fb2197dca9db304e",
+    "reconciliation": "nonce unused and authorization expired: needs renewal (prepare a new intent)",
+    "renewed": "pi_aa38515d636bea24",
+    "settled": "settled",
+    "seconds": 5.243
+   },
+   "caveat": null
+  },
+  {
+   "journey": 35,
+   "title": "a confirmed fee credited once funds a bounded treasury award that pays an accepted negative; replay cannot credit the fee twice",
+   "status": "passed",
+   "evidence": {
+    "fee_revenue": 1,
+    "after_replay": 1,
+    "treasury_spent": 1,
+    "treasury_balance_delta": 0,
+    "science": "INFEASIBLE",
+    "seconds": 10.258
+   },
+   "caveat": null
+  },
+  {
+   "journey": 36,
+   "title": "verifier paid for completed verification work when it correctly rejects provider evidence (verdict-independent); provider unpaid",
+   "status": "passed",
+   "evidence": {
+    "entitlements": [
+     "verifier"
+    ],
+    "verifier_paid": 2,
+    "provider_decision": "rejected",
+    "seconds": 5.718
+   },
+   "caveat": null
+  },
+  {
+   "journey": 37,
+   "title": "supported synthetic partial refund observed on the rail; its retry replays; a service credit is labelled as a liability, not returned assets",
+   "status": "passed",
+   "evidence": {
+    "refund": "settled",
+    "retry_replayed": true,
+    "provider_delta": -4,
+    "credit": "application credit: a liability of this service, not returned currency",
+    "seconds": 0.161
+   },
+   "caveat": "reverse transfer signed under the synthetic provider account's preauthorized local recovery arrangement"
+  },
+  {
+   "journey": 38,
+   "title": "accounting journal replayed: balances, obligations, reserves and exposure reproduced; no base-supply, identity or ledger change",
+   "status": "passed",
+   "evidence": {
+    "consistent": true,
+    "invariants_failed": [],
+    "scopes": [
+     "action-units@application",
+     "local-chain-token@eip155:131277322940537"
+    ],
+    "protocol_files_unchanged": true,
+    "seconds": 0.021
+   },
+   "caveat": null
+  },
+  {
+   "journey": 39,
+   "title": "contract drafted from an original mission bottleneck, completed locally, updating only the service-layer portfolio (anchored verdict unchanged)",
+   "status": "passed",
+   "evidence": {
+    "portfolio": "mp_27b17c07f831",
+    "contribution": "commissioned_replication",
+    "verdict_unchanged": true,
+    "seconds": 2.588
+   },
+   "caveat": null
+  },
+  {
+   "journey": 40,
+   "title": "reproduce the final source package in a clean environment and verify the delivered patch against its base",
+   "status": "passed",
+   "evidence": {
+    "archive_sha256": "a891e3c4c51e7bc3e12c735ad78cf748fae693b9c73324035a84798f22b3171c",
+    "files": 563,
+    "fresh_venv_from_lock_offline": true,
+    "steps": [
+     "rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home --provider-mode test-http init",
+     "rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home status",
+     "rc=0 47s :: .venv/bin/python -m unittest metacoin_service.tests.test_work_terms metacoin_service.tests.test_work_board metacoin_service.tests.test_work_evidence metacoin_service.tests.test_work_access_missions metacoin_service.tests.test_work_surfaces metacoin_service.tests.test_work_history_interop metacoin_service.tests.test_work_backlog metacoin_service.tests.test_verification metacoin_service.tests.test_packages",
+     "rc=0 2s :: /usr/bin/python3 -m unittest metacoin_service.tests.test_resource_plan metacoin_service.tests.test_compute_science",
+     "rc=0 29s :: .venv/bin/python -m unittest metacoin_service.tests.test_service",
+     "rc=0 5s :: .venv/bin/python -m unittest integrations.x402.local_chain.test_local_chain metacoin_service.tests.test_packages_upto",
+     "rc=0 25s :: .venv/bin/python -m unittest metacoin_service.tests.test_work_money metacoin_service.tests.test_work_faults",
+     "rc=0 43s :: .venv/bin/python -m metacoin_service.tests.journeys_economy --only 1,2,8,9,11,13,15,18,31,35,38 --out /tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/o8/clean-export/journeys-from-clean-export.json"
+    ],
+    "journey_subset": {
+     "passed": 11,
+     "failed": 0,
+     "blocked": 0
+    },
+    "runtime_data_placed_from": "protocol-data/",
+    "patch_check": "patch-check.json"
+   },
+   "caveat": "the archive tree has no .git: the service reports loaded_revision \"unavailable\" there; identity comes from SOURCE_REVISION.txt and the archive digest"
+  }
+ ],
+ "browser": {
+  "passed": 23,
+  "failed": 0,
+  "checks": [
+   {
+    "check": "overview renders the seven areas",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "draft terms created from the form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "freeze binds the operation (digest shown)",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "request opened from the frozen terms",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "provider sees the request preview without private inputs",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "provider offer submitted",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "requester sees the comparison under the declared policy",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "award performed from the comparison form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "provider acknowledged the award",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "worker delivered the milestone (execution completed, science INFEASIBLE readable)",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "verification completed; acceptance candidate accepted with a predicate trace",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "stale evidence root refused with a readable error",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "state preserved after refresh (still pending acceptance)",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "decision recorded: acceptance accepted, payment payable",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "payment settled and award closed",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "budget page shows a consistent journal replay and the settlement entry",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer sees the four dimensions but no role-bypassing controls and no private values",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer cannot post a payment form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "dispute opened with a timeline",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "reviewer decided the dispute from the timeline page",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "mission portfolio imported and bottlenecks listed",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "provider history page shows dimensions with a valid negative counted as accepted and no score",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "narrow width: no horizontal page overflow on the work pages",
+    "ok": true,
+    "detail": "{'/console/work': True, '/console/work/awards/wa_11f4c819a6be7ab8': True, '/console/work/requests/wr_90c9535ec4d79be1': True, '/console/work/budget': True, '/console/work/disputes/wdp_d9ff27d81f623807': True}"
+   }
+  ],
+  "screenshots": [
+   "01-work-overview.png",
+   "02-terms-frozen.png",
+   "03-request-comparison.png",
+   "04-contract-delivered.png",
+   "05-contract-accepted.png",
+   "06-contract-paid.png",
+   "07-budget-journal.png",
+   "08-dispute.png",
+   "09-mission.png",
+   "11-provider-history.png",
+   "10-narrow-contract.png"
+  ],
+  "crash": null,
+  "rc": 0,
+  "status": "passed",
+  "queue_before": {
+   "queued": 0,
+   "running": 0,
+   "succeeded": 46,
+   "failed": 3,
+   "cancelled": 1
+  },
+  "queue_after": {
+   "queued": 0,
+   "running": 0,
+   "succeeded": 46,
+   "failed": 3,
+   "cancelled": 1
+  },
+  "drained": [],
+  "worker_alive_at_end": true,
+  "last_award": {
+   "award": "wa_c4108865f9f3da73",
+   "milestones": [
+    {
+     "key": "pos",
+     "state": "accepted",
+     "job_id": "j_7198cd610daceaba",
+     "dimensions": {
+      "execution": "completed",
+      "science": "FEASIBLE",
+      "acceptance": "accepted",
+      "payment": "payable"
+     },
+     "blocked_reason": null
+    },
+    {
+     "key": "neg",
+     "state": "accepted",
+     "job_id": "j_47e9bfa33a51fda0",
+     "dimensions": {
+      "execution": "completed",
+      "science": "INFEASIBLE",
+      "acceptance": "accepted",
+      "payment": "payable"
+     },
+     "blocked_reason": null
+    },
+    {
+     "key": "down",
+     "state": "cancelled",
+     "job_id": null,
+     "dimensions": {
+      "execution": "not_started",
+      "science": "not_applicable",
+      "acceptance": "not_applicable",
+      "payment": "released"
+     },
+     "blocked_reason": "dependency neg concluded INFEASIBLE: downstream work stopped by policy (accepted_positive required)"
+    }
+   ],
+   "job": {
+    "state": "succeeded",
+    "kind": "energy_audit",
+    "error_code": null,
+    "lease_owner": null,
+    "retries_left": 1,
+    "location_policy": null,
+    "error": null
+   }
+  }
+ },
+ "passed": 40,
+ "failed": 0,
+ "blocked": 0,
+ "not_run": 0,
+ "total": 40
+}

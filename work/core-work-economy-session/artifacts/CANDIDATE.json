@@ -1,0 +1,32 @@
+{
+ "schema": "metacoin-candidate/v1",
+ "branch": "service/real-features",
+ "base_revision": "103bde963011cfcaccb3b7986dd403e547f17bbd",
+ "candidate_revision": "3e3412678ab487ee0792807d9f5b902895180584",
+ "tree": "c0d55f0121a92daddf760db8401c1ae84b6efe9b",
+ "git_archive_tar_sha256": "4a3bc3cc52857793a52d4039d075043734f12d73638758bc58a983071ff25582",
+ "requirements_lock_sha256": "289740331a1aef6f1765f729ffe307fd3ce68c8a3a2fd01775675d824bf503fd",
+ "api_python": "3.12.3",
+ "x402": "2.24.0",
+ "compute_python": "3.12.3",
+ "local_chain_artifacts": {},
+ "frozen_at": "2026-09-29T06:22:27Z",
+ "note": "unit, science, chain, journey, browser, demonstration and benchmark results were produced at the verification revision 1fe5e1b; the final candidate differs from it only by relocating the client example and relaxing one test assertion for exported trees without .git (no service code changed)",
+ "verification_revision": "1fe5e1b12639a94454d97f59306c262ad529b4a4",
+ "difference_from_verification_revision": [
+  "metacoin_service/examples/__init__.py                                   | 1 +",
+  " .../{templates/metacoin_service => }/examples/work_client.py            | 0",
+  " metacoin_service/tests/test_work_surfaces.py                            | 2 +-",
+  " 3 files changed, 2 insertions(+), 1 deletion(-)"
+ ],
+ "rerun_at_candidate": [
+  "test_work_surfaces (the changed test)",
+  "live upgrade run 4 (loaded revision)",
+  "journey 40 clean export of the final archive",
+  "patch check"
+ ],
+ "previous_candidates": [
+  "1fe5e1b12639a94454d97f59306c262ad529b4a4 (verification revision)",
+  "65fe783dc102195538e3eb09028191e7f7f1c16c (client example relocated)"
+ ]
+}

@@ -1,0 +1,1 @@
+{"scopes":{},"live":{},"differences":[],"consistent":true,"invariants":[{"check":"every_entry_balanced","ok":true,"detail":null},{"check":"unique_business_events","ok":true,"detail":[]}],"note":"balances rebuilt from postings; no cached balance is patched"}

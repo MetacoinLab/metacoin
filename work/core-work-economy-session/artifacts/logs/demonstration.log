@@ -1,0 +1,21 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+PASS positive: two eligible offers, lowest eligible price selected under the visible policy, budget reserved
+PASS negative: two eligible offers, lowest eligible price selected under the visible policy, budget reserved
+PASS positive: executed by the provider, verified in a separate worker process, accepted with the same complete amount
+PASS negative: executed by the provider, verified in a separate worker process, accepted with the same complete amount
+PASS positive: exact payment observed on the private local chain and reconciled
+PASS negative: exact payment observed on the private local chain and reconciled
+PASS positive: the declared 10 % fee is a separate entitlement paid by the requester to the treasury address and observed on the rail
+PASS negative: the declared 10 % fee is a separate entitlement paid by the requester to the treasury address and observed on the rail
+PASS provider received both agreed payments in full; the treasury address received the two fees; the payer funded both
+PASS fabricated positive: another contract's FEASIBLE artifact presented against the negative contract is rejected (contract digest / input root binding)
+PASS solver timeout presented as infeasible: execution failed, science no_valid_evidence, nothing payable
+PASS duplicate claim with a new request salt: refused; one entitlement, already paid, no second payment identity
+PASS dispute against a mistaken rejection: superseding acceptance from preserved replay evidence; the original decision retained
+PASS fee-backed treasury award: confirmed fee revenue funds a bounded award that pays an accepted negative from the treasury account
+PASS journal replay consistent, invariants hold, identity/protocol files and base issuance untouched
+PASS offline verifier on the full bundle: replays the INFEASIBLE determination
+PASS offline verifier on the restricted bundle: reports the missing private evidence honestly
+{"passed": 17, "failed": 0}
+exit 0

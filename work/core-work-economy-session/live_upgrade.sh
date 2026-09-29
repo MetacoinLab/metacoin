@@ -22,6 +22,7 @@ PYTHONPATH="$REPO" "$PY" -m metacoin_service --home "$RESTORED" --provider-mode 
 PYTHONPATH="$REPO" "$PY" -m metacoin_service --home "$RESTORED" --provider-mode test-http status > "$OUT/restore-status.json" 2>>"$OUT/live-upgrade.log" && log "isolated restore opened and migrated: $(python3 -c "import json; print(json.load(open('$OUT/restore-status.json')).get('schema',[''])[-1])")"
 rm -rf "$(dirname "$RESTORED")"
 # 2. drain the worker, wait for in-flight work, stop task-owned processes by the pids recorded in tmux panes
+tmux set-option -t metacoin-service remain-on-exit on 2>>"$OUT/live-upgrade.log" || log "tmux session metacoin-service missing before stop (will be recreated)"   # a killed pane must not close its window (and the session with it)
 API_PID="$(tmux list-panes -s -t metacoin-service -F '#{pane_pid} #{window_name}' | awk '$2=="api"{print $1}')"; WRK_PID="$(tmux list-panes -s -t metacoin-service -F '#{pane_pid} #{window_name}' | awk '$2=="worker"{print $1}')"
 API_CHILD="$(pgrep -P "$API_PID" | head -1)"; WRK_CHILD="$(pgrep -P "$WRK_PID" | head -1)"
 log "pane pids api=$API_PID (child $API_CHILD) worker=$WRK_PID (child $WRK_CHILD)"
@@ -33,7 +34,8 @@ for i in $(seq 1 30); do alive=0; for p in ${WRK_CHILD:-} ${API_CHILD:-}; do [ -
 # 3. migrate
 PYTHONPATH="$REPO" "$PY" -m metacoin_service --home "$LIVE" --provider-mode test-http migrate > "$OUT/migrate.json" 2>>"$OUT/live-upgrade.log" || { log "MIGRATE FAILED: restore from $BK"; exit 3; }
 log "migrated: $(cat "$OUT/migrate.json" | head -c 300)"
-# 4. restart in the same tmux windows (task-owned), record pids
+# 4. restart in the same tmux windows (task-owned), record pids; recreate the session if the windows closed
+tmux has-session -t metacoin-service 2>/dev/null || { tmux new-session -d -s metacoin-service -n api "sleep 1"; tmux set-option -t metacoin-service remain-on-exit on; tmux new-window -d -t metacoin-service -n worker "sleep 1"; log "tmux session metacoin-service recreated (api, worker windows)"; }
 tmux respawn-window -k -t metacoin-service:api "cd $REPO && exec $PY -m metacoin_service --home $LIVE --provider-mode test-http serve --port $PORT" 2>>"$OUT/live-upgrade.log" || tmux new-window -t metacoin-service -n api "cd $REPO && exec $PY -m metacoin_service --home $LIVE --provider-mode test-http serve --port $PORT"
 for i in $(seq 1 60); do curl -s -m 2 http://127.0.0.1:$PORT/api/health >/dev/null 2>&1 && break; sleep 1; done
 tmux respawn-window -k -t metacoin-service:worker "cd $REPO && exec $PY -m metacoin_service --home $LIVE --provider-mode test-http worker --name live-worker" 2>>"$OUT/live-upgrade.log" || tmux new-window -t metacoin-service -n worker "cd $REPO && exec $PY -m metacoin_service --home $LIVE --provider-mode test-http worker --name live-worker"

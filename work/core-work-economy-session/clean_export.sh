@@ -6,6 +6,7 @@
 set -u
 ZIP="$1"; S="$2"; OUT="$(cd "$3" && pwd)"; FRESH="$S/fresh-ws"; rm -rf "$FRESH"; mkdir -p "$FRESH"
 (cd "$FRESH" && unzip -q "$ZIP") && cd "$FRESH/metacoin-core-work-economy" || exit 1
+PD="$(dirname "$ZIP")/protocol-data"; [ -d "$PD" ] && { cp "$PD/ledger_data.jsonl" protocol/ledger_data.jsonl; cp "$PD/mission_verdict.json" mission_verdict.json; echo "runtime data placed from protocol-data/ ($(sha256sum protocol/ledger_data.jsonl mission_verdict.json | cut -c1-16 | tr '\n' ' '))"; }
 echo "files: $(find . -type f | wc -l)"; echo "sha256 of archive: $(sha256sum "$ZIP" | cut -d' ' -f1)"
 python3 -m venv .venv && .venv/bin/pip install -q --no-index --find-links "$S/svcdeps" --find-links "$S/x402deps" --find-links "$S/evmdeps" --find-links "$S/extdeps" --find-links "$S/expansiondeps" --find-links "$S/scideps" -r metacoin_service/requirements.lock 2>&1 | tail -2
 echo "venv rc=$?"

@@ -23,7 +23,7 @@
  },
  "requirements_lock_sha256": "289740331a1aef6f1765f729ffe307fd3ce68c8a3a2fd01775675d824bf503fd",
  "local_chain_artifacts": {
-  "dir": "/home/zhangd2/projects/metacoin/integrations/x402/local_chain/artifacts.json",
+  "dir": "~/projects/metacoin/integrations/x402/local_chain/artifacts.json",
   "files_sha256_prefix": {},
   "note": "pinned Permit2 / x402 upto proxy / mock token bytecode; the chain itself is in-memory per API process"
  },

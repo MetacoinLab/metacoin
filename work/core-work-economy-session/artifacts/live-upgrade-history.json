@@ -1,0 +1,62 @@
+{
+ "schema": "metacoin-live-upgrade-history/v1",
+ "runs": [
+  {
+   "started": "2026-09-29T06:00:19Z",
+   "candidate": "1fe5e1b12639a94454d97f59306c262ad529b4a4",
+   "schema_before": "031_reconciliation",
+   "backup": "~/.local/state/metacoin-service-backups/pre-migration-032-1790661619",
+   "loaded_revision_matches": true,
+   "smoke": "document=ready generation=succeeded plan=succeeded (outcome VERIFIED)",
+   "note": "schema 031 -> 040 (from the run-1 console output; migrate.json was overwritten by later no-op runs)",
+   "migrations_applied": [
+    "032_work_terms",
+    "033_request_board",
+    "034_work_evidence",
+    "035_work_money",
+    "036_work_access_missions",
+    "037_work_notifications",
+    "038_signing_key_history",
+    "039_mission_learning",
+    "040_work_programs_pricing_challenges"
+   ]
+  },
+  {
+   "started": "2026-09-29T06:03:53Z",
+   "candidate": "65fe783dc102195538e3eb09028191e7f7f1c16c",
+   "schema_before": "040_work_programs_pricing_challenges",
+   "backup": "~/.local/state/metacoin-service-backups/pre-migration-032-1790661833",
+   "loaded_revision_matches": false,
+   "smoke": "document= generation= plan= (outcome )",
+   "note": "API outage ~8 min: tmux session closed when the pane processes were stopped (remain-on-exit off after the first respawn); recovered by recreating the session; ISSUES.md 31",
+   "migrations_applied": []
+  },
+  {
+   "started": "2026-09-29T06:12:36Z",
+   "candidate": "65fe783dc102195538e3eb09028191e7f7f1c16c",
+   "schema_before": "040_work_programs_pricing_challenges",
+   "backup": "~/.local/state/metacoin-service-backups/pre-migration-032-1790662356",
+   "loaded_revision_matches": true,
+   "smoke": "document=ready generation=succeeded plan=succeeded (outcome VERIFIED)",
+   "note": null,
+   "migrations_applied": []
+  },
+  {
+   "started": "2026-09-29T06:22:04Z",
+   "candidate": "3e3412678ab487ee0792807d9f5b902895180584",
+   "schema_before": "040_work_programs_pricing_challenges",
+   "backup": "~/.local/state/metacoin-service-backups/pre-migration-032-1790662924",
+   "loaded_revision_matches": true,
+   "smoke": "document=ready generation=succeeded plan=succeeded (outcome VERIFIED)",
+   "note": null,
+   "migrations_applied": []
+  }
+ ],
+ "live_after": {
+  "ok": true,
+  "revision": "3e3412678ab487ee0792807d9f5b902895180584",
+  "provider_mode": "test-http",
+  "queued": 0,
+  "running": 0
+ }
+}

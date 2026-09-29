@@ -6,72 +6,72 @@
  "latency_seconds": {
   "terms": {
    "n": 8,
-   "min": 0.197,
-   "median": 0.2762,
-   "p90": 0.3732,
-   "max": 0.6406
+   "min": 0.0974,
+   "median": 0.2321,
+   "p90": 0.6114,
+   "max": 0.7116
   },
   "freeze": {
    "n": 8,
-   "min": 0.0218,
-   "median": 0.0395,
-   "p90": 0.0997,
-   "max": 0.1252
+   "min": 0.0169,
+   "median": 0.0333,
+   "p90": 0.1299,
+   "max": 0.3491
   },
   "request": {
    "n": 8,
-   "min": 0.0109,
-   "median": 0.0914,
-   "p90": 0.2398,
-   "max": 0.3384
+   "min": 0.0073,
+   "median": 0.0135,
+   "p90": 0.0165,
+   "max": 0.0282
   },
   "offer": {
    "n": 8,
-   "min": 0.0064,
-   "median": 0.011,
-   "p90": 0.1157,
-   "max": 0.3379
+   "min": 0.0075,
+   "median": 0.0101,
+   "p90": 0.0115,
+   "max": 0.0204
   },
   "award": {
    "n": 8,
-   "min": 0.0157,
-   "median": 0.0225,
-   "p90": 0.0244,
-   "max": 0.0343
+   "min": 0.0155,
+   "median": 0.0211,
+   "p90": 0.0235,
+   "max": 0.0366
   },
   "evaluate": {
-   "n": 19,
-   "min": 0.0037,
-   "median": 0.0069,
-   "p90": 0.1119,
-   "max": 0.2352
+   "n": 15,
+   "min": 0.0028,
+   "median": 0.0058,
+   "p90": 0.0397,
+   "max": 0.136
   },
   "decide": {
    "n": 8,
-   "min": 0.0141,
-   "median": 0.0204,
-   "p90": 0.1171,
-   "max": 0.1414
+   "min": 0.0098,
+   "median": 0.0174,
+   "p90": 0.0444,
+   "max": 0.0912
   },
   "pay": {
    "n": 8,
-   "min": 0.0207,
-   "median": 0.0785,
-   "p90": 0.1421,
-   "max": 0.2074
+   "min": 0.0197,
+   "median": 0.0309,
+   "p90": 0.0349,
+   "max": 0.0992
   }
  },
  "queue_delay_to_execution_seconds": {
   "n": 8,
-  "min": 0.6007,
-  "median": 0.8228,
-  "p90": 0.8505,
-  "max": 0.8701
+  "min": 0.617,
+  "median": 0.9905,
+  "p90": 1.45,
+  "max": 1.5508
  },
- "wall_seconds": 3.24,
+ "wall_seconds": 3.58,
  "journal_consistent": true,
  "invariants_ok": true,
- "client_max_rss_mib": 73.5,
+ "client_max_rss_mib": 74.8,
  "measurements": {
   "sample_sizes": {
    "requests": 8,
@@ -107,7 +107,7 @@
   },
   "time_to_accepted_delivery_seconds": {
    "n": 8,
-   "median": 2
+   "median": 3
   },
   "verification_records_over_deliveries": {
    "verifications": 8,

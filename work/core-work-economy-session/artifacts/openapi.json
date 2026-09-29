@@ -10670,6 +10670,111 @@
     }
    }
   },
+  "/console/work/providers/{prid}": {
+   "get": {
+    "summary": "Work Provider Page",
+    "operationId": "work_provider_page_console_work_providers__prid__get",
+    "parameters": [
+     {
+      "name": "prid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Prid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/console/work/reconciliation": {
+   "get": {
+    "summary": "Work Reconciliation Page",
+    "operationId": "work_reconciliation_page_console_work_reconciliation_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/console/work/reconciliation/{iid}/{action}": {
+   "post": {
+    "summary": "Work Reconciliation Action",
+    "operationId": "work_reconciliation_action_console_work_reconciliation__iid___action__post",
+    "parameters": [
+     {
+      "name": "iid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Iid"
+      }
+     },
+     {
+      "name": "action",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Action"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "text/html": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/console/work/missions/{pid}": {
    "get": {
     "summary": "Work Mission Page",
@@ -12498,6 +12603,115 @@
     }
    }
   },
+  "/api/v1/work/providers/{prid}/history": {
+   "get": {
+    "summary": "Work Provider History",
+    "operationId": "work_provider_history_api_v1_work_providers__prid__history_get",
+    "parameters": [
+     {
+      "name": "prid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Prid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/providers/{prid}/portfolio": {
+   "get": {
+    "summary": "Work Provider Portfolio",
+    "operationId": "work_provider_portfolio_api_v1_work_providers__prid__portfolio_get",
+    "parameters": [
+     {
+      "name": "prid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Prid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Work Provider Portfolio Set",
+    "operationId": "work_provider_portfolio_set_api_v1_work_providers__prid__portfolio_post",
+    "parameters": [
+     {
+      "name": "prid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Prid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/work/providers/{prid}/revise": {
    "post": {
     "summary": "Work Provider Revise",
@@ -14139,6 +14353,170 @@
     }
    }
   },
+  "/api/v1/work/missions/{pid}/scenarios": {
+   "post": {
+    "summary": "Work Mission Scenario Create",
+    "operationId": "work_mission_scenario_create_api_v1_work_missions__pid__scenarios_post",
+    "parameters": [
+     {
+      "name": "pid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Pid"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "summary": "Work Mission Scenarios",
+    "operationId": "work_mission_scenarios_api_v1_work_missions__pid__scenarios_get",
+    "parameters": [
+     {
+      "name": "pid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Pid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/missions/{pid}/scenarios/{sid}": {
+   "get": {
+    "summary": "Work Mission Scenario",
+    "operationId": "work_mission_scenario_api_v1_work_missions__pid__scenarios__sid__get",
+    "parameters": [
+     {
+      "name": "pid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Pid"
+      }
+     },
+     {
+      "name": "sid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Sid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/missions/{pid}/contributions/{cid}/learning": {
+   "post": {
+    "summary": "Work Mission Learning",
+    "operationId": "work_mission_learning_api_v1_work_missions__pid__contributions__cid__learning_post",
+    "parameters": [
+     {
+      "name": "pid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Pid"
+      }
+     },
+     {
+      "name": "cid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Cid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/work/missions/{pid}/link": {
    "post": {
     "summary": "Work Mission Link",
@@ -14345,6 +14723,374 @@
       "content": {
        "application/json": {
         "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/packages/import-preview": {
+   "post": {
+    "summary": "Work Package Preview",
+    "description": "Raw zip (Content-Type application/zip or application/octet-stream; query trust_roots=hex,hex) or JSON {package_b64, trust_roots}.",
+    "operationId": "work_package_preview_api_v1_work_packages_import_preview_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/reconciliation": {
+   "get": {
+    "summary": "Work Reconciliation",
+    "operationId": "work_reconciliation_api_v1_work_reconciliation_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/programs": {
+   "get": {
+    "summary": "Work Programs",
+    "operationId": "work_programs_api_v1_work_programs_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Work Program Create",
+    "operationId": "work_program_create_api_v1_work_programs_post",
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/programs/{pid}": {
+   "get": {
+    "summary": "Work Program",
+    "operationId": "work_program_api_v1_work_programs__pid__get",
+    "parameters": [
+     {
+      "name": "pid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Pid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/programs/{pid}/runs": {
+   "post": {
+    "summary": "Work Program Run",
+    "operationId": "work_program_run_api_v1_work_programs__pid__runs_post",
+    "parameters": [
+     {
+      "name": "pid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Pid"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/programs/{pid}/close": {
+   "post": {
+    "summary": "Work Program Close",
+    "operationId": "work_program_close_api_v1_work_programs__pid__close_post",
+    "parameters": [
+     {
+      "name": "pid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Pid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/pricing-experiments": {
+   "get": {
+    "summary": "Work Pricing List",
+    "operationId": "work_pricing_list_api_v1_work_pricing_experiments_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "summary": "Work Pricing Create",
+    "operationId": "work_pricing_create_api_v1_work_pricing_experiments_post",
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/pricing-experiments/{eid}": {
+   "get": {
+    "summary": "Work Pricing View",
+    "operationId": "work_pricing_view_api_v1_work_pricing_experiments__eid__get",
+    "parameters": [
+     {
+      "name": "eid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Eid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/receipts/{rid}/challenge": {
+   "post": {
+    "summary": "Work Challenge Open",
+    "operationId": "work_challenge_open_api_v1_work_receipts__rid__challenge_post",
+    "parameters": [
+     {
+      "name": "rid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Rid"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/challenges": {
+   "get": {
+    "summary": "Work Challenges",
+    "operationId": "work_challenges_api_v1_work_challenges_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/challenges/{chid}": {
+   "get": {
+    "summary": "Work Challenge",
+    "operationId": "work_challenge_api_v1_work_challenges__chid__get",
+    "parameters": [
+     {
+      "name": "chid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Chid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/work/challenges/{chid}/package": {
+   "get": {
+    "summary": "Work Challenge Package",
+    "operationId": "work_challenge_package_api_v1_work_challenges__chid__package_get",
+    "parameters": [
+     {
+      "name": "chid",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Chid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
        }
       }
      }

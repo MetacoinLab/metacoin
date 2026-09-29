@@ -1,0 +1,17 @@
+{
+ "candidate": "3e3412678ab487ee0792807d9f5b902895180584",
+ "loaded_revision": "3e3412678ab487ee0792807d9f5b902895180584",
+ "schema_before": "040_work_programs_pricing_challenges",
+ "schema_after": "{\n  \"applied\": [],\n  \"schema\": [\n    \"001_initial\",\n    \"002_batches_templates\",\n    \"003_datasets_lineage\",\n    \"004_workflows\",\n    \"005_campaigns\",\n    \"006_catalog_quotes_usage\",\n    \"007_agent_policy_grants\",\n    \"008_hierarchical_budgets\",\n    \"009_workers_quotas\",\n    \"010_reuse_and_sharing\",",
+ "backup": "~/.local/state/metacoin-service-backups/pre-migration-032-1790662924",
+ "backup_includes_keys": true,
+ "smoke": {
+  "document": "di_5e6a522885a6",
+  "document_state": "ready",
+  "generation": "j_09907a3aad261f0e",
+  "generation_state": "succeeded",
+  "plan": "j_9e112593be135484",
+  "plan_state": "succeeded"
+ },
+ "at": "2026-09-29T06:22:27Z"
+}

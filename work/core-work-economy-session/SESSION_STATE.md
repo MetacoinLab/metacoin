@@ -32,8 +32,15 @@ A `economy/terms.py` WorkTerms v1 (typed deliverables, declarative acceptance po
 
 - Stabilisation + §38/§61/§76 (commit 3 of this session, 04:40–05:20Z): journey harness fixes (helper rename, queue drain, generic job view, API defects log); real defects found by the journeys: numerical-witness status read from the summary (acceptance + template), agent grant work operations (work:read/work:award), rail-address eligibility (`recipient_invalid_for_rail`); §38 provider history (`economy/provider_history.py`, GET /work/providers/{id}/history, portfolio GET/POST, console /console/work/providers/{id}, MCP provider_history, CLI); §61 import preview (`economy/interop.py`, POST /work/packages/import-preview raw zip or JSON, CLI work-package-preview); §76.8 reconciliation console (money.pending_observations, GET /work/reconciliation, /console/work/reconciliation with reconcile/renew/submit); §76.10 mission learning records (migration 039 learning_json, classes contradicts/confirmed/new_evidence/inconclusive, explicit POST …/contributions/{cid}/learning). Tests: test_work_history_interop (2), test_work_backlog (2). Journeys run12: 39/39 passed (j40 after packaging); browser run: worker-side stall under investigation (last_award diagnostics added).
 
+- §76 extensions (commits 646fc00, 1fe5e1b; 05:20–06:45Z): programs (76.1), pricing experiments (76.7), challenge packages (76.3) with migration 040, portfolio budget scenarios (76.2, resource_plan cost sweep), package→draft seeding (76.9), reconciliation console (76.8), learning records (76.10); award view lists every entitlement (fee/verifier); journal replay takes the scope of the acceptance posting (defect found by the §66 demonstration); demonstration script `tests/demo_work_economy.py` 17/17 steps; journeys run15 39/39 + browser 23/23 at e7ff21e; work suites 75+28 tests green.
+
+- Consolidation (05:45–06:15Z): full unit suite 250 OK (13 skipped), science 18 OK, chain 7 OK, journeys 39/39 + browser 23/23, demonstration 17/17, benchmark 8/8 awards at verification revision 1fe5e1b; client example relocated to metacoin_service/examples (candidate 65fe783; only difference), exercised end-to-end; live upgrade runs 1–3 (031→040; run 2 outage + recovery, ISSUES 31); packaging passes 1–2; patch check equal; journey 40 running on the pass-2 archive.
+
+- Final (06:15–06:30Z): journey 40 found the gitignored runtime data gap (protocol-data/ added) and a git-only test assumption (relaxed; candidate 3e34126); live upgrade run 4 loaded 3e34126; journey 40 rc=0 on archive a891e3c4…; patch check equal; packaging pass 5 keeps the tested archive.
+
 ## Task-owned background producers
-- journeys run3: `journeys_economy --out $S/o8/journeys/run3.json --shots …/shots3` started 04:4xZ, timeout 40 min, log run3.log, exit line appended at the end. (identity, log, start, timeout, expected output, exit)
+- live service: tmux `metacoin-service` windows api (pid 2827392) / worker (pid 2827403), 127.0.0.1:8402, revision 3e34126, schema 040, remain-on-exit on.
+- journeys run3 (historical): `journeys_economy --out $S/o8/journeys/run3.json --shots …/shots3` started 04:4xZ, timeout 40 min, log run3.log, exit line appended at the end. (identity, log, start, timeout, expected output, exit)
 (none yet)
 
 ## Unsettled local payment attempts
@@ -43,6 +50,15 @@ A `economy/terms.py` WorkTerms v1 (typed deliverables, declarative acceptance po
 (none yet)
 
 ## Exact next action
+DONE at 2026-09-29T06:26:07Z: records commit, final message. Live: tmux metacoin-service api/worker at 3e34126, schema 040.
+
+## Superseded 3
+Journey 40 result → clean-export logs into artifacts → packaging pass 3 (restore the tested zip if its sha changes, recompute manifest) → records commit → final message.
+
+## Superseded 2
+Full unit suite + science + chain (background, $S/o8/final/*.log) → final journeys + demo + benchmark at the frozen candidate → verification-results.json, FINAL_DIGESTS, privacy scan → freeze commit → live upgrade (032–040) → package → journey 40 → records commit → report.
+
+## Superseded
 Read run14 (clean full journeys + browser diag) → fix browser stall → benchmark + demonstration artifacts → full unit suite → freeze → live upgrade (032–039) → package (journey 40) → report.
 
 ## Superseded next action

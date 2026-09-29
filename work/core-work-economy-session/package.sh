@@ -17,7 +17,13 @@ cp metacoin_service/economy/verify_work.py "$DELIVER/verify_work.py"
 cp metacoin_service/examples/work_client.py "$DELIVER/work_client_example.py"
 cp metacoin_service/economy/terms.py "$DELIVER/CONTRACT_SCHEMA_terms.py"
 cp metacoin_service/economy/journal.py "$DELIVER/ACCOUNTING_MODEL_journal.py"
-mkdir -p "$DELIVER/synthetic-fixtures" "$DELIVER/demonstration"
+mkdir -p "$DELIVER/synthetic-fixtures" "$DELIVER/demonstration" "$DELIVER/protocol-data"
+# runtime data the public repo deliberately does not track (.gitignore): the operator's anchored ledger data and mission verdict.
+# They are required by legacy_task_replay (registered hashes) and the mission portfolio; the clean-export run copies them into
+# the fresh tree, and README.txt says where they belong.
+cp protocol/ledger_data.jsonl "$DELIVER/protocol-data/ledger_data.jsonl"; cp mission_verdict.json "$DELIVER/protocol-data/mission_verdict.json"
+sha256sum protocol/ledger_data.jsonl mission_verdict.json > "$DELIVER/protocol-data/SHA256SUMS.txt"
+printf '%s\n' "Runtime data outside the git archive (gitignored in the public repo by design):" "  protocol-data/ledger_data.jsonl   -> <repo>/protocol/ledger_data.jsonl   (anchored ledger entries; registered task hashes read by legacy_task_replay)" "  protocol-data/mission_verdict.json -> <repo>/mission_verdict.json        (anchored mission verdict; read-only source of the mission portfolio)" "Copy them to those paths before running the service, the journeys or the demonstration from the archive. Digests in SHA256SUMS.txt match BASELINE_DIGESTS.txt / FINAL_DIGESTS.txt." > "$DELIVER/protocol-data/README.txt"
 cp experiments/work_contracts/fixtures.py "$DELIVER/synthetic-fixtures/work_contract_fixtures.py"
 cp metacoin_service/tests/test_resource_plan_service.py "$DELIVER/synthetic-fixtures/resource_plan_sample_fixture.py" 2>/dev/null
 cp metacoin_service/tests/demo_work_economy.py "$DELIVER/demonstration/demo_work_economy.py"
@@ -31,7 +37,7 @@ cp "$A"/clean-export/* "$DELIVER/clean-export-logs/" 2>/dev/null
 cp "$A"/shots/* "$DELIVER/browser-screenshots/" 2>/dev/null
 cp "$A"/manifests/* "$DELIVER/manifests/" 2>/dev/null
 cp "$A"/examples/* "$DELIVER/examples/" 2>/dev/null
-for f in FEATURE_LEDGER.json MIGRATIONS.json INTERPRETERS.json CANDIDATE.json patch-check.json live-health.json migrate.json backup-manifest.json restore-check.json verification-results.json IMPLEMENTATION_REPORT.md DELIVERY_INDEX.md ISSUES.md ARCHITECTURE_LEDGER.md BASELINE_DIGESTS.txt FINAL_DIGESTS.txt openapi.json mcp-schema.json contract-schema.json receipt-schema.json accounting-model.md live-status.json live-capabilities.json live-upgrade.json work-benchmark.json fault-campaign.json demonstration.json privacy-scan.json producers.jsonl; do
+for f in FEATURE_LEDGER.json MIGRATIONS.json INTERPRETERS.json CANDIDATE.json live-upgrade-history.json live-upgrade.log live-journal-replay.json live-work-terms-inspect.json patch-check.json live-health.json migrate.json backup-manifest.json restore-check.json verification-results.json IMPLEMENTATION_REPORT.md DELIVERY_INDEX.md ISSUES.md ARCHITECTURE_LEDGER.md BASELINE_DIGESTS.txt FINAL_DIGESTS.txt openapi.json mcp-schema.json contract-schema.json receipt-schema.json accounting-model.md live-status.json live-capabilities.json live-upgrade.json work-benchmark.json fault-campaign.json demonstration.json privacy-scan.json producers.jsonl; do
   [ -f "$A/$f" ] && cp "$A/$f" "$DELIVER/"
 done
 echo "== scans ($(date -u +%Y-%m-%dT%H:%M:%SZ)) archive $HEAD base $BASE" > "$DELIVER/DELIVERY_SCANS.txt"

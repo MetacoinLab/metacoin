@@ -1,22 +1,22 @@
 {
  "schema": "metacoin-work-demonstration/v1",
- "started_at": 1790659968,
+ "started_at": 1790661524,
  "steps": [
   {
    "step": "positive: two eligible offers, lowest eligible price selected under the visible policy, budget reserved",
    "ok": true,
-   "terms": "wt_b7372a5ef7d52e27",
-   "digest": "6e0c2d8556a2877aefb7dfd29504fd692686b8fbb3a602bc3c76374d5641e8c0",
-   "request": "wr_fb2679263c93c0e1",
+   "terms": "wt_5c4faa72a9ae805b",
+   "digest": "861142f2de99c33c028475529dbfd824e5a5a401b34d33437f2fc5cf2c784331",
+   "request": "wr_c53d69be2a2206c8",
    "offers": [
-    "wo_79928ea2e3aea220",
-    "wo_43067e022069f382"
+    "wo_6d247020b0cf376e",
+    "wo_29b9c275289d7307"
    ],
-   "award": "wa_364d256eda58e025",
+   "award": "wa_3eeb1af7c52fa921",
    "selection": "lowest_eligible_price",
    "ranked": [
-    "wo_79928ea2e3aea220",
-    "wo_43067e022069f382"
+    "wo_6d247020b0cf376e",
+    "wo_29b9c275289d7307"
    ],
    "excluded": [],
    "reserved": 11
@@ -24,18 +24,18 @@
   {
    "step": "negative: two eligible offers, lowest eligible price selected under the visible policy, budget reserved",
    "ok": true,
-   "terms": "wt_0248715e510888e1",
-   "digest": "b40ae54282ac9a840f1e5cd26f2d0d371d1af0d7e557ba21eb1de0088d5149fc",
-   "request": "wr_53d7b9d078f5a638",
+   "terms": "wt_6dc9ee41956588d8",
+   "digest": "397d5c3ed83641bc2085ab295b88f64dc730cb56445009e1535ace6b85e604a7",
+   "request": "wr_0dbbb3f00a078a4c",
    "offers": [
-    "wo_d43df0946bd5de86",
-    "wo_45eb8a6bc0c37331"
+    "wo_686885f89027b2df",
+    "wo_2e77c41ca9e3b085"
    ],
-   "award": "wa_db142203bb8d8eed",
+   "award": "wa_533a69137a9d2b5b",
    "selection": "lowest_eligible_price",
    "ranked": [
-    "wo_d43df0946bd5de86",
-    "wo_45eb8a6bc0c37331"
+    "wo_686885f89027b2df",
+    "wo_2e77c41ca9e3b085"
    ],
    "excluded": [],
    "reserved": 11
@@ -57,7 +57,7 @@
   {
    "step": "positive: exact payment observed on the private local chain and reconciled",
    "ok": true,
-   "id": "pi_ac668d9ea952e71b",
+   "id": "pi_0306e847dcec3e19",
    "state": "settled",
    "final_amount": 10,
    "transaction": null,
@@ -66,7 +66,7 @@
   {
    "step": "negative: exact payment observed on the private local chain and reconciled",
    "ok": true,
-   "id": "pi_0395c5f6a0082b82",
+   "id": "pi_4b71088f2a3c7fd2",
    "state": "settled",
    "final_amount": 10,
    "transaction": null,
@@ -75,14 +75,14 @@
   {
    "step": "positive: the declared 10 % fee is a separate entitlement paid by the requester to the treasury address and observed on the rail",
    "ok": true,
-   "id": "pi_1149be2d80b8f353",
+   "id": "pi_027fd48d8b45e906",
    "state": "settled",
    "final_amount": 1
   },
   {
    "step": "negative: the declared 10 % fee is a separate entitlement paid by the requester to the treasury address and observed on the rail",
    "ok": true,
-   "id": "pi_9348e56b430cf270",
+   "id": "pi_9f73da4f1c2af046",
    "state": "settled",
    "final_amount": 1
   },
@@ -120,7 +120,7 @@
   {
    "step": "dispute against a mistaken rejection: superseding acceptance from preserved replay evidence; the original decision retained",
    "ok": true,
-   "dispute": "wdp_75054d11f8c11370",
+   "dispute": "wdp_b6285e57afcc272c",
    "decisions": [
     [
      "rejected",
@@ -162,21 +162,21 @@
    "verdict": "structurally valid, signatures trusted, scientific scope limited"
   }
  ],
- "revision": "e7ff21ea1362a6f48cb00e4d388a859ee8d05719",
+ "revision": "1fe5e1b12639a94454d97f59306c262ad529b4a4",
  "awards": {
   "positive": {
-   "terms": "wt_b7372a5ef7d52e27",
-   "digest": "6e0c2d8556a2877aefb7dfd29504fd692686b8fbb3a602bc3c76374d5641e8c0",
-   "request": "wr_fb2679263c93c0e1",
+   "terms": "wt_5c4faa72a9ae805b",
+   "digest": "861142f2de99c33c028475529dbfd824e5a5a401b34d33437f2fc5cf2c784331",
+   "request": "wr_c53d69be2a2206c8",
    "offers": [
-    "wo_79928ea2e3aea220",
-    "wo_43067e022069f382"
+    "wo_6d247020b0cf376e",
+    "wo_29b9c275289d7307"
    ],
-   "award": "wa_364d256eda58e025",
+   "award": "wa_3eeb1af7c52fa921",
    "selection": "lowest_eligible_price",
    "ranked": [
-    "wo_79928ea2e3aea220",
-    "wo_43067e022069f382"
+    "wo_6d247020b0cf376e",
+    "wo_29b9c275289d7307"
    ],
    "excluded": [],
    "reserved": 11,
@@ -184,24 +184,24 @@
    "candidate": "accepted",
    "decision": "accepted",
    "payable": 10,
-   "entitlement": "wen_46e85a6f9a59affd",
-   "verification": "vf_75efde76ba87",
+   "entitlement": "wen_6a2411a77f900ac3",
+   "verification": "vf_e2744b65c8ca",
    "receipts": [
     [
      "provider",
-     "wrc_1e5b0357d0502b43"
+     "wrc_7583697562c1ac51"
     ],
     [
      "verification",
-     "wrc_801e9f12111e0522"
+     "wrc_388183ea5588122d"
     ],
     [
      "acceptance",
-     "wrc_115771e1682ae972"
+     "wrc_0c880578f35dd810"
     ]
    ],
    "payment": {
-    "id": "pi_ac668d9ea952e71b",
+    "id": "pi_0306e847dcec3e19",
     "state": "settled",
     "final_amount": 10,
     "transaction": null,
@@ -209,24 +209,24 @@
    },
    "reconciliation": "terminal-or-unsubmitted; nothing to query",
    "fee_payment": {
-    "id": "pi_1149be2d80b8f353",
+    "id": "pi_027fd48d8b45e906",
     "state": "settled",
     "final_amount": 1
    }
   },
   "negative": {
-   "terms": "wt_0248715e510888e1",
-   "digest": "b40ae54282ac9a840f1e5cd26f2d0d371d1af0d7e557ba21eb1de0088d5149fc",
-   "request": "wr_53d7b9d078f5a638",
+   "terms": "wt_6dc9ee41956588d8",
+   "digest": "397d5c3ed83641bc2085ab295b88f64dc730cb56445009e1535ace6b85e604a7",
+   "request": "wr_0dbbb3f00a078a4c",
    "offers": [
-    "wo_d43df0946bd5de86",
-    "wo_45eb8a6bc0c37331"
+    "wo_686885f89027b2df",
+    "wo_2e77c41ca9e3b085"
    ],
-   "award": "wa_db142203bb8d8eed",
+   "award": "wa_533a69137a9d2b5b",
    "selection": "lowest_eligible_price",
    "ranked": [
-    "wo_d43df0946bd5de86",
-    "wo_45eb8a6bc0c37331"
+    "wo_686885f89027b2df",
+    "wo_2e77c41ca9e3b085"
    ],
    "excluded": [],
    "reserved": 11,
@@ -234,24 +234,24 @@
    "candidate": "accepted",
    "decision": "accepted",
    "payable": 10,
-   "entitlement": "wen_affeea5230f68694",
-   "verification": "vf_8e5dc6556fc0",
+   "entitlement": "wen_f14c8b2620a782fb",
+   "verification": "vf_5cd31f62bfa6",
    "receipts": [
     [
      "provider",
-     "wrc_57d2cd63fc272b83"
+     "wrc_c5d308dda9934268"
     ],
     [
      "verification",
-     "wrc_b78c8ab9c194c2ba"
+     "wrc_f782fc08ffbc9107"
     ],
     [
      "acceptance",
-     "wrc_fe25715aba14643a"
+     "wrc_bdeb185049a487d3"
     ]
    ],
    "payment": {
-    "id": "pi_0395c5f6a0082b82",
+    "id": "pi_4b71088f2a3c7fd2",
     "state": "settled",
     "final_amount": 10,
     "transaction": null,
@@ -259,19 +259,19 @@
    },
    "reconciliation": "terminal-or-unsubmitted; nothing to query",
    "fee_payment": {
-    "id": "pi_9348e56b430cf270",
+    "id": "pi_9f73da4f1c2af046",
     "state": "settled",
     "final_amount": 1
    }
   }
  },
- "signing_public_key": "0fbacf08c3910dad9dab24278ca661b6c34696858a786e24151bc85de851c07a",
+ "signing_public_key": "e19c2917454ad0246d6c5e7b9370c6341b29ada23c3a0b69b222396784df0e41",
  "console": [
   "/console/work",
-  "/console/work/awards/wa_db142203bb8d8eed",
+  "/console/work/awards/wa_533a69137a9d2b5b",
   "/console/work/budget",
   "/console/work/reconciliation",
-  "/console/work/disputes/wdp_75054d11f8c11370"
+  "/console/work/disputes/wdp_b6285e57afcc272c"
  ],
  "what_this_shows": [
   "a verified INFEASIBLE determination is accepted and paid exactly like the verified FEASIBLE one under the frozen outcome-neutral policy",
@@ -284,7 +284,7 @@
   "public settlement (private in-memory py-evm chain, synthetic accounts)",
   "anonymity of any party"
  ],
- "finished_at": 1790660005,
+ "finished_at": 1790661562,
  "passed": 17,
  "failed": 0
 }

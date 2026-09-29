@@ -2,21 +2,21 @@
  "schema": "metacoin-contract-projection/v1",
  "audience": "private",
  "record": {
-  "award_id": "wa_db142203bb8d8eed",
+  "award_id": "wa_533a69137a9d2b5b",
   "milestone": "m1",
-  "terms_digest": "b40ae54282ac9a840f1e5cd26f2d0d371d1af0d7e557ba21eb1de0088d5149fc",
+  "terms_digest": "397d5c3ed83641bc2085ab295b88f64dc730cb56445009e1535ace6b85e604a7",
   "kind": "energy_audit",
   "title": "Mission question: is the negative energy scenario feasible under the declared exact model?",
   "operation": {
    "model_id": "outage-energy-bounds/v0",
    "verifier_id": "local-energy-audit/v1",
    "verifier_digest": "11fe580e9d73b92305cce2ff7780e1df56f16b5ef53d6ad0c8398cddc0be619c",
-   "input_root": "afde856d27395e8feb96fc208f8631827045fd3b1e23e58518aa957096ea6db4",
-   "contract_digest": "45770951fd8160bae2001175da4c239d783e2edd9d6a6ededb6f4886931198b9"
+   "input_root": "71092146f962907d985175b438ee93df559177a5b66f9226ef1288a54e88b0aa",
+   "contract_digest": "d55f27c68afeb2822a5d6e3e38b90a936c7009e78547116b534fa3bbc23e9eaa"
   },
   "execution": {
    "state": "succeeded",
-   "finished_at": 1790659969
+   "finished_at": 1790661527
   },
   "science": {
    "outcome": "INFEASIBLE",
@@ -46,12 +46,12 @@
   "acceptance": {
    "decision": "accepted",
    "payment_class": "complete",
-   "decided_at": 1790659976,
+   "decided_at": 1790661533,
    "authority": "requester"
   },
   "verification": [
    {
-    "id": "vf_8e5dc6556fc0",
+    "id": "vf_5cd31f62bfa6",
     "class": "full_exact",
     "state": "passed"
    }
@@ -62,12 +62,12 @@
    "asset": "local-chain-token"
   },
   "provider": {
-   "id": "pv_0757ed1b7d26",
+   "id": "pv_035f66af770f",
    "name": "alpha",
    "relationship": "same_operator"
   },
-  "requester": "p_dd03b0d517cdb303",
-  "evidence_root": "5c383d841708755e2c1a15eb70b7b76e13c5670da42d28f325b847f57597ec41",
+  "requester": "p_1fc583b79ca1063e",
+  "evidence_root": "840d91388789923c1d1f7fbc80f8b795dee968410d5d09d6ce2953c8e73e5422",
   "verification_claim": "independently replayed: full_exact"
  },
  "declared_omissions": [],
@@ -84,5 +84,5 @@
  ],
  "consistency": "every disclosed fact equals the private record; omissions are declared, never altered",
  "publication": "outside this order's authority: the record is local until the operator publishes it deliberately",
- "issued_at": 1790660005
+ "issued_at": 1790661562
 }

@@ -26,8 +26,8 @@
     "check": "decompression_bounds",
     "ok": true,
     "detail": {
-     "uncompressed": 41250,
-     "compressed": 21372
+     "uncompressed": 41252,
+     "compressed": 21423
     }
    },
    {
@@ -51,7 +51,7 @@
     "detail": null
    },
    {
-    "check": "file:decisions/wd_457bc92aef96d377.json",
+    "check": "file:decisions/wd_c9f443e7d6baf20c.json",
     "ok": true,
     "detail": null
    },
@@ -96,27 +96,27 @@
     "detail": null
    },
    {
-    "check": "file:receipts/wrc_283cc2e1e205667e.json",
+    "check": "file:receipts/wrc_898568e4f3066cbc.json",
     "ok": true,
     "detail": null
    },
    {
-    "check": "file:receipts/wrc_4ad7183b334ef020.json",
+    "check": "file:receipts/wrc_9534bc09c1eb9149.json",
     "ok": true,
     "detail": null
    },
    {
-    "check": "file:receipts/wrc_57d2cd63fc272b83.json",
+    "check": "file:receipts/wrc_bdeb185049a487d3.json",
     "ok": true,
     "detail": null
    },
    {
-    "check": "file:receipts/wrc_b78c8ab9c194c2ba.json",
+    "check": "file:receipts/wrc_c5d308dda9934268.json",
     "ok": true,
     "detail": null
    },
    {
-    "check": "file:receipts/wrc_fe25715aba14643a.json",
+    "check": "file:receipts/wrc_f782fc08ffbc9107.json",
     "ok": true,
     "detail": null
    },
@@ -131,7 +131,7 @@
     "detail": null
    },
    {
-    "check": "file:verifications/vf_8e5dc6556fc0.json",
+    "check": "file:verifications/vf_5cd31f62bfa6.json",
     "ok": true,
     "detail": null
    },
@@ -154,77 +154,77 @@
    {
     "check": "trust_root_supplied",
     "ok": true,
-    "detail": "k_43affe9956b78fbbd5eb4665"
+    "detail": "k_1eb846dce004e80f1189afa0"
    },
    {
     "check": "manifest_signature",
     "ok": true,
     "detail": {
-     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_id": "k_1eb846dce004e80f1189afa0",
      "under_supplied_root": true
     }
    },
    {
-    "check": "receipts/wrc_283cc2e1e205667e.json",
+    "check": "receipts/wrc_898568e4f3066cbc.json",
     "ok": true,
     "detail": {
      "kind": "settlement",
-     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_id": "k_1eb846dce004e80f1189afa0",
      "key_supplied_as_root": true,
      "issued_within_validity": true,
      "note": null
     }
    },
    {
-    "check": "receipts/wrc_4ad7183b334ef020.json",
+    "check": "receipts/wrc_9534bc09c1eb9149.json",
     "ok": true,
     "detail": {
      "kind": "settlement",
-     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_id": "k_1eb846dce004e80f1189afa0",
      "key_supplied_as_root": true,
      "issued_within_validity": true,
      "note": null
     }
    },
    {
-    "check": "receipts/wrc_57d2cd63fc272b83.json",
-    "ok": true,
-    "detail": {
-     "kind": "provider",
-     "key_id": "k_43affe9956b78fbbd5eb4665",
-     "key_supplied_as_root": true,
-     "issued_within_validity": true,
-     "note": null
-    }
-   },
-   {
-    "check": "receipts/wrc_b78c8ab9c194c2ba.json",
-    "ok": true,
-    "detail": {
-     "kind": "verification",
-     "key_id": "k_43affe9956b78fbbd5eb4665",
-     "key_supplied_as_root": true,
-     "issued_within_validity": true,
-     "note": null
-    }
-   },
-   {
-    "check": "receipts/wrc_fe25715aba14643a.json",
+    "check": "receipts/wrc_bdeb185049a487d3.json",
     "ok": true,
     "detail": {
      "kind": "acceptance",
-     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_id": "k_1eb846dce004e80f1189afa0",
      "key_supplied_as_root": true,
      "issued_within_validity": true,
      "note": null
     }
    },
    {
-    "check": "verifications/vf_8e5dc6556fc0.json",
+    "check": "receipts/wrc_c5d308dda9934268.json",
+    "ok": true,
+    "detail": {
+     "kind": "provider",
+     "key_id": "k_1eb846dce004e80f1189afa0",
+     "key_supplied_as_root": true,
+     "issued_within_validity": true,
+     "note": null
+    }
+   },
+   {
+    "check": "receipts/wrc_f782fc08ffbc9107.json",
+    "ok": true,
+    "detail": {
+     "kind": "verification",
+     "key_id": "k_1eb846dce004e80f1189afa0",
+     "key_supplied_as_root": true,
+     "issued_within_validity": true,
+     "note": null
+    }
+   },
+   {
+    "check": "verifications/vf_5cd31f62bfa6.json",
     "ok": true,
     "detail": {
      "kind": "passed",
-     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_id": "k_1eb846dce004e80f1189afa0",
      "key_supplied_as_root": true,
      "issued_within_validity": true,
      "note": null
@@ -241,7 +241,7 @@
  "scientific_replay": {
   "performed": true,
   "scientific_outcome": "INFEASIBLE",
-  "evidence_root": "5c383d841708755e2c1a15eb70b7b76e13c5670da42d28f325b847f57597ec41",
+  "evidence_root": "840d91388789923c1d1f7fbc80f8b795dee968410d5d09d6ce2953c8e73e5422",
   "matches_manifest_root": true,
   "scope": "full private recomputation",
   "disclosed_fields": {
@@ -286,10 +286,10 @@
   "offline_candidate": "accepted",
   "recorded_decision": {
    "authority": "requester",
-   "created_at": 1790659976,
+   "created_at": 1790661533,
    "decision": "accepted",
-   "evidence_root": "5c383d841708755e2c1a15eb70b7b76e13c5670da42d28f325b847f57597ec41",
-   "id": "wd_457bc92aef96d377",
+   "evidence_root": "840d91388789923c1d1f7fbc80f8b795dee968410d5d09d6ce2953c8e73e5422",
+   "id": "wd_c9f443e7d6baf20c",
    "payable_amount": 10,
    "payment_class": "complete",
    "policy_digest": "4c669c477ee19c01d0b534650a3acea28971eb592a211a099fdf0f3ef1bea36a",

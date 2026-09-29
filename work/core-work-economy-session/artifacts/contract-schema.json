@@ -446,11 +446,14 @@
      }
     ],
     "outcomes": {
-     "not_applicable": "accept"
+     "FEASIBLE": "accept",
+     "INFEASIBLE": "accept",
+     "INDETERMINATE": "reject"
     },
     "valid_negative": {
      "requires": [
-      "verification_passed"
+      "verification_passed",
+      "source_revision"
      ],
      "note": "infeasible_by_solver is accepted only with the independent simulator/oracle audit; limit_no_candidate is never a negative proof"
     },

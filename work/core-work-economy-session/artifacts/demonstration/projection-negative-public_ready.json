@@ -2,17 +2,17 @@
  "schema": "metacoin-contract-projection/v1",
  "audience": "public_ready",
  "record": {
-  "award_id": "wa_db142203bb8d8eed",
+  "award_id": "wa_533a69137a9d2b5b",
   "milestone": "m1",
-  "terms_digest": "b40ae54282ac9a840f1e5cd26f2d0d371d1af0d7e557ba21eb1de0088d5149fc",
+  "terms_digest": "397d5c3ed83641bc2085ab295b88f64dc730cb56445009e1535ace6b85e604a7",
   "kind": "energy_audit",
   "title": null,
   "operation": {
    "model_id": "outage-energy-bounds/v0",
    "verifier_id": "local-energy-audit/v1",
    "verifier_digest": "11fe580e9d73b92305cce2ff7780e1df56f16b5ef53d6ad0c8398cddc0be619c",
-   "input_root": "afde856d27395e8feb96fc208f8631827045fd3b1e23e58518aa957096ea6db4",
-   "contract_digest": "45770951fd8160bae2001175da4c239d783e2edd9d6a6ededb6f4886931198b9"
+   "input_root": "71092146f962907d985175b438ee93df559177a5b66f9226ef1288a54e88b0aa",
+   "contract_digest": "d55f27c68afeb2822a5d6e3e38b90a936c7009e78547116b534fa3bbc23e9eaa"
   },
   "execution": {
    "state": "succeeded",
@@ -30,7 +30,7 @@
   },
   "verification": [
    {
-    "id": "vf_8e5dc6556fc0",
+    "id": "vf_5cd31f62bfa6",
     "class": "full_exact",
     "state": "passed"
    }
@@ -46,7 +46,7 @@
    "relationship": "same_operator"
   },
   "requester": null,
-  "evidence_root": "5c383d841708755e2c1a15eb70b7b76e13c5670da42d28f325b847f57597ec41",
+  "evidence_root": "840d91388789923c1d1f7fbc80f8b795dee968410d5d09d6ce2953c8e73e5422",
   "verification_claim": "independently replayed: full_exact"
  },
  "declared_omissions": [
@@ -71,11 +71,11 @@
  ],
  "consistency": "every disclosed fact equals the private record; omissions are declared, never altered",
  "publication": "outside this order's authority: the record is local until the operator publishes it deliberately",
- "issued_at": 1790660005,
+ "issued_at": 1790661562,
  "signature": {
-  "signature_hex": "e05ba30012e35eeb6fa1e5bab595bc6bfc698b44956e1967f317832df386ec0699d370d1c0b79826723b48f5056b9ba10f171a52741961b1813dcce184ef0b04",
-  "key_id": "k_43affe9956b78fbbd5eb4665",
-  "public_key": "0fbacf08c3910dad9dab24278ca661b6c34696858a786e24151bc85de851c07a",
+  "signature_hex": "82b61b1b65e371a6bac5c3bd4bea991214c65dca20fd0693ad4a15eb86505ef17bc0a46263867cff9b411817d2806bdfaaa2e09f64c3be6045b4f2c9d5e68c02",
+  "key_id": "k_1eb846dce004e80f1189afa0",
+  "public_key": "e19c2917454ad0246d6c5e7b9370c6341b29ada23c3a0b69b222396784df0e41",
   "over": "canonical record bytes"
  }
 }
