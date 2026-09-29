@@ -131,6 +131,83 @@ def mount(app, svc, run, read_body, API):
         raw = await request.body()
         return await run(request, True, lambda db, p: B.acknowledge(db, p, aid), 'work.award.ack', raw)
 
+    # ---- evidence, decisions, entitlements, disputes, bundles (Group C) -----------------------------------------------------
+    E = svc.economy.evidence
+
+    @app.get(API + '/work/awards/{aid}/receipts')
+    async def work_receipts(request: Request, aid: str):
+        return await run(request, False, lambda db, p: {'items': E.list_receipts(db, p, aid)})
+
+    @app.get(API + '/work/receipts/{rid}')
+    async def work_receipt(request: Request, rid: str):
+        return await run(request, False, lambda db, p: E.receipt_view(db, p, rid))
+
+    @app.post(API + '/work/receipts/{rid}/verify')
+    async def work_receipt_verify(request: Request, rid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, False, lambda db, p: E.verify_receipt(db, p, rid, body))
+
+    @app.get(API + '/work/awards/{aid}/milestones/{key}/decisions')
+    async def work_decisions(request: Request, aid: str, key: str):
+        return await run(request, False, lambda db, p: {'items': E.decisions(db, p, aid, key)})
+
+    @app.get(API + '/work/awards/{aid}/milestones/{key}/bundle')
+    async def work_bundle(request: Request, aid: str, key: str, scope: str = 'restricted'):
+        from fastapi.responses import Response as _R
+        def fn(db, p):
+            data, manifest = E.bundle(db, p, aid, key, scope)
+            return data
+        from starlette.concurrency import run_in_threadpool
+        def sync():
+            with svc.db.tx() as db:
+                from ..api import principal_of
+                p = principal_of(request, db, False)
+                return fn(db, p)
+        data = await run_in_threadpool(sync)
+        return _R(content=data, media_type='application/zip', headers={'Content-Disposition': 'attachment; filename="work-bundle-%s-%s.zip"' % (aid, key)})
+
+    @app.post(API + '/work/awards/{aid}/milestones/{key}/{action}')
+    async def work_milestone_action(request: Request, aid: str, key: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        if action == 'evaluate':
+            return await run(request, True, lambda db, p: E.evaluate(db, p, aid, key))
+        if action == 'decide':
+            return await run(request, True, lambda db, p: E.decide(db, p, aid, key, body), 'work.decide', raw)
+        if action == 'verify':
+            return await run(request, True, lambda db, p: (E.verify(db, p, aid, key, body), 202), 'work.verify', raw)
+        if action == 'dispute':
+            return await run(request, True, lambda db, p: (E.open_dispute(db, p, aid, key, body), 201), 'work.dispute.open', raw)
+        if action == 'delegate':
+            return await run(request, True, lambda db, p: (E.delegate(db, p, aid, key, body), 201), 'work.delegate', raw)
+        from ..errors import ServiceError
+        raise ServiceError('NOT_FOUND', 'milestone action')
+
+    @app.post(API + '/work/awards/{aid}/reassign')
+    async def work_reassign(request: Request, aid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: E.reassign(db, p, aid, body), 'work.reassign', raw)
+
+    @app.get(API + '/work/entitlements/{eid}')
+    async def work_entitlement(request: Request, eid: str):
+        return await run(request, False, lambda db, p: E.entitlement_view(db, p, eid))
+
+    @app.get(API + '/work/decisions/{did}')
+    async def work_decision(request: Request, did: str):
+        return await run(request, False, lambda db, p: E.decision_view(db, p, did))
+
+    @app.get(API + '/work/disputes')
+    async def work_disputes(request: Request, award_id: str = None):
+        return await run(request, False, lambda db, p: {'items': E.list_disputes(db, p, award_id)})
+
+    @app.get(API + '/work/disputes/{did}')
+    async def work_dispute(request: Request, did: str):
+        return await run(request, False, lambda db, p: E.dispute_view(db, p, did))
+
+    @app.post(API + '/work/disputes/{did}/{action}')
+    async def work_dispute_action(request: Request, did: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: E.dispute_action(db, p, did, action, body), 'work.dispute.' + action, raw)
+
     @app.get(API + '/work/contracts/{contract_id}/upgrade-preview')
     async def work_upgrade_preview(request: Request, contract_id: str):
         return await run(request, False, lambda db, p: T.upgrade_preview(db, p, contract_id))

@@ -38,7 +38,7 @@ def _verifications(db, job):
     return db.execute("SELECT * FROM verification_jobs WHERE target_job_id=? ORDER BY created_at", (job['id'],)).fetchall() if job else []
 
 
-def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None):
+def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, provider_execution='local_worker'):
     """Returns the decision candidate. `job` is a sqlite row (or None when nothing executed)."""
     terms_mod.validate(terms, 'frozen')
     ms = next((m for m in terms['milestones'] if m['key'] == milestone_key), None)
@@ -93,8 +93,10 @@ def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None):
                       and (params.get('min_sample_count') is None or (json.loads(v['params_json']).get('sample_count') or 0) >= params['min_sample_count'])
                       and (params.get('verifier_digest') is None or json.loads(v['statement_json'] or '{}').get('auditor_digest') == params['verifier_digest'])]
             if passed and distinct:
-                # same-service audit = same custody; a distinct verifier needs a statement whose auditor is not the provider identity
-                passed = [v for v in passed if provider_identity and json.loads(v['statement_json'] or '{}').get('auditor_id') != provider_identity and provider_identity != 'service']
+                # distinct verifier = a checker whose process/custody differs from the executing provider: on one instance the
+                # service audit is a separate process only when the provider executed on an enrolled node; same-worker execution
+                # audited by the same service is NOT distinct, whoever requested it
+                passed = [v for v in passed if provider_execution == 'node']
             pending = [v for v in verifs if v['state'] in ('queued', 'awaiting_replica')]
             failed = [v for v in verifs if v['state'] in ('failed', 'disputed') and v['result_commitment'] == job['evidence_root']]
             if passed:
@@ -103,6 +105,8 @@ def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None):
                 add(p['id'], pt, 'failed', 'verification %s failed on this evidence commitment' % failed[-1]['id'], {'verification_id': failed[-1]['id'], 'class': failed[-1]['class']})
             elif pending:
                 add(p['id'], pt, 'unknown', 'verification %s pending' % pending[-1]['id'], {'verification_id': pending[-1]['id']})
+            elif distinct and provider_execution != 'node' and any(v['state'] == 'passed' and v['result_commitment'] == job['evidence_root'] for v in verifs):
+                add(p['id'], pt, 'unknown', 'a distinct verifier is required but the only passed verification shares the provider\'s process and custody (same worker, same service); unavailable independence is not relabelled', {'required_class': want, 'distinct_verifier': True, 'provider_execution': provider_execution})
             else:
                 add(p['id'], pt, 'unknown', 'no verification of class %s has been requested for this evidence' % want + (' by a distinct verifier' if distinct else ''), {'required_class': want, 'distinct_verifier': distinct})
         elif pt == 'review_signature':

@@ -318,8 +318,8 @@ def validate(terms, mode='draft'):
     for m in ms:
         if not set(m['depends_on']) <= set(mkeys) or m['key'] in m['depends_on']:
             _err('milestone_dependency_unknown', milestone=m['key'], allowed=mkeys)
-        if 'requires_acceptance_of' in m and (type(m['requires_acceptance_of']) is not dict or not set(m['requires_acceptance_of']) <= set(m['depends_on']) or not set(m['requires_acceptance_of'].values()) <= {'accepted', 'accepted_or_valid_negative', 'any_terminal'}):
-            _err('milestone_requires_acceptance_of', allowed=['accepted', 'accepted_or_valid_negative', 'any_terminal'])
+        if 'requires_acceptance_of' in m and (type(m['requires_acceptance_of']) is not dict or not set(m['requires_acceptance_of']) <= set(m['depends_on']) or not set(m['requires_acceptance_of'].values()) <= {'accepted', 'accepted_or_valid_negative', 'accepted_positive', 'any_terminal'}):
+            _err('milestone_requires_acceptance_of', allowed=['accepted', 'accepted_or_valid_negative', 'accepted_positive', 'any_terminal'])
     from ..workflows import kahn_order
     order, cyclic = kahn_order(mkeys, {m['key']: m['depends_on'] for m in ms})
     if cyclic:

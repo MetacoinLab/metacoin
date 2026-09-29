@@ -552,27 +552,44 @@ class Board:
             if m['state'] != 'pending':
                 continue
             deps = json.loads(m['depends_json']); need = spec[key].get('requires_acceptance_of', {})
-            blocked = []
+            blocked = []; cancelled = False
             for d in deps:
                 want = need.get(d, 'accepted')
                 st = ms[d]['state']
                 # 'accepted' and 'accepted_or_valid_negative' both mean an ACCEPTANCE decision (a verified negative is accepted, not failed)
                 ok = st == 'accepted' if want in ('accepted', 'accepted_or_valid_negative') else st in ('accepted', 'rejected', 'cancelled')
+                negative_stop = False
+                if want == 'accepted_positive' and st == 'accepted':
+                    dec = db.execute('SELECT evaluation_json FROM work_decisions WHERE id=?', (ms[d]['decision_id'],)).fetchone()
+                    sci = json.loads(dec['evaluation_json'])['science'] if dec else None
+                    ok = sci in ('FEASIBLE', 'not_applicable')
+                    negative_stop = not ok
+                elif want == 'accepted_positive':
+                    ok = False
+                if negative_stop:
+                    # a valid, PAID negative intentionally stops downstream work (§16): the dependent is cancelled by policy, never failed
+                    db.execute("UPDATE work_milestones SET state='cancelled', blocked_reason=?, updated_at=? WHERE id=?", ('dependency %s concluded %s: downstream work stopped by policy (accepted_positive required)' % (d, sci), now(), m['id']))
+                    history.record(db, award['workspace'], 'scheduler', 'work.milestone_state', 'work_milestone', m['id'], {'award_id': aid, 'key': key, 'state': 'cancelled', 'reason': 'valid_negative_stops_downstream', 'dependency': d})
+                    blocked.append({'milestone': d, 'state': st, 'required': want, 'science': sci}); cancelled = True; continue
                 if not ok:
                     blocked.append({'milestone': d, 'state': st, 'required': want})
                     if st in ('rejected', 'cancelled') and spec[d]['on_failure'] in ('stop_downstream', 'cancel_dependents'):
                         db.execute("UPDATE work_milestones SET state='cancelled', blocked_reason=?, updated_at=? WHERE id=?", ('dependency %s %s (policy %s)' % (d, st, spec[d]['on_failure']), now(), m['id']))
                         history.record(db, award['workspace'], 'scheduler', 'work.milestone_state', 'work_milestone', m['id'], {'award_id': aid, 'key': key, 'state': 'cancelled', 'reason': 'dependency_' + st})
+                        cancelled = True
             if blocked:
-                if ms[key]['state'] == 'pending':
+                if not cancelled:
                     db.execute("UPDATE work_milestones SET blocked_reason=?, updated_at=? WHERE id=?", (json.dumps(blocked), now(), m['id']))
                 continue
             if m['contract_id'] is None:
                 db.execute("UPDATE work_milestones SET blocked_reason=?, updated_at=? WHERE id=?", ('no bound operation for this milestone (freeze with milestone_inputs)', now(), m['id']))
                 continue
             req = self._requester_principal(db, award)
+            prev = db.execute('SELECT id, state FROM jobs WHERE contract_id=? ORDER BY created_at DESC LIMIT 1', (m['contract_id'],)).fetchone()
             try:
-                jid = self.svc.jobs.submit(db, req, m['contract_id'])
+                # a replacement attempt (reassignment / new award on the same frozen operation) supersedes a TERMINAL earlier job;
+                # a live earlier job blocks dispatch instead of producing a competing publication
+                jid = self.svc.jobs.submit(db, req, m['contract_id'], supersede=prev['id'] if prev else None)
             except ServiceError as exc:
                 db.execute("UPDATE work_milestones SET blocked_reason=?, updated_at=? WHERE id=?", (json.dumps(exc.body()), now(), m['id']))
                 continue
