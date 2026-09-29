@@ -179,6 +179,13 @@ def mount(app, svc, run, read_body, API):
             return await run(request, True, lambda db, p: (E.open_dispute(db, p, aid, key, body), 201), 'work.dispute.open', raw)
         if action == 'delegate':
             return await run(request, True, lambda db, p: (E.delegate(db, p, aid, key, body), 201), 'work.delegate', raw)
+        AC = svc.economy.access
+        if action == 'package':
+            return await run(request, True, lambda db, p: (AC.encrypted_package(db, p, aid, key, body), 201), 'work.package', raw)
+        if action == 'projection':
+            return await run(request, True, lambda db, p: AC.projection(db, p, aid, key, body, sign=bool(body.get('sign'))))
+        if action == 'anchor-candidate':
+            return await run(request, True, lambda db, p: AC.anchor_candidate(db, p, aid, key, body))
         from ..errors import ServiceError
         raise ServiceError('NOT_FOUND', 'milestone action')
 
@@ -280,6 +287,86 @@ def mount(app, svc, run, read_body, API):
     async def work_treasury_allocate(request: Request):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, True, lambda db, p: (TR.allocate(db, p, body), 201), 'work.treasury.allocate', raw)
+
+    # ---- audit access, compartments, packages, retention, projections (Group E) ---------------------------------------------
+    AC, MS = svc.economy.access, svc.economy.missions
+
+    @app.get(API + '/work/awards/{aid}/compartments')
+    async def work_compartments(request: Request, aid: str, milestone: str = None):
+        return await run(request, False, lambda db, p: AC.compartments(db, p, aid, milestone))
+
+    @app.get(API + '/work/awards/{aid}/artifacts/{artifact_id}')
+    async def work_read_artifact(request: Request, aid: str, artifact_id: str):
+        return await run(request, True, lambda db, p: AC.read_artifact(db, p, aid, artifact_id))
+
+    @app.post(API + '/work/awards/{aid}/audit-grants', status_code=201)
+    async def work_grant_create(request: Request, aid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (AC.create_grant(db, p, aid, body), 201), 'work.audit_grant', raw)
+
+    @app.get(API + '/work/audit-grants')
+    async def work_grants(request: Request, award_id: str = None):
+        return await run(request, False, lambda db, p: {'items': AC.list_grants(db, p, award_id)})
+
+    @app.get(API + '/work/audit-grants/{gid}')
+    async def work_grant(request: Request, gid: str):
+        return await run(request, False, lambda db, p: AC.grant_view(db, p, gid))
+
+    @app.post(API + '/work/audit-grants/{gid}/{action}')
+    async def work_grant_action(request: Request, gid: str, action: str):
+        raw = await request.body()
+        if action == 'use':
+            return await run(request, True, lambda db, p: AC.use_grant(db, p, gid))
+        if action == 'revoke':
+            return await run(request, True, lambda db, p: AC.revoke_grant(db, p, gid), 'work.audit_grant.revoke', raw)
+        from ..errors import ServiceError
+        raise ServiceError('NOT_FOUND', 'grant action')
+
+    @app.get(API + '/work/awards/{aid}/milestones/{key}/retention')
+    async def work_retention(request: Request, aid: str, key: str):
+        return await run(request, False, lambda db, p: AC.retention(db, p, aid, key))
+
+    @app.post(API + '/work/awards/{aid}/milestones/{key}/evidence/delete')
+    async def work_delete_evidence(request: Request, aid: str, key: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: AC.delete_evidence(db, p, aid, key, body), 'work.evidence.delete', raw)
+
+    # ---- missions, contributions, resource probe, observations (Group F) ---------------------------------------------------------
+    @app.post(API + '/work/missions/import', status_code=201)
+    async def work_mission_import(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (MS.import_mission(db, p, body), 201), 'work.mission.import', raw)
+
+    @app.get(API + '/work/missions')
+    async def work_missions(request: Request):
+        return await run(request, False, lambda db, p: {'items': MS.list_portfolios(db, p)})
+
+    @app.get(API + '/work/missions/{pid}')
+    async def work_mission(request: Request, pid: str):
+        return await run(request, False, lambda db, p: MS.portfolio_view(db, p, pid))
+
+    @app.post(API + '/work/missions/{pid}/bottlenecks/{task}/draft', status_code=201)
+    async def work_mission_draft(request: Request, pid: str, task: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (MS.draft_from_bottleneck(db, p, pid, task, body), 201), 'work.mission.draft', raw)
+
+    @app.post(API + '/work/missions/{pid}/link')
+    async def work_mission_link(request: Request, pid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: MS.link_request(db, p, pid, body), 'work.mission.link', raw)
+
+    @app.get(API + '/work/resource-evidence/probe')
+    async def work_resource_probe(request: Request):
+        return await run(request, False, lambda db, p: MS.resource_probe(db, p))
+
+    @app.post(API + '/work/observations', status_code=201)
+    async def work_observation(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (MS.ingest_observation(db, p, body), 201), 'work.observation', raw)
+
+    @app.get(API + '/work/observations/{oid}')
+    async def work_observation_view(request: Request, oid: str):
+        return await run(request, False, lambda db, p: MS.observation_view(db, p, oid))
 
     @app.get(API + '/work/contracts/{contract_id}/upgrade-preview')
     async def work_upgrade_preview(request: Request, contract_id: str):

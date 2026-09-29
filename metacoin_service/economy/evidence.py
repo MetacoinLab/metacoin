@@ -220,6 +220,8 @@ class Evidence:
             db.execute("UPDATE work_entitlements SET state='void', updated_at=? WHERE id=? AND state='payable'", (now(), ent_id))
         if getattr(self, 'money', None) is not None:
             self.money.on_decision(db, award, ms, did, amount, terms)
+        if decision == 'accepted' and getattr(self, 'missions', None) is not None:
+            self.missions.record_contribution(db, award, ms, did, ev, terms)
         history.record(db, award['workspace'], principal.id, 'work.decision', 'work_decision', did, {'award_id': award['id'], 'milestone': ms['key'], 'decision': decision, 'execution': ev['execution'], 'science': ev['science'], 'payment_class': pay_class, 'payable_amount': amount, 'authority': authority, 'supersedes': supersedes, 'dispute_id': dispute_id})
         self.board.dispatch_ready(db, award['id'])
         self._maybe_close(db, award['id'])
@@ -336,6 +338,8 @@ class Evidence:
         resolver = terms['dispute']['resolver']
         db.execute('INSERT INTO work_disputes VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,?,?)', (did, award['workspace'], aid, ms['id'], scope, principal.id, 'open', json.dumps(snapshot), now() + terms['dispute']['window_seconds'], resolver, json.dumps({'appeal': terms['dispute']['appeal'], 'max_entries': terms['dispute']['max_entries'], 'at_deadline': terms['dispute'].get('at_deadline', 'close_unresolved')}), now(), now()))
         db.execute("UPDATE work_milestones SET state='disputed', updated_at=? WHERE id=?", (now(), ms['id']))
+        if getattr(self, 'access', None) is not None:
+            self.access.hold(db, aid, ms['id'], principal.id, 'dispute:' + did, 'evidence needed by an open dispute (relevant authorized evidence only)')
         if ms['entitlement_id']:
             db.execute("UPDATE work_entitlements SET state='held', updated_at=? WHERE id=? AND state='payable'", (now(), ms['entitlement_id']))
         d = self.dispute_row(db, principal, did)
@@ -417,6 +421,8 @@ class Evidence:
             reason = str(body.get('reason', 'closed'))[:256]
             unresolved = d['state'] not in ('decided',)
             db.execute("UPDATE work_disputes SET state='closed', closed_at=?, close_reason=?, updated_at=? WHERE id=?", (now(), reason + (' (unresolved)' if unresolved else ''), now(), did))
+            if getattr(self, 'access', None) is not None:
+                self.access.release_holds(db, ms['id'], 'dispute closed')
             if unresolved:
                 # deadline / unresolved: the milestone returns to its last decided state; a held entitlement stays held until reconciled
                 prev = 'accepted' if ms['decision_id'] and db.execute('SELECT decision FROM work_decisions WHERE id=?', (ms['decision_id'],)).fetchone()['decision'] == 'accepted' else ('rejected' if ms['decision_id'] else 'delivered')
@@ -620,6 +626,9 @@ class Evidence:
         undisclosed = []
         job = db.execute('SELECT * FROM jobs WHERE id=?', (ms['job_id'],)).fetchone() if ms['job_id'] else None
         if job and job['evidence_artifact_id']:
+            arow = db.execute('SELECT deleted_at FROM artifacts WHERE id=?', (job['evidence_artifact_id'],)).fetchone()
+            if arow is None or arow['deleted_at'] is not None:
+                raise ServiceError('CONFLICT', {'code': 'evidence_deleted', 'evidence_root': ms['evidence_root'], 'note': 'the commitment and receipts remain; the private artifact is no longer available for replay or export'})
             vault = self.svc.store.load_json(db, job['evidence_artifact_id'], award['workspace'])
             names = [f['name'] for f in vault['fields']]
             wanted = [n for n in ('contract_digest', 'input_root', 'verifier_id', 'verifier_digest', 'result_schema', 'model_id', 'scope') if n in names]

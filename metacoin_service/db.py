@@ -428,6 +428,15 @@ MIGRATIONS = [
     CREATE TABLE treasury_budgets (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, asset TEXT NOT NULL, network TEXT NOT NULL, pay_from TEXT NOT NULL, state TEXT NOT NULL, policy_json TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     CREATE TABLE treasury_allocations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, budget_id TEXT NOT NULL REFERENCES treasury_budgets(id), terms_id TEXT, award_id TEXT, amount INTEGER NOT NULL, state TEXT NOT NULL, note TEXT, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     """),
+    ('036_work_access_missions', """
+    CREATE TABLE audit_grants (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, scope_type TEXT NOT NULL, scope_id TEXT NOT NULL, grantee_id TEXT NOT NULL REFERENCES principals(id), purpose TEXT NOT NULL, fields_json TEXT NOT NULL, expires_at INTEGER NOT NULL, policy_json TEXT NOT NULL, granted_by TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL);
+    CREATE TABLE audit_access_events (id TEXT PRIMARY KEY, grant_id TEXT NOT NULL REFERENCES audit_grants(id), actor TEXT NOT NULL, action TEXT NOT NULL, object TEXT, allowed INTEGER NOT NULL, category TEXT, note TEXT, at INTEGER NOT NULL);
+    CREATE TABLE evidence_holds (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, award_id TEXT NOT NULL REFERENCES work_awards(id), milestone_id TEXT NOT NULL REFERENCES work_milestones(id), imposed_by TEXT NOT NULL, policy TEXT NOT NULL, reason TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, released_at INTEGER);
+    CREATE TABLE mission_portfolios (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, mission_id TEXT NOT NULL, name TEXT NOT NULL, snapshot_json TEXT NOT NULL, drafts_json TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (workspace, mission_id));
+    CREATE TABLE mission_links (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, portfolio_id TEXT NOT NULL REFERENCES mission_portfolios(id), node TEXT NOT NULL, terms_id TEXT, request_id TEXT, question TEXT NOT NULL, evidence_needed TEXT NOT NULL, effect_on_model TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE contributions (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, portfolio_id TEXT NOT NULL REFERENCES mission_portfolios(id), award_id TEXT NOT NULL, decision_id TEXT NOT NULL, contributor_provider_id TEXT NOT NULL, evidence_root TEXT, affected_node TEXT NOT NULL, reason TEXT NOT NULL, contribution_type TEXT NOT NULL, contribution_kind TEXT NOT NULL, evidence_outcome TEXT, dedup_json TEXT, created_at INTEGER NOT NULL);
+    CREATE TABLE physical_observations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, device_id TEXT NOT NULL, device_public_key_hex TEXT NOT NULL, digest TEXT NOT NULL, package_json TEXT NOT NULL, checks_json TEXT NOT NULL, label TEXT NOT NULL, ingested_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+    """),
 ]
 
 

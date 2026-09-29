@@ -4,6 +4,8 @@ from .board import Providers, Board
 from .evidence import Evidence
 from .money import Money
 from .treasury import Treasury
+from .access import Access
+from .missions import Missions
 
 
 class Economy:
@@ -15,9 +17,13 @@ class Economy:
         self.evidence = Evidence(settings, services, self.board)
         self.money = Money(settings, services, self.board, self.evidence)
         self.treasury = Treasury(settings, services, self.money)
+        self.access = Access(settings, services, self.board, self.evidence)
+        self.missions = Missions(settings, services, self.board, self.evidence)
         self.evidence.money = self.money
-        self.board.evidence = self.evidence
+        self.evidence.access = self.access
+        self.evidence.missions = self.missions
         self.board.treasury = self.treasury
+        self.board.evidence = self.evidence
 
     def tick(self, db):
         """Scheduler pass (worker loop): request expiry, attempts/milestones from jobs, receipts, dispute deadlines."""

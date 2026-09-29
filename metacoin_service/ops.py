@@ -213,7 +213,16 @@ def cleanup(settings, at=None):
     with D.tx() as db:
         rows = db.execute('SELECT id, workspace FROM artifacts WHERE public=0 AND deleted_at IS NULL AND retention_deadline IS NOT NULL '
                           'AND retention_deadline <= ? LIMIT 500', (at,)).fetchall()
+        held = set()
+        try:
+            from .economy.access import Access
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='evidence_holds'").fetchone():
+                held = Access.held_artifact_ids(db)
+        except Exception:
+            held = set()
         for r in rows:
+            if r['id'] in held:
+                skipped.append({'id': r['id'], 'code': 'HELD_BY_DISPUTE'}); continue
             try:
                 if store.delete_payload(db, r['id'], r['workspace'], 'retention'):
                     removed.append(r['id'])

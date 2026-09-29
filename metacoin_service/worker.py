@@ -130,8 +130,13 @@ class Worker:
             return self._audit(job)
         if job['kind'] == 'document_import':
             return self.documents.run(job)
-        with self.db.read() as db:
-            contract, spec = self._spec(db, job)
+        try:
+            with self.db.read() as db:
+                contract, spec = self._spec(db, job)
+        except ServiceError as exc:
+            # the requester revoked or deleted a private input after dispatch: the attempt fails (INPUT_INVALID, not retried);
+            # nothing is published from a source that is no longer available
+            return self._finish(job, None, 'INPUT_INVALID')
         limits = {'cpu': self.settings.limits['worker_cpu_seconds'], 'mem': self.settings.limits['worker_address_space_bytes'],
                   'out': self.settings.limits['job_output_bytes']}
         proc = subprocess.Popen([sys.executable, '-m', 'metacoin_service.worker_exec', json.dumps(limits)], cwd=ROOT,
