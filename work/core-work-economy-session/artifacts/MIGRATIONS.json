@@ -1,0 +1,98 @@
+{
+ "schema_before": "031_reconciliation",
+ "schema_after": "040_work_programs_pricing_challenges",
+ "migrations": [
+  {
+   "name": "032_work_terms",
+   "tables": [
+    "work_terms",
+    "work_evaluations"
+   ],
+   "note": "additive"
+  },
+  {
+   "name": "033_request_board",
+   "tables": [
+    "principals_new",
+    "providers",
+    "provider_revisions",
+    "work_requests",
+    "work_offers",
+    "work_awards",
+    "work_milestones",
+    "work_attempts"
+   ],
+   "note": "rebuilds principals in its own transaction with foreign keys off (widens the role CHECK to include provider); referential integrity verified before commit"
+  },
+  {
+   "name": "034_work_evidence",
+   "tables": [
+    "work_receipts",
+    "work_decisions",
+    "work_entitlements",
+    "work_disputes",
+    "work_dispute_entries",
+    "work_delegations"
+   ],
+   "note": "additive"
+  },
+  {
+   "name": "035_work_money",
+   "tables": [
+    "payment_intents",
+    "journal_entries",
+    "journal_postings",
+    "treasury_budgets",
+    "treasury_allocations"
+   ],
+   "note": "additive"
+  },
+  {
+   "name": "036_work_access_missions",
+   "tables": [
+    "audit_grants",
+    "audit_access_events",
+    "evidence_holds",
+    "mission_portfolios",
+    "mission_links",
+    "contributions",
+    "physical_observations"
+   ],
+   "note": "additive"
+  },
+  {
+   "name": "037_work_notifications",
+   "tables": [
+    "notifications"
+   ],
+   "note": "additive"
+  },
+  {
+   "name": "038_signing_key_history",
+   "tables": [
+    "signing_keys"
+   ],
+   "note": "additive"
+  },
+  {
+   "name": "039_mission_learning",
+   "tables": [
+    "contributions (ALTER: learning_json)"
+   ],
+   "note": "additive column; mission learning records (\u00a776.10)"
+  },
+  {
+   "name": "040_work_programs_pricing_challenges",
+   "tables": [
+    "work_programs",
+    "work_program_runs",
+    "pricing_experiments",
+    "work_challenges"
+   ],
+   "note": "additive; \u00a776.1 repeated procurement, \u00a776.7 pricing experiments, \u00a776.3 verifier challenge packages"
+  }
+ ],
+ "transaction_notes": "each migration runs in one transaction; 033 rebuilds the principals table with PRAGMA foreign_keys=OFF outside the batch transaction and runs PRAGMA foreign_key_check before committing; all others are additive",
+ "rollback": "no destructive change to existing rows; an older binary must not run against a newer database (schema check refuses newer, unknown or gapped schemas); the live upgrade keeps a keyed backup at schema 031 for rollback",
+ "rehearsal": "restore of the schema-031 backup under the upgraded code applies 032\u2013038 (test_service test_13, live_upgrade.sh isolated restore check)"
+}

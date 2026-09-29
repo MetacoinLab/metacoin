@@ -1,0 +1,88 @@
+{
+ "schema": "metacoin-contract-projection/v1",
+ "audience": "private",
+ "record": {
+  "award_id": "wa_db142203bb8d8eed",
+  "milestone": "m1",
+  "terms_digest": "b40ae54282ac9a840f1e5cd26f2d0d371d1af0d7e557ba21eb1de0088d5149fc",
+  "kind": "energy_audit",
+  "title": "Mission question: is the negative energy scenario feasible under the declared exact model?",
+  "operation": {
+   "model_id": "outage-energy-bounds/v0",
+   "verifier_id": "local-energy-audit/v1",
+   "verifier_digest": "11fe580e9d73b92305cce2ff7780e1df56f16b5ef53d6ad0c8398cddc0be619c",
+   "input_root": "afde856d27395e8feb96fc208f8631827045fd3b1e23e58518aa957096ea6db4",
+   "contract_digest": "45770951fd8160bae2001175da4c239d783e2edd9d6a6ededb6f4886931198b9"
+  },
+  "execution": {
+   "state": "succeeded",
+   "finished_at": 1790659969
+  },
+  "science": {
+   "outcome": "INFEASIBLE",
+   "summary": {
+    "outcome": "INFEASIBLE",
+    "reason": "best_case_not_covered",
+    "required_low": 580000,
+    "required_high": 700000,
+    "worst_margin": -200000,
+    "best_margin": -30000,
+    "additional_usable_energy": 200000,
+    "dominant_uncertainty_source": "segment:0",
+    "margin_width": 170000,
+    "units": {
+     "duration": "s",
+     "energy": "mJ",
+     "power": "mW"
+    },
+    "assumptions": [
+     "no_recharge",
+     "usable_energy_at_load_boundary",
+     "piecewise_constant_power_bounds",
+     "no_unmodeled_loads"
+    ]
+   }
+  },
+  "acceptance": {
+   "decision": "accepted",
+   "payment_class": "complete",
+   "decided_at": 1790659976,
+   "authority": "requester"
+  },
+  "verification": [
+   {
+    "id": "vf_8e5dc6556fc0",
+    "class": "full_exact",
+    "state": "passed"
+   }
+  ],
+  "payment": {
+   "amount": 10,
+   "recipient": "0xe1AB8145F7E55DC933d51a18c793F901A3A0b276",
+   "asset": "local-chain-token"
+  },
+  "provider": {
+   "id": "pv_0757ed1b7d26",
+   "name": "alpha",
+   "relationship": "same_operator"
+  },
+  "requester": "p_dd03b0d517cdb303",
+  "evidence_root": "5c383d841708755e2c1a15eb70b7b76e13c5670da42d28f325b847f57597ec41",
+  "verification_claim": "independently replayed: full_exact"
+ },
+ "declared_omissions": [],
+ "leakage_checks": [
+  {
+   "check": "payment_address_present",
+   "note": "a chain address identifies a party across records"
+  },
+  {
+   "check": "stable_identifiers_present",
+   "note": "award/milestone ids and the terms digest link records over time (kept on purpose: they are what a recipient binds to)",
+   "ids": 2
+  }
+ ],
+ "consistency": "every disclosed fact equals the private record; omissions are declared, never altered",
+ "publication": "outside this order's authority: the record is local until the operator publishes it deliberately",
+ "issued_at": 1790660005
+}

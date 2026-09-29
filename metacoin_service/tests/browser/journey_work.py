@@ -67,7 +67,7 @@ def run(p):
     check('award performed from the comparison form', aid.startswith('wa_') and 'Contract' in page.content())
     ppage.goto(BASE + '/console/work/awards/' + aid); ppage.wait_for_load_state(); ppage.click('form[action$="/ack"] button'); ppage.wait_for_load_state()
     check('provider acknowledged the award', 'acknowledged' in ppage.content())
-    check('worker delivered the milestone (execution completed, science INFEASIBLE readable)', wait_worker(page, aid, 'INFEASIBLE') and 'completed' in page.content())
+    check('worker delivered the milestone (execution completed, science INFEASIBLE readable)', wait_worker(page, aid, '<span class="badge">completed</span></td><td>INFEASIBLE</td>'))
     shot(page, '04-contract-delivered.png')
     page.click('form[action$="/verify"] button'); page.wait_for_load_state()
     ok = False

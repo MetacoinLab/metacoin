@@ -508,6 +508,8 @@ class Board:
             guard(db, principal, 'work:award', service_kind=terms['operation']['kind'], amount=o['price_amount'] + terms['payment'].get('verifier_compensation', 0), precheck_jobs=1)
         aid = 'wa_' + secrets.token_hex(8)
         ceiling = o['price_amount'] + terms_mod.fee_amount(terms['payment'], o['price_amount']) + terms['payment'].get('verifier_compensation', 0)
+        if getattr(self, 'programs', None) is not None:
+            self.programs.award_guard(db, rid, ceiling)                                 # repeated procurement: aggregate ceiling inside the award transaction
         if terms['payment'].get('funding', 'requester') == 'treasury':
             node, rsv = None, None
             if not db.execute("SELECT id FROM treasury_allocations WHERE terms_id=? AND state='reserved'", (t['id'],)).fetchone():
@@ -692,6 +694,10 @@ class Board:
                'ceiling': a['ceiling'], 'reserved': a['reserved'], 'budget_node_id': a['budget_node_id'], 'reservation_id': a['reservation_id'], 'funds': 'allocated in the application budget tree (reservation); not on-chain escrow; nothing authorized or transferred by the award',
                'ack_deadline': a['ack_deadline'], 'delivery_deadline': a['delivery_deadline'], 'acknowledged_at': a['acknowledged_at'], 'awarded_by': a['awarded_by'], 'awarded_at': a['awarded_at'], 'closed_at': a['closed_at'], 'close_reason': a['close_reason'], 'replaced_by': a['replaced_by'],
                'selection': json.loads(a['selection_json']) if is_party else None, 'milestones': ms, 'kind': terms['operation']['kind'], 'title': terms['title']}
+        if self._has_table(db, 'work_entitlements'):
+            cols = {r[1] for r in db.execute('PRAGMA table_info(work_entitlements)').fetchall()}
+            out['entitlements'] = [{'id': e['id'], 'kind': e['kind'] if 'kind' in cols else 'provider', 'milestone_id': e['milestone_id'], 'amount': e['amount'], 'asset': e['asset'], 'state': e['state'], 'recipient': e['recipient'] if is_party else None, 'payment_intent_id': e['payment_intent_id']}
+                                   for e in db.execute('SELECT * FROM work_entitlements WHERE award_id=? ORDER BY rowid', (a['id'],)).fetchall()]
         return out
 
     @staticmethod

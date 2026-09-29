@@ -474,7 +474,7 @@ def expansion(args, go):
 WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-freeze', 'work-terms-amend', 'work-terms-inspect', 'work-terms-evaluate', 'work-providers', 'work-provider-register', 'work-request-create', 'work-requests', 'work-request',
                  'work-request-action', 'work-offer', 'work-compare', 'work-award', 'work-awards', 'work-award-view', 'work-ack', 'work-evaluate', 'work-decide', 'work-verify', 'work-receipts', 'work-receipt-verify', 'work-dispute-open', 'work-dispute',
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
-                 'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview')
+                 'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation')
 
 
 def work(args, go):
@@ -543,6 +543,28 @@ def work(args, go):
         return go('POST', '/api/v1/work/awards/%s/milestones/%s/verify' % (args.award_id, args.milestone), {'class': args.verification_class} if args.verification_class else {}, idempotency_key=key)
     if c == 'work-receipts':
         return go('GET', '/api/v1/work/awards/' + args.award_id + '/receipts')
+    if c == 'work-program-create':
+        return go('POST', '/api/v1/work/programs', jf(), idempotency_key=key)
+    if c == 'work-programs':
+        return go('GET', '/api/v1/work/programs')
+    if c == 'work-program':
+        return go('GET', '/api/v1/work/programs/' + args.program_id)
+    if c == 'work-program-run':
+        return go('POST', '/api/v1/work/programs/' + args.program_id + '/runs', dict(jf(), **({'ceiling': args.ceiling} if args.ceiling else {})), idempotency_key=key)
+    if c == 'work-program-close':
+        return go('POST', '/api/v1/work/programs/' + args.program_id + '/close', {})
+    if c == 'work-pricing-experiment':
+        return go('POST', '/api/v1/work/pricing-experiments', jf())
+    if c == 'work-pricing-experiments':
+        return go('GET', '/api/v1/work/pricing-experiments' + ('/' + args.experiment_id if args.experiment_id else ''))
+    if c == 'work-challenge':
+        return go('POST', '/api/v1/work/receipts/' + args.receipt_id + '/challenge', dict(jf(), claim=args.claim, asserted_outcome=args.asserted), idempotency_key=key)
+    if c == 'work-challenges':
+        return go('GET', '/api/v1/work/challenges' + ('/' + args.challenge_id if args.challenge_id else ''))
+    if c == 'work-challenge-package':
+        return go('GET', '/api/v1/work/challenges/' + args.challenge_id + '/package', raw_out=args.out) if 'raw_out' in go.__code__.co_varnames else go('GET', '/api/v1/work/challenges/' + args.challenge_id)
+    if c == 'work-reconciliation':
+        return go('GET', '/api/v1/work/reconciliation')
     if c == 'work-provider-history':
         return go('GET', '/api/v1/work/providers/' + args.provider_id + '/history' + ('?scope=disclosed' if args.disclosed else ''))
     if c == 'work-provider-portfolio':
@@ -801,6 +823,17 @@ def main(argv=None):
     w = sub.add_parser('work-verify'); w.add_argument('award_id'); w.add_argument('--milestone', default='m1'); w.add_argument('--verification-class'); w.add_argument('--idempotency-key')
     w = sub.add_parser('work-receipts'); w.add_argument('award_id')
     w = sub.add_parser('work-receipt-verify'); w.add_argument('receipt_id'); w.add_argument('--trust-root')
+    w = sub.add_parser('work-program-create', help='define a bounded recurring class of work (JSON file: name, class_terms, per_run_ceiling, aggregate_ceiling, max_runs)'); w.add_argument('--file', required=True); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-programs')
+    w = sub.add_parser('work-program'); w.add_argument('program_id')
+    w = sub.add_parser('work-program-run', help='start one run with fresh inputs (JSON file: inputs)'); w.add_argument('program_id'); w.add_argument('--file', required=True); w.add_argument('--ceiling', type=int); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-program-close'); w.add_argument('program_id')
+    w = sub.add_parser('work-pricing-experiment', help='compare fixed and metered policies on a synthetic workload (JSON file)'); w.add_argument('--file', required=True)
+    w = sub.add_parser('work-pricing-experiments'); w.add_argument('experiment_id', nargs='?')
+    w = sub.add_parser('work-challenge', help='propose a bounded counterexample against a receipt (JSON file: counterexample_inputs)'); w.add_argument('receipt_id'); w.add_argument('--claim', required=True); w.add_argument('--asserted', required=True); w.add_argument('--file', required=True); w.add_argument('--idempotency-key')
+    w = sub.add_parser('work-challenges'); w.add_argument('challenge_id', nargs='?')
+    w = sub.add_parser('work-challenge-package'); w.add_argument('challenge_id'); w.add_argument('--out')
+    w = sub.add_parser('work-reconciliation', help='pending payment observations with the one bounded action that applies to each')
     w = sub.add_parser('work-provider-history', help='evidence-based provider history (dimensions with sample sizes; no score)'); w.add_argument('provider_id'); w.add_argument('--disclosed', action='store_true')
     w = sub.add_parser('work-provider-portfolio'); w.add_argument('provider_id')
     w = sub.add_parser('work-provider-portfolio-set', help='provider: select receipts of your own contracts to disclose'); w.add_argument('provider_id'); w.add_argument('--receipt-ids', required=True); w.add_argument('--note')

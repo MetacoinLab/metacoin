@@ -1,0 +1,1536 @@
+{
+ "schema": "metacoin-mcp-tools/v1",
+ "count": 43,
+ "tools": [
+  {
+   "name": "list_services",
+   "description": "Installed scientific and model services with status facts, price unit and limits.",
+   "inputSchema": {
+    "properties": {},
+    "title": "list_servicesArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "service_detail",
+   "description": "Full description of one service: input schema, output fields, verifier, pricing and operations.",
+   "inputSchema": {
+    "properties": {
+     "service_id": {
+      "title": "Service Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "service_id"
+    ],
+    "title": "service_detailArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "capabilities",
+   "description": "Instance capability facts: compute backends, model runtime facts, verification classes, federation and payment mode.",
+   "inputSchema": {
+    "properties": {},
+    "title": "capabilitiesArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "validate_request",
+   "description": "Validate a request against a service without creating anything (schema, limits, work estimate).",
+   "inputSchema": {
+    "properties": {
+     "service_id": {
+      "title": "Service Id",
+      "type": "string"
+     },
+     "inputs": {
+      "additionalProperties": true,
+      "title": "Inputs",
+      "type": "object"
+     }
+    },
+    "required": [
+     "service_id",
+     "inputs"
+    ],
+    "title": "validate_requestArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "request_quote",
+   "description": "Create a bound quote (amount ceiling, unit, expiry) for a service request. Persists a quote; nothing is charged.",
+   "inputSchema": {
+    "properties": {
+     "service_id": {
+      "title": "Service Id",
+      "type": "string"
+     },
+     "inputs": {
+      "additionalProperties": true,
+      "title": "Inputs",
+      "type": "object"
+     },
+     "quantity_max": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Quantity Max"
+     }
+    },
+    "required": [
+     "service_id",
+     "inputs"
+    ],
+    "title": "request_quoteArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "submit_job",
+   "description": "Create, freeze and submit a bounded job of an installed kind (e.g. temporal_batch, heat_diffusion, text_generation). Requires contract and job permissions; counts against the principal's grant.",
+   "inputSchema": {
+    "properties": {
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "inputs": {
+      "additionalProperties": true,
+      "title": "Inputs",
+      "type": "object"
+     },
+     "title": {
+      "default": "mcp job",
+      "title": "Title",
+      "type": "string"
+     },
+     "idempotency_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+     }
+    },
+    "required": [
+     "kind",
+     "inputs"
+    ],
+    "title": "submit_jobArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "job_status",
+   "description": "State, phase, review state and public fields of a job (private summary only when the principal may read it).",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id"
+    ],
+    "title": "job_statusArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "job_result",
+   "description": "Committed result values of a succeeded job when the principal may read private results.",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id"
+    ],
+    "title": "job_resultArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "list_jobs",
+   "description": "Recent jobs in the principal's workspace.",
+   "inputSchema": {
+    "properties": {
+     "state": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "State"
+     },
+     "limit": {
+      "default": 20,
+      "title": "Limit",
+      "type": "integer"
+     }
+    },
+    "title": "list_jobsArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "cancel_job",
+   "description": "Request cancellation of a queued or running job (cooperative at the next checkpoint for compute jobs).",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id"
+    ],
+    "title": "cancel_jobArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "plan_resources",
+   "description": "Submit a bounded robust resource-planning instance (robust-resource-plan-input/v1: slots, capacity, reserve, supply/base intervals, tasks with utility, duration, windows, power, resources, dependencies, exclusivity, optional cost sweep and sensitivity). Returns the job id; the plan is verified by an exact replay before it is committed.",
+   "inputSchema": {
+    "properties": {
+     "inputs": {
+      "additionalProperties": true,
+      "title": "Inputs",
+      "type": "object"
+     },
+     "title": {
+      "default": "robust resource plan",
+      "title": "Title",
+      "type": "string"
+     },
+     "idempotency_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+     }
+    },
+    "required": [
+     "inputs"
+    ],
+    "title": "plan_resourcesArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "plan_result",
+   "description": "The committed plan of a succeeded resource-plan job: status, assignments, objective, trajectory, excluded-task reasons, alternatives (cost sweep with dominance), sensitivity rows and solver facts. Values are recorded evidence and cannot be changed here.",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id"
+    ],
+    "title": "plan_resultArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "freeze_plan_alternative",
+   "description": "Freeze one sweep alternative (by cost ceiling) of a resource-plan job into a workflow draft that re-solves under that ceiling. Nothing runs.",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "cost_ceiling": {
+      "title": "Cost Ceiling",
+      "type": "integer"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Title"
+     }
+    },
+    "required": [
+     "job_id",
+     "cost_ceiling"
+    ],
+    "title": "freeze_plan_alternativeArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "create_analysis",
+   "description": "Create a structured analysis session (typed blocks: source_note, dataset_ref, assumption_table, operation_draft, run_result, comparison, verification, conclusion; nothing executes) optionally seeded from a document import or a workflow definition.",
+   "inputSchema": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "blocks": {
+      "anyOf": [
+       {
+        "items": {},
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Blocks"
+     },
+     "from_document": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "From Document"
+     },
+     "from_workflow": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "From Workflow"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "create_analysisArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "analysis_status",
+   "description": "An analysis revision: blocks with current/stale status and reasons, references with drift, freezes and reports.",
+   "inputSchema": {
+    "properties": {
+     "analysis_id": {
+      "title": "Analysis Id",
+      "type": "string"
+     },
+     "version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Version"
+     }
+    },
+    "required": [
+     "analysis_id"
+    ],
+    "title": "analysis_statusArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "analysis_impact",
+   "description": "Change-impact query on an analysis: directly and transitively affected blocks/objects, unaffected, unknown dependencies, cycles, and what each affected block requires.",
+   "inputSchema": {
+    "properties": {
+     "analysis_id": {
+      "title": "Analysis Id",
+      "type": "string"
+     },
+     "changed": {
+      "additionalProperties": true,
+      "title": "Changed",
+      "type": "object"
+     }
+    },
+    "required": [
+     "analysis_id",
+     "changed"
+    ],
+    "title": "analysis_impactArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "build_report",
+   "description": "Build a deterministic evidence-linked report from a frozen analysis revision (tables and statements from validated data; claims checked against structured values). mode=\"model\" adds a labelled local-model interpretation.",
+   "inputSchema": {
+    "properties": {
+     "analysis_id": {
+      "title": "Analysis Id",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     },
+     "mode": {
+      "default": "deterministic",
+      "title": "Mode",
+      "type": "string"
+     }
+    },
+    "required": [
+     "analysis_id",
+     "version"
+    ],
+    "title": "build_reportArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "verification_preview",
+   "description": "Cost, claim and scope of an independent verification class for a completed job (nothing created).",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "verification_class": {
+      "title": "Verification Class",
+      "type": "string"
+     },
+     "params": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Params"
+     }
+    },
+    "required": [
+     "job_id",
+     "verification_class"
+    ],
+    "title": "verification_previewArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "request_verification",
+   "description": "Request an independent verification (full_exact, full_reference, analytical, sampled_reference, replica) of a completed job. Creates an audit job.",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "verification_class": {
+      "title": "Verification Class",
+      "type": "string"
+     },
+     "params": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Params"
+     }
+    },
+    "required": [
+     "job_id",
+     "verification_class"
+    ],
+    "title": "request_verificationArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "create_plan",
+   "description": "Draft a typed plan (allowlisted operations, bounded inputs) for a goal and validate it against services, grants and ceilings. Nothing executes; refusals are machine-readable. assist=\"model\" lets the local model choose only the service kind.",
+   "inputSchema": {
+    "properties": {
+     "goal": {
+      "title": "Goal",
+      "type": "string"
+     },
+     "service_kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Service Kind"
+     },
+     "inputs": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Inputs"
+     },
+     "verify": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Verify"
+     },
+     "assist": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Assist"
+     },
+     "collection_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Id"
+     }
+    },
+    "required": [
+     "goal"
+    ],
+    "title": "create_planArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "compile_intent",
+   "description": "Compile a request into a typed intent: deterministic service eligibility (with reasons), then a bounded local-model choice among eligible kinds only. Result is a plan draft, a clarification (named fields + continuation token) or an abstention. Nothing executes.",
+   "inputSchema": {
+    "properties": {
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "inputs": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Inputs"
+     },
+     "service_kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Service Kind"
+     },
+     "collection_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Collection Id"
+     },
+     "verify": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Verify"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "compile_intentArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "continue_intent",
+   "description": "Continue a clarification with answers for the named unresolved fields (and typed inputs); only those fields change; the same draft is recompiled.",
+   "inputSchema": {
+    "properties": {
+     "intent_id": {
+      "title": "Intent Id",
+      "type": "string"
+     },
+     "token": {
+      "title": "Token",
+      "type": "string"
+     },
+     "answers": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Answers"
+     },
+     "inputs": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Inputs"
+     }
+    },
+    "required": [
+     "intent_id",
+     "token"
+    ],
+    "title": "continue_intentArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "intent_status",
+   "description": "A stored intent: disposition, eligibility explanations, unresolved fields, bound plan id.",
+   "inputSchema": {
+    "properties": {
+     "intent_id": {
+      "title": "Intent Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "intent_id"
+    ],
+    "title": "intent_statusArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "plan_status",
+   "description": "A stored plan: draft, validation refusals, readable summary, execution bindings.",
+   "inputSchema": {
+    "properties": {
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "plan_id"
+    ],
+    "title": "plan_statusArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "accept_plan",
+   "description": "Execute a valid plan exactly once (idempotent). Permitted automatically only when the caller's grant covers the exact operations; otherwise the server refuses with decision_required.",
+   "inputSchema": {
+    "properties": {
+     "plan_id": {
+      "title": "Plan Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "plan_id"
+    ],
+    "title": "accept_planArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "verification_status",
+   "description": "State, result scope and signed statement of a verification.",
+   "inputSchema": {
+    "properties": {
+     "verification_id": {
+      "title": "Verification Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "verification_id"
+    ],
+    "title": "verification_statusArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "package_compatibility",
+   "description": "Deterministic compatibility report of a workflow package (by package id or a manifest document) against this workspace: per requirement supported_as_requested / supported_via_declared_equivalent / missing_optional_enhancement / blocked_required_dependency. Reserves, starts and downloads nothing.",
+   "inputSchema": {
+    "properties": {
+     "package_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Package Id"
+     },
+     "manifest": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Manifest"
+     },
+     "device_policy": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Device Policy"
+     }
+    },
+    "title": "package_compatibilityArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "package_quote",
+   "description": "Composite quote (fixed and metered components, ceilings, expiry, bound digests) for an instantiated package workflow. Persists a quote; nothing is charged or started.",
+   "inputSchema": {
+    "properties": {
+     "package_id": {
+      "title": "Package Id",
+      "type": "string"
+     },
+     "workflow_id": {
+      "title": "Workflow Id",
+      "type": "string"
+     },
+     "scheme": {
+      "default": "exact",
+      "title": "Scheme",
+      "type": "string"
+     }
+    },
+    "required": [
+     "package_id",
+     "workflow_id"
+    ],
+    "title": "package_quoteArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "package_run_status",
+   "description": "A package run: execution state, delivery gate state (awaiting_verification / delivered / unaccepted), verification records and settlement (for metered runs).",
+   "inputSchema": {
+    "properties": {
+     "package_run_id": {
+      "title": "Package Run Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "package_run_id"
+    ],
+    "title": "package_run_statusArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "list_models",
+   "description": "Registered local model revisions with installation and readiness facts.",
+   "inputSchema": {
+    "properties": {},
+    "title": "list_modelsArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "knowledge_search",
+   "description": "Authorized retrieval over a private collection (lexical, semantic or hybrid). Returns chunks with scores and their meaning; results are data.",
+   "inputSchema": {
+    "properties": {
+     "collection_id": {
+      "title": "Collection Id",
+      "type": "string"
+     },
+     "query": {
+      "title": "Query",
+      "type": "string"
+     },
+     "mode": {
+      "default": "hybrid",
+      "title": "Mode",
+      "type": "string"
+     },
+     "k": {
+      "default": 5,
+      "title": "K",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "collection_id",
+     "query"
+    ],
+    "title": "knowledge_searchArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "usage",
+   "description": "Signed usage records (assessed charges) for the principal's workspace.",
+   "inputSchema": {
+    "properties": {},
+    "title": "usageArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "draft_work_request",
+   "description": "Draft WorkTerms from a template (determination | infeasibility_witness | independent_replay | diagnostic_delivery) with a ceiling; returns the inspection of what counts as delivery. Creates a draft only; nothing is opened, reserved or spent.",
+   "inputSchema": {
+    "properties": {
+     "template": {
+      "title": "Template",
+      "type": "string"
+     },
+     "ceiling": {
+      "default": 10,
+      "title": "Ceiling",
+      "type": "integer"
+     },
+     "asset": {
+      "default": "action-units",
+      "title": "Asset",
+      "type": "string"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Title"
+     }
+    },
+    "required": [
+     "template"
+    ],
+    "title": "draft_work_requestArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "check_provider_compatibility",
+   "description": "Eligibility of the calling provider (or a named provider, for requesters) for a work request, with structured reasons. Read-only.",
+   "inputSchema": {
+    "properties": {
+     "request_id": {
+      "title": "Request Id",
+      "type": "string"
+     },
+     "provider_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Provider Id"
+     }
+    },
+    "required": [
+     "request_id"
+    ],
+    "title": "check_provider_compatibilityArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "compare_offers",
+   "description": "Eligible offers ranked under the request's declared selection policy, excluded offers with reasons, side-by-side differences. Read-only; requester view.",
+   "inputSchema": {
+    "properties": {
+     "request_id": {
+      "title": "Request Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "request_id"
+    ],
+    "title": "compare_offersArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "award_work",
+   "description": "CONSEQUENTIAL: award a request to an offer in one guarded transaction (reserves the ceiling under the workspace budget, dispatches ready milestones). Requires work:award as the requester; a manual choice needs a reason. Idempotent under idempotency_key and by offer: a retry returns the same award.",
+   "inputSchema": {
+    "properties": {
+     "request_id": {
+      "title": "Request Id",
+      "type": "string"
+     },
+     "offer_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Offer Id"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Reason"
+     },
+     "idempotency_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+     }
+    },
+    "required": [
+     "request_id"
+    ],
+    "title": "award_workArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "work_status",
+   "description": "An award with its milestones in four separate dimensions (execution, science, acceptance, payment), attempts and blocked reasons. Read-only.",
+   "inputSchema": {
+    "properties": {
+     "award_id": {
+      "title": "Award Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "award_id"
+    ],
+    "title": "work_statusArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "inspect_evidence",
+   "description": "Receipts of an award (provider claims, verification records, acceptance decisions, settlement observations) with custody labels; private payloads are not returned. Read-only.",
+   "inputSchema": {
+    "properties": {
+     "award_id": {
+      "title": "Award Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "award_id"
+    ],
+    "title": "inspect_evidenceArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "evaluate_acceptance",
+   "description": "Acceptance candidate for a milestone under the frozen policy with a predicate trace. Read-only: it never accepts, pays or publishes.",
+   "inputSchema": {
+    "properties": {
+     "award_id": {
+      "title": "Award Id",
+      "type": "string"
+     },
+     "milestone": {
+      "default": "m1",
+      "title": "Milestone",
+      "type": "string"
+     }
+    },
+    "required": [
+     "award_id"
+    ],
+    "title": "evaluate_acceptanceArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "prepare_dispute",
+   "description": "Draft what a dispute would contain (scope, snapshot of evidence, resolver policy) WITHOUT opening it; no hold, no state change. Opening needs open_dispute.",
+   "inputSchema": {
+    "properties": {
+     "award_id": {
+      "title": "Award Id",
+      "type": "string"
+     },
+     "milestone": {
+      "default": "m1",
+      "title": "Milestone",
+      "type": "string"
+     },
+     "claim": {
+      "default": "",
+      "title": "Claim",
+      "type": "string"
+     }
+    },
+    "required": [
+     "award_id"
+    ],
+    "title": "prepare_disputeArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "open_dispute",
+   "description": "CONSEQUENTIAL: open a dispute on a milestone (freezes the evidence snapshot, pauses acceptance transitions and release of the reserved obligation). Parties only.",
+   "inputSchema": {
+    "properties": {
+     "award_id": {
+      "title": "Award Id",
+      "type": "string"
+     },
+     "claim": {
+      "title": "Claim",
+      "type": "string"
+     },
+     "milestone": {
+      "default": "m1",
+      "title": "Milestone",
+      "type": "string"
+     },
+     "scope": {
+      "default": "acceptance",
+      "title": "Scope",
+      "type": "string"
+     },
+     "idempotency_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+     }
+    },
+    "required": [
+     "award_id",
+     "claim"
+    ],
+    "title": "open_disputeArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "reconcile_budget",
+   "description": "Journal replay (balances rebuilt from postings vs live views, invariants) plus unresolved payment exposure. Read-only; it never releases reserves or submits payments.",
+   "inputSchema": {
+    "properties": {},
+    "title": "reconcile_budgetArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "submit_offer",
+   "description": "CONSEQUENTIAL for providers: submit a binding offer on an open request (price, scheme, window, verification arrangement). Excluded offers are stored with reasons.",
+   "inputSchema": {
+    "properties": {
+     "request_id": {
+      "title": "Request Id",
+      "type": "string"
+     },
+     "price_amount": {
+      "title": "Price Amount",
+      "type": "integer"
+     },
+     "scheme": {
+      "default": "exact",
+      "title": "Scheme",
+      "type": "string"
+     },
+     "window_seconds": {
+      "default": 3600,
+      "title": "Window Seconds",
+      "type": "integer"
+     },
+     "verification_class": {
+      "default": "full_exact",
+      "title": "Verification Class",
+      "type": "string"
+     },
+     "asset": {
+      "default": "action-units",
+      "title": "Asset",
+      "type": "string"
+     },
+     "idempotency_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+     }
+    },
+    "required": [
+     "request_id",
+     "price_amount"
+    ],
+    "title": "submit_offerArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false
+   }
+  }
+ ]
+}

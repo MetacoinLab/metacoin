@@ -1,0 +1,290 @@
+{
+ "schema": "metacoin-work-demonstration/v1",
+ "started_at": 1790659968,
+ "steps": [
+  {
+   "step": "positive: two eligible offers, lowest eligible price selected under the visible policy, budget reserved",
+   "ok": true,
+   "terms": "wt_b7372a5ef7d52e27",
+   "digest": "6e0c2d8556a2877aefb7dfd29504fd692686b8fbb3a602bc3c76374d5641e8c0",
+   "request": "wr_fb2679263c93c0e1",
+   "offers": [
+    "wo_79928ea2e3aea220",
+    "wo_43067e022069f382"
+   ],
+   "award": "wa_364d256eda58e025",
+   "selection": "lowest_eligible_price",
+   "ranked": [
+    "wo_79928ea2e3aea220",
+    "wo_43067e022069f382"
+   ],
+   "excluded": [],
+   "reserved": 11
+  },
+  {
+   "step": "negative: two eligible offers, lowest eligible price selected under the visible policy, budget reserved",
+   "ok": true,
+   "terms": "wt_0248715e510888e1",
+   "digest": "b40ae54282ac9a840f1e5cd26f2d0d371d1af0d7e557ba21eb1de0088d5149fc",
+   "request": "wr_53d7b9d078f5a638",
+   "offers": [
+    "wo_d43df0946bd5de86",
+    "wo_45eb8a6bc0c37331"
+   ],
+   "award": "wa_db142203bb8d8eed",
+   "selection": "lowest_eligible_price",
+   "ranked": [
+    "wo_d43df0946bd5de86",
+    "wo_45eb8a6bc0c37331"
+   ],
+   "excluded": [],
+   "reserved": 11
+  },
+  {
+   "step": "positive: executed by the provider, verified in a separate worker process, accepted with the same complete amount",
+   "ok": true,
+   "science": "FEASIBLE",
+   "decision": "accepted",
+   "payable": 10
+  },
+  {
+   "step": "negative: executed by the provider, verified in a separate worker process, accepted with the same complete amount",
+   "ok": true,
+   "science": "INFEASIBLE",
+   "decision": "accepted",
+   "payable": 10
+  },
+  {
+   "step": "positive: exact payment observed on the private local chain and reconciled",
+   "ok": true,
+   "id": "pi_ac668d9ea952e71b",
+   "state": "settled",
+   "final_amount": 10,
+   "transaction": null,
+   "rail": "local-chain"
+  },
+  {
+   "step": "negative: exact payment observed on the private local chain and reconciled",
+   "ok": true,
+   "id": "pi_0395c5f6a0082b82",
+   "state": "settled",
+   "final_amount": 10,
+   "transaction": null,
+   "rail": "local-chain"
+  },
+  {
+   "step": "positive: the declared 10 % fee is a separate entitlement paid by the requester to the treasury address and observed on the rail",
+   "ok": true,
+   "id": "pi_1149be2d80b8f353",
+   "state": "settled",
+   "final_amount": 1
+  },
+  {
+   "step": "negative: the declared 10 % fee is a separate entitlement paid by the requester to the treasury address and observed on the rail",
+   "ok": true,
+   "id": "pi_9348e56b430cf270",
+   "state": "settled",
+   "final_amount": 1
+  },
+  {
+   "step": "provider received both agreed payments in full; the treasury address received the two fees; the payer funded both",
+   "ok": true,
+   "provider_delta": 20,
+   "treasury_delta": 2,
+   "payer_delta": -22
+  },
+  {
+   "step": "fabricated positive: another contract's FEASIBLE artifact presented against the negative contract is rejected (contract digest / input root binding)",
+   "ok": true,
+   "candidate": "rejected",
+   "failed": [
+    "source"
+   ]
+  },
+  {
+   "step": "solver timeout presented as infeasible: execution failed, science no_valid_evidence, nothing payable",
+   "ok": true,
+   "execution": "failed",
+   "science": "no_valid_evidence",
+   "payable": 0
+  },
+  {
+   "step": "duplicate claim with a new request salt: refused; one entitlement, already paid, no second payment identity",
+   "ok": true,
+   "statuses": [
+    409,
+    409
+   ],
+   "entitlement_state": "paid"
+  },
+  {
+   "step": "dispute against a mistaken rejection: superseding acceptance from preserved replay evidence; the original decision retained",
+   "ok": true,
+   "dispute": "wdp_75054d11f8c11370",
+   "decisions": [
+    [
+     "rejected",
+     "requester",
+     false
+    ],
+    [
+     "accepted",
+     "dispute_resolution",
+     true
+    ]
+   ]
+  },
+  {
+   "step": "fee-backed treasury award: confirmed fee revenue funds a bounded award that pays an accepted negative from the treasury account",
+   "ok": true,
+   "revenue_before": 2,
+   "settled_spending": 1,
+   "available_after": 1
+  },
+  {
+   "step": "journal replay consistent, invariants hold, identity/protocol files and base issuance untouched",
+   "ok": true,
+   "scopes": [
+    "local-chain-token@eip155:131277322940537"
+   ],
+   "invariants_failed": [],
+   "differences": [],
+   "protocol_files_unchanged": true
+  },
+  {
+   "step": "offline verifier on the full bundle: replays the INFEASIBLE determination",
+   "ok": true,
+   "verdict": "structurally valid, signatures trusted, scientific scope replayed"
+  },
+  {
+   "step": "offline verifier on the restricted bundle: reports the missing private evidence honestly",
+   "ok": true,
+   "verdict": "structurally valid, signatures trusted, scientific scope limited"
+  }
+ ],
+ "revision": "e7ff21ea1362a6f48cb00e4d388a859ee8d05719",
+ "awards": {
+  "positive": {
+   "terms": "wt_b7372a5ef7d52e27",
+   "digest": "6e0c2d8556a2877aefb7dfd29504fd692686b8fbb3a602bc3c76374d5641e8c0",
+   "request": "wr_fb2679263c93c0e1",
+   "offers": [
+    "wo_79928ea2e3aea220",
+    "wo_43067e022069f382"
+   ],
+   "award": "wa_364d256eda58e025",
+   "selection": "lowest_eligible_price",
+   "ranked": [
+    "wo_79928ea2e3aea220",
+    "wo_43067e022069f382"
+   ],
+   "excluded": [],
+   "reserved": 11,
+   "science": "FEASIBLE",
+   "candidate": "accepted",
+   "decision": "accepted",
+   "payable": 10,
+   "entitlement": "wen_46e85a6f9a59affd",
+   "verification": "vf_75efde76ba87",
+   "receipts": [
+    [
+     "provider",
+     "wrc_1e5b0357d0502b43"
+    ],
+    [
+     "verification",
+     "wrc_801e9f12111e0522"
+    ],
+    [
+     "acceptance",
+     "wrc_115771e1682ae972"
+    ]
+   ],
+   "payment": {
+    "id": "pi_ac668d9ea952e71b",
+    "state": "settled",
+    "final_amount": 10,
+    "transaction": null,
+    "rail": "local-chain"
+   },
+   "reconciliation": "terminal-or-unsubmitted; nothing to query",
+   "fee_payment": {
+    "id": "pi_1149be2d80b8f353",
+    "state": "settled",
+    "final_amount": 1
+   }
+  },
+  "negative": {
+   "terms": "wt_0248715e510888e1",
+   "digest": "b40ae54282ac9a840f1e5cd26f2d0d371d1af0d7e557ba21eb1de0088d5149fc",
+   "request": "wr_53d7b9d078f5a638",
+   "offers": [
+    "wo_d43df0946bd5de86",
+    "wo_45eb8a6bc0c37331"
+   ],
+   "award": "wa_db142203bb8d8eed",
+   "selection": "lowest_eligible_price",
+   "ranked": [
+    "wo_d43df0946bd5de86",
+    "wo_45eb8a6bc0c37331"
+   ],
+   "excluded": [],
+   "reserved": 11,
+   "science": "INFEASIBLE",
+   "candidate": "accepted",
+   "decision": "accepted",
+   "payable": 10,
+   "entitlement": "wen_affeea5230f68694",
+   "verification": "vf_8e5dc6556fc0",
+   "receipts": [
+    [
+     "provider",
+     "wrc_57d2cd63fc272b83"
+    ],
+    [
+     "verification",
+     "wrc_b78c8ab9c194c2ba"
+    ],
+    [
+     "acceptance",
+     "wrc_fe25715aba14643a"
+    ]
+   ],
+   "payment": {
+    "id": "pi_0395c5f6a0082b82",
+    "state": "settled",
+    "final_amount": 10,
+    "transaction": null,
+    "rail": "local-chain"
+   },
+   "reconciliation": "terminal-or-unsubmitted; nothing to query",
+   "fee_payment": {
+    "id": "pi_9348e56b430cf270",
+    "state": "settled",
+    "final_amount": 1
+   }
+  }
+ },
+ "signing_public_key": "0fbacf08c3910dad9dab24278ca661b6c34696858a786e24151bc85de851c07a",
+ "console": [
+  "/console/work",
+  "/console/work/awards/wa_db142203bb8d8eed",
+  "/console/work/budget",
+  "/console/work/reconciliation",
+  "/console/work/disputes/wdp_75054d11f8c11370"
+ ],
+ "what_this_shows": [
+  "a verified INFEASIBLE determination is accepted and paid exactly like the verified FEASIBLE one under the frozen outcome-neutral policy",
+  "fabricated positives, mislabeled timeouts and duplicate claims are refused or left unresolved without a second payment",
+  "a mistaken rejection is corrected through an authorized dispute using preserved replay evidence, never by editing the original decision",
+  "fees observed on the local chain fund a bounded treasury award; the journal conserves every amount; base issuance and protocol files are untouched"
+ ],
+ "what_this_does_not_show": [
+  "price discovery or independent organizations (one operator plays every role on one host)",
+  "public settlement (private in-memory py-evm chain, synthetic accounts)",
+  "anonymity of any party"
+ ],
+ "finished_at": 1790660005,
+ "passed": 17,
+ "failed": 0
+}

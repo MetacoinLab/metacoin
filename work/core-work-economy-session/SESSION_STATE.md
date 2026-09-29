@@ -30,6 +30,8 @@ A `economy/terms.py` WorkTerms v1 (typed deliverables, declarative acceptance po
 - §39 key rotation (trust history table 038, /work/keys + /rotate, receipts verified under the key's validity interval, bundles carry trust-history.json, verify_work accepts several --trust-root); chain identity recorded on authorization and checked at reconciliation (in-memory chain restart → 'rail state unavailable', exposure retained).
 - §73 fault campaign test_work_faults (5 + inherited money tests): found and fixed a real journal defect (re-submission after a reconciled-unused submission reused the event key and was deduplicated → submission events are now per attempt). benchmark_work.py (bounded concurrent workload script). tests/browser/journey_work.py (Playwright console journey). journeys_economy.py (40 journeys; runs 1–2 failed to start the API: limits override refused job_max_retries=0 and unknown 'test_hooks' → config LIMITS gains test_hooks default 0; journeys use retries=1 with two timed-out attempts).
 
+- Stabilisation + §38/§61/§76 (commit 3 of this session, 04:40–05:20Z): journey harness fixes (helper rename, queue drain, generic job view, API defects log); real defects found by the journeys: numerical-witness status read from the summary (acceptance + template), agent grant work operations (work:read/work:award), rail-address eligibility (`recipient_invalid_for_rail`); §38 provider history (`economy/provider_history.py`, GET /work/providers/{id}/history, portfolio GET/POST, console /console/work/providers/{id}, MCP provider_history, CLI); §61 import preview (`economy/interop.py`, POST /work/packages/import-preview raw zip or JSON, CLI work-package-preview); §76.8 reconciliation console (money.pending_observations, GET /work/reconciliation, /console/work/reconciliation with reconcile/renew/submit); §76.10 mission learning records (migration 039 learning_json, classes contradicts/confirmed/new_evidence/inconclusive, explicit POST …/contributions/{cid}/learning). Tests: test_work_history_interop (2), test_work_backlog (2). Journeys run12: 39/39 passed (j40 after packaging); browser run: worker-side stall under investigation (last_award diagnostics added).
+
 ## Task-owned background producers
 - journeys run3: `journeys_economy --out $S/o8/journeys/run3.json --shots …/shots3` started 04:4xZ, timeout 40 min, log run3.log, exit line appended at the end. (identity, log, start, timeout, expected output, exit)
 (none yet)
@@ -41,4 +43,7 @@ A `economy/terms.py` WorkTerms v1 (typed deliverables, declarative acceptance po
 (none yet)
 
 ## Exact next action
+Read run14 (clean full journeys + browser diag) → fix browser stall → benchmark + demonstration artifacts → full unit suite → freeze → live upgrade (032–039) → package (journey 40) → report.
+
+## Superseded next action
 Group C: economy/evidence.py (receipts provider/verification/acceptance/settlement, entitlements, acceptance decisions append-only, challenges, disputes, corrections, reassignment, delegation) + migration 034 + portable verifier `python -m metacoin_service.economy.verify_work` + tests.

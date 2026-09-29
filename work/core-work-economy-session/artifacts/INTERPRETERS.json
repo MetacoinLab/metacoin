@@ -1,0 +1,34 @@
+{
+ "schema": "metacoin-interpreters/v1",
+ "host": {
+  "kernel": "6.17.0-1008-nvidia",
+  "machine": "aarch64"
+ },
+ "api_venv": {
+  "path": ".venv-service",
+  "python": "3.12.3",
+  "fastapi": "0.141.1",
+  "x402": "2.24.0",
+  "web3": "7.16.0",
+  "eth_account": "0.14.0",
+  "pypdf": "6.1.3",
+  "httpx": "0.28.1"
+ },
+ "compute_interpreter": {
+  "python": "3.12.3",
+  "numpy": "2.2.6",
+  "scipy": "1.18.1",
+  "torch": "2.10.0+cu130",
+  "cuda": true
+ },
+ "requirements_lock_sha256": "289740331a1aef6f1765f729ffe307fd3ce68c8a3a2fd01775675d824bf503fd",
+ "local_chain_artifacts": {
+  "dir": "/home/zhangd2/projects/metacoin/integrations/x402/local_chain/artifacts.json",
+  "files_sha256_prefix": {},
+  "note": "pinned Permit2 / x402 upto proxy / mock token bytecode; the chain itself is in-memory per API process"
+ },
+ "playwright": {
+  "python": "scratchpad pwvenv (not part of the delivery)",
+  "browsers": "chromium via PLAYWRIGHT_BROWSERS_PATH"
+ }
+}

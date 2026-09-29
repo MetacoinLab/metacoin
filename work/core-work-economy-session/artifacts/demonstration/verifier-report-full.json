@@ -1,0 +1,304 @@
+{
+ "parsing": {
+  "ok": true,
+  "checks": [
+   {
+    "check": "member_count",
+    "ok": true,
+    "detail": 20
+   },
+   {
+    "check": "no_duplicate_members",
+    "ok": true,
+    "detail": 20
+   },
+   {
+    "check": "safe_member_names",
+    "ok": true,
+    "detail": []
+   },
+   {
+    "check": "no_symlink_members",
+    "ok": true,
+    "detail": []
+   },
+   {
+    "check": "decompression_bounds",
+    "ok": true,
+    "detail": {
+     "uncompressed": 41250,
+     "compressed": 21372
+    }
+   },
+   {
+    "check": "schema",
+    "ok": true,
+    "detail": "metacoin-work-bundle/v1"
+   },
+   {
+    "check": "canonical_manifest",
+    "ok": true,
+    "detail": null
+   }
+  ]
+ },
+ "integrity": {
+  "ok": true,
+  "checks": [
+   {
+    "check": "file:award.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:decisions/wd_457bc92aef96d377.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:evidence/disclosed.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:evidence/summary.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:milestone.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:offer.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:private/README.txt",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:private/contract.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:private/evidence-vault.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:private/input-vault.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:receipts/wrc_283cc2e1e205667e.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:receipts/wrc_4ad7183b334ef020.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:receipts/wrc_57d2cd63fc272b83.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:receipts/wrc_b78c8ab9c194c2ba.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:receipts/wrc_fe25715aba14643a.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:terms.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:trust-history.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "file:verifications/vf_8e5dc6556fc0.json",
+    "ok": true,
+    "detail": null
+   },
+   {
+    "check": "no_undeclared_members",
+    "ok": true,
+    "detail": []
+   },
+   {
+    "check": "statement_manifest_digest",
+    "ok": true,
+    "detail": null
+   }
+  ]
+ },
+ "signer_trust": {
+  "ok": true,
+  "trusted": true,
+  "checks": [
+   {
+    "check": "trust_root_supplied",
+    "ok": true,
+    "detail": "k_43affe9956b78fbbd5eb4665"
+   },
+   {
+    "check": "manifest_signature",
+    "ok": true,
+    "detail": {
+     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "under_supplied_root": true
+    }
+   },
+   {
+    "check": "receipts/wrc_283cc2e1e205667e.json",
+    "ok": true,
+    "detail": {
+     "kind": "settlement",
+     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_supplied_as_root": true,
+     "issued_within_validity": true,
+     "note": null
+    }
+   },
+   {
+    "check": "receipts/wrc_4ad7183b334ef020.json",
+    "ok": true,
+    "detail": {
+     "kind": "settlement",
+     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_supplied_as_root": true,
+     "issued_within_validity": true,
+     "note": null
+    }
+   },
+   {
+    "check": "receipts/wrc_57d2cd63fc272b83.json",
+    "ok": true,
+    "detail": {
+     "kind": "provider",
+     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_supplied_as_root": true,
+     "issued_within_validity": true,
+     "note": null
+    }
+   },
+   {
+    "check": "receipts/wrc_b78c8ab9c194c2ba.json",
+    "ok": true,
+    "detail": {
+     "kind": "verification",
+     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_supplied_as_root": true,
+     "issued_within_validity": true,
+     "note": null
+    }
+   },
+   {
+    "check": "receipts/wrc_fe25715aba14643a.json",
+    "ok": true,
+    "detail": {
+     "kind": "acceptance",
+     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_supplied_as_root": true,
+     "issued_within_validity": true,
+     "note": null
+    }
+   },
+   {
+    "check": "verifications/vf_8e5dc6556fc0.json",
+    "ok": true,
+    "detail": {
+     "kind": "passed",
+     "key_id": "k_43affe9956b78fbbd5eb4665",
+     "key_supplied_as_root": true,
+     "issued_within_validity": true,
+     "note": null
+    }
+   }
+  ]
+ },
+ "method_availability": {
+  "kind": "energy_audit",
+  "available": true,
+  "implementation": "experiments.work_contracts (installed)",
+  "verifier_status": "current"
+ },
+ "scientific_replay": {
+  "performed": true,
+  "scientific_outcome": "INFEASIBLE",
+  "evidence_root": "5c383d841708755e2c1a15eb70b7b76e13c5670da42d28f325b847f57597ec41",
+  "matches_manifest_root": true,
+  "scope": "full private recomputation",
+  "disclosed_fields": {
+   "membership_verified": true,
+   "fields": [
+    "contract_digest",
+    "input_root",
+    "model_id",
+    "outcome",
+    "result_schema",
+    "scope",
+    "verifier_digest",
+    "verifier_id"
+   ],
+   "bindings_match_terms": true
+  }
+ },
+ "acceptance_evaluation": {
+  "trace": [
+   {
+    "predicate": "complete",
+    "result": "passed"
+   },
+   {
+    "predicate": "source",
+    "result": "passed"
+   },
+   {
+    "predicate": "schema",
+    "result": "passed"
+   },
+   {
+    "predicate": "outcome",
+    "result": "passed"
+   },
+   {
+    "predicate": "replay",
+    "result": "passed",
+    "note": null
+   }
+  ],
+  "offline_candidate": "accepted",
+  "recorded_decision": {
+   "authority": "requester",
+   "created_at": 1790659976,
+   "decision": "accepted",
+   "evidence_root": "5c383d841708755e2c1a15eb70b7b76e13c5670da42d28f325b847f57597ec41",
+   "id": "wd_457bc92aef96d377",
+   "payable_amount": 10,
+   "payment_class": "complete",
+   "policy_digest": "4c669c477ee19c01d0b534650a3acea28971eb592a211a099fdf0f3ef1bea36a",
+   "superseded_by": null,
+   "supersedes": null
+  },
+  "note": "the recorded decision is the requester's; the offline candidate is what THIS package lets a recipient conclude"
+ },
+ "missing_private_evidence": [],
+ "verdict": "structurally valid, signatures trusted, scientific scope replayed",
+ "ok": true
+}

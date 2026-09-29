@@ -431,6 +431,70 @@ def mount(app, svc, run, read_body, API):
     async def work_reconciliation(request: Request):
         return await run(request, False, lambda db, p: M.pending_observations(db, p))
 
+    # ---- §76 extensions: programs, pricing experiments, challenge packages -------------------------------------------------
+    PG, PX, CH = svc.economy.programs, svc.economy.pricing, svc.economy.challenges
+
+    @app.post(API + '/work/programs', status_code=201)
+    async def work_program_create(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (PG.create(db, p, body), 201), 'work.program.create', raw)
+
+    @app.get(API + '/work/programs')
+    async def work_programs(request: Request):
+        return await run(request, False, lambda db, p: {'items': PG.list(db, p)})
+
+    @app.get(API + '/work/programs/{pid}')
+    async def work_program(request: Request, pid: str):
+        return await run(request, False, lambda db, p: PG.view(db, p, pid))
+
+    @app.post(API + '/work/programs/{pid}/runs', status_code=201)
+    async def work_program_run(request: Request, pid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (PG.run(db, p, pid, body), 201), 'work.program.run', raw)
+
+    @app.post(API + '/work/programs/{pid}/close')
+    async def work_program_close(request: Request, pid: str):
+        raw = await request.body()
+        return await run(request, True, lambda db, p: PG.close(db, p, pid), 'work.program.close', raw)
+
+    @app.post(API + '/work/pricing-experiments', status_code=201)
+    async def work_pricing_create(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (PX.create(db, p, body), 201), 'work.pricing.create', raw)
+
+    @app.get(API + '/work/pricing-experiments')
+    async def work_pricing_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': PX.list(db, p)})
+
+    @app.get(API + '/work/pricing-experiments/{eid}')
+    async def work_pricing_view(request: Request, eid: str):
+        return await run(request, False, lambda db, p: PX.view(db, p, eid))
+
+    @app.post(API + '/work/receipts/{rid}/challenge', status_code=201)
+    async def work_challenge_open(request: Request, rid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (CH.open(db, p, rid, body), 201), 'work.challenge.open', raw)
+
+    @app.get(API + '/work/challenges')
+    async def work_challenges(request: Request):
+        return await run(request, False, lambda db, p: {'items': CH.list(db, p, request.query_params.get('award_id'))})
+
+    @app.get(API + '/work/challenges/{chid}')
+    async def work_challenge(request: Request, chid: str):
+        return await run(request, True, lambda db, p: CH.view(db, p, chid))
+
+    @app.get(API + '/work/challenges/{chid}/package')
+    async def work_challenge_package(request: Request, chid: str):
+        from fastapi.responses import Response as _R
+        from starlette.concurrency import run_in_threadpool
+        def sync():
+            with svc.db.tx() as db:
+                from ..api import principal_of
+                p = principal_of(request, db, True)
+                return CH.package(db, p, chid)
+        data = await run_in_threadpool(sync)
+        return _R(content=data, media_type='application/zip', headers={'Content-Disposition': 'attachment; filename="challenge-%s.zip"' % chid})
+
     @app.get(API + '/work/keys')
     async def work_keys(request: Request):
         return await run(request, True, lambda db, p: (p.require('work:read') and None) or AC.trust_history(db, p))

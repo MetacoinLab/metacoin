@@ -102,7 +102,11 @@ def replay(db, workspace):
     live = {}
     for e in db.execute('SELECT * FROM work_entitlements WHERE workspace=?', (workspace,)).fetchall():
         i = db.execute('SELECT network FROM payment_intents WHERE id=?', (e['payment_intent_id'],)).fetchone() if e['payment_intent_id'] else None
-        net = i['network'] if i else ('application' if e['asset'] == 'action-units' else 'local-chain')
+        if i:
+            net = i['network']
+        else:                                                                       # no intent yet: the scope the decision posting itself used, never a guess
+            je = db.execute("SELECT network FROM journal_entries WHERE workspace=? AND asset=? AND ((ref_type='work_entitlement' AND ref_id=?) OR (ref_type='work_milestone' AND ref_id=?)) ORDER BY rowid LIMIT 1", (workspace, e['asset'], e['id'], e['milestone_id'])).fetchone()
+            net = je['network'] if je else ('application' if e['asset'] == 'action-units' else 'local-chain')
         sc = scope(e['asset'], net)
         live.setdefault(sc, {'payable': 0, 'submitted': 0, 'paid': 0, 'refund_claims': 0})
         if e['state'] in ('payable', 'held', 'authorized'):

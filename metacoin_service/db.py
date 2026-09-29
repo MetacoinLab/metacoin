@@ -446,6 +446,13 @@ MIGRATIONS = [
     ('039_mission_learning', """
     ALTER TABLE contributions ADD COLUMN learning_json TEXT;
     """),
+    ('040_work_programs_pricing_challenges', """
+    CREATE TABLE work_programs (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, requester_id TEXT NOT NULL REFERENCES principals(id), name TEXT NOT NULL, class_json TEXT NOT NULL, per_run_ceiling INTEGER NOT NULL, aggregate_ceiling INTEGER NOT NULL, max_runs INTEGER NOT NULL, state TEXT NOT NULL CHECK (state IN ('active','closed')), notes TEXT, created_at INTEGER NOT NULL);
+    CREATE TABLE work_program_runs (id TEXT PRIMARY KEY, program_id TEXT NOT NULL REFERENCES work_programs(id), run_no INTEGER NOT NULL, terms_id TEXT NOT NULL REFERENCES work_terms(id), request_id TEXT REFERENCES work_requests(id), input_root TEXT, created_at INTEGER NOT NULL, UNIQUE (program_id, run_no));
+    CREATE INDEX work_program_runs_request ON work_program_runs (request_id);
+    CREATE TABLE pricing_experiments (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, record_json TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (workspace, name, version));
+    CREATE TABLE work_challenges (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, receipt_id TEXT NOT NULL REFERENCES work_receipts(id), award_id TEXT NOT NULL REFERENCES work_awards(id), challenger_id TEXT NOT NULL, claim TEXT NOT NULL, inputs_json TEXT NOT NULL, asserted_outcome TEXT NOT NULL, kind TEXT NOT NULL, contract_id TEXT NOT NULL REFERENCES contracts(id), job_id TEXT NOT NULL REFERENCES jobs(id), state TEXT NOT NULL, result_json TEXT, created_at INTEGER NOT NULL);
+    """),
 ]
 
 

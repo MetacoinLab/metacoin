@@ -6,6 +6,9 @@ from .money import Money
 from .treasury import Treasury
 from .access import Access
 from .missions import Missions
+from .programs import Programs
+from .pricing import Pricing
+from .challenges import Challenges
 
 
 class Economy:
@@ -19,6 +22,11 @@ class Economy:
         self.treasury = Treasury(settings, services, self.money)
         self.access = Access(settings, services, self.board, self.evidence)
         self.missions = Missions(settings, services, self.board, self.evidence)
+        self.programs = Programs(settings, services)
+        self.pricing = Pricing(settings, services)
+        self.challenges = Challenges(settings, services)
+        self.board.programs = self.programs
+        self.evidence.challenges = self.challenges
         self.evidence.money = self.money
         self.evidence.access = self.access
         self.evidence.missions = self.missions

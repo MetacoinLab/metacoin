@@ -390,6 +390,12 @@ class Evidence:
         elif action == 'evidence':
             if not (party['requester'] or party['provider'] or party['reviewer']):
                 raise ServiceError('FORBIDDEN', 'parties or reviewer only')
+            if body.get('challenge_id'):
+                ch = getattr(self, 'challenges', None).view(db, principal, body['challenge_id']) if getattr(self, 'challenges', None) else None
+                if ch is None or ch['award_id'] != d['award_id']:
+                    raise ServiceError('VALIDATION', {'code': 'supplement', 'note': 'a challenge package must concern a receipt of the disputed award'})
+                self._entry(db, d, 'evidence', principal.id, {'challenge_id': ch['id'], 'conclusion': ch['conclusion'], 'asserted_outcome': ch['asserted_outcome'], 'counterexample_input_root': ch['counterexample']['input_root'], 'note': 'a counterexample on other inputs is evidence about the method, not a replacement of the disputed artifact'})
+                return self.dispute_view(db, principal, did)
             ref = body.get('verification_id')
             v = db.execute('SELECT * FROM verification_jobs WHERE id=? AND workspace=?', (ref, principal.workspace)).fetchone() if ref else None
             if v is None or v['target_job_id'] != ms['job_id']:
