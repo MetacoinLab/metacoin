@@ -56,6 +56,11 @@ INSTALLED = {
                        'dataset_kind': None, 'input_schema': {'type': 'object', 'required': ['available_low', 'available_high', 'reserve', 'fixed_segments', 'optional_tasks', 'duration_cap', 'units', 'assumptions', 'provenance', 'private_label']},
                        'output_fields': ['status', 'selected_ids', 'total_value', 'energy_margin', 'duration_margin'], 'limits': {'max_optional_tasks': science.MAX_OPTIONAL_TASKS}, 'action_entitlement': False},
 }
+from .economy import legacy_bridge as _legacy
+INSTALLED['legacy_task_replay'] = {'model_id': _legacy.MODEL_ID, 'result_schema': _legacy.RESULT_SCHEMA, 'verifier': _legacy.VERIFIER_ID, 'input_type': 'inline', 'dataset_kind': None,
+                                   'input_schema': {'type': 'object', 'required': ['schema', 'task_id'], 'properties': {'schema': {'const': _legacy.INPUT_SCHEMA}, 'task_id': {'enum': sorted(_legacy.registry())}}},
+                                   'output_fields': ['task_id', 'output_hash', 'registered_hash', 'matches_registered', 'outcome'], 'limits': {'tasks': len(_legacy.registry())}, 'action_entitlement': False,
+                                   'model': {'work_unit': 'replay', 'completion': 'exact replay of a frozen deterministic task; the registered verdict is never changed by a replay', 'privacy': 'inputs are a task id; outputs are public registered results'}}
 from .compute import inputs as compute_inputs, manifests as compute_manifests
 for _kind, _m in compute_manifests.MANIFESTS.items():
     INSTALLED[_kind] = {'model_id': _m['model_id'], 'result_schema': _m['result_schema'], 'verifier': _m['manifest_id'] + '-verifier', 'input_type': 'compute',
@@ -111,6 +116,8 @@ def verifier_digest(kind):
     if kind in model_engine.KNOWLEDGE_KINDS:
         from .knowledge import engine as knowledge_engine
         return knowledge_engine.implementation_digest()
+    if kind == 'legacy_task_replay':
+        return _legacy.implementation_digest()
     return {'energy_audit': terms.verifier_digest, 'temporal_energy': temporal.bundle_digest}.get(kind, science.bundle_digest)()
 
 

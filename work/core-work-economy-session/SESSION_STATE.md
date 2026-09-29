@@ -1,0 +1,31 @@
+# Core work economy session (Order 08) — state
+Start: 2026-09-29T03:06:55Z (`START`; 21:06 MDT 2026-09-28 local). Target budget 24 h; final 90 min reserved for freeze, exact-revision checks, fresh install, migration rehearsal, live upgrade, delivery.
+Delivery path (chosen): `~/metacoin-core-work-economy-delivery-2026-09-29/`.
+
+## Verified baseline (from Git and disk, not from the order's screenshot)
+- Repo `/home/zhangd2/projects/metacoin`, branch `service/real-features`, HEAD `103bde963011cfcaccb3b7986dd403e547f17bbd` (records-only commit on top of source candidate `db63420ec712fcbb702c0e85a3840cda8fc17277`; source trees identical outside `work/`). Working tree CLEAN at start (`git status --short` empty). Full hash of the base recorded in `artifacts/BASE_REVISION.txt`.
+- Live: tmux `metacoin-service`, window `api` pane pid 2463606 (`serve --port 8402`), window `worker` pane pid 2463623 (`worker --name live-worker`); health revision `db63420…`, provider_mode test-http, schema `031_reconciliation`. Claude session tmux `metacoin` is a different process group: never touched.
+- Schema: migrations 001–031 in `metacoin_service/db.py`; next free identifier 032 (verified by listing `MIGRATIONS`).
+- Identity/protocol baseline digests (README, WHITEPAPER, TOKENOMICS, MISSION, LICENSE, protocol/ledger_anchor.json, ledger_published.json, mission_verdict.json, mission_envelope.json) in `artifacts/BASELINE_DIGESTS.txt` — to be compared unchanged at the end. `protocol/identity_text.py` FROZEN strings untouched.
+- Interpreters: API venv `.venv-service` (fastapi, x402 2.24.0 + evm extra, pypdf); compute/model child `/usr/bin/python3` (numpy/scipy/torch). Local chain artifacts `integrations/x402/local_chain/artifacts.json` present (py-evm private chain: Permit2, upto proxy, mock token; exact scheme on the SDK route uses the facilitator DOUBLE, not the chain — recorded as such).
+
+## Existing platform reused (architecture ledger; see artifacts/ARCHITECTURE_LEDGER.md)
+contracts.py (job contracts: draft/freeze/amend, input vault, params bound per kind) · jobs.py + worker.py (lease-fenced execution, evidence vault publication) · catalog.py quotes (binding_json, accept/consume) · budgets.py (hierarchical reservations) · agents.py (policy grants, guard) · verification.py (classes, audit jobs, signed statements, gate) · reviews.py (reviewer ed25519 signatures) · federation/ (enrolled nodes = separate provider process over signed HTTPS; claims compute kinds) · x402_http.py (exact via double, upto via local chain, metered_settlements, delivery_gate hook) · metering.py (service-key signed usage statements) · packages.py (result bundles, verify_bundle.py) · sharing.py (job-scoped field shares) · history.py (hash-chained events, CATEGORIES) · approvals.py · experiments/work_contracts (WorkContract v0 energy determination: FEASIBLE/INFEASIBLE/INDETERMINATE, exact arithmetic) · compute/resource_plan.py (MILP determination with exact simulator) · demo/tasks + protocol/ledger_data.jsonl (frozen deterministic tasks, registered output hashes via payload.task_id/local_output_hash) · mission_verdict.json (bottlenecks, node_verdicts, dag; read-only).
+
+## Plan (dependency order per §6)
+A `economy/terms.py` WorkTerms v1 (typed deliverables, declarative acceptance policy, milestones DAG, honest-negative payment rules, amendments/counteroffers) + migration 032 → B request board, provider profiles, eligibility, binding offers, deterministic comparison, atomic award + reservation, provider execution (local worker fixture + enrolled node over real transport) → C receipts (provider/verification/acceptance/settlement), entitlements, challenges, disputes, corrections, portable verifier → D payment intents, journal (double-entry, integer base units), local-chain settlement bound to entitlements, fee split, treasury budgets, refunds/credits, reconciliation → E audit grants, compartments, encrypted offline packages, projections → F mission portfolio, bottleneck→request, legacy bridge kind `legacy_task_replay`, contributions, resource evidence, physical-work boundary → §61–68 API/CLI/MCP/console/events/metrics → journeys 1–40, fault campaign → freeze, upgrade, package.
+
+## Done
+- baseline inventory (03:06–03:40Z)
+
+## Task-owned background producers (identity, log, start, timeout, expected output, exit)
+(none yet)
+
+## Unsettled local payment attempts
+(none)
+
+## Unresolved defects
+(none yet)
+
+## Exact next action
+Write `metacoin_service/economy/terms.py` + migration 032 + tests, then the request board.

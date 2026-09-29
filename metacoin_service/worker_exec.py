@@ -40,6 +40,13 @@ def run(spec):
     elif kind == 'temporal_energy':
         result = temporal.analyze(inputs)
         outcome = result['outcome']
+    elif kind == 'legacy_task_replay':
+        from metacoin_service.economy import legacy_bridge
+        result, outcome, summary = legacy_bridge.run(inputs)
+        evidence = {'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'], 'verifier_id': legacy_bridge.VERIFIER_ID, 'verifier_digest': legacy_bridge.implementation_digest(),
+                    'result_schema': result['result_schema'], 'model_id': result['model_id'], 'result': result, 'scope': 'legacy-exact-replay;registered-implementation'}
+        _, vault = merkle.commit(evidence)
+        return {'evidence_vault': vault, 'outcome': outcome, 'summary': summary}
     else:
         raise merkle.Invalid('unsupported adapter capability or destination')
     verifier_id, verifier_digest = (('temporal-energy-verifier/v1', temporal.bundle_digest()) if kind == 'temporal_energy'

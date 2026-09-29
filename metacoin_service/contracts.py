@@ -10,6 +10,7 @@ from .models import service as model_svc, engine as model_engine
 from .knowledge import engine as knowledge_engine
 from .documents import service as documents_svc
 from . import verification as verification_mod
+from .economy import legacy_bridge
 from .db import now
 from .errors import ServiceError
 
@@ -17,20 +18,21 @@ COMPUTE_KINDS = compute_manifests.KINDS
 MODEL_KINDS = model_engine.KINDS
 KNOWLEDGE_KINDS = model_engine.KNOWLEDGE_KINDS
 DOCUMENT_KINDS = ('document_import',)
-KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy') + COMPUTE_KINDS + MODEL_KINDS + KNOWLEDGE_KINDS + ('verification_audit',) + DOCUMENT_KINDS
+LEGACY_KINDS = ('legacy_task_replay',)
+KINDS = ('energy_audit', 'safe_runtime', 'plan_comparison', 'task_selection', 'temporal_energy') + COMPUTE_KINDS + MODEL_KINDS + KNOWLEDGE_KINDS + ('verification_audit',) + DOCUMENT_KINDS + LEGACY_KINDS
 DEFAULT_EXPIRY_SECONDS = 7 * 86400
 SERVICE_CONTRACT_SCHEMA = 'metacoin-service-contract/v1'
 VALIDATORS = {'energy_audit': energy.validate, 'safe_runtime': science.validate_safe_runtime,
               'plan_comparison': science.validate_comparison, 'task_selection': science.validate_selection,
-              'temporal_energy': temporal.validate, **compute_inputs.VALIDATORS, **model_svc.VALIDATORS, **knowledge_engine.VALIDATORS, 'verification_audit': verification_mod.validate_audit_input, **documents_svc.VALIDATORS}
+              'temporal_energy': temporal.validate, **compute_inputs.VALIDATORS, **model_svc.VALIDATORS, **knowledge_engine.VALIDATORS, 'verification_audit': verification_mod.validate_audit_input, **documents_svc.VALIDATORS, 'legacy_task_replay': legacy_bridge.validate}
 MODEL_IDS = {'safe_runtime': science.SAFE_RUNTIME_MODEL, 'plan_comparison': science.COMPARISON_MODEL,
              'task_selection': science.SELECTION_MODEL, 'temporal_energy': temporal.MODEL_ID,
-             **{k: m['model_id'] for k, m in compute_manifests.MANIFESTS.items()}, **model_engine.MODEL_IDS, 'verification_audit': 'verification-audit/v1', 'document_import': 'document-import/v1'}
+             **{k: m['model_id'] for k, m in compute_manifests.MANIFESTS.items()}, **model_engine.MODEL_IDS, 'verification_audit': 'verification-audit/v1', 'document_import': 'document-import/v1', 'legacy_task_replay': legacy_bridge.MODEL_ID}
 VERIFIER_OF = {'temporal_energy': ('temporal-energy-verifier/v1', temporal.bundle_digest),
                **{k: (m['manifest_id'] + '-verifier', compute_manifests.implementation_digest) for k, m in compute_manifests.MANIFESTS.items()},
                **{k: ('model-runtime/v1', model_engine.implementation_digest) for k in MODEL_KINDS},
                **{k: ('knowledge-engine/v1', knowledge_engine.implementation_digest) for k in KNOWLEDGE_KINDS},
-               'verification_audit': ('metacoin-verification/v1', verification_mod.implementation_digest), 'document_import': ('document-extractor/v1', documents_svc.implementation_digest)}
+               'verification_audit': ('metacoin-verification/v1', verification_mod.implementation_digest), 'document_import': ('document-extractor/v1', documents_svc.implementation_digest), 'legacy_task_replay': (legacy_bridge.VERIFIER_ID, legacy_bridge.implementation_digest)}
 
 
 DEFAULT_CAPABILITY = {'simulation': 'legacy_simulation', 'test-http': 'x402_loopback_test', 'production': 'x402_http_buyer'}

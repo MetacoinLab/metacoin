@@ -389,6 +389,11 @@ MIGRATIONS = [
     CREATE TABLE reconciliations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, quantity TEXT NOT NULL, unit TEXT NOT NULL, record_json TEXT NOT NULL, digest TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     CREATE TABLE measurement_requests (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, quantity TEXT NOT NULL, unit TEXT NOT NULL, record_json TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     """),
+    ('032_work_terms', """
+    CREATE TABLE work_terms (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, requester_id TEXT NOT NULL REFERENCES principals(id), state TEXT NOT NULL CHECK (state IN ('draft','frozen','superseded','withdrawn')), version INTEGER NOT NULL DEFAULT 1, lineage_id TEXT NOT NULL, previous_id TEXT REFERENCES work_terms(id), terms_json TEXT NOT NULL, digest TEXT UNIQUE, draft_digest TEXT NOT NULL, contract_id TEXT REFERENCES contracts(id), proposed_by TEXT, expires_at INTEGER, frozen_at INTEGER, superseded_by TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX work_terms_lineage ON work_terms (lineage_id, version);
+    CREATE TABLE work_evaluations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, terms_id TEXT NOT NULL REFERENCES work_terms(id), milestone_key TEXT NOT NULL, job_id TEXT, evaluation_json TEXT NOT NULL, decision_candidate TEXT NOT NULL, science TEXT NOT NULL, execution TEXT NOT NULL, payment_class TEXT NOT NULL, evaluated_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+    """),
 ]
 
 

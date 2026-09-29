@@ -44,6 +44,24 @@ NODE_STATES = ('pending', 'ready', 'waiting_dependency', 'waiting_review', 'bloc
 RUN_STATES = ('created', 'running', 'waiting_review', 'blocked', 'partially_failed', 'cancelled', 'completed', 'failed')
 
 
+def kahn_order(ids, deps_of):
+    """Deterministic topological order by declaration order; returns (order, cyclic_ids). Shared by workflow definitions
+    and work-terms milestone graphs (one DAG validator, per Order 08 §16)."""
+    indeg = {i: 0 for i in ids}
+    succ = {i: [] for i in ids}
+    for i in ids:
+        for key in deps_of.get(i, []):
+            indeg[i] += 1; succ[key].append(i)
+    order, ready = [], [i for i in ids if indeg[i] == 0]
+    while ready:
+        cur = ready.pop(0); order.append(cur)
+        for nxt in succ[cur]:
+            indeg[nxt] -= 1
+            if indeg[nxt] == 0:
+                ready.append(nxt)
+    return order, [i for i in ids if indeg[i] > 0]
+
+
 def validate_definition(definition):
     """Structural validation with node-identifier-precise errors. Returns (digest, topological order)."""
     merkle.canonical(definition)
@@ -139,21 +157,9 @@ def validate_definition(definition):
     if errors:
         raise ServiceError('VALIDATION', {'code': 'workflow', 'errors': errors[:20]})
     # cycle detection + topological order (Kahn), deterministic by declaration order
-    indeg = {i: 0 for i in ids}
-    succ = {i: [] for i in ids}
-    for i in ids:
-        for d in by_id[i].get('depends_on', []):
-            key = d if type(d) is str else d['node']
-            indeg[i] += 1; succ[key].append(i)
-    order, ready = [], [i for i in ids if indeg[i] == 0]
-    while ready:
-        cur = ready.pop(0); order.append(cur)
-        for nxt in succ[cur]:
-            indeg[nxt] -= 1
-            if indeg[nxt] == 0:
-                ready.append(nxt)
-    if len(order) != len(ids):
-        raise ServiceError('VALIDATION', {'code': 'workflow', 'errors': [{'node': i, 'code': 'cycle'} for i in ids if indeg[i] > 0]})
+    order, cyclic = kahn_order(ids, {i: [d if type(d) is str else d['node'] for d in by_id[i].get('depends_on', [])] for i in ids})
+    if cyclic:
+        raise ServiceError('VALIDATION', {'code': 'workflow', 'errors': [{'node': i, 'code': 'cycle'} for i in cyclic]})
     # every required output must be reachable from some dataset/inline root (it always is in a DAG); check outputs are not orphaned pending
     digest = hashlib.sha256(b'metacoin/workflow-definition/v1\0' + merkle.canonical(definition)).hexdigest()
     return digest, order

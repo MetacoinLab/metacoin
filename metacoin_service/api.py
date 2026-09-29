@@ -71,6 +71,8 @@ class Services:
         self.packages = Packages(settings, self)
         from .reconciliation import Reconciliations
         self.reconciliations = Reconciliations(settings, self)
+        from .economy.facade import Economy
+        self.economy = Economy(settings, self)
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
@@ -2371,6 +2373,8 @@ def create_app(settings):
 
     from . import console
     console.mount(app, svc)
+    from .economy import routes as economy_routes
+    economy_routes.mount(app, svc, run, read_body, API)
     return app
 
 

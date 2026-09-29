@@ -44,6 +44,7 @@ SUPPORT = {
     'energy_audit': {'full_exact': 'acceptance.audit over the input and evidence vaults (same implementation: regression check)'},
     'safe_runtime': {'full_exact': 'recomputation by science.safe_runtime (same implementation)'}, 'plan_comparison': {'full_exact': 'recomputation by science.compare_plans (same implementation)'},
     'task_selection': {'full_exact': 'recomputation by science.select_tasks (same implementation)'},
+    'legacy_task_replay': {'full_exact': 'frozen task recomputed by its registered implementation and compared exactly with the producer hash and the public ledger registration (legacy exact rule)'},
 }
 MAX_WORK = {'full_exact': 200_000, 'full_reference': 2_000_000, 'sampled_reference': 4096, 'analytical': 10 ** 9, 'replica': 10 ** 9}
 SHARED_CODE = {'temporal_batch': ['compute.inputs.scenario (parameter expansion)', 'compute.npy (array codec)'], 'monte_carlo_reliability': ['compute.inputs.apply_variation', 'stored samples_audit.json (producer-generated parameters)'],
@@ -237,7 +238,19 @@ class Verification:
             if bad:
                 return vrow, {'outcome': 'failed', 'checked': 0, 'total': 0, 'checks': [{'check': 'output_commitment', 'ok': False, 'detail': {'files': bad}}],
                               'statement': 'stored outputs do not match the committed output digests: the result was altered after commitment'}, target, tcontract
-        result = audit(kind, cls, tinputs, files, values['result'], params, challenge, run)
+        if kind == 'energy_audit':
+            # WorkContract v0 determination: the full private audit recomputes every hidden field of the evidence vault from the
+            # input vault under the frozen contract (same implementation: a regression check, labelled so in SUPPORT)
+            doc = merkle.parse(tcontract['contract_json'])
+            ivault = self.store.load_json(db, tcontract['input_artifact_id'], target['workspace'])
+            try:
+                audited = acceptance.audit(doc, tcontract['contract_digest'], ivault, evidence)
+                result = {'outcome': 'passed', 'checked': 1, 'total': 1, 'checks': [{'check': 'full_private_recomputation', 'ok': True, 'detail': {'scientific_outcome': audited['scientific_outcome']}}],
+                          'coverage': 'every committed evidence field recomputed', 'statement': SUPPORT['energy_audit']['full_exact']}
+            except merkle.Invalid as exc:
+                result = {'outcome': 'failed', 'checked': 1, 'total': 1, 'checks': [{'check': 'full_private_recomputation', 'ok': False, 'detail': str(exc)[:200]}], 'statement': SUPPORT['energy_audit']['full_exact']}
+        else:
+            result = audit(kind, cls, tinputs, files, values['result'], params, challenge, run)
         fault = db.execute("SELECT value FROM meta WHERE key=?", ('fault:verification_fail:' + target['id'],)).fetchone() if self.settings.limits.get('test_hooks') else None
         if fault is not None:
             result = {'outcome': 'failed', 'checked': result.get('checked', 0), 'total': result.get('total', 0), 'checks': result.get('checks', []) + [{'check': 'fault_injection', 'ok': False, 'detail': 'FAULT INJECTED (test hook): forced verification failure'}],
@@ -427,6 +440,9 @@ def audit(kind, cls, inputs, files, result, params, challenge, run):
         return {'outcome': 'passed' if v['passed'] else 'failed', 'checked': 1, 'total': 1, 'checks': v['checks'], 'tolerance': v['tolerance'], 'statement': v['statement'] + ' (training rows were not re-read: metrics and coefficient consistency only)'}
     if kind == 'resource_plan':
         return _audit_resource_plan(cls, inputs, files, result)
+    if kind == 'legacy_task_replay':
+        from .economy import legacy_bridge
+        return legacy_bridge.audit(inputs, result)
     return _audit_science(kind, inputs, result)
 
 

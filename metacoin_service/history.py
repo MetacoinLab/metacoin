@@ -30,6 +30,7 @@ CATEGORIES = {'budget.ceiling_set': 'economic', 'compute.progress': 'scientific'
     'package.installed': 'administrative', 'package.retired': 'administrative', 'package.instantiated': 'administrative', 'package.quoted': 'economic', 'package.run_started': 'scientific', 'package.delivery': 'scientific', 'package.retry': 'scientific', 'ops.fault': 'administrative',
     'reconciliation.created': 'scientific', 'measurement.requested': 'scientific',
     'analysis.created': 'administrative', 'analysis.revised': 'scientific', 'analysis.frozen': 'administrative', 'analysis.regenerated': 'scientific', 'analysis.report': 'scientific', 'analysis.projection': 'administrative',
+    'work.terms_created': 'administrative', 'work.terms_frozen': 'scientific', 'work.terms_amended': 'administrative', 'work.terms_superseded': 'administrative', 'work.acceptance_evaluated': 'scientific',
     'approval.proposed': 'administrative', 'approval.decided': 'administrative', 'approval.applied': 'administrative', 'approval.expired': 'administrative',
 }
 
