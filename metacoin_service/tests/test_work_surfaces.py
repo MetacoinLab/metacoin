@@ -131,7 +131,7 @@ class WorkSurfaceTests(EvidenceBase):
         self.assertEqual(self.c.get('/api/v1/work/notifications', headers=self.pv['alpha']['h']).json()['items'], [])          # scoped to the recipient
         st = self.c.get('/api/v1/work/status', headers=self.H).json()
         self.assertEqual(st['counts']['milestones_by_state'], {'delivered': 1}); self.assertIn('awaiting_verification', [w['reason'] for w in st['waiting_reasons']])
-        full = self.c.get('/api/v1/status', headers=self.H).json(); self.assertIn('work', full); self.assertEqual(len(full['loaded_revision']), 40)
+        full = self.c.get('/api/v1/status', headers=self.H).json(); self.assertIn('work', full); self.assertTrue(len(full['loaded_revision']) == 40 or full['loaded_revision'] == 'unavailable')   # an exported tree without .git reports the honest fallback
         metrics = self.c.get('/api/metrics', headers=self.H).text; self.assertIn('metacoin_work_milestones{state="delivered"} 1', metrics); self.assertNotIn('TERMS_TEST', metrics)
         ev = self.c.get('/api/v1/events?types=work.awarded,work.milestone_state', headers=self.H).json(); self.assertTrue(ev['items']); self.assertTrue(all(e['event_type'].startswith('work.') for e in ev['items']))
         self.assertEqual(self.c.get('/api/v1/events', headers=self.inst.h('viewer')).json()['items'][0]['event_type'] if False else 1, 1)
