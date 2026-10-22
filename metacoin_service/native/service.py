@@ -68,7 +68,8 @@ class Native:
         d = self.domain(db, principal.workspace)
         assets = [dict(a) for a in db.execute('SELECT * FROM native_assets WHERE workspace=?', (principal.workspace,)).fetchall()]
         peers = [{k: p[k] for k in ('domain_id', 'authority_key_id', 'epoch', 'trust_policy', 'state', 'pinned_at')} for p in db.execute('SELECT * FROM native_peers WHERE workspace=?', (principal.workspace,)).fetchall()]
-        return {'schema': 'metacoin-native-domain/v0', 'protocol': P.PROTOCOL, 'id': d['id'], 'environment': d['environment'], 'authority': {'key_id': d['authority_key_id'], 'public_hex': d['authority_public_hex'], 'epoch': d['epoch'], 'custody': CUSTODY_AUTHORITY},
+        sys_accts = {r['kind']: r['id'] for r in db.execute("SELECT id, kind FROM native_accounts WHERE workspace=? AND kind IN ('treasury','fixture')", (principal.workspace,)).fetchall()}
+        return {'schema': 'metacoin-native-domain/v0', 'protocol': P.PROTOCOL, 'id': d['id'], 'default_asset': self.default_asset(db, principal.workspace), 'accounts': sys_accts, 'environment': d['environment'], 'authority': {'key_id': d['authority_key_id'], 'public_hex': d['authority_public_hex'], 'epoch': d['epoch'], 'custody': CUSTODY_AUTHORITY},
                 'operator': d['operator'], 'host': d['host'], 'policy_version': d['policy_version'], 'connectivity': d['connectivity'], 'recovery_state': d['recovery_state'], 'commit_sequence': d['commit_sequence'], 'export_watermark': d['export_watermark'],
                 'assets': assets, 'peers': peers, 'trust_model': P.TRUST_MODEL, 'finality': P.FINALITY,
                 'what_this_is_not': P.spec()['what_a_development_ledger_is_not'], 'x402': {'required_by_native_core': False, 'imported_by_native_package': False}}
@@ -362,3 +363,118 @@ class Native:
 
 
 MAX_PURPOSE = 200
+
+
+# ---- work-economy hooks (acceptance -> obligations -> native settlement; awards reserve native funds) --------------------------------
+def _hooks(cls):
+    def reserve_for_award(self, db, principal, aid, terms, ceiling):
+        """Atomically with the award: the payer's own funds move available -> reserved (ref award). Treasury-funded awards reserve
+        from the treasury account (its allocation was already checked against confirmed fee revenue)."""
+        d = self.domain(db, principal.workspace); asset = terms['payment']['asset']
+        if not self.is_native_asset(db, principal.workspace, asset):
+            raise ServiceError('VALIDATION', {'code': 'asset_unknown_here', 'asset': asset})
+        funding = terms['payment'].get('funding', 'requester')
+        payer = self.system_account(db, principal.workspace, 'treasury') if funding == 'treasury' else self.account_of(db, principal)['id']
+        if funding == 'treasury':
+            pass                                                   # the treasury allocation already moved available -> reserved for these terms (treasury.allocate)
+        else:
+            ledger.require_available(db, principal.workspace, asset, d['id'], payer, ceiling)
+            ledger.move(db, principal.workspace, 'award-reserve:' + aid, 'native_award_reservation', asset, d['id'], self.environment, ceiling, ledger.account_name(payer, 'available'), ledger.account_name(payer, 'reserved'), 'work_award', aid, 'reserved for an award (ceiling incl. fee and verifier legs)')
+        history.record(db, principal.workspace, principal.id, 'native.intent', 'work_award', aid, {'reserved': ceiling, 'payer_account': payer, 'funding': funding})
+        return payer
+
+    def _award_payer(self, db, award, terms):
+        funding = terms['payment'].get('funding', 'requester')
+        return self.system_account(db, award['workspace'], 'treasury') if funding == 'treasury' else self.account_of(db, award['awarded_by'], award['workspace'])['id']
+
+    def _provider_account(self, db, award):
+        prow = db.execute('SELECT principal_id FROM providers WHERE id=?', (award['provider_id'],)).fetchone()
+        return self.account_of(db, prow['principal_id'], award['workspace'])['id']
+
+    def on_accepted(self, db, award, ms, decision_id, amount, terms):
+        """Accepted work: provider obligation (payer -> provider account) and, when the terms declare a fee, the fee obligation to the treasury account."""
+        asset = terms['payment']['asset']; payer = self._award_payer(db, award, terms)
+        policy = {'partial_payments': terms['payment']['scheme'] == 'upto', 'source': 'award_reservation', 'award_id': award['id'], 'milestone_id': ms['id'], 'decision_id': decision_id}
+        self.obligation_create(db, award['workspace'], 'provider', payer, self._provider_account(db, award), asset, amount, 'work_milestone', ms['id'], policy)
+        from ..economy import terms as terms_mod
+        fee = terms_mod.fee_amount(terms['payment'], amount)
+        if fee > 0:
+            self.obligation_create(db, award['workspace'], 'fee', payer, self.system_account(db, award['workspace'], 'treasury'), asset, fee, 'work_milestone', ms['id'], dict(policy, partial_payments=False, note='protocol fee: additional to the provider amount; funds the MetaStar treasury; never issuance'))
+
+    def on_verifier_obligation(self, db, award, ms, entitlement_id, amount, terms):
+        payer = self._award_payer(db, award, terms); payee = terms['payment']['verifier_pay_to']
+        if db.execute('SELECT 1 FROM native_accounts WHERE id=? AND workspace=?', (payee, award['workspace'])).fetchone() is None:
+            raise ServiceError('CONFLICT', {'code': 'verifier_account_unknown', 'note': 'verifier_pay_to must name a native account of this domain'})
+        self.obligation_create(db, award['workspace'], 'verifier', payer, payee, terms['payment']['asset'], amount, 'work_entitlement', entitlement_id, {'partial_payments': False, 'source': 'award_reservation', 'award_id': award['id'], 'milestone_id': ms['id'], 'note': 'verifier compensation is independent of the verdict'})
+
+    def settle_entitlement(self, db, principal, intent_row, e, award, terms, final):
+        """Settle one economy entitlement natively from the award reservation: reserved -> committed_outgoing -> payee available,
+        the payer account's signed intent recorded, one commit sequence, a signed receipt. Idempotent by the entitlement."""
+        d = self.domain(db, principal.workspace); asset = e['asset']
+        if d['recovery_state'] != 'normal':
+            raise ServiceError('CONFLICT', {'code': 'domain_quarantined', 'recovery_state': d['recovery_state']})
+        kind = e['kind']; payer = self._award_payer(db, award, terms)
+        if kind == 'provider':
+            payee = self._provider_account(db, award); ref = ('work_milestone', e['milestone_id'])
+        elif kind == 'fee':
+            payee = self.system_account(db, principal.workspace, 'treasury'); ref = ('work_milestone', e['milestone_id'])
+        else:
+            payee = e['recipient']; ref = ('work_entitlement', e['id'])
+        ob = db.execute('SELECT * FROM native_obligations WHERE ref_type=? AND ref_id=? AND kind=?', (ref[0], ref[1], kind)).fetchone()
+        if ob is None:
+            raise ServiceError('CONFLICT', {'code': 'native_obligation_missing', 'entitlement': e['id']})
+        ex = db.execute("SELECT * FROM native_intents WHERE obligation_ref=? AND state='settled'", (ob['id'],)).fetchone()
+        if ex is not None:
+            return self.intent_view(db, principal, ex['id'])
+        outstanding = ob['amount'] - ob['settled_amount']
+        if final > outstanding:
+            raise ServiceError('CONFLICT', {'code': 'amount_above_outstanding', 'outstanding': outstanding})
+        reserved = ledger.balance(db, principal.workspace, asset, d['id'], payer, 'reserved')
+        if reserved < final:
+            raise ServiceError('BUDGET_EXHAUSTED', {'code': 'reservation_short', 'reserved': reserved, 'requested': final, 'note': 'the award reservation must cover every settlement leg'})
+        src = self.account_row(db, principal.workspace, payer)
+        nonce = '%s-%d' % (src['id'], src['nonce_counter'] + 1); rid = 'settle-' + e['id']
+        msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': payer, 'authority': d['id'], 'asset': asset, 'amount_ceiling': final, 'recipient': payee, 'obligation_id': ob['id'], 'grant_id': None, 'nonce': nonce, 'policy_version': P.POLICY_VERSION, 'request_id': rid, 'purpose': 'settlement of %s obligation %s' % (kind, ob['id'])}
+        P.validate_intent(msg, self.environment, d['id'])
+        iid = 'ni_' + secrets.token_hex(8)
+        sig = self._sign_account(db, src, 'intent', msg) if src['kind'] == 'actor' else None
+        seq = self.next_sequence(db, principal.workspace)
+        hist = [{'state': 'reserved', 'at': now(), 'from': 'award_reservation'}, {'state': 'authorized', 'at': now(), 'key_id': src['key_id'], 'note': 'treasury account: authority-ordered, no actor signature' if sig is None else None}, {'state': 'committed', 'at': now(), 'sequence': seq}, {'state': 'settled', 'at': now(), 'sequence': seq}]
+        db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (src['id'],))
+        db.execute('INSERT INTO native_intents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (iid, principal.workspace, d['id'], payer, principal.id, 'settlement', asset, final, final, payee, ob['id'], None, nonce, rid, json.dumps(msg), P.digest(msg), sig, 'settled', seq, None, json.dumps(hist), now(), now()))
+        ledger.move(db, principal.workspace, 'commit:' + iid, 'native_commit', asset, d['id'], self.environment, final, ledger.account_name(payer, 'reserved'), ledger.account_name(payer, 'committed_outgoing'), 'native_intent', iid, 'committed from the award reservation (sequence %d)' % seq)
+        from ..economy.ops import fault
+        fault(db, self.settings, 'native_commit')
+        ledger.move(db, principal.workspace, 'settle:' + iid, 'native_settlement', asset, d['id'], self.environment, final, ledger.account_name(payer, 'committed_outgoing'), ledger.account_name(payee, 'available'), 'native_intent', iid, 'domain-local settlement of a %s obligation' % kind)
+        new_settled = ob['settled_amount'] + final
+        db.execute("UPDATE native_obligations SET settled_amount=?, state=?, updated_at=? WHERE id=?", (new_settled, 'settled' if new_settled == ob['amount'] else 'partial', now(), ob['id']))
+        self._receipt(db, principal.workspace, 'settlement', 'native_intent', iid, {'intent_id': iid, 'from': payer, 'to': payee, 'asset': asset, 'amount': final, 'obligation_id': ob['id'], 'entitlement_id': e['id'], 'kind': kind, 'award_id': award['id'], 'commit_sequence': seq, 'domain': d['id'], 'epoch': d['epoch'], 'finality': 'domain_local_settlement', 'message_digest': P.digest(msg)})
+        history.record(db, principal.workspace, principal.id, 'native.settlement', 'native_intent', iid, {'kind': kind, 'from': payer, 'to': payee, 'amount': final, 'asset': asset, 'sequence': seq, 'entitlement': e['id']})
+        return self.intent_view(db, principal, iid)
+
+    def release_award(self, db, award, paid):
+        """On award close: whatever of the reservation was never committed returns to the payer's available funds."""
+        t = db.execute('SELECT terms_json FROM work_terms WHERE id=?', (award['terms_id'],)).fetchone()
+        terms = json.loads(t['terms_json']); asset = terms['payment']['asset']
+        if not self.is_native_asset(db, award['workspace'], asset):
+            return None
+        d = self.domain(db, award['workspace']); payer = self._award_payer(db, award, terms)
+        reserved_for = award['ceiling']
+        settled = db.execute("SELECT COALESCE(SUM(amount_final),0) FROM native_intents WHERE type='settlement' AND state='settled' AND obligation_ref IN (SELECT id FROM native_obligations WHERE json_extract(policy_json, '$.award_id')=?)", (award['id'],)).fetchone()[0]
+        keep = reserved_for - settled
+        if keep > 0:
+            ledger.move(db, award['workspace'], 'award-release:' + award['id'], 'native_award_release', asset, d['id'], self.environment, keep, ledger.account_name(payer, 'reserved'), ledger.account_name(payer, 'available'), 'work_award', award['id'], 'unused reservation released at award close')
+        return keep
+
+    def treasury_reserve(self, db, workspace, allocation_id, asset, amount):
+        """Treasury-funded terms: the treasury account's own confirmed fee revenue moves available -> reserved (never issuance)."""
+        d = self.domain(db, workspace); acct = self.system_account(db, workspace, 'treasury')
+        ledger.require_available(db, workspace, asset, d['id'], acct, amount)
+        ledger.move(db, workspace, 'treasury-native-reserve:' + allocation_id, 'native_treasury_reservation', asset, d['id'], self.environment, amount, ledger.account_name(acct, 'available'), ledger.account_name(acct, 'reserved'), 'treasury_allocation', allocation_id, 'treasury award reserved from settled fee revenue')
+
+    for f in (reserve_for_award, _award_payer, _provider_account, on_accepted, on_verifier_obligation, settle_entitlement, release_award, treasury_reserve):
+        setattr(cls, f.__name__, f)
+    return cls
+
+
+_hooks(Native)

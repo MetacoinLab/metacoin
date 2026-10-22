@@ -276,10 +276,10 @@ def validate(terms, mode='draft'):
     _int(fp['treasury_bps'], 0, 5000, 'fee_policy_treasury_bps')
     if 'verifier_pay_to' in pay:
         _str(pay['verifier_pay_to'], 'verifier_pay_to', 128)
-    if pay['asset'] not in ASSETS:
-        _err('payment_asset', allowed=list(ASSETS))
-    if pay['scale'] != ASSETS[pay['asset']]['scale']:
-        _err('payment_scale', allowed=ASSETS[pay['asset']]['scale'])
+    if pay['asset'] not in ASSETS and not is_native_asset(pay['asset']):
+        _err('payment_asset', allowed=list(ASSETS) + ['native asset id environment:authority:ledger:asset:scale'])
+    if pay['scale'] != asset_scale(pay['asset']):
+        _err('payment_scale', allowed=asset_scale(pay['asset']))
     _int(pay['ceiling'], 0, 10 ** 15, 'payment_ceiling')
     if pay['scheme'] not in SCHEMES:
         _err('payment_scheme', allowed=list(SCHEMES))
@@ -410,6 +410,22 @@ def policy_semantics(schema):
     return 'claim-specific/v2: verification_passed needs a passing verification of the SAME class on the delivered evidence root; assurance_satisfied binds a typed requirement (claim type, coverage, comparison, independence, sampling bound) and a detected defect on the same bindings is never overridden by a later attempt'
 
 
+def is_native_asset(asset):
+    """A MetaCoin-native asset id (environment:authority:ledger:asset:scale); settles on the native rail of the domain that registered it."""
+    from ..native import protocol as _np
+    try:
+        _np.asset_id(asset); return True
+    except _np.ProtocolError:
+        return False
+
+
+def asset_scale(asset):
+    if asset in ASSETS:
+        return ASSETS[asset]['scale']
+    from ..native import protocol as _np
+    return _np.asset_parts(asset)['scale']
+
+
 def fee_amount(payment, base):
     """Treasury fee in integer base units: floor(base * bps / 10000); the remainder stays with the provider (documented rule)."""
     fp = payment.get('fee_policy') or {}
@@ -487,7 +503,7 @@ def upgrade_preview(v0_contract):
 # ---- templates (§76-5): reusable determination / infeasibility-witness / independent-replay / diagnostic-delivery ----
 def _base(requester, workspace, kind, title, ceiling, asset='action-units'):
     return {'schema': SCHEMA, 'title': title, 'requester': {'principal_id': requester, 'workspace': workspace}, 'operation': {'kind': kind, 'compatibility': 'same_verifier_digest'},
-            'payment': {'asset': asset, 'scale': ASSETS[asset]['scale'], 'ceiling': ceiling, 'scheme': 'exact', 'verifier_compensation': 0, 'fee_policy': {'schema': 'metacoin-fee-policy/v1', 'treasury_bps': 0, 'rounding': 'floor_fee_remainder_to_provider'}, 'funding': 'requester'},
+            'payment': {'asset': asset, 'scale': asset_scale(asset), 'ceiling': ceiling, 'scheme': 'exact', 'verifier_compensation': 0, 'fee_policy': {'schema': 'metacoin-fee-policy/v1', 'treasury_bps': 0, 'rounding': 'floor_fee_remainder_to_provider'}, 'funding': 'requester'},
             'privacy': {'inputs': 'requester_private', 'evidence_disclosure': ['bindings', 'outcome'], 'verifier_access': 'required_inputs_only', 'projection_default': 'outcome_and_bindings'},
             'deadlines': {'offer_seconds': 86400, 'acknowledge_seconds': 3600, 'delivery_seconds': 86400, 'dispute_seconds': 7 * 86400, 'at_deadline': 'eligible'},
             'eligibility': {'capabilities': [kind], 'verification_classes': ['full_exact', 'full_reference'], 'payment_schemes': ['exact', 'upto'], 'operator_relationships': ['same_operator', 'affiliated', 'independent_declared', 'unknown'], 'execution_types': ['local_worker', 'node']},

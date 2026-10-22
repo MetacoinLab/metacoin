@@ -11,7 +11,8 @@ import secrets
 from .. import history
 from ..db import now
 from ..errors import ServiceError
-from . import journal, terms as terms_mod
+from . import journal
+from . import terms as terms_mod
 from .money import ENV
 
 
@@ -37,6 +38,13 @@ class Treasury:
             out['on_chain_balance'] = chain.token_c.functions.balanceOf(chain.w3.eth.accounts[6]).call()
             out['note'] = 'on_chain_balance may exceed confirmed revenue only through explicitly labelled test setup; the journal, not the balance, defines availability'
         out['rebuilt_from_journal'] = True
+        if terms_mod.is_native_asset(asset):
+            acct = self.svc.native.system_account(db, principal.workspace, 'treasury')
+            from ..native import ledger as _nl
+            dom = asset.split(':')[1]
+            cats = {c: _nl.balance(db, principal.workspace, asset, dom, acct, c) for c in ('available', 'reserved', 'committed_outgoing')}
+            out.update({'native_account': acct, 'native_categories': cats, 'available': cats['available'], 'reserved_commitments': cats['reserved'],
+                        'provenance': 'native domain: confirmed revenue = protocol fees settled into the treasury account on this domain; awards reserve from that account; no path reaches base issuance'})
         return out
 
     def allocate(self, db, principal, body):
@@ -58,6 +66,8 @@ class Treasury:
         aid = 'ta_' + secrets.token_hex(6)
         db.execute('INSERT INTO treasury_allocations VALUES (?,?,?,?,NULL,?,?,?,?,?,?)', (aid, principal.workspace, bid, t['id'], amount, 'reserved', str(body.get('note', ''))[:256], principal.id, now(), now()))
         journal.post(db, principal.workspace, 'treasury-reserve:%s' % aid, 'treasury_reservation', terms['payment']['asset'], self.money._network(terms['payment']['asset']), ENV[self.settings.provider_mode], [('treasury:committed', amount, 0), ('treasury:available_memo', 0, amount)], 'treasury_allocation', aid, 'treasury commitment reserved under confirmed revenue')
+        if terms_mod.is_native_asset(terms['payment']['asset']):
+            self.svc.native.treasury_reserve(db, principal.workspace, aid, terms['payment']['asset'], amount)
         history.record(db, principal.workspace, principal.id, 'work.treasury', 'treasury_allocation', aid, {'terms_id': t['id'], 'amount': amount, 'state': 'reserved'})
         return dict(self.view(db, principal, terms['payment']['asset']), allocation_id=aid)
 

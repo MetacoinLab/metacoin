@@ -84,8 +84,8 @@ class Providers:
         """Operator registers a provider: a new principal with the provider role, one credential (shown once) and the
         signed capability record. Independence is never derived from the key; the relationship attributes are declared."""
         principal.require('work:provider_admin'); principal.require('admin:credentials')
-        if type(body) is not dict or set(body) - {'name', 'execution', 'capabilities', 'relationship', 'pay_to', 'credential_seconds'}:
-            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['name', 'execution', 'capabilities', 'relationship', 'pay_to', 'credential_seconds']})
+        if type(body) is not dict or set(body) - {'name', 'execution', 'capabilities', 'relationship', 'pay_to', 'credential_seconds', 'principal_id'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['name', 'execution', 'capabilities', 'relationship', 'pay_to', 'credential_seconds', 'principal_id (an existing native actor)']})
         name = body.get('name')
         if type(name) is not str or not 1 <= len(name) <= 64:
             raise ServiceError('VALIDATION', 'name')
@@ -95,8 +95,17 @@ class Providers:
         pay_to = body.get('pay_to') or ('provider:' + name)
         if type(pay_to) is not str or not 1 <= len(pay_to) <= 128:
             raise ServiceError('VALIDATION', 'pay_to')
-        pid = auth.create_principal(db, name, 'provider', principal.workspace)
-        cid, token = auth.issue_credential(db, pid, body.get('credential_seconds', 30 * 86400))
+        if body.get('principal_id'):
+            prow_ = db.execute('SELECT * FROM principals WHERE id=? AND workspace=? AND revoked_at IS NULL', (body['principal_id'], principal.workspace)).fetchone()
+            if prow_ is None or prow_['role'] != 'actor':
+                raise ServiceError('VALIDATION', {'code': 'principal_not_actor', 'note': 'an existing native actor keeps its identity, credential and account when it registers as a provider'})
+            if db.execute('SELECT 1 FROM providers WHERE principal_id=?', (prow_['id'],)).fetchone():
+                raise ServiceError('CONFLICT', 'this actor is already a provider')
+            pid, cid, token = prow_['id'], None, None
+            pay_to = body.get('pay_to') or self.svc.native.account_of(db, pid, principal.workspace)['id']
+        else:
+            pid = auth.create_principal(db, name, 'provider', principal.workspace)
+            cid, token = auth.issue_credential(db, pid, body.get('credential_seconds', 30 * 86400))
         prid = 'pv_' + secrets.token_hex(6)
         ev = {'declared': sorted(caps['kinds']), 'exercised': [], 'witnessed': [], 'meaning': 'declared = the provider claims it; exercised = completed on this instance; witnessed = verified by a distinct verifier under a contract'}
         st = {'schema': PROVIDER_STATEMENT, 'provider_id': prid, 'principal_id': pid, 'revision': 1, 'execution': ex, 'capabilities': caps, 'relationship': rel, 'pay_to': pay_to, 'workspace': principal.workspace, 'registered_by': principal.id, 'issued_at': now(), 'signature': SIGNATURE_LABEL}
@@ -105,7 +114,9 @@ class Providers:
         db.execute('INSERT INTO provider_revisions VALUES (?,?,1,?,?,?,?,?,?,?,?)', ('pr_' + secrets.token_hex(6), prid, json.dumps(ex), json.dumps(caps), json.dumps(rel), pay_to, msg, sig, kid, now()))
         history.record(db, principal.workspace, principal.id, 'work.provider_registered', 'provider', prid, {'principal_id': pid, 'execution': ex['type'], 'kinds': sorted(caps['kinds']), 'relationship': rel['relationship']})
         out = self.view(db, principal, self.row(db, principal, prid))
-        out['credential'] = {'credential_id': cid, 'token': token, 'note': 'shown once; store privately (0600); never in URLs, logs or reports'}
+        out['credential'] = {'credential_id': cid, 'token': token, 'note': 'shown once; store privately (0600); never in URLs, logs or reports'} if cid else None
+        if cid is None:
+            out['bound_actor'] = pid
         return out
 
     def revise(self, db, principal, prid, body):
@@ -347,8 +358,8 @@ class Board:
         if type(o) is not dict or set(o) - {'price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note'}:
             raise ServiceError('VALIDATION', {'code': 'offer_fields', 'allowed': ['price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note']})
         terms_mod._int(o.get('price_amount'), 0, 10 ** 15, 'offer_price_amount')
-        if o.get('asset') not in terms_mod.ASSETS:
-            raise ServiceError('VALIDATION', {'code': 'offer_asset', 'allowed': list(terms_mod.ASSETS)})
+        if o.get('asset') not in terms_mod.ASSETS and not (isinstance(o.get('asset'), str) and terms_mod.is_native_asset(o['asset'])):
+            raise ServiceError('VALIDATION', {'code': 'offer_asset', 'allowed': list(terms_mod.ASSETS) + ['a native asset id of this domain']})
         if o.get('scheme') not in terms_mod.SCHEMES:
             raise ServiceError('VALIDATION', {'code': 'offer_scheme', 'allowed': list(terms_mod.SCHEMES)})
         terms_mod._int(o.get('window_seconds'), 1, 365 * 86400, 'offer_window_seconds')
@@ -363,7 +374,7 @@ class Board:
             raise ServiceError('VALIDATION', 'offer_pay_to')
         if 'note' in o and (type(o['note']) is not str or len(o['note']) > 512):
             raise ServiceError('VALIDATION', 'offer_note')
-        return {'price_amount': o['price_amount'], 'asset': o['asset'], 'scale': terms_mod.ASSETS[o['asset']]['scale'], 'scheme': o['scheme'], 'window_seconds': o['window_seconds'], 'verification': {'class': v['class'], 'distinct_verifier': v.get('distinct_verifier', False)},
+        return {'price_amount': o['price_amount'], 'asset': o['asset'], 'scale': terms_mod.asset_scale(o['asset']), 'scheme': o['scheme'], 'window_seconds': o['window_seconds'], 'verification': {'class': v['class'], 'distinct_verifier': v.get('distinct_verifier', False)},
                 'privacy_terms': o.get('privacy_terms', 'as_requested'), 'pay_to': pay_to, 'expires_in_seconds': o.get('expires_in_seconds', 86400), 'note': o.get('note', '')}
 
     def submit_offer(self, db, principal, rid, body):
@@ -524,6 +535,8 @@ class Board:
             except ServiceError as exc:
                 db.execute('DELETE FROM budget_nodes WHERE id=?', (node,))
                 raise ServiceError('BUDGET_EXHAUSTED', dict(exc.detail if isinstance(exc.detail, dict) else {}, note='nothing awarded; nothing reserved'))
+        if terms_mod.is_native_asset(terms['payment']['asset']):
+            self.svc.native.reserve_for_award(db, principal, aid, terms, ceiling)              # the requester's (or treasury's) own native funds: available -> reserved, atomically with the award
         from .ops import fault
         fault(db, self.settings, 'reservation_posting')
         db.execute('INSERT INTO work_awards (id, workspace, request_id, offer_id, terms_id, terms_digest, provider_id, provider_revision, pay_to, state, active, ceiling, reserved, budget_node_id, reservation_id, ack_deadline, delivery_deadline, selection_json, awarded_by, awarded_at, created_at, updated_at) '

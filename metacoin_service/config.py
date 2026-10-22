@@ -45,6 +45,7 @@ class Settings:
     # production provider (all required when provider_mode == 'production'; otherwise ignored)
     # EXPERIMENTAL — private test chain only — not the protocol's money layer, which remains [SPEC] and zero-value by MIP-0001/0002; chain-agnostic law unchanged.
     facilitator_url: str = ''
+    x402_disabled: bool = False           # the native protocol never needs x402; this switch proves it (no x402 import on the request path)
     x402_network: str = ''
     x402_asset: str = ''
     x402_pay_to: str = ''
@@ -71,6 +72,7 @@ class Settings:
                 provider_mode=env.get('METACOIN_PROVIDER_MODE', 'simulation'),
                 campaign_cap=int(env.get('METACOIN_CAMPAIGN_CAP', '10')),
                 facilitator_url=env.get('METACOIN_FACILITATOR_URL', ''),
+                x402_disabled=env.get('METACOIN_X402_DISABLED', '0') == '1',
                 x402_network=env.get('METACOIN_X402_NETWORK', ''),
                 x402_asset=env.get('METACOIN_X402_ASSET', ''),
                 x402_pay_to=env.get('METACOIN_X402_PAY_TO', ''),

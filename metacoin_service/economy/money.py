@@ -71,6 +71,8 @@ class Money:
         env = ENV[self.settings.provider_mode]; asset = terms['payment']['asset']; net = self._network(asset)
         if amount > 0:
             journal.post(db, award['workspace'], 'accept:%s:%s' % (ms['id'], decision_id), 'acceptance', asset, net, env, [('expense:work_accepted', amount, 0), ('liability:payable', 0, amount)], 'work_milestone', ms['id'], 'accepted obligation to the provider (entitlement of the milestone)')
+            if terms_mod.is_native_asset(asset):
+                self.svc.native.on_accepted(db, award, ms, decision_id, amount, terms)
             fee = terms_mod.fee_amount(terms['payment'], amount)
             if fee > 0:
                 tr = self._treasury_address(db, award['workspace'], asset)
@@ -97,16 +99,22 @@ class Money:
         db.execute("INSERT INTO work_entitlements VALUES (?,?,?,?,?,?,?,?,?,?,NULL,?,?,'verifier')", (vid, award['workspace'], award['id'], ms['id'], 'verification:' + verification_id, terms['payment']['verifier_pay_to'], comp, asset, terms['payment']['scale'], 'payable', now(), now()))
         journal.post(db, award['workspace'], 'verifier:%s:%s' % (ms['id'], verification_id), 'verifier_obligation', asset, self._network(asset), env, [('expense:verifier', comp, 0), ('liability:payable', 0, comp)], 'work_entitlement', vid, 'verifier compensation for a completed verification (outcome %s); not verdict-dependent' % v['state'])
         history.record(db, award['workspace'], 'service', 'work.entitlement', 'work_entitlement', vid, {'kind': 'verifier', 'award_id': award['id'], 'milestone': ms['key'], 'amount': comp, 'verification_id': verification_id, 'verdict_independent': True})
+        if terms_mod.is_native_asset(asset):
+            self.svc.native.on_verifier_obligation(db, award, ms, vid, comp, terms)
         return vid
 
     def _network(self, asset):
         if asset == 'local-chain-token':
             chain = self.chain(); return chain.network if chain else 'local-chain'
+        if terms_mod.is_native_asset(asset):
+            return asset.split(':')[1]                                 # the issuing domain (journal scope asset@domain)
         return 'application'
 
     def _treasury_address(self, db, workspace, asset):
         if asset == 'local-chain-token' and self.chain() is not None:
             return self.chain().w3.eth.accounts[DEV_ACCOUNTS['treasury']]
+        if terms_mod.is_native_asset(asset):
+            return self.svc.native.system_account(db, workspace, 'treasury')
         return 'treasury:' + workspace
 
     # ---- payment intents (§45–§47) ---------------------------------------------------------------------------------------------
@@ -164,7 +172,11 @@ class Money:
         if gid:
             guard(db, principal, 'action:create', amount=e['amount'])
         payer_authority = 'requester' if terms['payment'].get('funding', 'requester') == 'requester' else 'treasury'
-        payer = self._payer_address(db, principal.workspace, e['asset'], payer_authority)
+        native_asset = terms_mod.is_native_asset(e['asset'])
+        if native_asset:
+            payer = self.svc.native.system_account(db, principal.workspace, 'treasury') if payer_authority == 'treasury' else self.svc.native.account_of(db, award['awarded_by'], principal.workspace)['id']
+        else:
+            payer = self._payer_address(db, principal.workspace, e['asset'], payer_authority)
         scheme = terms['payment']['scheme']
         # exact: the authorized amount is the fixed accepted amount; upto: the authorization covers the milestone ceiling and
         # settlement names the accepted (possibly partial / diagnostic) amount; the difference was never owed
@@ -173,7 +185,7 @@ class Money:
         identifier = ('work-' + eid.replace('wen_', '') + ('' if prior == 0 else '-r%d' % prior))[:64]   # stable per intent: retries and restarts reuse it; a renewal after a RESOLVED expiry/failure is a new identity
         iid = 'pi_' + secrets.token_hex(8)
         db.execute("INSERT INTO payment_intents (id, workspace, kind, entitlement_id, original_intent_id, payer, payer_authority, recipient, asset, network, scheme, rail, identifier, max_amount, final_amount, terms_digest, decision_id, state, valid_until, grant_id, created_by, created_at, updated_at) VALUES (?,?,?,?,NULL,?,?,?,?,?,?,?,?,?,NULL,?,?,?,NULL,?,?,?,?)",
-                   (iid, principal.workspace, 'payment', eid, payer, payer_authority, e['recipient'], e['asset'], net, scheme, 'local-chain' if e['asset'] == 'local-chain-token' else 'application-journal', identifier, max_amount, award['terms_digest'], e['decision_id'], 'prepared', gid, principal.id, now(), now()))
+                   (iid, principal.workspace, 'payment', eid, payer, payer_authority, e['recipient'], e['asset'], net, scheme, 'native' if native_asset else ('local-chain' if e['asset'] == 'local-chain-token' else 'application-journal'), identifier, max_amount, award['terms_digest'], e['decision_id'], 'prepared', gid, principal.id, now(), now()))
         db.execute("UPDATE work_entitlements SET payment_intent_id=?, updated_at=? WHERE id=?", (iid, now(), eid))
         history.record(db, principal.workspace, principal.id, 'work.intent', 'payment_intent', iid, {'entitlement_id': eid, 'kind': e['kind'], 'scheme': scheme, 'max_amount': max_amount, 'asset': e['asset'], 'network': net, 'payer_authority': payer_authority, 'grant_id': gid, 'state': 'prepared'})
         return self.intent_view(db, principal, iid)
@@ -219,7 +231,7 @@ class Money:
         e = self._ent(db, principal, i['entitlement_id']); award = db.execute('SELECT * FROM work_awards WHERE id=?', (e['award_id'],)).fetchone(); t, terms = _terms(db, award['terms_id'])
         if i['kind'] == 'payment':
             self._bindings(db, e, award, terms, {})                     # revalidated at signing time (§45)
-        if i['rail'] == 'application-journal':
+        if i['rail'] in ('application-journal', 'native'):
             db.execute("UPDATE payment_intents SET state='authorized', valid_until=?, authorization_json=?, updated_at=? WHERE id=?", (now() + AUTHORIZATION_SECONDS, json.dumps({'rail': 'application-journal', 'note': 'no signature: internal ledger authorization bound to the intent id'}), now(), iid))
             db.execute("UPDATE work_entitlements SET state='authorized', updated_at=? WHERE id=?", (now(), e['id']))
             return self.intent_view(db, principal, iid)
@@ -292,6 +304,10 @@ class Money:
         if i['rail'] == 'application-journal':
             obs = {'source': 'application journal', 'at': now(), 'amount': final, 'reference': 'journal:' + iid, 'confirmation': 'internal ledger transfer; final by construction'}
             return self._observe_settled(db, principal, iid, e, award, terms, final, 'journal:' + iid, obs)
+        if i['rail'] == 'native':
+            ni = self.svc.native.settle_entitlement(db, principal, i, e, award, terms, final)
+            obs = {'source': 'native domain commit', 'at': now(), 'amount': final, 'reference': 'native:' + ni['id'], 'commit_sequence': ni['commit_sequence'], 'domain': ni['domain'], 'finality': 'domain_local_settlement'}
+            return self._observe_settled(db, principal, iid, e, award, terms, final, 'native:' + ni['id'], obs)
         chain = self.chain(); auth = json.loads(i['authorization_json'])
         from integrations.x402.local_chain import harness
         server = harness.UptoServer(chain, self.svc.sales._chain_facilitator, i['max_amount'], auth['binding'], path=auth['path'], pay_to=i['recipient'])
@@ -441,6 +457,7 @@ class Money:
             budgets.release_partial(db, 'work_award', aid, paid)
         else:
             self.svc.economy.treasury.release(db, award['workspace'], aid, paid)
+        self.svc.native.release_award(db, award, paid)
         db.execute("UPDATE work_awards SET state='closed', closed_at=?, close_reason=?, reserved=?, updated_at=? WHERE id=?", (now(), 'all milestones decided and obligations settled', paid, now(), aid))
         history.record(db, award['workspace'], 'service', 'work.award_closed', 'work_award', aid, {'paid': paid, 'released': award['ceiling'] - paid})
         return True

@@ -2457,9 +2457,16 @@ def _revision():
 
 def capability_table(svc, db):
     settings = svc.settings
-    from integrations.x402 import loopback_harness as lb
-    installed_x402 = lb.available()
+    if settings.x402_disabled:
+        installed_x402 = False
+    else:
+        from integrations.x402 import loopback_harness as lb
+        installed_x402 = lb.available()
+    native_dom = db.execute('SELECT id, environment, connectivity, recovery_state, commit_sequence FROM native_domains LIMIT 1').fetchone()
     return {
+        'native': {'installed': True, 'available': native_dom is not None, 'protocol': 'metacoin-native/v0', 'domain': native_dom['id'] if native_dom else None,
+                   'state': dict(native_dom) if native_dom else None, 'note': 'MetaCoin-native signed intents, obligations and domain-local settlement; the payment core; x402 is never imported by it'},
+        'x402': {'disabled': settings.x402_disabled, 'installed': installed_x402, 'required_by_native_core': False, 'role': 'optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement'},
         'service': {'version': '0.1.0', 'revision': _revision(), 'bind': settings.host + ':' + str(settings.port),
                     'dev_http_loopback': settings.dev_http_loopback},
         'authentication': {'installed': True, 'configured': True, 'available': True, 'externally_validated': False,
