@@ -401,6 +401,76 @@ def build(api=None):
                 return json.dumps(d.get('input_schema') if s2 == 200 else refused(s2, d))
         return json.dumps({'ok': False, 'code': 'NOT_FOUND', 'detail': 'kind not installed'})
 
+    # ---- native protocol (order 2026-10-22 §17): read / simulate / authorize / commit / spend are separate tools with separate annotations ----
+    SIMULATE = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=False)
+    COMMIT = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False)
+    SPEND = ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=False)
+
+    @mcp.tool(name='native_domain_status', description='READ: this settlement domain (identity, authority key and epoch, operator/custody, connectivity, recovery state, trust model, finality levels). Never funds or spends.', annotations=READ)
+    def native_domain_status() -> dict:
+        s, b = api.call('GET', '/api/v1/native/domain'); return ok_or_refused(s, b)
+
+    @mcp.tool(name='native_account', description='READ: a native account with its categories kept apart (available, reserved, committed outgoing, in transit, disputed), earned-but-unsettled receivables and pending inter-domain claims. "me" = the calling identity.', annotations=READ)
+    def native_account(account_id: str = 'me') -> dict:
+        s, b = api.call('GET', '/api/v1/native/accounts/' + account_id); return ok_or_refused(s, b)
+
+    @mcp.tool(name='native_audit', description='READ: conservation audit of the domain (fixture funding, backing locked for exports, claims backed elsewhere, held by category, negative balances).', annotations=READ)
+    def native_audit(asset: str | None = None) -> dict:
+        s, b = api.call('GET', '/api/v1/native/audit' + ('?asset=' + asset if asset else '')); return ok_or_refused(s, b)
+
+    @mcp.tool(name='native_simulate_transfer', description='SIMULATE: dry run of a native transfer (same checks as the real one: holder, available funds, grant envelope, quarantine, obligation binding); nothing is reserved, committed or settled.', annotations=SIMULATE)
+    def native_simulate_transfer(to_account: str, amount: int, request_id: str, asset: str | None = None, obligation_id: str | None = None) -> dict:
+        body = {'to_account': to_account, 'amount': amount, 'request_id': request_id}
+        if asset: body['asset'] = asset
+        if obligation_id: body['obligation_id'] = obligation_id
+        s, b = api.call('POST', '/api/v1/native/transfers/simulate', body); return ok_or_refused(s, b)
+
+    @mcp.tool(name='native_transfer', description='SPEND: a signed native transfer from the calling identity\'s account (reserve -> authorize -> commit -> settle in one domain transaction). Idempotent by request_id. Requires native:transfer and stays inside any agent grant.', annotations=SPEND)
+    def native_transfer(to_account: str, amount: int, request_id: str, asset: str | None = None, obligation_id: str | None = None, purpose: str | None = None) -> dict:
+        body = {'to_account': to_account, 'amount': amount, 'request_id': request_id}
+        for k, v in (('asset', asset), ('obligation_id', obligation_id), ('purpose', purpose)):
+            if v: body[k] = v
+        s, b = api.call('POST', '/api/v1/native/transfers', body); return ok_or_refused(s, b, (201,))
+
+    @mcp.tool(name='native_pay_entitlement', description='SPEND: settle one accepted work entitlement natively from the award reservation (prepare -> authorize -> submit). Requires work:pay; safe to retry with the same idempotency key.', annotations=SPEND)
+    def native_pay_entitlement(entitlement_id: str, idempotency_key: str | None = None) -> dict:
+        s, i = api.call('POST', '/api/v1/work/entitlements/' + entitlement_id + '/prepare', {}, idempotency_key=idempotency_key)
+        if s != 201: return refused(s, i)
+        s2, a = api.call('POST', '/api/v1/work/intents/' + i['id'] + '/authorize', {}, idempotency_key=(idempotency_key + '-auth') if idempotency_key else None)
+        if s2 != 200: return refused(s2, a)
+        s3, sub = api.call('POST', '/api/v1/work/intents/' + i['id'] + '/submit', {}, idempotency_key=(idempotency_key + '-submit') if idempotency_key else None)
+        return ok_or_refused(s3, sub)
+
+    @mcp.tool(name='native_export_allocation', description='COMMIT: export a destination-bound allocation to a pinned peer domain (available -> in transit -> locked backing -> certificate in the outbox). Irrevocable once certified; returns only through the peer\'s reverse protocol. Idempotent by request_id.', annotations=COMMIT)
+    def native_export_allocation(destination_domain: str, recipient_account: str, amount: int, request_id: str, asset: str | None = None) -> dict:
+        body = {'destination_domain': destination_domain, 'recipient_account': recipient_account, 'amount': amount, 'request_id': request_id}
+        if asset: body['asset'] = asset
+        s, b = api.call('POST', '/api/v1/native/allocations/export', body); return ok_or_refused(s, b, (201,))
+
+    @mcp.tool(name='native_allocation_status', description='READ: an allocation with its state, finality level, certificate, acknowledgment and transport messages, explained.', annotations=READ)
+    def native_allocation_status(allocation_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/native/allocations/' + allocation_id); return ok_or_refused(s, b)
+
+    @mcp.tool(name='native_treasury', description='READ: MetaStar treasury on the native asset: confirmed fee revenue, reserved allocations, settled spending, available authority. Fees only; never issuance.', annotations=READ)
+    def native_treasury(asset: str) -> dict:
+        s, b = api.call('GET', '/api/v1/work/treasury?asset=' + asset); return ok_or_refused(s, b)
+
+    @mcp.tool(name='native_open_dispute', description='AUTHORIZE (bounded): open a dispute on a native obligation you are a party to; the only economic effect is a hold up to the disputed settlement on the payee account. Resolution needs a reviewer.', annotations=CREATE)
+    def native_open_dispute(obligation_id: str, kind: str, claim: str) -> dict:
+        s, b = api.call('POST', '/api/v1/native/disputes', {'obligation_id': obligation_id, 'kind': kind, 'claim': claim}); return ok_or_refused(s, b, (201,))
+
+    @mcp.tool(name='procurement_plan', description='SIMULATE: filter candidate plans (local, remote, deferred, reusable artifact, refusal) by the hard resource/contact/deadline/exposure constraints of an envelope, then order the feasible ones under a declared policy. Pure computation; nothing awarded.', annotations=SIMULATE)
+    def procurement_plan(envelope: dict, plans: list, policy: str = 'cheapest_eligible') -> dict:
+        s, b = api.call('POST', '/api/v1/native/procurement/plan', {'envelope': envelope, 'plans': plans, 'policy': policy}); return ok_or_refused(s, b)
+
+    @mcp.tool(name='lunar_product', description='READ: a terrain tile / route feasibility / scenario pack product: outcome, scope, provenance (real LOLA data or labelled synthetic), assumptions, verification state and reproduction command.', annotations=READ)
+    def lunar_product(job_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/lunar/products/' + job_id); return ok_or_refused(s, b)
+
+    @mcp.tool(name='lunar_sources', description='READ: bundled terrain sources with full provenance and the synthetic generator.', annotations=READ)
+    def lunar_sources() -> dict:
+        s, b = api.call('GET', '/api/v1/lunar/sources'); return ok_or_refused(s, b)
+
     return mcp
 
 

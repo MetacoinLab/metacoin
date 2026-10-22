@@ -291,6 +291,17 @@ class Native:
         fault(db, self.settings, 'native_response')
         return self.intent_view(db, principal, iid)
 
+    def transfer_simulate(self, db, principal, body):
+        """Dry run of transfer(): the same checks, nothing recorded (SAVEPOINT rolled back). Distinguishes the simulate tier from spend."""
+        db.execute('SAVEPOINT sim')
+        try:
+            out = self.transfer(db, principal, body)
+            return {'simulated': True, 'would_succeed': True, 'intent_preview': {k: out.get(k) for k in ('actor_account', 'recipient', 'asset', 'amount_ceiling', 'obligation_id', 'finality')}, 'note': 'nothing was reserved, committed or settled'}
+        except ServiceError as exc:
+            return {'simulated': True, 'would_succeed': False, 'refusal': {'code': exc.code, 'detail': exc.detail}}
+        finally:
+            db.execute('ROLLBACK TO sim'); db.execute('RELEASE sim')
+
     def _receipt(self, db, workspace, kind, ref_type, ref_id, claims):
         st = {'schema': 'metacoin-native-receipt/v0', 'protocol': P.PROTOCOL, 'kind': kind, 'ref_type': ref_type, 'ref_id': ref_id, 'claims': claims, 'issued_at': now(), 'nonce': secrets.token_hex(8)}
         sig, kid = self.authority_sign(db, workspace, 'receipt', st)
@@ -494,3 +505,93 @@ def _hooks(cls):
 _hooks(Native)
 from .domains import _mixin as _domains_mixin   # noqa: E402
 _domains_mixin(Native)
+
+
+# ---- disputes (order §16): bounded lifecycle over immutable obligations; a hold is limited to the disputed obligation's own settlement -----
+def _disputes(cls):
+    DISPUTE_KINDS = ('conflicting_receipts', 'delivery_mismatch', 'recipient_substitution', 'incompatible_acceptance_evidence')
+    DISPUTE_WINDOW = 7 * 86400
+
+    def dispute_open(self, db, principal, body):
+        """A party to a settled native obligation (payer, payee, or an administrator) opens a dispute within the window. The
+        permitted economic effect is a hold of at most the disputed settlement on the payee's account (available -> disputed);
+        no other account is touched, and the original obligation and intents stay immutable."""
+        principal.require('native:dispute')
+        if type(body) is not dict or set(body) - {'obligation_id', 'kind', 'claim', 'hold'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['obligation_id', 'kind', 'claim', 'hold?']})
+        ob = db.execute('SELECT * FROM native_obligations WHERE id=? AND workspace=?', (body.get('obligation_id'), principal.workspace)).fetchone()
+        if ob is None:
+            raise ServiceError('NOT_FOUND', 'native obligation')
+        if body.get('kind') not in DISPUTE_KINDS or type(body.get('claim')) is not str or not 1 <= len(body['claim']) <= 2000:
+            raise ServiceError('VALIDATION', {'code': 'dispute', 'kinds': list(DISPUTE_KINDS), 'claim': '1..2000 chars'})
+        parties = {self.account_row(db, principal.workspace, ob['payer_account'])['principal_id'], self.account_row(db, principal.workspace, ob['payee_account'])['principal_id']}
+        if principal.id not in parties and not principal.can('native:admin'):
+            raise ServiceError('FORBIDDEN', {'code': 'not_a_party', 'note': 'only the payer, the payee or an administrator disputes an obligation; nobody can freeze an unrelated account'})
+        if ob['settled_amount'] and ob['updated_at'] < now() - DISPUTE_WINDOW:
+            raise ServiceError('CONFLICT', {'code': 'dispute_window_closed', 'window_seconds': DISPUTE_WINDOW})
+        if db.execute("SELECT 1 FROM native_disputes WHERE ref_type='native_obligation' AND ref_id=? AND state='open'", (ob['id'],)).fetchone():
+            raise ServiceError('CONFLICT', {'code': 'dispute_open'})
+        d = self.domain(db, principal.workspace)
+        hold = 0
+        if body.get('hold', True) and ob['settled_amount'] > 0:
+            avail = ledger.balance(db, principal.workspace, ob['asset'], d['id'], ob['payee_account'], 'available')
+            hold = min(ob['settled_amount'], avail)                                   # bounded by what the payee still holds; never another account
+        did = 'nd_' + secrets.token_hex(8)
+        db.execute('INSERT INTO native_disputes VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', (did, principal.workspace, body['kind'], 'native_obligation', ob['id'], principal.id, ob['payee_account'], hold, body['claim'], 'open', None, now(), now()))
+        if hold:
+            ledger.move(db, principal.workspace, 'dispute-hold:' + did, 'native_dispute_hold', ob['asset'], d['id'], self.environment, hold, ledger.account_name(ob['payee_account'], 'available'), ledger.account_name(ob['payee_account'], 'disputed'), 'native_dispute', did, 'held pending the dispute (bounded by the disputed settlement)')
+        history.record(db, principal.workspace, principal.id, 'native.dispute', 'native_dispute', did, {'kind': body['kind'], 'obligation': ob['id'], 'hold': hold, 'state': 'open'})
+        return self.dispute_view(db, principal, did)
+
+    def dispute_view(self, db, principal, did):
+        principal.require('native:read')
+        r = db.execute('SELECT * FROM native_disputes WHERE id=? AND workspace=?', (did, principal.workspace)).fetchone()
+        if r is None:
+            raise ServiceError('NOT_FOUND', 'native dispute')
+        return {'schema': 'metacoin-native-dispute/v0', 'id': did, 'kind': r['kind'], 'obligation_id': r['ref_id'], 'opened_by': r['opened_by'], 'respondent_account': r['respondent_account'], 'held_amount': r['held_amount'], 'claim': r['claim'], 'state': r['state'],
+                'resolution': json.loads(r['resolution_json']) if r['resolution_json'] else None, 'permitted_effect': 'at most the disputed settlement, held on the payee account; resolution either returns the hold to the payee or refunds it to the payer as a new linked transfer; the original obligation and intents are never rewritten',
+                'created_at': r['created_at'], 'updated_at': r['updated_at']}
+
+    def disputes(self, db, principal):
+        principal.require('native:read')
+        return [self.dispute_view(db, principal, r['id']) for r in db.execute('SELECT id FROM native_disputes WHERE workspace=? ORDER BY created_at', (principal.workspace,)).fetchall()]
+
+    def dispute_resolve(self, db, principal, did, body):
+        """A reviewer (native:dispute with reviewer role) or administrator resolves: uphold -> the held amount is refunded to the payer as a
+        new transfer linked to the dispute; dismiss -> the hold returns to the payee. Nothing else moves."""
+        principal.require('native:dispute')
+        if principal.role not in ('reviewer', 'owner') and not principal.can('native:admin'):
+            raise ServiceError('FORBIDDEN', {'code': 'resolver_authority', 'note': 'a party cannot resolve its own dispute; a designated reviewer or administrator does'})
+        r = db.execute('SELECT * FROM native_disputes WHERE id=? AND workspace=?', (did, principal.workspace)).fetchone()
+        if r is None:
+            raise ServiceError('NOT_FOUND', 'native dispute')
+        if r['state'] != 'open':
+            return dict(self.dispute_view(db, principal, did), replayed=True)
+        outcome = body.get('outcome') if type(body) is dict else None
+        if outcome not in ('uphold', 'dismiss'):
+            raise ServiceError('VALIDATION', {'code': 'outcome', 'allowed': ['uphold', 'dismiss']})
+        ob = db.execute('SELECT * FROM native_obligations WHERE id=?', (r['ref_id'],)).fetchone(); d = self.domain(db, principal.workspace)
+        refund_intent = None
+        if r['held_amount']:
+            if outcome == 'dismiss':
+                ledger.move(db, principal.workspace, 'dispute-release:' + did, 'native_dispute_release', ob['asset'], d['id'], self.environment, r['held_amount'], ledger.account_name(ob['payee_account'], 'disputed'), ledger.account_name(ob['payee_account'], 'available'), 'native_dispute', did, 'dispute dismissed: hold returned to the payee')
+            else:
+                seq = self.next_sequence(db, principal.workspace); iid = 'ni_' + secrets.token_hex(8)
+                msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': ob['payee_account'], 'authority': d['id'], 'asset': ob['asset'], 'amount_ceiling': r['held_amount'], 'recipient': ob['payer_account'], 'obligation_id': ob['id'], 'grant_id': None, 'nonce': 'dispute-' + did, 'policy_version': P.POLICY_VERSION, 'request_id': 'dispute-refund-' + did, 'purpose': 'refund ordered by dispute resolution ' + did}
+                hist = [{'state': 'authorized', 'at': now(), 'by': principal.id, 'note': 'ordered by the dispute resolver under the obligation\'s dispute terms (not signed by the payee)'}, {'state': 'settled', 'at': now(), 'sequence': seq}]
+                db.execute('INSERT INTO native_intents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (iid, principal.workspace, d['id'], ob['payee_account'], principal.id, 'dispute_refund', ob['asset'], r['held_amount'], r['held_amount'], ob['payer_account'], ob['id'], None, 'dispute-' + did, 'dispute-refund-' + did, json.dumps(msg), P.digest(msg), None, 'settled', seq, 'dispute ' + did, json.dumps(hist), now(), now()))
+                ledger.move(db, principal.workspace, 'dispute-refund:' + did, 'native_dispute_refund', ob['asset'], d['id'], self.environment, r['held_amount'], ledger.account_name(ob['payee_account'], 'disputed'), ledger.account_name(ob['payer_account'], 'available'), 'native_intent', iid, 'dispute upheld: held amount refunded to the payer (new transition; the original settlement stands in the record)')
+                self._receipt(db, principal.workspace, 'dispute_refund', 'native_intent', iid, {'intent_id': iid, 'dispute_id': did, 'obligation_id': ob['id'], 'from': ob['payee_account'], 'to': ob['payer_account'], 'amount': r['held_amount'], 'commit_sequence': seq, 'finality': 'domain_local_settlement'})
+                refund_intent = iid
+        res = {'outcome': outcome, 'by': principal.id, 'at': now(), 'refund_intent': refund_intent, 'reason': str(body.get('reason', ''))[:500]}
+        db.execute("UPDATE native_disputes SET state='resolved', resolution_json=?, updated_at=? WHERE id=?", (json.dumps(res), now(), did))
+        history.record(db, principal.workspace, principal.id, 'native.dispute', 'native_dispute', did, {'state': 'resolved', 'outcome': outcome, 'refund_intent': refund_intent})
+        return self.dispute_view(db, principal, did)
+
+    for f in (dispute_open, dispute_view, disputes, dispute_resolve):
+        setattr(cls, f.__name__, f)
+    cls.DISPUTE_KINDS = DISPUTE_KINDS
+    return cls
+
+
+_disputes(Native)

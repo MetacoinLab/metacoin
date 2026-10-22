@@ -846,6 +846,122 @@ def mount(app, svc):
         from .economy import provider_history
         return await page(request, lambda db, p: render(request, 'work_provider.html', principal=p, pv=E.providers.view(db, p, E.providers.row(db, p, prid)), h=provider_history.build(db, p, E.providers, prid), pf=provider_history.portfolio_view(db, p, E.providers, prid)))
 
+    # ---- native protocol (order 2026-10-22 §17): domain, machine account, settlement, treasury, mission, product, recovery ------
+    N = svc.native
+
+    @app.get('/console/native', response_class=HTMLResponse)
+    async def native_overview(request: Request):
+        def fn(db, p):
+            d = N.domain_view(db, p)
+            return render(request, 'native_overview.html', principal=p, d=d, accounts=N.accounts(db, p), audit=N.audit(db, p, None), allocations=N.allocations(db, p)['items'])
+        return await page(request, fn)
+
+    @app.get('/console/native/accounts/{aid}', response_class=HTMLResponse)
+    async def native_account_page(request: Request, aid: str):
+        def fn(db, p):
+            a = N.account_view(db, p, aid, None)
+            return render(request, 'native_account.html', principal=p, a=a, mine=(a.get('principal_id') == p.id) or p.can('native:admin'), intents=N.intents(db, p, aid), obligations=N.obligations(db, p, aid), now=now(), sim=None)
+        return await page(request, fn)
+
+    @app.post('/console/native/accounts/{aid}/transfer', response_class=HTMLResponse)
+    async def native_account_transfer(request: Request, aid: str):
+        f = await form(request)
+        def fn(db, p):
+            body = {'from_account': aid, 'to_account': f.get('to_account'), 'amount': int(f.get('amount') or 0), 'request_id': f.get('request_id') or ('console-' + str(now()))}
+            if f.get('commit'):
+                N.transfer(db, p, body)
+                return RedirectResponse('/console/native/accounts/' + aid, status_code=303)
+            sim = N.transfer_simulate(db, p, body); a = N.account_view(db, p, aid, None)
+            return render(request, 'native_account.html', principal=p, a=a, mine=True, intents=N.intents(db, p, aid), obligations=N.obligations(db, p, aid), now=now(), sim=sim)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/native/settlement', response_class=HTMLResponse)
+    async def native_settlement_page(request: Request):
+        def fn(db, p):
+            from .native import protocol as NP
+            allocs = N.allocations(db, p)['items']; aid = request.query_params.get('allocation')
+            alloc = next((a for a in allocs if a['id'] == aid), None)
+            settled = [i for i in N.intents(db, p, None) if i['state'] == 'settled']
+            pending = [a for a in allocs if a['state'] not in ('acknowledged', 'returned')]
+            queued = db.execute("SELECT COUNT(*) FROM native_envelopes WHERE workspace=? AND direction='out' AND state='queued'", (p.workspace,)).fetchone()[0]
+            return render(request, 'native_settlement.html', principal=p, d=N.domain_view(db, p), fin=NP.FINALITY, alloc=alloc, pending=pending, settled=settled, queued=queued)
+        return await page(request, fn)
+
+    @app.post('/console/native/allocations/{aid}/return', response_class=HTMLResponse)
+    async def native_allocation_return(request: Request, aid: str):
+        await form(request)
+        def fn(db, p):
+            N.return_request(db, p, {'allocation_id': aid}); return RedirectResponse('/console/native/settlement?allocation=' + aid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/native/connectivity', response_class=HTMLResponse)
+    async def native_connectivity(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            N.set_connectivity(db, p, f.get('state')); return RedirectResponse('/console/native/settlement', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/native/treasury', response_class=HTMLResponse)
+    async def native_treasury_page(request: Request):
+        def fn(db, p):
+            asset = N.default_asset(db, p.workspace); t = E.treasury.view(db, p, asset); tre = N.system_account(db, p.workspace, 'treasury')
+            intents = N.intents(db, p, None)
+            fees = [i for i in intents if i['recipient'] == tre and i['state'] == 'settled']; payouts = [i for i in intents if i['actor_account'] == tre and i['state'] == 'settled']
+            return render(request, 'native_treasury.html', principal=p, t=t, fees=fees, payouts=payouts)
+        return await page(request, fn)
+
+    @app.get('/console/native/missions', response_class=HTMLResponse)
+    async def native_missions(request: Request):
+        def fn(db, p):
+            awards = E.board.list_awards(db, p)
+            return render(request, 'work_overview.html', principal=p, requests=E.board.list_requests(db, p), awards=awards, providers=E.providers.list(db, p), disputes=E.evidence.list_disputes(db, p), missions=E.missions.list_portfolios(db, p),
+                          notifications=[], counts={}, waiting=[], terms=E.terms.list(db, p), templates=__import__('metacoin_service.economy.terms', fromlist=['TEMPLATES']).TEMPLATES)
+        return await page(request, fn)
+
+    @app.get('/console/native/missions/{aid}', response_class=HTMLResponse)
+    async def native_mission_page(request: Request, aid: str):
+        def fn(db, p):
+            arow = db.execute('SELECT * FROM work_awards WHERE id=? AND workspace=?', (aid, p.workspace)).fetchone()
+            if arow is None:
+                raise ServiceError('NOT_FOUND', 'award')
+            a = E.board.award_view(db, p, arow); t = json.loads(db.execute('SELECT terms_json FROM work_terms WHERE id=?', (a['terms_id'],)).fetchone()['terms_json'])
+            prov = E.providers.view(db, p, E.providers.row(db, p, a['provider_id'])); offer = db.execute('SELECT statement_json FROM work_offers WHERE id=?', (a['offer_id'],)).fetchone()
+            claims = json.loads(offer['statement_json']).get('resource_claims') if offer else None
+            from .economy import terms as terms_mod
+            price = json.loads(offer['statement_json'])['price']['amount'] if offer else None; fee = terms_mod.fee_amount(t['payment'], price or 0)
+            nres = None
+            if terms_mod.is_native_asset(t['payment']['asset']):
+                payer = N._award_payer(db, db.execute('SELECT * FROM work_awards WHERE id=?', (aid,)).fetchone(), t); nres = {'payer_account': payer, 'reserved': a['reserved']}
+            jobs = [m.get('job_id') for m in a['milestones'] if m.get('job_id')]
+            pj = next((j for j in jobs if db.execute("SELECT 1 FROM jobs WHERE id=? AND kind IN ('terrain_tile','route_feasibility','scenario_pack')", (j,)).fetchone()), None)
+            return render(request, 'native_mission.html', principal=p, a=a, terms=t, prov=prov, offer_claims=claims, price=price, fee=fee, native_reservation=nres, product_job=pj)
+        return await page(request, fn)
+
+    @app.get('/console/lunar', response_class=HTMLResponse)
+    async def lunar_products_page(request: Request):
+        def fn(db, p):
+            return render(request, 'lunar_products.html', principal=p, items=svc.lunar.list(db, p), sources=svc.lunar.sources(db, p))
+        return await page(request, fn)
+
+    @app.get('/console/lunar/{jid}', response_class=HTMLResponse)
+    async def lunar_product_page(request: Request, jid: str):
+        def fn(db, p):
+            return render(request, 'lunar_product.html', principal=p, p=svc.lunar.view(db, p, jid))
+        return await page(request, fn)
+
+    @app.get('/console/native/recovery', response_class=HTMLResponse)
+    async def native_recovery_page(request: Request):
+        def fn(db, p):
+            return render(request, 'native_recovery.html', principal=p, r=N.recovery_view(db, p), report=None)
+        return await page(request, fn)
+
+    @app.post('/console/native/recovery/reconcile', response_class=HTMLResponse)
+    async def native_recovery_reconcile(request: Request):
+        await form(request)
+        def fn(db, p):
+            rep = N.recovery_reconcile(db, p, {}); return render(request, 'native_recovery.html', principal=p, r=N.recovery_view(db, p), report=rep)
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/work/reconciliation', response_class=HTMLResponse)
     async def work_reconciliation_page(request: Request):
         return await page(request, lambda db, p: render(request, 'work_reconciliation.html', principal=p, v=E.money.pending_observations(db, p), exposure=E.money.exposure(db, p)))

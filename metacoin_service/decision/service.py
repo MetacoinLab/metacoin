@@ -229,8 +229,8 @@ class Decisions:
         candidate model binding are rechecked here and again at award. Nothing is reserved until an award."""
         principal.require('work:request'); principal.require('contract:freeze')
         body = body or {}
-        if type(body) is not dict or set(body) - {'diagnostic_amount', 'title', 'open'}:
-            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['diagnostic_amount?', 'title?', 'open?']})
+        if type(body) is not dict or set(body) - {'diagnostic_amount', 'title', 'open', 'asset'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['diagnostic_amount?', 'title?', 'open?', 'asset? (a native asset id settles the purchase from the planner\'s native account)']})
         r = self.plan_row(db, principal, pid)
         if r['created_by'] != principal.id and not principal.can('work:award'):
             raise ServiceError('FORBIDDEN', 'only the planner materializes a plan')
@@ -251,7 +251,7 @@ class Decisions:
             raise ServiceError('VALIDATION', {'code': 'diagnostic_amount', 'allowed': 'integer 0..%d' % r['cost']})
         from ..economy import terms as terms_mod
         purpose = {'question': (inputs.get('question') or 'decision evidence acquisition')[:2000], 'evidence_needed': 'the selected measurements of plan %s' % pid, 'source_revision': plan['plan_digest'][:64]}
-        t = terms_mod.decision_evidence_terms(principal.id, principal.workspace, ceiling=r['cost'], amount=r['cost'], diagnostic=diag, title=(body.get('title') or ('Acquire: ' + ', '.join(plan['selected_views'])))[:128], purpose=purpose)
+        t = terms_mod.decision_evidence_terms(principal.id, principal.workspace, ceiling=r['cost'], amount=r['cost'], diagnostic=diag, title=(body.get('title') or ('Acquire: ' + ', '.join(plan['selected_views'])))[:128], purpose=purpose, asset=body.get('asset') or 'action-units')
         t['eligibility']['providers'] = sorted({m['provider_id'] for m in selected if m.get('provider_id')}) or []
         if not t['eligibility']['providers']:
             del t['eligibility']['providers']

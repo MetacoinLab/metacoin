@@ -570,6 +570,35 @@ def _mixin(cls):
             report['recovery_state'] = d['recovery_state']; report['blocked_by'] = 'missing peer observations or unreconstructed commitments'
         return report
 
+    def export_record(self, db, principal):
+        """Everything the independent checker needs, as data: this domain's identity, receipts, intents (public fields + signer
+        public keys as data), obligations, allocations, envelopes, native journal entries and the audit. Trust roots are NOT
+        included as roots: the verifier pins them separately (they appear here only as this domain's self-description)."""
+        principal.require('native:read')
+        d = self.domain(db, principal.workspace); ws = principal.workspace
+        from ..economy import journal
+        accts = [dict(r) for r in db.execute('SELECT id, kind, label, key_id, public_hex, custody, state FROM native_accounts WHERE workspace=?', (ws,)).fetchall()]
+        pub = {a['id']: a['public_hex'] for a in accts}
+        intents = []
+        for r in db.execute('SELECT * FROM native_intents WHERE workspace=? ORDER BY created_at', (ws,)).fetchall():
+            intents.append({'id': r['id'], 'type': r['type'], 'actor_account': r['actor_account'], 'recipient': r['recipient'], 'asset': r['asset'], 'amount_final': r['amount_final'], 'state': r['state'], 'commit_sequence': r['commit_sequence'], 'obligation_id': r['obligation_ref'],
+                            'message': json.loads(r['message_json']), 'message_digest': r['message_digest'], 'signature_hex': r['signature_hex'], 'signer_public_hex': pub.get(r['actor_account'])})
+        receipts = [{'id': r['id'], 'kind': r['kind'], 'ref_type': r['ref_type'], 'ref_id': r['ref_id'], 'statement': json.loads(r['statement_json']), 'signature_hex': r['signature_hex'], 'key_id': r['key_id']} for r in db.execute('SELECT * FROM native_receipts WHERE workspace=? ORDER BY created_at', (ws,)).fetchall()]
+        allocs = [self.allocation_view(db, principal, r['id']) for r in db.execute('SELECT id FROM native_allocations WHERE workspace=? ORDER BY created_at', (ws,)).fetchall()]
+        envs = {'in': [], 'out': []}
+        for r in db.execute("SELECT * FROM native_envelopes WHERE workspace=? AND state IN ('accepted','queued','delivered','duplicate') ORDER BY created_at", (ws,)).fetchall():
+            try:
+                envs[r['direction']].append(json.loads(r['envelope_json']))
+            except ValueError:
+                pass
+        entries = [e for e in journal.entries(db, ws, limit=5000) if e['network'] == d['id']]
+        obligations = [self.obligation_view(db, principal, r['id']) for r in db.execute('SELECT id FROM native_obligations WHERE workspace=? ORDER BY created_at', (ws,)).fetchall()]
+        keys = [dict(k) for k in db.execute('SELECT domain_id, epoch, key_id, public_hex, local, state, valid_from, retired_at, grace_until FROM native_authority_keys ORDER BY domain_id, epoch').fetchall()]
+        return {'schema': 'metacoin-native-export/v0', 'domain': d['id'], 'environment': d['environment'], 'operator': d['operator'], 'host': d['host'], 'epoch': d['epoch'], 'commit_sequence': d['commit_sequence'], 'recovery_state': d['recovery_state'],
+                'self_description_keys': keys, 'accounts': accts, 'intents': intents, 'receipts': receipts, 'obligations': obligations, 'allocations': allocs, 'envelopes_in': envs['in'], 'envelopes_out': envs['out'],
+                'journal_entries': entries, 'audits': {a: self.audit(db, principal, a) for a in [r['asset_id'] for r in db.execute('SELECT asset_id FROM native_assets WHERE workspace=?', (ws,)).fetchall()]}, 'exported_at': now(),
+                'note': 'keys listed here are data; a verifier pins roots from an out-of-band source (the domain view read over an authenticated channel, or the operator)'}
+
     def recovery_view(self, db, principal):
         principal.require('native:read')
         d = self.domain(db, principal.workspace); wm = self._watermark_path(d['id'])
@@ -578,7 +607,7 @@ def _mixin(cls):
                 'quarantined_allocations': [a['id'] for a in db.execute("SELECT id FROM native_allocations WHERE workspace=? AND state='quarantined'", (principal.workspace,)).fetchall()],
                 'what_is_detected': P.TRUST_MODEL['detected'], 'what_is_not': P.TRUST_MODEL['not_provided'], 'rollback_note': ROLLBACK_NOTE}
 
-    for f in (_watermark_path, _watermark_write, rollback_check, require_normal, _record_local_key, _current_key_path, _sign_with, pin_peer, peer_view, _peer, _verify_peer_signature, rotate_authority, _outbox, outbox, outbox_mark, transport_gc, inbox, _record_rejection, _apply_item, _replay_replies,
+    for f in (export_record, _watermark_path, _watermark_write, rollback_check, require_normal, _record_local_key, _current_key_path, _sign_with, pin_peer, peer_view, _peer, _verify_peer_signature, rotate_authority, _outbox, outbox, outbox_mark, transport_gc, inbox, _record_rejection, _apply_item, _replay_replies,
               export_create, export_resume, recover_exports, allocation_view, allocations, _on_certificate, _quarantine, _on_ack, return_request, _on_return_request, _on_return_certificate, _on_rotation, observation, _on_observation, recovery_reconcile, recovery_view):
         setattr(cls, f.__name__, f)
     return cls

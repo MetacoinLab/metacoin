@@ -71,7 +71,7 @@ ASSETS = {'action-units': {'scale': 0, 'rail': 'application journal (budget unit
           'local-chain-token': {'scale': 0, 'rail': 'private py-evm chain (x402 upto/exact on pinned contracts); synthetic, never production'}}
 SCHEMES = ('exact', 'upto')
 VERIFICATION_CLASSES = ('full_exact', 'full_reference', 'analytical', 'sampled_reference', 'replica', 'none')
-CONSEQUENTIAL_TOP = ('operation', 'deliverables', 'acceptance', 'payment', 'privacy', 'deadlines', 'eligibility', 'selection', 'milestones', 'failure_treatment', 'dispute', 'delegation', 'reassignment', 'max_awards', 'requester')
+CONSEQUENTIAL_TOP = ('operation', 'deliverables', 'acceptance', 'payment', 'privacy', 'deadlines', 'eligibility', 'selection', 'milestones', 'failure_treatment', 'dispute', 'delegation', 'reassignment', 'max_awards', 'requester', 'resource_envelope')
 COSMETIC_TOP = ('title', 'purpose', 'notes')
 TOP_FIELDS = ('schema',) + CONSEQUENTIAL_TOP + COSMETIC_TOP
 
@@ -223,6 +223,9 @@ def validate(terms, mode='draft'):
         if 'affects' in terms['purpose']:
             if type(terms['purpose']['affects']) is not list or len(terms['purpose']['affects']) > LIMITS['list_items'] or not all(type(x) is str and len(x) <= 128 for x in terms['purpose']['affects']):
                 _err('purpose_affects')
+    if 'resource_envelope' in terms:
+        from ..native import procurement as _proc
+        _proc.validate_envelope(terms['resource_envelope'])                     # energy reserve, memory, runtime, thermal permission, storage, contact windows, deadline semantics, exposure
     _keys(terms['requester'], ('principal_id', 'workspace'), 'requester', required=('principal_id', 'workspace'))
     op = terms['operation']
     _keys(op, ('kind', 'contract_id', 'contract_digest', 'input_root', 'inputs_digest', 'model_id', 'verifier_id', 'verifier_digest', 'implementation', 'compatibility'), 'operation', required=('kind',))

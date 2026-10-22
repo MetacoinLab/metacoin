@@ -213,6 +213,13 @@ class Providers:
                 reasons.append({'code': 'distinct_verifier_required'})
             if offer['privacy_terms'] not in ('as_requested', 'stricter'):
                 reasons.append({'code': 'disallowed_disclosure', 'offered': offer['privacy_terms']})
+            if terms.get('resource_envelope') is not None:
+                from ..native import procurement as _proc
+                if offer.get('resource_claims') is None:
+                    reasons.append({'code': 'resource_claims_required', 'note': 'the terms declare a resource envelope; an offer must declare its energy (measured or estimated), memory, runtime, thermal class, storage and delivery contact'})
+                else:
+                    for v in _proc.offer_claims_eligibility(terms['resource_envelope'], offer['resource_claims'], now()):
+                        reasons.append(dict(v, code='resource_violation:' + v['code']))
             if offer['window_seconds'] > terms['deadlines']['delivery_seconds']:
                 reasons.append({'code': 'window_exceeds_delivery_deadline', 'offered': offer['window_seconds'], 'deadline': terms['deadlines']['delivery_seconds']})
             if offer['pay_to'] != provider_row['pay_to']:
@@ -355,8 +362,11 @@ class Board:
         return dict(self.providers.eligibility(db, prow, terms, offer), request_id=rid, provider_id=prow['id'], terms_digest=r['terms_digest'])
 
     def _normalize_offer(self, o, prow):
-        if type(o) is not dict or set(o) - {'price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note'}:
-            raise ServiceError('VALIDATION', {'code': 'offer_fields', 'allowed': ['price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note']})
+        if type(o) is not dict or set(o) - {'price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note', 'resource_claims'}:
+            raise ServiceError('VALIDATION', {'code': 'offer_fields', 'allowed': ['price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note', 'resource_claims']})
+        if 'resource_claims' in o:
+            from ..native import procurement as _proc
+            _proc.validate_plan(dict({'id': 'offer', 'kind': 'remote_compute'}, **(o['resource_claims'] if type(o['resource_claims']) is dict else {'_': 1})))
         terms_mod._int(o.get('price_amount'), 0, 10 ** 15, 'offer_price_amount')
         if o.get('asset') not in terms_mod.ASSETS and not (isinstance(o.get('asset'), str) and terms_mod.is_native_asset(o['asset'])):
             raise ServiceError('VALIDATION', {'code': 'offer_asset', 'allowed': list(terms_mod.ASSETS) + ['a native asset id of this domain']})
@@ -375,7 +385,7 @@ class Board:
         if 'note' in o and (type(o['note']) is not str or len(o['note']) > 512):
             raise ServiceError('VALIDATION', 'offer_note')
         return {'price_amount': o['price_amount'], 'asset': o['asset'], 'scale': terms_mod.asset_scale(o['asset']), 'scheme': o['scheme'], 'window_seconds': o['window_seconds'], 'verification': {'class': v['class'], 'distinct_verifier': v.get('distinct_verifier', False)},
-                'privacy_terms': o.get('privacy_terms', 'as_requested'), 'pay_to': pay_to, 'expires_in_seconds': o.get('expires_in_seconds', 86400), 'note': o.get('note', '')}
+                'privacy_terms': o.get('privacy_terms', 'as_requested'), 'pay_to': pay_to, 'expires_in_seconds': o.get('expires_in_seconds', 86400), 'note': o.get('note', ''), 'resource_claims': o.get('resource_claims')}
 
     def submit_offer(self, db, principal, rid, body):
         principal.require('work:offer')
@@ -398,7 +408,7 @@ class Board:
         st = {'schema': OFFER_STATEMENT, 'offer_id': oid, 'request_id': rid, 'terms_digest': r['terms_digest'], 'provider_id': prow['id'], 'provider_revision': prow['revision'], 'provider_principal': prow['principal_id'],
               'operation': {k: terms['operation'].get(k) for k in ('kind', 'contract_digest', 'model_id', 'verifier_digest')}, 'deliverables': [d['key'] for d in terms['deliverables']],
               'price': {'amount': o['price_amount'], 'asset': o['asset'], 'scale': o['scale'], 'scheme': o['scheme'], 'note': 'fixed price (exact) or cap (upto) in integer base units'}, 'window_seconds': o['window_seconds'],
-              'verification': o['verification'], 'privacy_terms': o['privacy_terms'], 'pay_to': o['pay_to'], 'expires_at': now() + o['expires_in_seconds'], 'issued_at': now(), 'signature': SIGNATURE_LABEL}
+              'verification': o['verification'], 'privacy_terms': o['privacy_terms'], 'pay_to': o['pay_to'], 'resource_claims': o.get('resource_claims'), 'expires_at': now() + o['expires_in_seconds'], 'issued_at': now(), 'signature': SIGNATURE_LABEL}
         msg, sig, kid = _sign(self.settings, db, st)
         state = 'offered' if elig['eligible'] else 'excluded'
         db.execute('INSERT INTO work_offers VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',

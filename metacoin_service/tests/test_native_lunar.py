@@ -28,7 +28,7 @@ class NativeLunarTests(NativeBase):
         return t, r, a.json()
 
     def provider_lunar(self, who):
-        p = self.c.post('/api/v1/work/providers', headers=self.H, json={'name': who + '-lunar', 'principal_id': self.actors[who]['principal_id'], 'capabilities': {'kinds': ['terrain_tile', 'route_feasibility', 'scenario_pack', 'energy_audit'], 'verification_classes': ['analytical', 'full_exact'], 'payment_schemes': ['exact', 'upto']}})
+        p = self.c.post('/api/v1/work/providers', headers=self.H, json={'name': who + '-lunar', 'principal_id': self.actors[who]['principal_id'], 'capabilities': {'kinds': ['terrain_tile', 'route_feasibility', 'scenario_pack', 'energy_audit', 'evidence_acquisition'], 'verification_classes': ['analytical', 'full_exact'], 'payment_schemes': ['exact', 'upto']}})
         self.assertEqual(p.status_code, 201, p.text); return p.json()
 
     def test_route_on_real_lola_tile_computed_verified_accepted_and_paid_natively(self):

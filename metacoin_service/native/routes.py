@@ -146,6 +146,10 @@ def mount(app, svc, run, read_body, API):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, True, lambda db, p: N.rotate_authority(db, p, body), 'native.domain.rotate', raw)
 
+    @app.get(API + '/native/export')
+    async def native_export(request: Request):
+        return await run(request, False, lambda db, p: N.export_record(db, p))
+
     @app.get(API + '/native/recovery')
     async def native_recovery(request: Request):
         return await run(request, False, lambda db, p: N.recovery_view(db, p))
@@ -154,3 +158,44 @@ def mount(app, svc, run, read_body, API):
     async def native_reconcile(request: Request):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, True, lambda db, p: N.recovery_reconcile(db, p, body), 'native.recovery.reconcile', raw)
+
+    # ---- disputes (§16) ---------------------------------------------------------------------------------------------------------
+    @app.post(API + '/native/disputes', status_code=201)
+    async def native_dispute_open(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (N.dispute_open(db, p, body), 201), 'native.dispute.open', raw)
+
+    @app.get(API + '/native/disputes')
+    async def native_disputes(request: Request):
+        return await run(request, False, lambda db, p: {'items': N.disputes(db, p)})
+
+    @app.get(API + '/native/disputes/{did}')
+    async def native_dispute(request: Request, did: str):
+        return await run(request, False, lambda db, p: N.dispute_view(db, p, did))
+
+    @app.post(API + '/native/disputes/{did}/resolve')
+    async def native_dispute_resolve(request: Request, did: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: N.dispute_resolve(db, p, did, body), 'native.dispute.resolve', raw)
+
+    @app.post(API + '/native/transfers/simulate')
+    async def native_transfer_simulate(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, False, lambda db, p: N.transfer_simulate(db, p, body))
+
+    # ---- procurement (§12) ---------------------------------------------------------------------------------------------------
+    @app.post(API + '/native/procurement/plan')
+    async def native_procurement_plan(request: Request):
+        from . import procurement
+        from ..db import now as _now
+        raw = await request.body(); body = read_body(request, raw)
+        def fn(db, p):
+            p.require('work:read')
+            return procurement.plan(body.get('envelope'), body.get('plans'), body.get('policy', 'cheapest_eligible'), body.get('now', _now()), bool(body.get('allow_reduced')), body.get('arrival_order'))
+        return await run(request, False, fn)
+
+    @app.get(API + '/native/procurement/benchmark')
+    async def native_procurement_benchmark(request: Request):
+        from . import procurement
+        q = request.query_params
+        return await run(request, False, lambda db, p: procurement.benchmark(int(q.get('seed', '1')), min(int(q.get('missions', '200')), 2000)))

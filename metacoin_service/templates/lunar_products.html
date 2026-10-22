@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block body %}
+<h1>Lunar products</h1>
+<div class="card"><h2>Terrain sources (with provenance)</h2><ul>{% for s in sources.sources %}<li><strong>{{ s.name }}</strong>: {{ s.label }} · {{ s.lines }}×{{ s.samples }} · acquired {{ s.acquired_at }} · image sha256 {{ s.image_sha256[:16] }}… · {{ s.redistribution }}</li>{% endfor %}</ul><p class="note">{{ sources.synthetic }}</p></div>
+<div class="card"><h2>Products</h2><div class="tablewrap"><table><tr><th>job</th><th>kind</th><th>state</th><th>outcome</th><th>created</th></tr>{% for p in items %}<tr><td><a href="/console/lunar/{{ p.job_id }}"><code>{{ p.job_id }}</code></a></td><td>{{ p.kind }}</td><td>{{ p.state }}</td><td>{{ p.outcome or '—' }}</td><td>{{ p.created_at }}</td></tr>{% else %}<tr><td colspan="5">none yet: create terms from the lunar templates on the Work page</td></tr>{% endfor %}</table></div></div>
+{% endblock %}

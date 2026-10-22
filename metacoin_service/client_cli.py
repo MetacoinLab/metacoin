@@ -476,6 +476,135 @@ WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-fre
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
                  'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
+NATIVE_COMMANDS = ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
+                   'native-allocation', 'native-allocation-return', 'native-recover', 'native-peer-pin', 'native-peer', 'native-outbox', 'native-inbox', 'native-bundle-write', 'native-bundle-import', 'native-courier', 'native-observation', 'native-rotate', 'native-connectivity',
+                   'native-recovery', 'native-reconcile', 'native-audit', 'native-export-record', 'native-check', 'native-vectors', 'native-model', 'native-spec', 'native-disputes', 'native-dispute-open', 'native-dispute-resolve',
+                   'procurement-plan', 'procurement-benchmark', 'lunar-sources', 'lunar-products', 'lunar-product', 'lunar-download', 'lunar-example')
+
+
+def native(args, go):
+    """Native protocol commands (order 2026-10-22): one authenticated HTTP request each unless marked offline. Reading never
+    spends; native-transfer / native-export / native-fund are the consequential ones and are idempotent by request id."""
+    c = args.command
+    jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    key = getattr(args, 'idempotency_key', None)
+    if c == 'native-domain':
+        return go('GET', '/api/v1/native/domain')
+    if c == 'native-domain-init':
+        return go('POST', '/api/v1/native/domain', {'domain_id': args.domain_id, 'operator': args.operator, 'host': args.host}, idempotency_key=key)
+    if c == 'native-accounts':
+        return go('GET', '/api/v1/native/accounts')
+    if c == 'native-account':
+        return go('GET', '/api/v1/native/accounts/' + args.account_id)
+    if c == 'native-actor-create':
+        st, out = go('POST', '/api/v1/native/actors', {'name': args.name}, idempotency_key=key)
+        if st < 400 and args.out:
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'w') as f:
+                json.dump({'token': out['credential']['token']}, f)
+            out = {k: v for k, v in out.items() if k != 'credential'}; out['credential_file'] = args.out
+        return st, out
+    if c == 'native-fund':
+        return go('POST', '/api/v1/native/fixtures/fund', {'account_id': args.account_id, 'amount': args.amount, 'label': 'cli fixture'}, idempotency_key=key)
+    if c in ('native-transfer', 'native-simulate'):
+        body = {'to_account': args.to_account, 'amount': args.amount, 'request_id': args.request_id}
+        if args.asset: body['asset'] = args.asset
+        if getattr(args, 'from_account', None): body['from_account'] = args.from_account
+        if getattr(args, 'obligation_id', None): body['obligation_id'] = args.obligation_id
+        return go('POST', '/api/v1/native/transfers' + ('/simulate' if c == 'native-simulate' else ''), body, idempotency_key=key)
+    if c == 'native-intents':
+        return go('GET', '/api/v1/native/intents' + ('?account=' + args.account if args.account else ''))
+    if c == 'native-intent':
+        return go('GET', '/api/v1/native/intents/' + args.intent_id)
+    if c == 'native-obligations':
+        return go('GET', '/api/v1/native/obligations' + ('?account=' + args.account if args.account else ''))
+    if c == 'native-export':
+        body = {'destination_domain': args.destination, 'recipient_account': args.recipient, 'amount': args.amount, 'request_id': args.request_id}
+        if args.asset: body['asset'] = args.asset
+        return go('POST', '/api/v1/native/allocations/export', body, idempotency_key=key)
+    if c == 'native-allocations':
+        return go('GET', '/api/v1/native/allocations')
+    if c == 'native-allocation':
+        return go('GET', '/api/v1/native/allocations/' + args.allocation_id)
+    if c == 'native-allocation-return':
+        return go('POST', '/api/v1/native/allocations/' + args.allocation_id + '/return', {}, idempotency_key=key)
+    if c == 'native-recover':
+        return go('POST', '/api/v1/native/allocations/recover', {}, idempotency_key=key)
+    if c == 'native-peer-pin':
+        return go('POST', '/api/v1/native/peers', jf(), idempotency_key=key)
+    if c == 'native-peer':
+        return go('GET', '/api/v1/native/peers/' + args.domain_id)
+    if c == 'native-outbox':
+        return go('GET', '/api/v1/native/transport/outbox?receiver=%s&transport=%s' % (args.receiver, args.transport))
+    if c == 'native-inbox':
+        return go('POST', '/api/v1/native/transport/inbox?transport=' + args.transport, jf())
+    if c in ('native-bundle-write', 'native-bundle-import', 'native-courier'):
+        from .native import courier
+        src = courier.Endpoint(args.base, args.credential_file)
+        if c == 'native-bundle-write':
+            return 200, courier.write_bundle(src, args.receiver, args.path)
+        if c == 'native-bundle-import':
+            return 200, courier.import_bundle(src, args.path, args.replies)
+        dst = courier.Endpoint(args.dst_base, args.dst_credential_file)
+        out = courier.push(src, dst, args.receiver); return (200 if out.get('ok') else 409), out
+    if c == 'native-observation':
+        return go('POST', '/api/v1/native/transport/observation', {'peer': args.peer}, idempotency_key=key)
+    if c == 'native-rotate':
+        return go('POST', '/api/v1/native/domain/rotate', {'grace_seconds': args.grace_seconds}, idempotency_key=key)
+    if c == 'native-connectivity':
+        return go('POST', '/api/v1/native/domain/connectivity', {'state': args.state}, idempotency_key=key)
+    if c == 'native-recovery':
+        return go('GET', '/api/v1/native/recovery')
+    if c == 'native-reconcile':
+        return go('POST', '/api/v1/native/recovery/reconcile', jf(), idempotency_key=key)
+    if c == 'native-audit':
+        return go('GET', '/api/v1/native/audit' + ('?asset=' + args.asset if args.asset else ''))
+    if c == 'native-export-record':
+        st, out = go('GET', '/api/v1/native/export')
+        if st < 400 and args.out:
+            with open(args.out, 'w') as f:
+                json.dump(out, f)
+            out = {'written': args.out, 'domain': out.get('domain'), 'receipts': len(out.get('receipts', [])), 'intents': len(out.get('intents', []))}
+        return st, out
+    if c == 'native-check':                                                          # offline
+        from .native import checker
+        rep = checker.check(json.load(open(args.export)), json.load(open(args.roots)), args.environment); return (200 if all(v in (True, None) for v in rep['summary'].values()) else 409), rep
+    if c == 'native-vectors':                                                        # offline
+        from .native import vectors
+        out = vectors.run(); return (200 if out['all_as_expected'] else 409), out
+    if c == 'native-model':                                                          # offline
+        from .native import model
+        out = model.explore(args.depth); return (200 if out['violation_count'] == 0 else 409), out
+    if c == 'native-spec':
+        return go('GET', '/api/v1/native/spec')
+    if c == 'native-disputes':
+        return go('GET', '/api/v1/native/disputes')
+    if c == 'native-dispute-open':
+        return go('POST', '/api/v1/native/disputes', {'obligation_id': args.obligation_id, 'kind': args.kind, 'claim': args.claim}, idempotency_key=key)
+    if c == 'native-dispute-resolve':
+        return go('POST', '/api/v1/native/disputes/' + args.dispute_id + '/resolve', {'outcome': args.outcome, 'reason': args.reason or ''}, idempotency_key=key)
+    if c == 'procurement-plan':
+        return go('POST', '/api/v1/native/procurement/plan', dict(jf(), policy=args.policy))
+    if c == 'procurement-benchmark':
+        return go('GET', '/api/v1/native/procurement/benchmark?missions=%d&seed=%d' % (args.missions, args.seed))
+    if c == 'lunar-sources':
+        return go('GET', '/api/v1/lunar/sources')
+    if c == 'lunar-products':
+        return go('GET', '/api/v1/lunar/products')
+    if c == 'lunar-product':
+        return go('GET', '/api/v1/lunar/products/' + args.job_id)
+    if c == 'lunar-example':
+        return go('GET', '/api/v1/lunar/examples/%s?source=%s' % (args.name, args.source))
+    if c == 'lunar-download':
+        st, out = go('GET', '/api/v1/lunar/products/' + args.job_id + '/download', raw=True)
+        if st < 400:
+            with open(args.out, 'wb') as f:
+                f.write(out)
+            return st, {'written': args.out, 'bytes': len(out)}
+        return st, out
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
+
+
 DECISION_COMMANDS = ('decision-analyze', 'decisions', 'decision', 'decision-projection', 'decision-witnesses', 'decision-bundle', 'acquisition-preview', 'acquisition-plan', 'acquisition-plans', 'acquisition-materialize',
                      'work-deliver', 'work-delivery-spec', 'work-assurance', 'sampling-plan', 'sampling-plans', 'sampling-audit', 'sampling-verify', 'assurance-evaluate', 'assurance-claims', 'verification-assurance',
                      'portfolio-create', 'portfolios', 'portfolio', 'portfolio-select', 'fault-suite', 'campaign', 'campaigns')
@@ -921,6 +1050,32 @@ def main(argv=None):
     w = sub.add_parser('work-challenge-package'); w.add_argument('challenge_id'); w.add_argument('--out')
     w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
     w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
+    # ---- native protocol ----
+    sub.add_parser('native-domain'); n = sub.add_parser('native-domain-init'); n.add_argument('domain_id'); n.add_argument('--operator', default='same operator (local development)'); n.add_argument('--host', default='this host'); n.add_argument('--idempotency-key')
+    sub.add_parser('native-accounts'); n = sub.add_parser('native-account'); n.add_argument('account_id', nargs='?', default='me')
+    n = sub.add_parser('native-actor-create', help='create an earn-and-pay actor identity; the credential goes to --out (0600), never to stdout'); n.add_argument('name'); n.add_argument('--out'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-fund', help='development fixture funding (native:admin; dev only; zero-value asset)'); n.add_argument('account_id'); n.add_argument('amount', type=int); n.add_argument('--idempotency-key')
+    for cmd in ('native-transfer', 'native-simulate'):
+        n = sub.add_parser(cmd); n.add_argument('to_account'); n.add_argument('amount', type=int); n.add_argument('--request-id', required=True); n.add_argument('--asset'); n.add_argument('--from-account'); n.add_argument('--obligation-id'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-intents'); n.add_argument('--account'); n = sub.add_parser('native-intent'); n.add_argument('intent_id'); n = sub.add_parser('native-obligations'); n.add_argument('--account')
+    n = sub.add_parser('native-export', help='export a destination-bound allocation to a pinned peer'); n.add_argument('destination'); n.add_argument('recipient'); n.add_argument('amount', type=int); n.add_argument('--request-id', required=True); n.add_argument('--asset'); n.add_argument('--idempotency-key')
+    sub.add_parser('native-allocations'); n = sub.add_parser('native-allocation'); n.add_argument('allocation_id'); n = sub.add_parser('native-allocation-return'); n.add_argument('allocation_id'); n.add_argument('--idempotency-key'); n = sub.add_parser('native-recover'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-peer-pin', help='pin a peer authority root (JSON file: domain_id, authority_key_id, authority_public_hex, epoch)'); n.add_argument('--file', required=True); n.add_argument('--idempotency-key'); n = sub.add_parser('native-peer'); n.add_argument('domain_id')
+    n = sub.add_parser('native-outbox'); n.add_argument('--receiver', required=True); n.add_argument('--transport', default='online'); n = sub.add_parser('native-inbox'); n.add_argument('--file', required=True); n.add_argument('--transport', default='online')
+    n = sub.add_parser('native-bundle-write', help='file-bundle adapter: write this domain\'s outbox for a receiver'); n.add_argument('--receiver', required=True); n.add_argument('path')
+    n = sub.add_parser('native-bundle-import', help='file-bundle adapter: import a bundle file at this domain; replies (acks) to --replies'); n.add_argument('path'); n.add_argument('--replies')
+    n = sub.add_parser('native-courier', help='online adapter: one round trip from this domain to a peer API'); n.add_argument('--receiver', required=True); n.add_argument('--dst-base', required=True); n.add_argument('--dst-credential-file', required=True)
+    n = sub.add_parser('native-observation'); n.add_argument('--peer', required=True); n.add_argument('--idempotency-key'); n = sub.add_parser('native-rotate'); n.add_argument('--grace-seconds', type=int, default=604800); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-connectivity'); n.add_argument('state', choices=('online', 'cut')); n.add_argument('--idempotency-key'); sub.add_parser('native-recovery'); n = sub.add_parser('native-reconcile'); n.add_argument('--file'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-audit'); n.add_argument('--asset'); n = sub.add_parser('native-export-record'); n.add_argument('--out')
+    n = sub.add_parser('native-check', help='OFFLINE independent conformance check of an exported record under explicitly pinned roots'); n.add_argument('export'); n.add_argument('--roots', required=True); n.add_argument('--environment', default='dev')
+    sub.add_parser('native-vectors', help='OFFLINE deterministic valid/invalid vectors through the checker'); n = sub.add_parser('native-model', help='OFFLINE bounded state-space exploration'); n.add_argument('--depth', type=int, default=5)
+    sub.add_parser('native-spec'); sub.add_parser('native-disputes'); n = sub.add_parser('native-dispute-open'); n.add_argument('obligation_id'); n.add_argument('--kind', required=True); n.add_argument('--claim', required=True); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-dispute-resolve'); n.add_argument('dispute_id'); n.add_argument('--outcome', required=True, choices=('uphold', 'dismiss')); n.add_argument('--reason'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('procurement-plan', help='resource/contact-aware plan selection (JSON file: envelope, plans)'); n.add_argument('--file', required=True); n.add_argument('--policy', default='cheapest_eligible')
+    n = sub.add_parser('procurement-benchmark'); n.add_argument('--missions', type=int, default=200); n.add_argument('--seed', type=int, default=1)
+    sub.add_parser('lunar-sources'); sub.add_parser('lunar-products'); n = sub.add_parser('lunar-product'); n.add_argument('job_id'); n = sub.add_parser('lunar-download'); n.add_argument('job_id'); n.add_argument('--out', required=True)
+    n = sub.add_parser('lunar-example'); n.add_argument('name', choices=('terrain', 'route', 'pack')); n.add_argument('--source', default='apollo11_32')
     d = sub.add_parser('decision-analyze', help='analyse a declared finite candidate model (JSON file: hypotheses, views, coordinates, optional observations, disclosure)'); d.add_argument('--file', required=True); d.add_argument('--title'); d.add_argument('--idempotency-key')
     d = sub.add_parser('decisions'); d.add_argument('--kind')
     d = sub.add_parser('decision'); d.add_argument('job_id')
@@ -1214,6 +1369,8 @@ def main(argv=None):
         status, out = work(args, go)
     elif args.command in DECISION_COMMANDS:
         status, out = decision(args, go)
+    elif args.command in NATIVE_COMMANDS:
+        status, out = native(args, go)
     elif args.command in EXPANSION_COMMANDS:
         status, out = expansion(args, go)
     elif args.command == 'share':
