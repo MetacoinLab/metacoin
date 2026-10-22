@@ -15,7 +15,7 @@ run .venv/bin/python -m metacoin_service --home ./svc-home status
 run .venv/bin/python -m unittest metacoin_service.tests.test_native_protocol metacoin_service.tests.test_native_domains metacoin_service.tests.test_native_lunar metacoin_service.tests.test_native_conformance metacoin_service.tests.test_native_model metacoin_service.tests.test_native_interfaces
 run .venv/bin/python -m metacoin_service.native.vectors
 run .venv/bin/python -m metacoin_service.lunar reproduce metacoin_service/lunar/data/example-pack-inputs.json --manifest metacoin_service/lunar/data/example-pack-manifest.json
-run .venv/bin/python -m metacoin_service.tests.journeys_native --only 1,2,4,8,9,12,17,18,21,22,36 --out "$OUT/journeys-native-from-clean-export.json"
+run .venv/bin/python -m metacoin_service.tests.journeys_native --only 1,2,4,5,8,9,12,16,17,18,21,22,36 --out "$OUT/journeys-native-from-clean-export.json"
 python3 - "$OUT/journeys-native-from-clean-export.json" "$ZIP" <<'PY'
 import json, sys, hashlib
 p, z = sys.argv[1:3]; d = json.load(open(p)); d['archive_sha256'] = hashlib.sha256(open(z, 'rb').read()).hexdigest(); json.dump(d, open(p, 'w'), indent=1)

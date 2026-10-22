@@ -1,0 +1,1 @@
+{"live_service_revision": "3e34126", "live_schema": "040_work_programs_pricing_challenges", "upgraded": false, "restarted": false, "reason": "no session authorization applied to the live service; exact operation documented in MIGRATION_NOTES.md; isolated migration verified (journey 40)"}

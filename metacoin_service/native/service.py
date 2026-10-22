@@ -70,6 +70,7 @@ class Native:
         path, pub = self._ensure_key('authority-' + did)
         kid = crypto.key_id_for(pub)
         db.execute('INSERT INTO native_domains VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (did, principal.workspace, self.environment, kid, pub, 1, (body.get('operator') or 'same operator (local development)')[:128], (body.get('host') or 'this host')[:128], P.POLICY_VERSION, 'online', 'normal', 0, 0, now(), now()))
+        self._record_local_key(db, db.execute('SELECT * FROM native_domains WHERE id=?', (did,)).fetchone(), 'authority-' + did)   # epoch-1 key history from the start (exports and rotations read it)
         asset = '%s:%s:%s:%s:0' % (self.environment, did, 'ledger-' + did, body.get('asset_label') or 'TMETA')
         P.asset_id(asset)
         db.execute('INSERT INTO native_assets VALUES (?,?,?,?,?,?)', (asset, principal.workspace, 'Test-META of domain %s (zero value, development)' % did, 1, did, now()))

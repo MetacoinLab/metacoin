@@ -1,0 +1,252 @@
+{
+ "schema": "metacoin-journeys-native/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "revision": "unavailable",
+ "python": "3.12.3",
+ "started_at": 1792668346,
+ "finished_at": 1792668360,
+ "results": [
+  {
+   "journey": 1,
+   "title": "x402 disabled and the facilitator blocked: accounts created, work accepted and settled natively.",
+   "status": "passed",
+   "evidence": {
+    "x402": {
+     "disabled": true,
+     "installed": false,
+     "required_by_native_core": false,
+     "role": "optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement"
+    },
+    "native": "dom-a",
+    "facilitator_url": "http://127.0.0.1:1/blocked",
+    "award": "wa_4001234d32a37093",
+    "rail": "native",
+    "machine": 5,
+    "requester": 75,
+    "revision": "unavailable",
+    "seconds": 2.255
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "A provider becomes a buyer with the same earned balance: no hidden requester account.",
+   "status": "passed",
+   "evidence": {
+    "machine_before": 5,
+    "machine_after": 2,
+    "supplier": 3,
+    "same_identity": true,
+    "seconds": 1.297
+   },
+   "caveat": null
+  },
+  {
+   "journey": 4,
+   "title": "Concurrent spending cannot exceed the account envelope.",
+   "status": "passed",
+   "evidence": {
+    "statuses": [
+     201,
+     201,
+     201,
+     201,
+     201,
+     400,
+     400,
+     400,
+     400,
+     400,
+     400,
+     400
+    ],
+    "racer": 0,
+    "racee": 50,
+    "seconds": 0.259
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "A source export makes its allocated value unavailable before an importable certificate is released.",
+   "status": "failed",
+   "evidence": {
+    "exception": "StopIteration",
+    "detail": "",
+    "trace": "/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 329, in j8\n    allocs = A.call('get', '/api/v1/native/allocations')[1]['items']; al = next(x for x in allocs if x['evidence'].get('request_id') == 'j8')\n                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nStopIteration\n",
+    "last_award_errors": [],
+    "seconds": 0.098
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "Destination import consumes an allocation once; duplicate delivery is idempotent.",
+   "status": "failed",
+   "evidence": {
+    "exception": "KeyError",
+    "detail": "'results'",
+    "trace": "mp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 338, in j9\n    ok = out['ok'] and all(r['state'] == 'accepted' for r in out['results']) and all(r['state'] == 'duplicate' for r in again['results']) and after == before + credited and len(again['replies']) >= 1\n                                                             ~~~^^^^^^^^^^^\nKeyError: 'results'\n",
+    "last_award_errors": [],
+    "seconds": 0.022
+   },
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "title": "Crash at each export/import persistence boundary recovers without duplicated spendable ownership.",
+   "status": "failed",
+   "evidence": {
+    "exception": "StopIteration",
+    "detail": "",
+    "trace": "ile \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 366, in j12\n    al = next(x for x in A.call('get', '/api/v1/native/allocations')[1]['items'] if x['evidence'].get('request_id') == 'crash-' + point)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nStopIteration\n",
+    "last_award_errors": [],
+    "seconds": 0.038
+   },
+   "caveat": null
+  },
+  {
+   "journey": 17,
+   "title": "Reverse return follows the supported closure protocol; timeout alone cannot restore funds.",
+   "status": "failed",
+   "evidence": {
+    "exception": "KeyError",
+    "detail": "'id'",
+    "trace": "Traceback (most recent call last):\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 430, in j17\n    sr, rr = B.call('post', '/api/v1/native/allocations/' + al['id'] + '/return', role='bob', json={}); mid = A.bal('alice'); out = self.push(B, A)\n                                                            ~~^^^^^^\nKeyError: 'id'\n",
+    "last_award_errors": [],
+    "seconds": 0.013
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "Global audit distinguishes backing from claims and proves conservation for the exercised sequence.",
+   "status": "passed",
+   "evidence": {
+    "A": {
+     "total_held": 130,
+     "fixture_funding": 130,
+     "backing_locked_for_exports": 0,
+     "claims_backed_elsewhere": 0,
+     "conserved": true
+    },
+    "B": {
+     "total_held": 0,
+     "fixture_funding": 0,
+     "backing_locked_for_exports": 0,
+     "claims_backed_elsewhere": 0,
+     "conserved": true
+    },
+    "held_both": 130,
+    "pending_backing_not_yet_imported": 0,
+    "trust": "a trusted ordering authority with one fenced writer (SQLite BEGIN IMMEDIATE on durable storage), authenticated actors, explicit administrator powers",
+    "seconds": 0.008
+   },
+   "caveat": null
+  },
+  {
+   "journey": 21,
+   "title": "The complete 80-unit example: real terrain work, native settlement, a real second purchase and a treasury award.",
+   "status": "passed",
+   "evidence": {
+    "purchase_before_earning": 400,
+    "after_step_2": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_available_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 32,
+     "s80": 9,
+     "v80": 3,
+     "treasury": 1
+    },
+    "total": 80,
+    "fees_additional_to_provider": true,
+    "terrain_outcome": "FEASIBLE",
+    "seconds": 4.444
+   },
+   "caveat": null
+  },
+  {
+   "journey": 22,
+   "title": "An unfunded or merely receivable-funded actor cannot buy; a settled actor can.",
+   "status": "passed",
+   "evidence": {
+    "unfunded": 400,
+    "receivable_only": {
+     "status": 400,
+     "earned_unsettled": 6,
+     "available": 0
+    },
+    "after_settlement": 201,
+    "seconds": 2.264
+   },
+   "caveat": null
+  },
+  {
+   "journey": 36,
+   "title": "The independent checker accepts supported evidence and rejects all targeted tampering vectors.",
+   "status": "failed",
+   "evidence": {
+    "exception": "IndexError",
+    "detail": "list index out of range",
+    "trace": "nt call last):\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 669, in j36\n    wrong = native_checker.check(A.call('get', '/api/v1/native/export')[1], {k: [dict(v[0], public_hex='00' * 32)] for k, v in roots.items()})\n                                                                                      ~^^^\nIndexError: list index out of range\n",
+    "last_award_errors": [
+     {
+      "award": {
+       "error": true,
+       "code": "BUDGET_EXHAUSTED",
+       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
+       "detail": {
+        "code": "insufficient_available",
+        "available": 0,
+        "requested": 2,
+        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
+       }
+      },
+      "offer": "offered",
+      "eligibility": {
+       "eligible": true,
+       "reasons": []
+      },
+      "who": "unfunded",
+      "template": "determination"
+     },
+     {
+      "award": {
+       "error": true,
+       "code": "BUDGET_EXHAUSTED",
+       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
+       "detail": {
+        "code": "insufficient_available",
+        "available": 0,
+        "requested": 2,
+        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
+       }
+      },
+      "offer": "offered",
+      "eligibility": {
+       "eligible": true,
+       "reasons": []
+      },
+      "who": "earner",
+      "template": "determination"
+     }
+    ],
+    "seconds": 0.142
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 6,
+ "failed": 5,
+ "blocked": 0,
+ "total": 11,
+ "archive_sha256": "4a1f9ea7af889d988d3f5e8425364507da53ff3f18d2afd532c22c405914c228"
+}

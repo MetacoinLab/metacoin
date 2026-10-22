@@ -1,0 +1,64 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+   "crash": null,
+    "seconds": 2.748
+   },
+   "caveat": null
+  },
+  {
+   "journey": 39,
+   "title": "A clean export reproduces native operation without x402, remote facilitators, private local files or hidden data.",
+   "status": "blocked",
+   "evidence": {
+    "seconds": 0.0,
+    "blocked": "run by work/native-space-protocol-session/clean_export.sh after packaging; result file not supplied"
+   },
+   "caveat": null
+  },
+  {
+   "journey": 40,
+   "title": "Migration from the preserved previous database and safe recovery are verified on an isolated copy.",
+   "status": "passed",
+   "evidence": {
+    "before": {
+     "schema": "040_work_programs_pricing_challenges",
+     "jobs": 38,
+     "artifacts": 172,
+     "receipts": 0,
+     "native_tables_before": 0
+    },
+    "after": {
+     "schema": "043_native_authority_keys",
+     "jobs": 38,
+     "artifacts": 172,
+     "native_domains": 0
+    },
+    "migrate_rc": 0,
+    "smoke": {
+     "health": {
+      "ok": true,
+      "revision": "691d68ba91ac4c1e61f14770582c9e75cc3f2ee7",
+      "provider_mode": "simulation",
+      "queued": 0,
+      "running": 0
+     },
+     "old_jobs_readable": true,
+     "domain": 201,
+     "fund": 201,
+     "transfer": 201,
+     "audit": true,
+     "replay": true,
+     "recovery": "normal"
+    },
+    "live_service_untouched": true,
+    "seconds": 0.802
+   },
+   "caveat": "isolated copy only; the live service was neither upgraded nor restarted"
+  }
+ ],
+ "passed": 39,
+ "failed": 0,
+ "blocked": 1,
+ "total": 40
+}
+HARNESS_RC=0

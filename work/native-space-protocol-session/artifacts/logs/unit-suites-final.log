@@ -12,4 +12,7 @@ test_work_evidence: Ran 7 tests in 9.254s OK
 test_decision_service: Ran 10 tests in 10.416s OK 
 test_decision_surfaces: Ran 3 tests in 1.869s OK 
 test_work_surfaces: Ran 4 tests in 2.879s OK 
-test_service: 
+test_service: Ran 19 tests in 19.492s OK 
+test_agents: Ran 5 tests in 5.609s OK 
+test_budgets: Ran 2 tests in 2.244s OK 
+done

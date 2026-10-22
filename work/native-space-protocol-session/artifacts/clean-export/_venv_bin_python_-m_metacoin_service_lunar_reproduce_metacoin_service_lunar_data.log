@@ -1,0 +1,98 @@
+{
+ "ok": false,
+ "checks": [
+  {
+   "check": "inputs_digest",
+   "ok": true
+  },
+  {
+   "check": "pack_id",
+   "ok": true
+  },
+  {
+   "check": "implementation_digest",
+   "ok": false
+  },
+  {
+   "check": "nominal.terrain_input_digest",
+   "ok": true
+  },
+  {
+   "check": "nominal.route_input_digest",
+   "ok": true
+  },
+  {
+   "check": "nominal.terrain_result_digest",
+   "ok": true
+  },
+  {
+   "check": "nominal.route_result_digest",
+   "ok": true
+  },
+  {
+   "check": "nominal.reference_outputs",
+   "ok": true
+  },
+  {
+   "check": "noisy-2m.terrain_input_digest",
+   "ok": true
+  },
+  {
+   "check": "noisy-2m.route_input_digest",
+   "ok": true
+  },
+  {
+   "check": "noisy-2m.terrain_result_digest",
+   "ok": true
+  },
+  {
+   "check": "noisy-2m.route_result_digest",
+   "ok": true
+  },
+  {
+   "check": "noisy-2m.reference_outputs",
+   "ok": true
+  },
+  {
+   "check": "strict-slope.terrain_input_digest",
+   "ok": true
+  },
+  {
+   "check": "strict-slope.route_input_digest",
+   "ok": true
+  },
+  {
+   "check": "strict-slope.terrain_result_digest",
+   "ok": true
+  },
+  {
+   "check": "strict-slope.route_result_digest",
+   "ok": true
+  },
+  {
+   "check": "strict-slope.reference_outputs",
+   "ok": true
+  },
+  {
+   "check": "low-energy.terrain_input_digest",
+   "ok": true
+  },
+  {
+   "check": "low-energy.route_input_digest",
+   "ok": true
+  },
+  {
+   "check": "low-energy.terrain_result_digest",
+   "ok": true
+  },
+  {
+   "check": "low-energy.route_result_digest",
+   "ok": true
+  },
+  {
+   "check": "low-energy.reference_outputs",
+   "ok": true
+  }
+ ],
+ "variations": 4
+}

@@ -1,0 +1,341 @@
+{
+ "schema": "metacoin-feature-ledger/v2",
+ "source": "691d68ba91ac4c1e61f14770582c9e75cc3f2ee7",
+ "capabilities": [
+  {
+   "capability": "Native protocol v0 (types, canonical encoding, signed intents, published transition tables, 7 finality levels)",
+   "implemented": "metacoin_service/native/protocol.py; docs/native/PROTOCOL.md",
+   "executed": {
+    "journeys": [
+     1,
+     5,
+     36
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "bounded amounts; no floats; dev/test/production environments",
+   "unresolved_limitations": "v0 only; no public network; no BFT"
+  },
+  {
+   "capability": "Actor accounts with disjoint categories on the authoritative journal; development fixtures isolated",
+   "implemented": "native/ledger.py, native/service.py (migration 042)",
+   "executed": {
+    "journeys": [
+     1,
+     2,
+     22,
+     32
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "actor keys held by the service (not operator custody)"
+  },
+  {
+   "capability": "Domain-local transfers: reserve -> authorize -> commit -> settle, idempotent, grants as exposure limits, concurrency-safe",
+   "implemented": "native/service.py transfer/transfer_simulate/refund",
+   "executed": {
+    "journeys": [
+     3,
+     4,
+     6,
+     7,
+     37
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "single writer per domain by design; throughput bounded by SQLite"
+  },
+  {
+   "capability": "Work acceptance bound to native payment: obligations (provider/fee/verifier), award reservations, native rail settlement, treasury on native assets",
+   "implemented": "economy/money.py, board.py, treasury.py, native/service.py hooks",
+   "executed": {
+    "journeys": [
+     1,
+     2,
+     21,
+     22,
+     25,
+     30,
+     31
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "verifier independence is process-level only (same operator)"
+  },
+  {
+   "capability": "Two-domain allocations: export/import/ack/return with per-boundary durable commits, certificates, pinned roots",
+   "implemented": "native/domains.py (migration 043)",
+   "executed": {
+    "journeys": [
+     8,
+     9,
+     10,
+     11,
+     12,
+     16,
+     17,
+     18,
+     20
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "returns only full-and-unspent; one allocation lifecycle per id; irrevocable exports sacrifice availability"
+  },
+  {
+   "capability": "Durable transport: signed envelopes, online courier + file bundle, tombstones, limits, no code execution on import",
+   "implemented": "native/domains.py inbox/outbox, native/courier.py",
+   "executed": {
+    "journeys": [
+     9,
+     13,
+     14,
+     16,
+     35
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "application-level asynchronous transport; not BPv7/LunaNet"
+  },
+  {
+   "capability": "Bounded disconnected spending: preallocations, cut link, exhausted authority, revocation epochs",
+   "implemented": "native/domains.py, connectivity flag, rotation",
+   "executed": {
+    "journeys": [
+     13,
+     14,
+     34
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "software-only delegated authority can be cloned; equivocation is detected, not prevented"
+  },
+  {
+   "capability": "Recovery and quarantine: durable watermark outside the database, peer observations, reconstruction as locked backing",
+   "implemented": "native/domains.py rollback_check/recovery_reconcile",
+   "executed": {
+    "journeys": [
+     15,
+     19
+    ],
+    "statuses": [
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "a restore that also restores the watermark is detected only through a peer; no peer = undetectable"
+  },
+  {
+   "capability": "Disputes bounded to the obligation; key rotation with grace; no retroactive authority",
+   "implemented": "native/service.py disputes; domains.py rotate_authority",
+   "executed": {
+    "journeys": [
+     33,
+     34
+    ],
+    "statuses": [
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "resolution by reviewer/administrator; no external arbitration"
+  },
+  {
+   "capability": "Three lunar products on real LOLA LDEM_4 extracts with provenance; independent CPU reference; synthetic labelled",
+   "implemented": "metacoin_service/lunar/*",
+   "executed": {
+    "journeys": [
+     21,
+     23,
+     24,
+     25,
+     29
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "LDEM_4 (4 px/deg, 7.58 km/px) extracts: Tycho 48x48, Apollo 11 32x32; digests of the full image/label recorded; downloaded 2026-10-22",
+   "unresolved_limitations": "grid-scale slopes only: no rocks, traction, illumination; tiles <= 64x64; GPU not used (no measured benefit at this size)"
+  },
+  {
+   "capability": "Resource- and communication-aware procurement with FIFO/cheapest baselines; resource envelopes and offer claims in eligibility",
+   "implemented": "native/procurement.py; terms resource_envelope; board eligibility",
+   "executed": {
+    "journeys": [
+     26,
+     27
+    ],
+    "statuses": [
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "synthetic held-out workload; explicit supplied contact scenarios",
+   "unresolved_limitations": "energy claims are declared (measured/estimated labels), not metered by the service"
+  },
+  {
+   "capability": "Evidence acquisition inside the mission: declared states that disagree on the route decision, useful purchase through the native account, redundant declined",
+   "implemented": "lunar/evidence.py + decision package",
+   "executed": {
+    "journeys": [
+     28
+    ],
+    "statuses": [
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "finite declared states; observations simulated",
+   "unresolved_limitations": "finite-model guarantees only; not real-world validity"
+  },
+  {
+   "capability": "Treasury conservation and monetary separation (no issuance path; identity files unchanged)",
+   "implemented": "tests/test_native_conformance.py; treasury",
+   "executed": {
+    "journeys": [
+     21,
+     31,
+     32
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "objective issuance remains unresolved: not invented here"
+  },
+  {
+   "capability": "Interfaces: API routes, CLI commands, console views (domain, account, settlement, treasury, mission, product, recovery), MCP read/simulate/commit/spend tools",
+   "implemented": "native/routes.py, lunar/routes.py, client_cli.py, console_ui.py, mcp_server.py",
+   "executed": {
+    "journeys": [
+     20,
+     37,
+     38
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "one authorized host; two separately configured domains as separate processes/homes under the same operator; simulation provider mode; METACOIN_X402_DISABLED=1; facilitator URL points at a closed loopback port; zero-value development asset; development keys service-custodied",
+   "unresolved_limitations": "console is server-rendered; MCP over stdio only"
+  },
+  {
+   "capability": "Independent conformance checker, deterministic vectors, bounded state-space model",
+   "implemented": "native/checker.py, vectors.py, model.py",
+   "executed": {
+    "journeys": [
+     36
+    ],
+    "statuses": [
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "offline; explicit pinned roots; depth-5 enumeration",
+   "unresolved_limitations": "bounded enumeration is not a proof; scientific reproducibility is out of the checker's scope by design"
+  },
+  {
+   "capability": "Migration 042/043 verified on an isolated copy of the preserved live database; live service untouched",
+   "implemented": "db.py; journey 40",
+   "executed": {
+    "journeys": [
+     40
+    ],
+    "statuses": [
+     "passed"
+    ],
+    "executed": true
+   },
+   "environment_assumptions": "isolated copy only",
+   "unresolved_limitations": "live upgrade not performed (no session authorization used)"
+  },
+  {
+   "capability": "Clean export reproduction",
+   "implemented": "work/native-space-protocol-session/clean_export.sh",
+   "executed": {
+    "journeys": [
+     39
+    ],
+    "statuses": [
+     "blocked"
+    ],
+    "executed": false
+   },
+   "environment_assumptions": "fresh venv from the lock with local wheel caches",
+   "unresolved_limitations": "recorded separately after packaging"
+  }
+ ]
+}

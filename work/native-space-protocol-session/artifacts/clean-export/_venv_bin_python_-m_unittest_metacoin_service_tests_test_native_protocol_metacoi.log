@@ -1,0 +1,301 @@
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmprvwbz0ol/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+  warnings.warn(  # deprecated in 14.0 - 2024-11-09
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpxyk9pw43/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp1yrkknu2/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpf7qwiz31/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp1ooleapp/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpw1ndbuys/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpz621nwso/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp4wz9zrkf/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpjwh3fk2o/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp607ng43a/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpe8jkqj1q/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpg0q_cwzb/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpmpfjne9n/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpiqyqtjwd/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp0crkh4pk/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp8ebtjqed/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpgjwisgon/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp8bwzumel/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpp8wkt8ri/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpsazpcni5/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp4odm4kz7/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpj8_e8dol/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpf7jopb7u/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpnibzmg93/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+../tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp7py9h2gz/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..../tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpczrkllyi/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpycewgd7j/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmptcx94bfi/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp5bdv92hd/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp0muxx7uo/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpl956hi6u/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpz3sfey0n/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpcvp5oox_/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpb6dj20dk/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpoet57_9o/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpgihxoce9/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpenyq9k56/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpal32b5c7/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpufwjh8j_/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpmcaah7un/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmphot1h8k8/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp57o0ulww/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpnc0unw2a/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmplphlzxr8/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmphwf9g7nq/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmppb3hw747/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpf7bn0kq3/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpj9455_69/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpj3qfn9jq/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpxx4f_mqg/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp9t8grlb6/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp5valbr4a/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpckxy7jlw/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmppqhqmahe/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpco6zu2vc/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmplgrhrpuc/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpf9ltkvca/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpb919klp_/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpjnf0mxvt/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpwyqehbgv/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpe9fax4rd/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp71wcn6dw/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpe0nx__ev/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpiimj04aj/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpt42i996q/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp51t9yhss/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpzzu4m6ae/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp6emc_8r4/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpsx5sw2dg/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpvvwueyno/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpqeazyx9a/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp5whkzrj8/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp6t5kcu_1/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpt33p9jr5/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpd64wlcin/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmplo2y4ui3/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp43hlal0c/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpa2vjdevh/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp167kllgm/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpsbn9uzh1/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpdnrtx593/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpstfgssja/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpbu3l0o4e/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpqc174lx2/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp_ikj_amj/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_work_surfaces.py:158: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/client_cli.py' mode='r' encoding='UTF-8'>
+  src = open(client_cli.__file__).read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_native_interfaces.py:22: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpe3ut952k/in.json' mode='w' encoding='UTF-8'>
+  d = tempfile.mkdtemp(); jf = os.path.join(d, 'in.json'); open(jf, 'w').write(json.dumps({'domain_id': 'dom-b', 'authority_key_id': 'k', 'authority_public_hex': '00' * 32, 'epoch': 1}))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/client_cli.py:489: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpe3ut952k/in.json' mode='r' encoding='UTF-8'>
+  jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_native_interfaces.py:43: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpe3ut952k/actor.json' mode='r' encoding='UTF-8'>
+  st, res = client_cli.native(ns, go); self.assertNotIn('credential', res); self.assertEqual(oct(os.stat(out).st_mode & 0o777), '0o600'); self.assertEqual(json.load(open(out))['token'], 't')
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp2642d72y/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/.venv/lib/python3.12/site-packages/starlette/testclient.py:463: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+  return super().request(
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpbhlgpawo/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp04iws54r/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp9tbc96jx/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpb_gik0tv/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpnuqh30y9/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp8wu1y3qt/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/.venv/lib/python3.12/site-packages/pydantic_settings/sources/utils.py:47: IncompleteFieldDefinitionWarning: Field 'lifespan' has an incomplete definition: its annotation contains an unresolved forward reference, so settings sources may fail to correctly resolve its value. Call `model_rebuild()` on the model where the field is defined, once all the referenced types are defined.
+  warnings.warn(
+.
+----------------------------------------------------------------------
+Ran 49 tests in 51.584s
+
+OK
