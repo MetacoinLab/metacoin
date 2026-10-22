@@ -10,4 +10,11 @@
 - Migration ids free from 041.
 
 ## Progress ledger (update after each vertical slice)
-- [ ] A kernels + tests
+- [x] A kernels + independent checker + tests (commit cf17402, 06:35Z)
+- [x] Service layer, routes, migration 041, policy schema v2 / legacy v1 semantics, sampling plans, assurance predicate, portfolios + fault campaigns, offline replay tool (commit 3b559a6; test_decision_kernels 22 + test_decision_service 10 green; test_work_terms + test_work_evidence green)
+- Interruption: session 9df2f649 stopped 07:01Z mid test run (login/session loss); recovered 07:5xZ by this session from the uncommitted tree; quote-expiry / lineage / terms / evidence regressions were already fixed in the tree at recovery — re-verified, then committed
+- [x] CLI commands, MCP tools, console pages + award assurance/delivery sections; sampling-plan route tests (journeys 11-16) and interface tests green (commit: interfaces checkpoint, 08:3xZ)
+- [ ] Browser journey script (journey 24)
+- [ ] Journey harness (26 journeys incl. browser 24, legacy 25, clean export 26) against a running instance
+- [ ] Docs generated from behaviour (OpenAPI, CLI, MCP), migration/rollback notes, feature ledger, architecture note
+- [ ] Delivery directory + example bundle + replay command + handoff; inherited suites rerun

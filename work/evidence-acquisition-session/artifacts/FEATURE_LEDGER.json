@@ -1,0 +1,135 @@
+{
+ "schema": "metacoin-feature-ledger/v1",
+ "order": "evidence acquisition and scoped assurance (2026-10-22)",
+ "items": [
+  {
+   "deliverable": "A",
+   "feature": "Typed assurance requirement (schema v1: claim type, operation/model, input and result commitments, frame digest, checker digest, comparison semantics, independence dimensions, sampling plan, outcome) and statements derived from signed verification records",
+   "entry_points": "POST /verification/assurance/evaluate, GET /verification/{id}/assurance, GET /verification/assurance/claims; predicate assurance_satisfied; CLI assurance-*; MCP assurance_preview",
+   "evidence": "test_decision_service AssuranceTests; journeys 5, 14, 15",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "A",
+   "feature": "Explicit compatibility evaluator: same operation/version/scope/semantics/dependencies; coverage implication only every_item\u2192sampled_items; unknown versions and dimensions refused; a class name or rank never satisfies",
+   "entry_points": "assurance.evaluate / preview",
+   "evidence": "test_decision_service; journey 14",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "A",
+   "feature": "VERIFICATION_RANK investigation reproduced as an executable regression (v1: replica satisfies sampled_reference; later pass hides an earlier failure) and closed by policy schema v2; frozen v1 terms untouched and surfaced as legacy-rank",
+   "entry_points": "acceptance.evaluate; GET /work/terms/{id}/inspect (verification_semantics)",
+   "evidence": "test_legacy_rank_substitution_is_reproduced_under_v1_and_refused_under_v2; journey 25",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "A",
+   "feature": "Assurance preview per award milestone: requirements, available evidence, satisfied/missing clauses, next checks, plain English",
+   "entry_points": "GET /work/awards/{id}/milestones/{k}/assurance; console award page; CLI work-assurance",
+   "evidence": "test_decision_surfaces; journey 17; browser 06/07",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "B",
+   "feature": "Exact fixed-population sampling plans for temporal_batch (N from the committed frame, m or ceiling-rule fraction, alpha, budget, checker identity, fault model), infeasible with required budget, bound before the challenge, single fixed-size attempt, conditional bound in the signed statement, offline recomputation",
+   "entry_points": "POST/GET /verification/sampling-plans[/{id}[/audit]], /verify; console sampling pages; CLI sampling-*; MCP sampling_plan_preview",
+   "evidence": "test_decision_kernels (fixtures 368/990, exhaustive enumeration, log-bound conservatism); test_decision_sampling; journeys 11-13, 16",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "C",
+   "feature": "Finite decision observability as a job kind with exact rational kernels, witnesses, conditioning, vacuous-set labelling, strict validation and limits (32/16/64)",
+   "entry_points": "POST /decisions/analyze, GET /decisions[/{id}[/projection|/witnesses|/bundle]]; console /console/decisions; CLI decision-*; MCP analyze_decision / decision_status",
+   "evidence": "test_decision_kernels; test_decision_service; journeys 1-4, 9, 10",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "C",
+   "feature": "Independent witness checker as verification class analytical; fabricated witnesses fail",
+   "entry_points": "POST /verification {class: analytical}",
+   "evidence": "journeys 5, 6",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "C",
+   "feature": "Encrypted private artifacts and disclosure-policed projections (counts always; ids/labels/witness values per policy); unauthorized roles see no hidden states through counts, errors or exports",
+   "entry_points": "GET /decisions/{id}/projection; witnesses 403 for non-owners",
+   "evidence": "test_analysis_witnesses_privacy_checker_and_disclosure; journey 19; browser viewer check",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "D",
+   "feature": "Acquisition planning: quoted immutable menu (integer costs, expiry, execution modes, provider), exact search \u226412 with brute-force oracle, explicit unsupported refusal beyond, weighted objective only as a frozen requester objective, expected vs predicted remaining ambiguities",
+   "entry_points": "POST /acquisition-plans[/preview], GET /acquisition-plans[/{id}]; console plan page; CLI acquisition-*; MCP preview_acquisition",
+   "evidence": "test_plan_preview_budget_and_nothing_to_acquire; journeys 7, 8",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "D",
+   "feature": "Materialisation into existing work terms/requests/awards with atomic reservation at award; quote expiry and model binding rechecked at materialisation and inside the award transaction; deterministic partial/failed states",
+   "entry_points": "POST /acquisition-plans/{id}/materialize; award guard",
+   "evidence": "test_invalid_delivery_failed_acquisition_duplicates_and_quote_expiry; journey 17",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "E",
+   "feature": "Template decision-evidence-acquisition/v1 freezing question, candidate-model digest, menu, validation method, disclosure, providers, budget, accepted outcomes; five delivery states with frozen payment rules; valid negatives/ambiguous/inconsistent paid equally; diagnostic amount for could-not-acquire; invalid delivery unpaid",
+   "entry_points": "terms.decision_evidence_terms; POST /work/awards/{id}/milestones/{k}/deliver; delivery-spec",
+   "evidence": "test_full_journey_resolved_then_ambiguous_then_inconsistent_all_paid_equally; journey 17",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "E",
+   "feature": "Idempotent payment binding to award, evidence version and decision; duplicate requests, lost responses, worker restarts and crashes create no second charge, artifact or reservation",
+   "entry_points": "existing entitlements/intents; faults evidence_publication",
+   "evidence": "journeys 18, 20",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "F",
+   "feature": "Versioned portfolios with declared dependency relationships; preregistered fault suites (12 families + clean + valid negative) in the evaluation registry with dev/held-out splits and counted held-out uses; paired campaign reports (false acceptance/rejection, abstention, cost, latency by family), suite coverage separate from statistical rates, exact one-sided bounds for zero escapes, common-mode floor and selector",
+   "entry_points": "POST/GET /portfolios, /portfolios/fault-suite, /portfolios/campaigns, /portfolios/select; console /console/portfolios; CLI portfolio-*/fault-suite/campaign*; MCP compare_portfolios",
+   "evidence": "test_portfolios_campaign_paired_report_and_selector; journeys 21, 22",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "G",
+   "feature": "API, CLI, console and MCP access to the full core journey; agent grants: analysis-only credentials are refused at purchase",
+   "entry_points": "all of the above",
+   "evidence": "test_decision_surfaces; journeys 19, 24",
+   "status": "implemented, verified locally"
+  },
+  {
+   "deliverable": "G",
+   "feature": "Authorized decision bundles and the offline replay tool (integrity, signatures under a supplied trust root, scientific replay by the independent checker, sampling arithmetic; each reported separately)",
+   "entry_points": "GET /decisions/{id}/bundle; python -m metacoin_service.decision.replay",
+   "evidence": "test_bundle_replays_offline_without_service_secrets; journey 23",
+   "status": "implemented, verified locally"
+  }
+ ],
+ "externally_unverified": [
+  {
+   "item": "external settlement of acquisition payments (x402 facilitator / public network)",
+   "status": "externally unverified: the local chain and the application journal are the only rails exercised; x402 is an optional adapter, never required by the decision package"
+  },
+  {
+   "item": "physical instruments",
+   "status": "none: deliveries are simulated observations labelled simulated:true"
+  }
+ ],
+ "deferred": [
+  {
+   "item": "optional extensions 1-6 (task-weighted acquisition beyond the frozen-weights objective, continuous bounded-state observability, finite-scale view diagnostics, sequential acquisition, diagnostic router, QEC aggregate import)",
+   "status": "deferred: not started; the core journey took priority"
+  },
+  {
+   "item": "live service upgrade to schema 041",
+   "status": "deferred by design of this order (separate development state); the live service stays at 3e34126 / schema 040"
+  },
+  {
+   "item": "publication",
+   "status": "not pushed: the branch evidence/acquisition-assurance exists locally only"
+  }
+ ]
+}

@@ -1,0 +1,278 @@
+=== metacoin-client decision-analyze
+usage: metacoin-client decision-analyze [-h] --file FILE [--title TITLE]
+                                        [--idempotency-key IDEMPOTENCY_KEY]
+
+options:
+  -h, --help            show this help message and exit
+  --file FILE
+  --title TITLE
+  --idempotency-key IDEMPOTENCY_KEY
+
+=== metacoin-client decisions
+usage: metacoin-client decisions [-h] [--kind KIND]
+
+options:
+  -h, --help   show this help message and exit
+  --kind KIND
+
+=== metacoin-client decision
+usage: metacoin-client decision [-h] job_id
+
+positional arguments:
+  job_id
+
+options:
+  -h, --help  show this help message and exit
+
+=== metacoin-client decision-projection
+usage: metacoin-client decision-projection [-h] job_id
+
+positional arguments:
+  job_id
+
+options:
+  -h, --help  show this help message and exit
+
+=== metacoin-client decision-witnesses
+usage: metacoin-client decision-witnesses [-h] job_id
+
+positional arguments:
+  job_id
+
+options:
+  -h, --help  show this help message and exit
+
+=== metacoin-client decision-bundle
+usage: metacoin-client decision-bundle [-h] --out OUT job_id
+
+positional arguments:
+  job_id
+
+options:
+  -h, --help  show this help message and exit
+  --out OUT
+
+=== metacoin-client acquisition-preview
+usage: metacoin-client acquisition-preview [-h] --budget BUDGET --file FILE
+                                           job_id
+
+positional arguments:
+  job_id
+
+options:
+  -h, --help       show this help message and exit
+  --budget BUDGET
+  --file FILE      JSON {menu: [...]}
+
+=== metacoin-client acquisition-plan
+usage: metacoin-client acquisition-plan [-h] --budget BUDGET --file FILE
+                                        [--idempotency-key IDEMPOTENCY_KEY]
+                                        job_id
+
+positional arguments:
+  job_id
+
+options:
+  -h, --help            show this help message and exit
+  --budget BUDGET
+  --file FILE
+  --idempotency-key IDEMPOTENCY_KEY
+
+=== metacoin-client acquisition-plans
+usage: metacoin-client acquisition-plans [-h]
+
+options:
+  -h, --help  show this help message and exit
+
+=== metacoin-client acquisition-materialize
+usage: metacoin-client acquisition-materialize [-h] [--diagnostic DIAGNOSTIC]
+                                               [--title TITLE]
+                                               [--idempotency-key IDEMPOTENCY_KEY]
+                                               plan_id
+
+positional arguments:
+  plan_id
+
+options:
+  -h, --help            show this help message and exit
+  --diagnostic DIAGNOSTIC
+  --title TITLE
+  --idempotency-key IDEMPOTENCY_KEY
+
+=== metacoin-client work-deliver
+usage: metacoin-client work-deliver [-h] [--milestone MILESTONE] --file FILE
+                                    [--idempotency-key IDEMPOTENCY_KEY]
+                                    award_id
+
+positional arguments:
+  award_id
+
+options:
+  -h, --help            show this help message and exit
+  --milestone MILESTONE
+  --file FILE
+  --idempotency-key IDEMPOTENCY_KEY
+
+=== metacoin-client work-delivery-spec
+usage: metacoin-client work-delivery-spec [-h] [--milestone MILESTONE]
+                                          award_id
+
+positional arguments:
+  award_id
+
+options:
+  -h, --help            show this help message and exit
+  --milestone MILESTONE
+
+=== metacoin-client work-assurance
+usage: metacoin-client work-assurance [-h] [--milestone MILESTONE] award_id
+
+positional arguments:
+  award_id
+
+options:
+  -h, --help            show this help message and exit
+  --milestone MILESTONE
+
+=== metacoin-client sampling-plan
+usage: metacoin-client sampling-plan [-h] --alpha ALPHA --max-samples
+                                     MAX_SAMPLES
+                                     [--minimum-defects MINIMUM_DEFECTS]
+                                     [--defect-fraction DEFECT_FRACTION]
+                                     [--preview]
+                                     job_id
+
+positional arguments:
+  job_id
+
+options:
+  -h, --help            show this help message and exit
+  --alpha ALPHA         rational string, e.g. 1/100
+  --max-samples MAX_SAMPLES
+  --minimum-defects MINIMUM_DEFECTS
+  --defect-fraction DEFECT_FRACTION
+                        rational string; ceiling rule
+  --preview
+
+=== metacoin-client sampling-plans
+usage: metacoin-client sampling-plans [-h] [--job-id JOB_ID] [plan_id]
+
+positional arguments:
+  plan_id
+
+options:
+  -h, --help       show this help message and exit
+  --job-id JOB_ID
+
+=== metacoin-client sampling-audit
+usage: metacoin-client sampling-audit [-h] [--idempotency-key IDEMPOTENCY_KEY]
+                                      plan_id
+
+positional arguments:
+  plan_id
+
+options:
+  -h, --help            show this help message and exit
+  --idempotency-key IDEMPOTENCY_KEY
+
+=== metacoin-client sampling-verify
+usage: metacoin-client sampling-verify [-h] --file FILE
+
+options:
+  -h, --help   show this help message and exit
+  --file FILE
+
+=== metacoin-client assurance-evaluate
+usage: metacoin-client assurance-evaluate [-h] --file FILE job_id
+
+positional arguments:
+  job_id
+
+options:
+  -h, --help   show this help message and exit
+  --file FILE
+
+=== metacoin-client assurance-claims
+usage: metacoin-client assurance-claims [-h]
+
+options:
+  -h, --help  show this help message and exit
+
+=== metacoin-client verification-assurance
+usage: metacoin-client verification-assurance [-h] verification_id
+
+positional arguments:
+  verification_id
+
+options:
+  -h, --help       show this help message and exit
+
+=== metacoin-client portfolio-create
+usage: metacoin-client portfolio-create [-h] --file FILE
+                                        [--idempotency-key IDEMPOTENCY_KEY]
+
+options:
+  -h, --help            show this help message and exit
+  --file FILE
+  --idempotency-key IDEMPOTENCY_KEY
+
+=== metacoin-client portfolios
+usage: metacoin-client portfolios [-h]
+
+options:
+  -h, --help  show this help message and exit
+
+=== metacoin-client portfolio
+usage: metacoin-client portfolio [-h] portfolio_id
+
+positional arguments:
+  portfolio_id
+
+options:
+  -h, --help    show this help message and exit
+
+=== metacoin-client portfolio-select
+usage: metacoin-client portfolio-select [-h] --families FAMILIES
+                                        [--max-cost MAX_COST]
+                                        suite_id
+
+positional arguments:
+  suite_id
+
+options:
+  -h, --help           show this help message and exit
+  --families FAMILIES
+  --max-cost MAX_COST
+
+=== metacoin-client fault-suite
+usage: metacoin-client fault-suite [-h] --file FILE
+                                   [--idempotency-key IDEMPOTENCY_KEY]
+
+options:
+  -h, --help            show this help message and exit
+  --file FILE
+  --idempotency-key IDEMPOTENCY_KEY
+
+=== metacoin-client campaign
+usage: metacoin-client campaign [-h] --portfolio-ids PORTFOLIO_IDS
+                                [--split {dev,held-out}]
+                                [--idempotency-key IDEMPOTENCY_KEY]
+                                suite_id
+
+positional arguments:
+  suite_id
+
+options:
+  -h, --help            show this help message and exit
+  --portfolio-ids PORTFOLIO_IDS
+  --split {dev,held-out}
+  --idempotency-key IDEMPOTENCY_KEY
+
+=== metacoin-client campaigns
+usage: metacoin-client campaigns [-h] [campaign_id]
+
+positional arguments:
+  campaign_id
+
+options:
+  -h, --help   show this help message and exit
