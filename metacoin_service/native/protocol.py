@@ -25,6 +25,8 @@ MESSAGE_TYPES = {
     'commit_checkpoint': b'metacoin/native/v0/checkpoint\0',
     'envelope': b'metacoin/native/v0/envelope\0',
     'receipt': b'metacoin/native/v0/receipt\0',
+    'rotation': b'metacoin/native/v0/rotation\0',           # an authority announces its next epoch key, signed by the retiring key
+    'observation': b'metacoin/native/v0/observation\0',     # a peer's signed list of the allocations it imported from a domain (recovery evidence)
 }
 
 # the economic categories of an account (disjoint; views derive each from the journal postings)
@@ -163,6 +165,12 @@ def digest(body):
 INTENT_FIELDS = {'protocol', 'type', 'environment', 'actor_account', 'authority', 'asset', 'amount_ceiling', 'recipient', 'permitted_recipients', 'obligation_id', 'grant_id', 'nonce', 'policy_version', 'request_id', 'purpose'}
 INTENT_REQUIRED = {'protocol', 'type', 'environment', 'actor_account', 'authority', 'asset', 'amount_ceiling', 'nonce', 'policy_version', 'request_id'}
 ENVELOPE_FIELDS = {'protocol', 'type', 'id', 'environment', 'sender', 'receiver', 'message_type', 'causality', 'payload_digest', 'expires_at', 'created_at'}
+ACK_FIELDS = {'protocol', 'type', 'allocation_id', 'environment', 'source_authority', 'destination_authority', 'import_sequence', 'imported_at'}
+RETURN_REQUEST_FIELDS = {'protocol', 'type', 'allocation_id', 'environment', 'source_authority', 'destination_authority', 'asset', 'amount', 'recipient_account', 'destination_sequence', 'requested_at'}
+RETURN_CERT_FIELDS = {'protocol', 'type', 'allocation_id', 'environment', 'source_authority', 'destination_authority', 'asset', 'amount', 'source_sequence', 'returned_at'}
+ROTATION_FIELDS = {'protocol', 'type', 'authority', 'environment', 'old_epoch', 'new_epoch', 'old_key_id', 'new_key_id', 'new_public_hex', 'grace_seconds', 'rotated_at'}
+OBSERVATION_FIELDS = {'protocol', 'type', 'observer', 'observed', 'environment', 'allocations', 'issued_at'}
+MESSAGE_FIELDS = {'import_ack': ACK_FIELDS, 'return_request': RETURN_REQUEST_FIELDS, 'return_certificate': RETURN_CERT_FIELDS, 'rotation': ROTATION_FIELDS, 'observation': OBSERVATION_FIELDS}
 CERT_FIELDS = {'protocol', 'type', 'allocation_id', 'environment', 'source_authority', 'source_epoch', 'destination_authority', 'asset', 'amount', 'recipient_account', 'policy_version', 'commit_sequence', 'commit_digest', 'issued_at'}
 
 
@@ -205,6 +213,35 @@ def validate_certificate(body, environment):
         short_str(body[f], f)
     if not isinstance(body['source_epoch'], int) or not isinstance(body['commit_sequence'], int) or not isinstance(body['issued_at'], int):
         raise ProtocolError('certificate_integers')
+    return body
+
+
+def validate_message(message_type, body, environment):
+    """Field-exact validation of the small inter-domain control messages (certificates have their own validator)."""
+    if message_type == 'allocation_certificate':
+        return validate_certificate(body, environment)
+    fields = MESSAGE_FIELDS.get(message_type)
+    if fields is None:
+        raise ProtocolError('unsupported_message_type', {'type': message_type})
+    if not isinstance(body, dict) or set(body) != fields:
+        raise ProtocolError('message_fields', {'type': message_type, 'expected': sorted(fields), 'got': sorted(body) if isinstance(body, dict) else None})
+    if body['protocol'] != PROTOCOL or body['type'] != message_type or body['environment'] != environment:
+        raise ProtocolError('message_binding', {'type': message_type})
+    for k, v in body.items():
+        if isinstance(v, str):
+            short_str(v, k)
+        elif isinstance(v, bool) or (not isinstance(v, (int, list)) and v is not None):
+            raise ProtocolError('message_value', {'field': k})
+    if 'amount' in body:
+        amount(body['amount'])
+    if 'asset' in body:
+        asset_id(body['asset'])
+    if message_type == 'observation':
+        if not isinstance(body['allocations'], list) or len(body['allocations']) > 10000:
+            raise ProtocolError('observation_list')
+        for a in body['allocations']:
+            if not isinstance(a, dict) or set(a) != {'allocation_id', 'commit_sequence', 'commit_digest', 'state'} or not isinstance(a['commit_sequence'], int):
+                raise ProtocolError('observation_item')
     return body
 
 

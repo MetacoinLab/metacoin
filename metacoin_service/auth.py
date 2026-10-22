@@ -24,7 +24,7 @@ PERMISSIONS = {
               'x402:sell', 'admin:credentials', 'admin:keys', 'template:write',
               'model:admin', 'model:use', 'knowledge:write', 'knowledge:read', 'calibration:write', 'verification:submit', 'node:admin', 'approval:propose', 'approval:decide', 'statement:read',
               'work:read', 'work:request', 'work:award', 'work:accept', 'work:pay', 'work:dispute', 'work:audit_grant', 'work:treasury', 'work:provider_admin',
-              'native:read', 'native:transfer', 'native:admin', 'native:export', 'native:dispute'},
+              'native:read', 'native:transfer', 'native:admin', 'native:export', 'native:transport', 'native:dispute'},
     'worker': {'job:claim', 'job:read', 'job:publish', 'artifact:read_input', 'history:read'},
     'reviewer': {'job:read', 'review:read_evidence', 'review:decide', 'artifact:read_private_assigned',
                  'history:read', 'contract:read', 'action:read', 'budget:read', 'verification:submit', 'approval:decide', 'work:read', 'work:resolve', 'work:dispute', 'native:read', 'native:dispute'},
@@ -32,7 +32,7 @@ PERMISSIONS = {
     'provider': {'job:read', 'contract:read', 'history:read', 'work:read', 'work:offer', 'work:ack', 'work:deliver', 'work:dispute', 'artifact:read_public', 'native:read'},
     # a native actor earns as a provider and pays as a buyer with the same identity and balance; no administrative powers
     'actor': {'job:read', 'job:submit', 'job:read_private', 'contract:create', 'contract:read', 'contract:freeze', 'artifact:read_public', 'artifact:read_private', 'artifact:export', 'history:read', 'budget:read', 'verification:submit',
-              'work:read', 'work:request', 'work:award', 'work:accept', 'work:pay', 'work:offer', 'work:ack', 'work:deliver', 'work:dispute', 'native:read', 'native:transfer', 'native:dispute'},
+              'work:read', 'work:request', 'work:award', 'work:accept', 'work:pay', 'work:offer', 'work:ack', 'work:deliver', 'work:dispute', 'native:read', 'native:transfer', 'native:dispute', 'native:export'},
 }
 PEPPER_KEY = 'credential_pepper'
 

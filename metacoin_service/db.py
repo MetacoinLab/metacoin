@@ -491,6 +491,12 @@ MIGRATIONS = [
     CREATE TABLE native_disputes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, opened_by TEXT NOT NULL, respondent_account TEXT, held_amount INTEGER NOT NULL DEFAULT 0, claim TEXT NOT NULL, state TEXT NOT NULL, resolution_json TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     CREATE TABLE native_receipts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, key_id TEXT NOT NULL, created_at INTEGER NOT NULL);
     """),
+    ('043_native_authority_keys', """
+    CREATE TABLE native_authority_keys (domain_id TEXT NOT NULL, epoch INTEGER NOT NULL, key_id TEXT NOT NULL, public_hex TEXT NOT NULL, local INTEGER NOT NULL DEFAULT 0, key_file TEXT, state TEXT NOT NULL, valid_from INTEGER NOT NULL, retired_at INTEGER, grace_until INTEGER, recorded_at INTEGER NOT NULL, PRIMARY KEY (domain_id, epoch));
+    CREATE INDEX native_authority_keys_kid ON native_authority_keys(key_id);
+    CREATE INDEX native_envelopes_dir_state ON native_envelopes(workspace, direction, state, receiver);
+    CREATE INDEX native_allocations_state ON native_allocations(workspace, direction, state);
+    """),
 ]
 
 

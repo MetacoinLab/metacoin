@@ -18,6 +18,7 @@ class Native:
     def __init__(self, settings, services):
         self.settings, self.svc = settings, services
         self.environment = ENV_OF.get(settings.provider_mode, 'dev')
+        self._local = {}
 
     # ---- domain --------------------------------------------------------------------------------------------------------------
     def _key_path(self, name):
@@ -37,7 +38,21 @@ class Native:
         r = db.execute('SELECT * FROM native_domains WHERE workspace=?', (workspace,)).fetchone()
         if r is None:
             raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'domain_not_initialized', 'note': 'POST /api/v1/native/domain (native:admin) initializes this instance as a settlement domain'})
-        return r
+        self._local[workspace] = r['id']
+        return self.rollback_check(db, r)
+
+    def network_of(self, asset):
+        """Journal scope for a native asset: this domain (claims on another domain are held in this domain's ledger)."""
+        if self._local:
+            return next(iter(self._local.values()))
+        try:
+            with self.svc.db.read() as db:
+                r = db.execute('SELECT id, workspace FROM native_domains LIMIT 1').fetchone()
+            if r is not None:
+                self._local[r['workspace']] = r['id']; return r['id']
+        except Exception:
+            pass
+        return asset.split(':')[1]
 
     def init_domain(self, db, principal, body):
         """Make this instance a settlement domain: identity, authority key (generated locally), epoch 1, operator and host labels."""
@@ -91,7 +106,7 @@ class Native:
 
     def authority_sign(self, db, workspace, message_type, body):
         d = self.domain(db, workspace)
-        key = crypto.load_signing_key(self._key_path('authority-' + d['id']))
+        key = crypto.load_signing_key(self._current_key_path(db, d))
         return crypto.sign(key, P.signing_bytes(message_type, body)), d['authority_key_id']
 
     def default_asset(self, db, workspace):
@@ -149,7 +164,7 @@ class Native:
         cats = ledger.categories(db, principal.workspace, asset, d['id'], aid)
         earned = db.execute("SELECT COALESCE(SUM(amount - settled_amount),0) FROM native_obligations WHERE workspace=? AND payee_account=? AND asset=? AND state IN ('open','partial')", (principal.workspace, aid, asset)).fetchone()[0]
         owed = db.execute("SELECT COALESCE(SUM(amount - settled_amount),0) FROM native_obligations WHERE workspace=? AND payer_account=? AND asset=? AND state IN ('open','partial')", (principal.workspace, aid, asset)).fetchone()[0]
-        pend = db.execute("SELECT COALESCE(SUM(amount),0) FROM native_allocations WHERE workspace=? AND recipient_account=? AND direction='import' AND state='imported'", (principal.workspace, aid)).fetchone()[0]
+        pend = db.execute("SELECT COALESCE(SUM(a.amount),0) FROM native_allocations a WHERE a.workspace=? AND a.recipient_account=? AND a.direction='import' AND a.state='imported' AND EXISTS (SELECT 1 FROM native_envelopes e WHERE e.direction='out' AND e.message_type='import_ack' AND e.causality=a.id AND e.state='queued')", (principal.workspace, aid)).fetchone()[0]
         exports = db.execute("SELECT COALESCE(SUM(amount),0) FROM native_allocations WHERE workspace=? AND source_account=? AND direction='export' AND state IN ('reserved','export_committed','certified','imported')", (principal.workspace, aid)).fetchone()[0]
         private = principal.id == r['principal_id'] or principal.can('native:admin')
         return {'schema': 'metacoin-native-account/v0', 'id': aid, 'kind': r['kind'], 'label': r['label'], 'principal_id': r['principal_id'] if private else None, 'domain': d['id'], 'asset': asset,
@@ -370,7 +385,7 @@ def _hooks(cls):
     def reserve_for_award(self, db, principal, aid, terms, ceiling):
         """Atomically with the award: the payer's own funds move available -> reserved (ref award). Treasury-funded awards reserve
         from the treasury account (its allocation was already checked against confirmed fee revenue)."""
-        d = self.domain(db, principal.workspace); asset = terms['payment']['asset']
+        d = self.domain(db, principal.workspace); asset = terms['payment']['asset']; self.require_normal(d, 'award reservation')
         if not self.is_native_asset(db, principal.workspace, asset):
             raise ServiceError('VALIDATION', {'code': 'asset_unknown_here', 'asset': asset})
         funding = terms['payment'].get('funding', 'requester')
@@ -411,8 +426,7 @@ def _hooks(cls):
         """Settle one economy entitlement natively from the award reservation: reserved -> committed_outgoing -> payee available,
         the payer account's signed intent recorded, one commit sequence, a signed receipt. Idempotent by the entitlement."""
         d = self.domain(db, principal.workspace); asset = e['asset']
-        if d['recovery_state'] != 'normal':
-            raise ServiceError('CONFLICT', {'code': 'domain_quarantined', 'recovery_state': d['recovery_state']})
+        self.require_normal(d, 'settlement')
         kind = e['kind']; payer = self._award_payer(db, award, terms)
         if kind == 'provider':
             payee = self._provider_account(db, award); ref = ('work_milestone', e['milestone_id'])
@@ -478,3 +492,5 @@ def _hooks(cls):
 
 
 _hooks(Native)
+from .domains import _mixin as _domains_mixin   # noqa: E402
+_domains_mixin(Native)

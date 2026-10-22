@@ -77,3 +77,80 @@ def mount(app, svc, run, read_body, API):
     async def native_spec(request: Request):
         from . import protocol
         return await run(request, False, lambda db, p: protocol.spec())
+
+    # ---- inter-domain: peers, allocations, transport, rotation, recovery (order §7–§9, §16) ----------------------------------
+    @app.post(API + '/native/peers', status_code=201)
+    async def native_peer_pin(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (N.pin_peer(db, p, body), 201), 'native.peer.pin', raw)
+
+    @app.get(API + '/native/peers/{pid}')
+    async def native_peer(request: Request, pid: str):
+        return await run(request, False, lambda db, p: N.peer_view(db, p, pid))
+
+    @app.post(API + '/native/allocations/export', status_code=201)
+    async def native_export(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (N.export_create(db, p, body), 201), 'native.allocation.export', raw)
+
+    @app.post(API + '/native/allocations/recover')
+    async def native_recover_exports(request: Request):
+        raw = await request.body(); read_body(request, raw)
+        return await run(request, True, lambda db, p: N.recover_exports(db, p), 'native.allocation.recover', raw)
+
+    @app.post(API + '/native/allocations/{aid}/resume')
+    async def native_export_resume(request: Request, aid: str):
+        raw = await request.body(); read_body(request, raw)
+        return await run(request, True, lambda db, p: N.export_resume(db, p, aid), 'native.allocation.resume', raw)
+
+    @app.post(API + '/native/allocations/{aid}/return')
+    async def native_return(request: Request, aid: str):
+        raw = await request.body(); read_body(request, raw)
+        return await run(request, True, lambda db, p: N.return_request(db, p, {'allocation_id': aid}), 'native.allocation.return', raw)
+
+    @app.get(API + '/native/allocations')
+    async def native_allocations(request: Request):
+        return await run(request, False, lambda db, p: N.allocations(db, p, request.query_params.get('direction'), request.query_params.get('state')))
+
+    @app.get(API + '/native/allocations/{aid}')
+    async def native_allocation(request: Request, aid: str):
+        return await run(request, False, lambda db, p: N.allocation_view(db, p, aid))
+
+    @app.get(API + '/native/transport/outbox')
+    async def native_outbox(request: Request):
+        q = request.query_params
+        return await run(request, False, lambda db, p: N.outbox(db, p, q.get('receiver'), q.get('transport', 'online'), q.get('all') == '1'))
+
+    @app.post(API + '/native/transport/outbox/mark')
+    async def native_outbox_mark(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: N.outbox_mark(db, p, body), 'native.transport.mark', raw)
+
+    @app.post(API + '/native/transport/inbox')
+    async def native_inbox(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: N.inbox(db, p, body, request.query_params.get('transport', 'online'), len(raw)), 'native.transport.inbox', raw)
+
+    @app.post(API + '/native/transport/gc')
+    async def native_transport_gc(request: Request):
+        raw = await request.body(); read_body(request, raw)
+        return await run(request, True, lambda db, p: N.transport_gc(db, p), 'native.transport.gc', raw)
+
+    @app.post(API + '/native/transport/observation', status_code=201)
+    async def native_observation(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (N.observation(db, p, body.get('peer')), 201), 'native.transport.observation', raw)
+
+    @app.post(API + '/native/domain/rotate')
+    async def native_rotate(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: N.rotate_authority(db, p, body), 'native.domain.rotate', raw)
+
+    @app.get(API + '/native/recovery')
+    async def native_recovery(request: Request):
+        return await run(request, False, lambda db, p: N.recovery_view(db, p))
+
+    @app.post(API + '/native/recovery/reconcile')
+    async def native_reconcile(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: N.recovery_reconcile(db, p, body), 'native.recovery.reconcile', raw)

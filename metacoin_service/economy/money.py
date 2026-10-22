@@ -107,7 +107,7 @@ class Money:
         if asset == 'local-chain-token':
             chain = self.chain(); return chain.network if chain else 'local-chain'
         if terms_mod.is_native_asset(asset):
-            return asset.split(':')[1]                                 # the issuing domain (journal scope asset@domain)
+            return self.svc.native.network_of(asset)                     # this domain's ledger (a claim on another domain is held here)
         return 'application'
 
     def _treasury_address(self, db, workspace, asset):
