@@ -1,0 +1,238 @@
+{
+ "schema": "metacoin-verification-results/v1",
+ "candidate": "715938997629eb590e28dc0dcd88087551c0b675",
+ "suites": {
+  "unit_full_inherited_plus_decision": {
+   "log": "unit-full.log",
+   "tests": 287,
+   "seconds": 537.977,
+   "ok": true,
+   "failures": null
+  },
+  "science": {
+   "log": "science-suite.log",
+   "tests": 18,
+   "seconds": 0.808,
+   "ok": true,
+   "failures": null
+  },
+  "local_chain": {
+   "log": "local-chain-suite.log",
+   "tests": 7,
+   "seconds": 3.979,
+   "ok": true,
+   "failures": null
+  },
+  "decision_sampling": {
+   "log": "decision-sampling.log",
+   "tests": 2,
+   "seconds": 2.37,
+   "ok": true,
+   "failures": null
+  },
+  "decision_surfaces": {
+   "log": "decision-surfaces.log",
+   "tests": 3,
+   "seconds": 1.761,
+   "ok": true,
+   "failures": null
+  }
+ },
+ "journeys": {
+  "passed": 26,
+  "failed": 0,
+  "blocked": 0,
+  "total": 26,
+  "revision": "715938997629eb590e28dc0dcd88087551c0b675"
+ },
+ "journey_results": [
+  {
+   "journey": 1,
+   "status": "passed",
+   "title": "repeated identical total measurements remain ambiguous (witness: both states predict 120)",
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "status": "passed",
+   "title": "a complementary measurement resolves the declared two-state decision",
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "status": "passed",
+   "title": "near-parallel measurements fail to separate states when noise masks their difference",
+   "caveat": null
+  },
+  {
+   "journey": 4,
+   "status": "passed",
+   "title": "touching closed error intervals are not treated as separated (gap 80 = 2*40)",
+   "caveat": null
+  },
+  {
+   "journey": 5,
+   "status": "passed",
+   "title": "the generated ambiguity witness passes a separate exact checker (verification class analytical, independent implementati",
+   "caveat": null
+  },
+  {
+   "journey": 6,
+   "status": "passed",
+   "title": "a fabricated witness (observation outside one noise box) fails that checker; the genuine one passes",
+   "caveat": null
+  },
+  {
+   "journey": 7,
+   "status": "passed",
+   "title": "a budget that buys no useful information causes no useless acquisition charge (no terms, no reservation, no journal entr",
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "status": "passed",
+   "title": "exact finite planning agrees with an independent brute-force oracle on the small menu",
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "status": "passed",
+   "title": "scaling an observation row and its noise consistently preserves the separation decision",
+   "caveat": null
+  },
+  {
+   "journey": 10,
+   "status": "passed",
+   "title": "actual observations outside all hypotheses return model inconsistency (no nearest hypothesis is chosen)",
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "status": "passed",
+   "title": "a sample plan meets its declared finite-population bound, is minimal for its target, is bound before the challenge, and ",
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "status": "passed",
+   "title": "a single-defect target refuses an insufficient sample budget: achieved bound and required budget reported, alpha and m n",
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "status": "passed",
+   "title": "a changed frame digest / scope / model / result root invalidates the attached sampling claim (another job refused; chang",
+   "caveat": null
+  },
+  {
+   "journey": 14,
+   "status": "passed",
+   "title": "a same-implementation check cannot satisfy a distinct independent requirement merely through its class or rank (and the ",
+   "caveat": null
+  },
+  {
+   "journey": 15,
+   "status": "passed",
+   "title": "a final-transition heat audit (passed) cannot establish an entire-trajectory claim; it satisfies only its own claim",
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "status": "passed",
+   "title": "an audit outcome cannot be hidden by retrying until a passing challenge appears: one bound attempt per plan, every attem",
+   "caveat": "the corrupted item is detected only when sampled; the attempt policy holds either way"
+  },
+  {
+   "journey": 17,
+   "status": "passed",
+   "title": "valid negative / ambiguous / inconsistent / failed-acquisition deliveries receive exactly the payment the frozen terms d",
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "status": "passed",
+   "title": "duplicate prepare/submit requests reconcile without another charge: one entitlement, one intent, journal consistent",
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "status": "passed",
+   "title": "an analysis-only credential cannot purchase; another principal and unknown ids never leak private witnesses",
+   "caveat": null
+  },
+  {
+   "journey": 20,
+   "status": "passed",
+   "title": "a crash at evidence publication during acquisition resumes without duplicate publication or a second budget reservation",
+   "caveat": null
+  },
+  {
+   "journey": 21,
+   "status": "passed",
+   "title": "a common-model defect survives identical replicas and the full portfolio alike, and is reported as residual risk with a ",
+   "caveat": null
+  },
+  {
+   "journey": 22,
+   "status": "passed",
+   "title": "a zero-failure campaign on a representative suite retains a nonzero exact one-sided bound",
+   "caveat": null
+  },
+  {
+   "journey": 23,
+   "status": "passed",
+   "title": "an authorized bundle replays decision witnesses and sampling calculations in a clean process without service secrets",
+   "caveat": null
+  },
+  {
+   "journey": 24,
+   "status": "passed",
+   "title": "browser journey",
+   "caveat": null
+  },
+  {
+   "journey": 25,
+   "status": "passed",
+   "title": "existing legacy work contracts (determination template) and signed evidence remain readable, with their policy semantics",
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "status": "passed",
+   "title": "a clean exported source tree installs from its lock and reproduces the documented new journey",
+   "caveat": "the exported tree has no .git; the service reports loaded_revision \"unavailable\" there"
+  }
+ ],
+ "browser": {
+  "passed": 19,
+  "failed": 0,
+  "screenshots": [
+   "01-decisions-overview.png",
+   "02-decision-ambiguous.png",
+   "03-plan-preview.png",
+   "04-request.png",
+   "05-plan-reserved.png",
+   "06-assurance-missing.png",
+   "07-assurance-satisfied.png",
+   "08-decision-resolved.png",
+   "09-narrow-decision.png"
+  ]
+ },
+ "dependencies": {
+  "compute_interpreter": true,
+  "torch": true,
+  "python": "3.12.3",
+  "local_chain": true
+ },
+ "environment": "DGX Spark GB10; API venv Python 3.12 (fastapi, x402 2.24.0 optional); compute /usr/bin/python3 numpy/scipy/torch; Playwright chromium in a scratch venv; skipped tests are optional hosts/hardware (13)",
+ "journey_26": {
+  "archive_sha256": "3adba62636ae0e38743d0d4373824cabe77df5042ad9867b0b6a7bec6613a32a",
+  "ok": true,
+  "steps": 8
+ },
+ "privacy_scan": {
+  "files": 31,
+  "hits": 0,
+  "patch_hits": []
+ }
+}

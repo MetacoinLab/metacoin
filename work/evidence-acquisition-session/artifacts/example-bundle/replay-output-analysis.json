@@ -1,0 +1,79 @@
+{
+ "integrity": {
+  "ok": true,
+  "checks": [
+   {
+    "check": "schema",
+    "ok": true
+   },
+   {
+    "check": "file:inputs.json",
+    "ok": true
+   },
+   {
+    "check": "file:job.json",
+    "ok": true
+   },
+   {
+    "check": "file:result.json",
+    "ok": true
+   },
+   {
+    "check": "no_undeclared_members",
+    "ok": true,
+    "detail": []
+   },
+   {
+    "check": "statement_manifest_digest",
+    "ok": true
+   }
+  ]
+ },
+ "signatures": {
+  "consistent": true,
+  "trusted": true,
+  "checks": [
+   {
+    "check": "manifest_signature",
+    "ok": true,
+    "under_supplied_root": true
+   }
+  ],
+  "note": "trusted only under a trust root supplied by the recipient; the bundle's own key proves consistency, not provenance"
+ },
+ "scientific_replay": {
+  "kind": "decision_observability",
+  "independent_checker": {
+   "ok": true,
+   "checks": [
+    {
+     "check": "decision_relevant_pair_count",
+     "ok": true,
+     "detail": {
+      "recomputed": 1
+     }
+    },
+    {
+     "check": "every_pair_classified_once",
+     "ok": true
+    },
+    {
+     "check": "witness:hot_cell_1|hot_cell_2",
+     "ok": true
+    },
+    {
+     "check": "conclusion_consistent",
+     "ok": true
+    }
+   ],
+   "checker": "decision-witness-checker/v1",
+   "scope": "whole result re-decided from the raw hypotheses and views by an independent implementation (no producer projections used)"
+  },
+  "kernel_recomputation_identical": true,
+  "conclusion": "AMBIGUOUS",
+  "ok": true
+ },
+ "sampling": [],
+ "ok": true,
+ "verdict": "integrity ok; signatures trusted; scientific replay ok (independent checker + kernel recomputation); 0 sampling record(s)"
+}

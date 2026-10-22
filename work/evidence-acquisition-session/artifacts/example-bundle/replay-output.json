@@ -1,0 +1,88 @@
+{
+ "integrity": {
+  "ok": true,
+  "checks": [
+   {
+    "check": "schema",
+    "ok": true
+   },
+   {
+    "check": "file:acquisition-plan.json",
+    "ok": true
+   },
+   {
+    "check": "file:delivery.json",
+    "ok": true
+   },
+   {
+    "check": "file:inputs.json",
+    "ok": true
+   },
+   {
+    "check": "file:job.json",
+    "ok": true
+   },
+   {
+    "check": "file:result.json",
+    "ok": true
+   },
+   {
+    "check": "file:verifications/vf_a8b9ccf4cf08.json",
+    "ok": true
+   },
+   {
+    "check": "no_undeclared_members",
+    "ok": true,
+    "detail": []
+   },
+   {
+    "check": "statement_manifest_digest",
+    "ok": true
+   }
+  ]
+ },
+ "signatures": {
+  "consistent": true,
+  "trusted": true,
+  "checks": [
+   {
+    "check": "manifest_signature",
+    "ok": true,
+    "under_supplied_root": true
+   },
+   {
+    "check": "verifications/vf_a8b9ccf4cf08.json",
+    "ok": true,
+    "under_supplied_root": true,
+    "class": "analytical",
+    "outcome": "passed"
+   }
+  ],
+  "note": "trusted only under a trust root supplied by the recipient; the bundle's own key proves consistency, not provenance"
+ },
+ "scientific_replay": {
+  "kind": "evidence_acquisition",
+  "independent_checker": {
+   "ok": true,
+   "checks": [
+    {
+     "check": "surviving_set_recomputed",
+     "ok": true,
+     "detail": {
+      "recomputed": [
+       "hot_cell_1"
+      ]
+     }
+    }
+   ],
+   "checker": "decision-witness-checker/v1"
+  },
+  "kernel_recomputation_identical": true,
+  "outcome": "DECISION_RESOLVED",
+  "plan_digest_bound": true,
+  "ok": true
+ },
+ "sampling": [],
+ "ok": true,
+ "verdict": "integrity ok; signatures trusted; scientific replay ok (independent checker + kernel recomputation); 0 sampling record(s)"
+}

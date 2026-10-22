@@ -1,0 +1,71 @@
+/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-ws/metacoin-evidence-acquisition/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[1] PASSED: repeated identical total measurements remain ambiguous (witness: both states predict 120)
+[2] PASSED: a complementary measurement resolves the declared two-state decision
+[5] PASSED: the generated ambiguity witness passes a separate exact checker (verification class analytical, independent implementation)
+[7] PASSED: a budget that buys no useful information causes no useless acquisition charge (no terms, no reservation, no journal entry)
+[8] PASSED: exact finite planning agrees with an independent brute-force oracle on the small menu
+[10] PASSED: actual observations outside all hypotheses return model inconsistency (no nearest hypothesis is chosen)
+[17] PASSED: valid negative / ambiguous / inconsistent / failed-acquisition deliveries receive exactly the payment the frozen terms define; an invalid delivery earns nothing
+[19] PASSED: an analysis-only credential cannot purchase; another principal and unknown ids never leak private witnesses
+[23] PASSED: an authorized bundle replays decision witnesses and sampling calculations in a clean process without service secrets
+the payment the frozen terms define; an invalid delivery earns nothing",
+   "status": "passed",
+   "evidence": {
+    "amounts": {
+     "ACQUISITION_FAILED": [
+      "diagnostic",
+      2
+     ],
+     "DECISION_AMBIGUOUS": [
+      "complete",
+      3
+     ],
+     "MODEL_INCONSISTENT": [
+      "complete",
+      3
+     ],
+     "DECISION_RESOLVED": [
+      "complete",
+      3
+     ],
+     "DELIVERY_INVALID": [
+      "none",
+      null
+     ]
+    },
+    "seconds": 37.69
+   },
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "title": "an analysis-only credential cannot purchase; another principal and unknown ids never leak private witnesses",
+   "status": "passed",
+   "evidence": {
+    "materialize": 403,
+    "witnesses_other_principal": 403,
+    "seconds": 2.543
+   },
+   "caveat": null
+  },
+  {
+   "journey": 23,
+   "title": "an authorized bundle replays decision witnesses and sampling calculations in a clean process without service secrets",
+   "status": "passed",
+   "evidence": {
+    "members": 8,
+    "integrity": true,
+    "trusted": true,
+    "science": true,
+    "seconds": 0.076
+   },
+   "caveat": null
+  }
+ ],
+ "browser": null,
+ "passed": 9,
+ "failed": 0,
+ "blocked": 0,
+ "total": 9
+}

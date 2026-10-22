@@ -93,7 +93,7 @@
    }
   ],
   "question": "may the heater start?",
-  "private_label": "DECISION_TEST"
+  "private_label": "EXAMPLE_SYNTHETIC"
  },
  "example_menu": [
   {

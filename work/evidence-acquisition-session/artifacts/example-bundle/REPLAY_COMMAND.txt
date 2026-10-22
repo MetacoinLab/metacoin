@@ -1,0 +1,2 @@
+python -m metacoin_service.decision.replay decision-bundle-example.zip --trust-root 09b1d9481b981798e72e1c757a778e72c07463fd8917d51bf34cc08b91481168 --json
+(exit code 0)
