@@ -84,7 +84,7 @@ def create_principal(db, name, role, workspace):
 
 AUTOMATION_OPERATIONS = {'contract:create', 'contract:read', 'contract:freeze', 'job:submit', 'job:read', 'job:read_private',
                          'review:request', 'artifact:export', 'history:read', 'budget:read', 'action:read',
-                         'model:use', 'knowledge:read', 'knowledge:write', 'verification:submit', 'statement:read'}
+                         'model:use', 'knowledge:read', 'knowledge:write', 'verification:submit', 'statement:read', 'native:read'}      # native:transfer is never an automation scope: spending needs an actor credential or an agent grant
 
 
 def issue_scoped_credential(db, issuer, operations, lifetime_seconds):

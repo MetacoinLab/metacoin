@@ -47,7 +47,7 @@ def _verifications(db, job):
     return db.execute("SELECT * FROM verification_jobs WHERE target_job_id=? ORDER BY created_at", (job['id'],)).fetchall() if job else []
 
 
-def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, provider_execution='local_worker'):
+def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, provider_execution='local_worker', price_cap=None):
     """Returns the decision candidate. `job` is a sqlite row (or None when nothing executed)."""
     terms_mod.validate(terms, 'frozen')
     ms = next((m for m in terms['milestones'] if m['key'] == milestone_key), None)
@@ -202,6 +202,8 @@ def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, 
             decision, reason, pay_class = 'accepted', 'all predicates passed; outcome %s accepted' % science, 'complete'
     amount = pol['payment_rule'].get(pay_class, 0) if pay_class != 'none' else 0
     amount = min(amount, ms['max_payment'])
+    if price_cap is not None and pay_class in ('complete', 'partial'):
+        amount = min(amount, price_cap)                                             # the agreed price of the awarded offer bounds what the provider is owed
     return {'schema': 'metacoin-acceptance-evaluation/v1', 'milestone': milestone_key, 'decision_candidate': decision, 'reason': reason,
             'execution': execution, 'science': science, 'payment_class': pay_class, 'payable_amount': amount, 'asset': terms['payment']['asset'],
             'trace': trace, 'policy_schema': pol['schema'], 'policy_semantics': terms_mod.policy_semantics(pol['schema']),

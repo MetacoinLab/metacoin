@@ -1,0 +1,80 @@
+{
+ "schema": "metacoin-journeys-native/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "revision": "93d1ae5cf9076bd40b3b6b5259524daefc5822ec",
+ "python": "3.12.3",
+ "started_at": 1792667921,
+ "finished_at": 1792667931,
+ "results": [
+  {
+   "journey": 21,
+   "title": "The complete 80-unit example: real terrain work, native settlement, a real second purchase and a treasury award.",
+   "status": "passed",
+   "evidence": {
+    "purchase_before_earning": 400,
+    "after_step_2": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_available_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 32,
+     "s80": 9,
+     "v80": 3,
+     "treasury": 1
+    },
+    "total": 80,
+    "fees_additional_to_provider": true,
+    "terrain_outcome": "FEASIBLE",
+    "seconds": 4.206
+   },
+   "caveat": null
+  },
+  {
+   "journey": 30,
+   "title": "Partial delivery and later changed conditions obey the frozen payment terms.",
+   "status": "passed",
+   "evidence": {
+    "decision": "diagnostic",
+    "payable": 3,
+    "settled": 3,
+    "authorized_max": 6,
+    "amend_after_close": 422,
+    "award_terms_unchanged": true,
+    "seconds": 1.28
+   },
+   "caveat": null
+  },
+  {
+   "journey": 32,
+   "title": "Fees and awards preserve conservation and the objective/subjective issuance separation.",
+   "status": "passed",
+   "evidence": {
+    "conserved": true,
+    "fixture_funding": 80,
+    "held": 80,
+    "journal_consistent": true,
+    "replay_differences": [],
+    "invariants_failed": [],
+    "conformance_suite_rc": 0,
+    "identity_digests": {
+     "WHITEPAPER.md": "3ac73c38b2903ae2871adaa4eab31e72562d69dbb40a1c9a6c01775c76093d10",
+     "TOKENOMICS.md": "9e1fe1a3654de7d47417440b0d16a3af4d08870222b07461680cddaaf55654be",
+     "protocol/ledger_anchor.json": "1f420ca3f7c103ad268d2b0e2a56ccdd759dc7190b88671469fad77d1ef45202",
+     "protocol/identity_text.py": "00ec00d11d7cf7b6d0b4fabf9edccb7852227098d25cdb65a9c025ce4acfb660"
+    },
+    "seconds": 1.678
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 3,
+ "failed": 0,
+ "blocked": 0,
+ "total": 3
+}

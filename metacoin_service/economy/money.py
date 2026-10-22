@@ -306,6 +306,7 @@ class Money:
             return self._observe_settled(db, principal, iid, e, award, terms, final, 'journal:' + iid, obs)
         if i['rail'] == 'native':
             ni = self.svc.native.settle_entitlement(db, principal, i, e, award, terms, final)
+            final = ni['amount_final']                                                   # bounded by the native obligation (offer price); headroom above it is released, never owed
             obs = {'source': 'native domain commit', 'at': now(), 'amount': final, 'reference': 'native:' + ni['id'], 'commit_sequence': ni['commit_sequence'], 'domain': ni['domain'], 'finality': 'domain_local_settlement'}
             return self._observe_settled(db, principal, iid, e, award, terms, final, 'native:' + ni['id'], obs)
         chain = self.chain(); auth = json.loads(i['authorization_json'])

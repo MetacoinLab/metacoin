@@ -1,0 +1,172 @@
+{
+ "schema": "metacoin-journeys-native/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "revision": "93d1ae5cf9076bd40b3b6b5259524daefc5822ec",
+ "python": "3.12.3",
+ "started_at": 1792667321,
+ "finished_at": 1792667333,
+ "results": [
+  {
+   "journey": 1,
+   "title": "x402 disabled and the facilitator blocked: accounts created, work accepted and settled natively.",
+   "status": "passed",
+   "evidence": {
+    "x402": {
+     "disabled": true,
+     "installed": false,
+     "required_by_native_core": false,
+     "role": "optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement"
+    },
+    "native": "dom-a",
+    "facilitator_url": "http://127.0.0.1:1/blocked",
+    "award": "wa_395a76d88c4fad95",
+    "rail": "native",
+    "machine": 5,
+    "requester": 75,
+    "revision": "93d1ae5cf9076bd40b3b6b5259524daefc5822ec",
+    "seconds": 2.283
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "Read-only credentials cannot authorize or spend; a delegated actor cannot expand its limits.",
+   "status": "passed",
+   "evidence": {
+    "viewer": 403,
+    "scoped_readonly": 403,
+    "agent_within": 201,
+    "agent_over_total": 400,
+    "agent_over_per_action": 400,
+    "agent_widening_grant": 403,
+    "owner_after": 17,
+    "seconds": 0.113
+   },
+   "caveat": null
+  },
+  {
+   "journey": 21,
+   "title": "The complete 80-unit example: real terrain work, native settlement, a real second purchase and a treasury award.",
+   "status": "passed",
+   "evidence": {
+    "purchase_before_earning": 400,
+    "after_step_2": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_available_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 32,
+     "s80": 9,
+     "v80": 3,
+     "treasury": 1
+    },
+    "total": 80,
+    "fees_additional_to_provider": true,
+    "terrain_outcome": "FEASIBLE",
+    "seconds": 4.737
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "A cheap offer that violates energy reserve, deadline, permission or contact policy is ineligible.",
+   "status": "passed",
+   "evidence": {
+    "cheap_excluded": [
+     "resource_violation:energy_reserve_violation",
+     "resource_violation:thermal_permission_missing"
+    ],
+    "eligible": [
+     "wo_d5908fd94f0ec9e1"
+    ],
+    "awarded_provider": "pv_84c104b2391b",
+    "seconds": 0.159
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "A cheap offer that violates energy reserve, deadline, permission or contact policy is ineligible.",
+   "status": "failed",
+   "evidence": {
+    "exception": "AssertionError",
+    "detail": "{'error': True, 'code': 'BUDGET_EXHAUSTED', 'action': 'campaign exposure plus this amount exceeds the fixed cap; nothing dispatched', 'detail': {'code': 'reservation_short', 'reserved': 9, 'requested': 10, 'note': 'the award reservation must cover every settlement leg'}}",
+    "trace": "d'], 'r80')\n                                      ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_native.py\", line 201, in pay_all\n    st, s = self.call('post', '/api/v1/work/intents/' + i['id'] + '/submit', role=who, json={}); assert st == 200, s\n                                                                                                        ^^^^^^^^^\nAssertionError: {'error': True, 'code': 'BUDGET_EXHAUSTED', 'action': 'campaign exposure plus this amount exceeds the fixed cap; nothing dispatched', 'detail': {'code': 'reservation_short', 'reserved': 9, 'requested': 10, 'note': 'the award reservation must cover every settlement leg'}}\n",
+    "last_award_errors": [
+     {
+      "award": {
+       "error": true,
+       "code": "BUDGET_EXHAUSTED",
+       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
+       "detail": {
+        "code": "insufficient_available",
+        "available": 0,
+        "requested": 10,
+        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
+       }
+      },
+      "offer": "offered",
+      "eligibility": {
+       "eligible": true,
+       "reasons": []
+      },
+      "who": "m80",
+      "template": "determination"
+     }
+    ],
+    "seconds": 1.284
+   },
+   "caveat": null
+  },
+  {
+   "journey": 40,
+   "title": "Migration from the preserved previous database and safe recovery are verified on an isolated copy.",
+   "status": "passed",
+   "evidence": {
+    "before": {
+     "schema": "040_work_programs_pricing_challenges",
+     "jobs": 38,
+     "artifacts": 172,
+     "receipts": 0,
+     "native_tables_before": 0
+    },
+    "after": {
+     "schema": "043_native_authority_keys",
+     "jobs": 38,
+     "artifacts": 172,
+     "native_domains": 0
+    },
+    "migrate_rc": 0,
+    "smoke": {
+     "health": {
+      "ok": true,
+      "revision": "93d1ae5cf9076bd40b3b6b5259524daefc5822ec",
+      "provider_mode": "simulation",
+      "queued": 0,
+      "running": 0
+     },
+     "old_jobs_readable": true,
+     "domain": 201,
+     "fund": 201,
+     "transfer": 201,
+     "audit": true,
+     "replay": true,
+     "recovery": "normal"
+    },
+    "live_service_untouched": true,
+    "seconds": 0.883
+   },
+   "caveat": "isolated copy only; the live service was neither upgraded nor restarted"
+  }
+ ],
+ "passed": 5,
+ "failed": 1,
+ "blocked": 0,
+ "total": 6
+}

@@ -1,0 +1,104 @@
+{
+ "schema": "metacoin-journeys-native/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "revision": "93d1ae5cf9076bd40b3b6b5259524daefc5822ec",
+ "python": "3.12.3",
+ "started_at": 1792668058,
+ "finished_at": 1792668070,
+ "results": [
+  {
+   "journey": 1,
+   "title": "x402 disabled and the facilitator blocked: accounts created, work accepted and settled natively.",
+   "status": "passed",
+   "evidence": {
+    "x402": {
+     "disabled": true,
+     "installed": false,
+     "required_by_native_core": false,
+     "role": "optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement"
+    },
+    "native": "dom-a",
+    "facilitator_url": "http://127.0.0.1:1/blocked",
+    "award": "wa_14498724b5afe1a0",
+    "rail": "native",
+    "machine": 5,
+    "requester": 75,
+    "revision": "93d1ae5cf9076bd40b3b6b5259524daefc5822ec",
+    "seconds": 2.349
+   },
+   "caveat": null
+  },
+  {
+   "journey": 21,
+   "title": "The complete 80-unit example: real terrain work, native settlement, a real second purchase and a treasury award.",
+   "status": "passed",
+   "evidence": {
+    "purchase_before_earning": 400,
+    "after_step_2": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_available_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 32,
+     "s80": 9,
+     "v80": 3,
+     "treasury": 1
+    },
+    "total": 80,
+    "fees_additional_to_provider": true,
+    "terrain_outcome": "FEASIBLE",
+    "seconds": 4.322
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "A cheap offer that violates energy reserve, deadline, permission or contact policy is ineligible.",
+   "status": "passed",
+   "evidence": {
+    "cheap_excluded": [
+     "resource_violation:energy_reserve_violation",
+     "resource_violation:thermal_permission_missing"
+    ],
+    "eligible": [
+     "wo_964db2db08e339d1"
+    ],
+    "awarded_provider": "pv_e4a54abb6123",
+    "seconds": 0.166
+   },
+   "caveat": null
+  },
+  {
+   "journey": 32,
+   "title": "Fees and awards preserve conservation and the objective/subjective issuance separation.",
+   "status": "passed",
+   "evidence": {
+    "conserved": true,
+    "fixture_funding": 160,
+    "held": 160,
+    "journal_consistent": true,
+    "replay_differences": [],
+    "invariants_failed": [],
+    "conformance_suite_rc": 0,
+    "identity_digests": {
+     "WHITEPAPER.md": "3ac73c38b2903ae2871adaa4eab31e72562d69dbb40a1c9a6c01775c76093d10",
+     "TOKENOMICS.md": "9e1fe1a3654de7d47417440b0d16a3af4d08870222b07461680cddaaf55654be",
+     "protocol/ledger_anchor.json": "1f420ca3f7c103ad268d2b0e2a56ccdd759dc7190b88671469fad77d1ef45202",
+     "protocol/identity_text.py": "00ec00d11d7cf7b6d0b4fabf9edccb7852227098d25cdb65a9c025ce4acfb660"
+    },
+    "seconds": 1.722
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 4,
+ "failed": 0,
+ "blocked": 0,
+ "total": 4
+}

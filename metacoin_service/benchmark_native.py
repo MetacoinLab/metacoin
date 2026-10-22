@@ -47,6 +47,7 @@ def main(argv=None):
         st, dom, _ = go('POST', '/api/v1/native/domain', {'domain_id': 'bench-dom'})
     asset = dom['default_asset']
     st, h0, _ = go('GET', '/api/health')
+    go('PUT', '/api/v1/budgets/workspace', {'ceiling': 10 ** 6})                      # the application-journal baseline reserves under the workspace memo tree
     actors = {}
     for name in ('payer', 'payee', 'machine', 'supplier'):
         st, act, _ = go('POST', '/api/v1/native/actors', {'name': 'bench-' + name + '-' + str(int(time.time()))}); actors[name] = act

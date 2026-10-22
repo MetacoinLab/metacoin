@@ -420,8 +420,10 @@ def _hooks(cls):
     def on_accepted(self, db, award, ms, decision_id, amount, terms):
         """Accepted work: provider obligation (payer -> provider account) and, when the terms declare a fee, the fee obligation to the treasury account."""
         asset = terms['payment']['asset']; payer = self._award_payer(db, award, terms)
-        policy = {'partial_payments': terms['payment']['scheme'] == 'upto', 'source': 'award_reservation', 'award_id': award['id'], 'milestone_id': ms['id'], 'decision_id': decision_id}
-        self.obligation_create(db, award['workspace'], 'provider', payer, self._provider_account(db, award), asset, amount, 'work_milestone', ms['id'], policy)
+        offer = db.execute('SELECT price_amount FROM work_offers WHERE id=?', (award['offer_id'],)).fetchone()
+        provider_amount = min(amount, offer['price_amount']) if offer else amount        # an offer below the terms amount bounds what the provider is owed
+        policy = {'partial_payments': terms['payment']['scheme'] == 'upto', 'source': 'award_reservation', 'award_id': award['id'], 'milestone_id': ms['id'], 'decision_id': decision_id, 'offer_price': offer['price_amount'] if offer else None}
+        self.obligation_create(db, award['workspace'], 'provider', payer, self._provider_account(db, award), asset, provider_amount, 'work_milestone', ms['id'], policy)
         from ..economy import terms as terms_mod
         fee = terms_mod.fee_amount(terms['payment'], amount)
         if fee > 0:
@@ -452,6 +454,10 @@ def _hooks(cls):
         if ex is not None:
             return self.intent_view(db, principal, ex['id'])
         outstanding = ob['amount'] - ob['settled_amount']
+        capped = None
+        if final > outstanding and kind == 'provider':
+            capped = {'requested': final, 'settled': outstanding, 'note': 'the provider obligation is bounded by the awarded offer price; the entitlement headroom above it was never owed'}
+            final = outstanding
         if final > outstanding:
             raise ServiceError('CONFLICT', {'code': 'amount_above_outstanding', 'outstanding': outstanding})
         reserved = ledger.balance(db, principal.workspace, asset, d['id'], payer, 'reserved')
@@ -473,7 +479,7 @@ def _hooks(cls):
         ledger.move(db, principal.workspace, 'settle:' + iid, 'native_settlement', asset, d['id'], self.environment, final, ledger.account_name(payer, 'committed_outgoing'), ledger.account_name(payee, 'available'), 'native_intent', iid, 'domain-local settlement of a %s obligation' % kind)
         new_settled = ob['settled_amount'] + final
         db.execute("UPDATE native_obligations SET settled_amount=?, state=?, updated_at=? WHERE id=?", (new_settled, 'settled' if new_settled == ob['amount'] else 'partial', now(), ob['id']))
-        self._receipt(db, principal.workspace, 'settlement', 'native_intent', iid, {'intent_id': iid, 'from': payer, 'to': payee, 'asset': asset, 'amount': final, 'obligation_id': ob['id'], 'entitlement_id': e['id'], 'kind': kind, 'award_id': award['id'], 'commit_sequence': seq, 'domain': d['id'], 'epoch': d['epoch'], 'finality': 'domain_local_settlement', 'message_digest': P.digest(msg)})
+        self._receipt(db, principal.workspace, 'settlement', 'native_intent', iid, {'intent_id': iid, 'from': payer, 'to': payee, 'asset': asset, 'amount': final, 'obligation_id': ob['id'], 'entitlement_id': e['id'], 'kind': kind, 'award_id': award['id'], 'commit_sequence': seq, 'domain': d['id'], 'epoch': d['epoch'], 'finality': 'domain_local_settlement', 'message_digest': P.digest(msg), 'capped_to_offer_price': capped})
         history.record(db, principal.workspace, principal.id, 'native.settlement', 'native_intent', iid, {'kind': kind, 'from': payer, 'to': payee, 'amount': final, 'asset': asset, 'sequence': seq, 'entitlement': e['id']})
         return self.intent_view(db, principal, iid)
 

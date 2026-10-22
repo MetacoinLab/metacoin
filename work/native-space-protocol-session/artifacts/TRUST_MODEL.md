@@ -1,0 +1,15 @@
+# Trust model (order 2026-10-22 §4, §8, §16) — what this system relies on, detects, and does not provide
+
+| Property | Relies on | Detects | Does not provide |
+|---|---|---|---|
+| Ordering inside a domain | one fenced SQLite writer (`BEGIN IMMEDIATE`), domain commit sequence, worker lease fencing | duplicate request ids (idempotent replay), stale lease publication | multi-writer consistency, replicated consensus |
+| Authenticity | Ed25519 signatures with domain-separated tags over canonical bytes; roots pinned by the operator | tampered payloads, unpinned keys, wrong epoch/key, substituted signatures | key compromise detection; independent validators (replicated same-operator processes are not independent) |
+| Value conservation across domains | destination-bound allocations: backing locked at the source before a certificate exists; irrevocable certificates; returns only through the reverse protocol | duplicated ownership (audit backing vs claims), replayed allocation ids (tombstones), conflicting certificates for one id, two allocations with one sequence | availability under a lost peer (locked backing waits for a return certificate; no timeout unlock) |
+| Disconnected spending | disjoint preallocations; grant ceilings; the local authority's sequence | exhausted authority (refusals), cut links (online adapter refuses; file bundles carry messages) | protection against a cloned signer/state: a duplicated authority can equivocate; it is detected where histories meet |
+| Rollback / backup restore | watermark file outside the database; peers' signed observations | a database sequence below the watermark; peer-observed commitments missing locally | a rollback that also restores the watermark with no peer observation; arbitrary rollback detection without a witness |
+| Revocation / rotation | epochs; rotation notices signed by the retiring key; grace windows | a new key signing an older epoch; messages after grace | instant revocation knowledge at an offline counterparty (honoured prior commitments; disputes for the rest) |
+| Custody | development keys held by the service for actors (0600 files); operator authority key per domain | — | operator-owned signer (extension 1), hardware custody |
+| Monetary separation | fixture funding only in dev by an administrator; treasury funded by settled fees only; identity/monetary files digest-checked | any path to issuance would fail the conformance suite | objective issuance (unresolved by design; not invented) |
+| Scientific validity | independent CPU reference for lunar products; work-contract verifier for determinations | producer/reference disagreement (verification failed → no payment) | physical traversability from a 7.58 km/pixel DEM; real instrument provenance for simulated deliveries |
+
+Finality is always qualified: `local_authorization`, `durable_local_commit`, `delivery_acknowledgment`, `work_acceptance`, `cross_domain_pending_claim`, `domain_local_settlement`, `reconciled_inter_domain_settlement`. Nothing in this system is "final" without one of these names.

@@ -537,6 +537,8 @@ class Board:
             node, rsv = None, None
             if not db.execute("SELECT id FROM treasury_allocations WHERE terms_id=? AND state='reserved'", (t['id'],)).fetchone():
                 raise ServiceError('CONFLICT', {'code': 'treasury_allocation_required', 'note': 'allocate the treasury budget for these terms before awarding'})
+        elif terms_mod.is_native_asset(terms['payment']['asset']):
+            node, rsv = None, None                                                  # the payer's own native funds are the reservation (available -> reserved below); the application budget memo tree does not apply
         else:
             root = budgets.root(db, principal.workspace)
             node = budgets.create_child(db, principal.workspace, root['id'], 'campaign', 'award:' + aid, min(ceiling, root['ceiling']))
