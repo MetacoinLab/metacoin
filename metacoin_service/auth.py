@@ -15,7 +15,7 @@ import secrets
 from .db import now
 from .errors import ServiceError
 
-ROLES = ('owner', 'worker', 'reviewer', 'viewer', 'provider')
+ROLES = ('owner', 'worker', 'reviewer', 'viewer', 'provider', 'actor')
 # role -> permitted operations (the application authorization table)
 PERMISSIONS = {
     'owner': {'contract:create', 'contract:read', 'contract:freeze', 'contract:amend', 'job:submit', 'job:read',
@@ -23,12 +23,16 @@ PERMISSIONS = {
               'artifact:delete', 'action:create', 'action:read', 'action:reconcile', 'budget:read', 'history:read',
               'x402:sell', 'admin:credentials', 'admin:keys', 'template:write',
               'model:admin', 'model:use', 'knowledge:write', 'knowledge:read', 'calibration:write', 'verification:submit', 'node:admin', 'approval:propose', 'approval:decide', 'statement:read',
-              'work:read', 'work:request', 'work:award', 'work:accept', 'work:pay', 'work:dispute', 'work:audit_grant', 'work:treasury', 'work:provider_admin'},
+              'work:read', 'work:request', 'work:award', 'work:accept', 'work:pay', 'work:dispute', 'work:audit_grant', 'work:treasury', 'work:provider_admin',
+              'native:read', 'native:transfer', 'native:admin', 'native:export', 'native:dispute'},
     'worker': {'job:claim', 'job:read', 'job:publish', 'artifact:read_input', 'history:read'},
     'reviewer': {'job:read', 'review:read_evidence', 'review:decide', 'artifact:read_private_assigned',
-                 'history:read', 'contract:read', 'action:read', 'budget:read', 'verification:submit', 'approval:decide', 'work:read', 'work:resolve', 'work:dispute'},
-    'viewer': {'job:read', 'contract:read', 'artifact:read_public', 'history:read', 'budget:read', 'work:read'},
-    'provider': {'job:read', 'contract:read', 'history:read', 'work:read', 'work:offer', 'work:ack', 'work:deliver', 'work:dispute', 'artifact:read_public'},
+                 'history:read', 'contract:read', 'action:read', 'budget:read', 'verification:submit', 'approval:decide', 'work:read', 'work:resolve', 'work:dispute', 'native:read', 'native:dispute'},
+    'viewer': {'job:read', 'contract:read', 'artifact:read_public', 'history:read', 'budget:read', 'work:read', 'native:read'},
+    'provider': {'job:read', 'contract:read', 'history:read', 'work:read', 'work:offer', 'work:ack', 'work:deliver', 'work:dispute', 'artifact:read_public', 'native:read'},
+    # a native actor earns as a provider and pays as a buyer with the same identity and balance; no administrative powers
+    'actor': {'job:read', 'job:submit', 'job:read_private', 'contract:create', 'contract:read', 'contract:freeze', 'artifact:read_public', 'artifact:read_private', 'artifact:export', 'history:read', 'budget:read', 'verification:submit',
+              'work:read', 'work:request', 'work:award', 'work:accept', 'work:pay', 'work:offer', 'work:ack', 'work:deliver', 'work:dispute', 'native:read', 'native:transfer', 'native:dispute'},
 }
 PEPPER_KEY = 'credential_pepper'
 

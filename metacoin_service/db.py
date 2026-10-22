@@ -467,6 +467,30 @@ MIGRATIONS = [
     CREATE TABLE verification_portfolios (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, portfolio_json TEXT NOT NULL, digest TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, retired_at INTEGER, UNIQUE (workspace, name, version));
     CREATE TABLE portfolio_campaigns (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, suite_id TEXT NOT NULL REFERENCES evaluation_suites(id), split TEXT NOT NULL, portfolios_json TEXT NOT NULL, report_json TEXT NOT NULL, started_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     """),
+    ('042_native_protocol', """
+    -- requires foreign_keys=off;
+    CREATE TABLE principals_new (id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('owner','worker','reviewer','viewer','provider','actor')), workspace TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER);
+    INSERT INTO principals_new SELECT id, name, role, workspace, created_at, revoked_at FROM principals;
+    DROP TABLE principals;
+    ALTER TABLE principals_new RENAME TO principals;
+    CREATE TABLE native_domains (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, environment TEXT NOT NULL, authority_key_id TEXT NOT NULL, authority_public_hex TEXT NOT NULL, epoch INTEGER NOT NULL, operator TEXT NOT NULL, host TEXT NOT NULL, policy_version TEXT NOT NULL,
+        connectivity TEXT NOT NULL, recovery_state TEXT NOT NULL, commit_sequence INTEGER NOT NULL DEFAULT 0, export_watermark INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE native_peers (domain_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, authority_key_id TEXT NOT NULL, authority_public_hex TEXT NOT NULL, epoch INTEGER NOT NULL, trust_policy TEXT NOT NULL, pinned_by TEXT NOT NULL, pinned_at INTEGER NOT NULL, state TEXT NOT NULL);
+    CREATE TABLE native_assets (asset_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, label TEXT NOT NULL, zero_value INTEGER NOT NULL, origin_domain TEXT NOT NULL, registered_at INTEGER NOT NULL);
+    CREATE TABLE native_accounts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, principal_id TEXT, kind TEXT NOT NULL CHECK (kind IN ('actor','treasury','fixture','authority')), label TEXT NOT NULL, key_id TEXT, public_hex TEXT, custody TEXT NOT NULL, nonce_counter INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE UNIQUE INDEX native_accounts_principal ON native_accounts (workspace, principal_id) WHERE principal_id IS NOT NULL;
+    CREATE TABLE native_intents (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, domain_id TEXT NOT NULL, actor_account TEXT NOT NULL REFERENCES native_accounts(id), signer_principal TEXT, type TEXT NOT NULL, asset TEXT NOT NULL, amount_ceiling INTEGER NOT NULL, amount_final INTEGER, recipient TEXT, obligation_ref TEXT,
+        grant_id TEXT, nonce TEXT NOT NULL, request_id TEXT NOT NULL, message_json TEXT NOT NULL, message_digest TEXT NOT NULL, signature_hex TEXT, state TEXT NOT NULL, commit_sequence INTEGER, reason TEXT, history_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        UNIQUE (actor_account, nonce), UNIQUE (actor_account, request_id));
+    CREATE TABLE native_obligations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, payer_account TEXT NOT NULL, payee_account TEXT NOT NULL, asset TEXT NOT NULL, amount INTEGER NOT NULL, settled_amount INTEGER NOT NULL DEFAULT 0, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, policy_json TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (ref_type, ref_id, kind));
+    CREATE TABLE native_allocations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, direction TEXT NOT NULL CHECK (direction IN ('export','import')), source_domain TEXT NOT NULL, destination_domain TEXT NOT NULL, asset TEXT NOT NULL, amount INTEGER NOT NULL, source_account TEXT, recipient_account TEXT NOT NULL,
+        state TEXT NOT NULL, epoch INTEGER NOT NULL, commit_sequence INTEGER, certificate_json TEXT, certificate_signature TEXT, ack_json TEXT, return_json TEXT, evidence_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE native_envelopes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, direction TEXT NOT NULL CHECK (direction IN ('out','in')), sender TEXT NOT NULL, receiver TEXT NOT NULL, message_type TEXT NOT NULL, causality TEXT, payload_json TEXT NOT NULL, payload_digest TEXT NOT NULL, envelope_json TEXT NOT NULL, signature_hex TEXT NOT NULL,
+        state TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, reason TEXT, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE native_tombstones (key TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE native_disputes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, opened_by TEXT NOT NULL, respondent_account TEXT, held_amount INTEGER NOT NULL DEFAULT 0, claim TEXT NOT NULL, state TEXT NOT NULL, resolution_json TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE native_receipts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, key_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+    """),
 ]
 
 

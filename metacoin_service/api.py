@@ -79,6 +79,8 @@ class Services:
         self.decisions = Decisions(settings, self)
         self.sampling = Sampling(settings, self)
         self.portfolios = Portfolios(settings, self)
+        from .native.service import Native
+        self.native = Native(settings, self)
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
@@ -2409,6 +2411,8 @@ def create_app(settings):
     economy_routes.mount(app, svc, run, read_body, API)
     from .decision import routes as decision_routes
     decision_routes.mount(app, svc, run, read_body, API)
+    from .native import routes as native_routes
+    native_routes.mount(app, svc, run, read_body, API)
     return app
 
 

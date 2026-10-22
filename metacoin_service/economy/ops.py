@@ -8,7 +8,8 @@ from .. import history
 from ..db import now
 from ..errors import ServiceError
 
-FAULT_POINTS = ('award_commit', 'reservation_posting', 'evidence_publication', 'verifier_completion', 'acceptance_decision', 'payment_signing', 'payment_submission', 'payment_observation', 'fee_credit', 'refund_observation')
+FAULT_POINTS = ('award_commit', 'reservation_posting', 'evidence_publication', 'verifier_completion', 'acceptance_decision', 'payment_signing', 'payment_submission', 'payment_observation', 'fee_credit', 'refund_observation',
+                'native_reserve', 'native_commit', 'native_response', 'native_export_reserve', 'native_export_commit', 'native_certificate_publish', 'native_import_commit', 'native_ack', 'native_return_init', 'native_return_complete')
 
 
 def fault(db, settings, point):
