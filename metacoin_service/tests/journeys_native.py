@@ -615,8 +615,9 @@ class Journeys:
         tb = tv['available'] - 1
         t3, r3, o3, (sa3, a3) = A.award('r80', 'm80', 'determination', energy_inputs('FEASIBLE'), 10, bps=1000); aw3, d3 = A.deliver_accept(a3['id'], 'r80'); tv2 = A.call('get', '/api/v1/work/treasury', params={'asset': A.asset})[1]
         other = A.call('get', '/api/v1/work/treasury', params={'asset': 'action-units'})[1]
-        ok = s_over == 400 and 'insufficient' in (r_over.get('detail') or {}).get('code', '') and s1 == 201 and s_dup == 409 and tv2['available'] == tb and other['available'] == 0 and other['asset'] == 'action-units'
-        self.rec(31, self.j31.__doc__, ok, {'over_allocation': s_over, 'first': s1, 'duplicate': s_dup, 'available_with_pending_fee': tv2['available'], 'expected': tb, 'unrelated_asset_available': other['available']}, t0=t0)
+        n_alloc = sum(1 for x in A.call('get', '/api/v1/work/treasury', params={'asset': A.asset})[1]['allocations'] if x['terms_id'] == t2['id'])
+        ok = s_over == 400 and 'insufficient' in (r_over.get('detail') or {}).get('code', '') and s1 == 201 and s_dup in (400, 409) and n_alloc == 1 and tv2['available'] == tb and other['available'] == 0 and other['asset'] == 'action-units'
+        self.rec(31, self.j31.__doc__, ok, {'over_allocation': s_over, 'first': s1, 'duplicate': s_dup, 'allocations_for_terms': n_alloc, 'available_with_pending_fee': tv2['available'], 'expected': tb, 'unrelated_asset_available': other['available']}, t0=t0)
         A.pay_all(a3['id'], 'r80')
 
     def j32(self, t0):

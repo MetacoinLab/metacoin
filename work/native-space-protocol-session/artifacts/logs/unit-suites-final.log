@@ -1,0 +1,15 @@
+test_native_protocol: Ran 2 tests in 3.763s OK 
+test_native_domains: Ran 9 tests in 9.716s OK 
+test_native_lunar: Ran 3 tests in 4.202s OK 
+test_native_conformance: Ran 5 tests in 1.615s OK 
+test_native_model: Ran 21 tests in 28.829s OK 
+test_native_interfaces: Ran 9 tests in 8.504s OK 
+test_native_evidence: Ran 8 tests in 8.587s OK 
+test_work_money: Ran 4 tests in 7.668s OK 
+test_work_board: Ran 5 tests in 3.620s OK 
+test_work_terms: Ran 6 tests in 6.502s OK 
+test_work_evidence: Ran 7 tests in 9.254s OK 
+test_decision_service: Ran 10 tests in 10.416s OK 
+test_decision_surfaces: Ran 3 tests in 1.869s OK 
+test_work_surfaces: Ran 4 tests in 2.879s OK 
+test_service: 
