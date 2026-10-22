@@ -15,6 +15,7 @@ from .models import service as model_svc
 from .knowledge import retrieval as retrieval_mod, engine as knowledge_engine
 from . import statements as statements_mod, verification as verification_mod
 from .errors import ServiceError, from_exception
+from .db import now
 from .api import SENSITIVE_HEADERS, model_host_of, preloaded_generation_host
 
 _env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(Path(__file__).parent / 'templates')), autoescape=True)
@@ -750,6 +751,18 @@ def mount(app, svc):
             except ServiceError:
                 evals[m['key']] = None
         ents = [E.evidence.entitlement_view(db, p, e['id']) for e in db.execute('SELECT id FROM work_entitlements WHERE award_id=? ORDER BY rowid', (aid,)).fetchall()]
+        assurance, delivery_spec = {}, {}
+        for m in a['milestones']:
+            try:
+                assurance[m['key']] = svc.decisions.assurance_preview(db, p, aid, m['key'])
+            except ServiceError:
+                assurance[m['key']] = None
+            if a['kind'] == 'evidence_acquisition':
+                try:
+                    delivery_spec[m['key']] = svc.decisions.delivery_spec(db, p, aid, m['key'])
+                except ServiceError:
+                    delivery_spec[m['key']] = None
+        extra = dict(extra, assurance=assurance, delivery_spec=delivery_spec)
         intents = [E.money.intent_view(db, p, i['id']) for i in db.execute("SELECT id FROM payment_intents WHERE entitlement_id IN (SELECT id FROM work_entitlements WHERE award_id=?) ORDER BY rowid", (aid,)).fetchall()]
         events = history.for_object(db, p.workspace, 'work_award', aid)
         disputes = E.evidence.list_disputes(db, p, aid)
@@ -791,6 +804,8 @@ def mount(app, svc):
             elif action == 'dispute':
                 d = E.evidence.open_dispute(db, p, aid, key, {'claim': f.get('claim', ''), 'scope': f.get('scope', 'acceptance')})
                 return RedirectResponse('/console/work/disputes/' + d['id'], status_code=303)
+            elif action == 'deliver':
+                svc.decisions.deliver(db, p, aid, key, {'delivery': json.loads(f.get('delivery') or '{}')})
             elif action == 'ack':
                 E.board.acknowledge(db, p, aid)
             elif action == 'close':
@@ -851,6 +866,124 @@ def mount(app, svc):
             else:
                 raise ServiceError('VALIDATION', {'code': 'action', 'allowed': ['reconcile', 'renew', 'submit']})
             return RedirectResponse('/console/work/reconciliation', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    # ---- decision evidence (order of 2026-10-22) --------------------------------------------------------------------------------
+    @app.get('/console/decisions', response_class=HTMLResponse)
+    async def decisions_overview(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            D, S, P = svc.decisions, svc.sampling, svc.portfolios
+            ctx = {'decisions': D.list(db, p), 'plans': D.plan_list(db, p), 'sampling': S.list(db, p), 'portfolios': P.list(db, p), 'campaigns': P.list_campaigns(db, p),
+                   'example': json.dumps(__import__('metacoin_service.decision.operations', fromlist=['EXAMPLE_ANALYSIS']).EXAMPLE_ANALYSIS, indent=1) if hasattr(__import__('metacoin_service.decision.operations', fromlist=['x']), 'EXAMPLE_ANALYSIS') else '{}'}
+            return render(request, 'decisions.html', principal=p, **ctx)
+        return await page(request, fn)
+
+    @app.post('/console/decisions/analyze', response_class=HTMLResponse)
+    async def decisions_analyze(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            out = svc.decisions.analyze(db, p, {'inputs': json.loads(f.get('inputs') or '{}'), 'title': f.get('title') or 'decision observability'})
+            return RedirectResponse('/console/decisions/' + out['job_id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/decisions/{jid}', response_class=HTMLResponse)
+    async def decision_page(request: Request, jid: str):
+        def fn(db, p):
+            D = svc.decisions
+            v = D.view(db, p, jid)
+            witnesses = None
+            try:
+                witnesses = D.witnesses(db, p, jid) if v['state'] == 'succeeded' else None
+            except ServiceError:
+                witnesses = None
+            menu_example = json.dumps([{'id': 'cell_1_sensor', 'rows': [[1, 0]], 'noise': [2], 'output_units': ['mJ'], 'cost': 3, 'quote_expires_at': now() + 3600, 'execution_modes': ['local_worker']}], indent=1)
+            return render(request, 'decision.html', principal=p, v=v, witnesses=witnesses, menu_example=menu_example, preview=request.query_params.get('preview'))
+        return await page(request, fn)
+
+    @app.post('/console/decisions/{jid}/{action}', response_class=HTMLResponse)
+    async def decision_action(request: Request, jid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            D = svc.decisions
+            if action in ('preview', 'plan'):
+                body = {'analysis_job_id': jid, 'menu': json.loads(f.get('menu') or '[]'), 'budget': int(f.get('budget') or 0)}
+                if action == 'preview':
+                    pv = D.plan_preview(db, p, body)
+                    v = D.view(db, p, jid)
+                    return render(request, 'decision.html', principal=p, v=v, witnesses=None, menu_example=f.get('menu'), plan_preview=pv, budget=body['budget'])
+                pl = D.plan_create(db, p, body)
+                return RedirectResponse('/console/acquisition-plans/' + pl['id'], status_code=303)
+            if action == 'verify':
+                svc.verification.request(db, p, jid, f.get('class') or 'analytical', {})
+                return RedirectResponse('/console/decisions/' + jid, status_code=303)
+            raise ServiceError('NOT_FOUND', 'action')
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/acquisition-plans/{pid}', response_class=HTMLResponse)
+    async def acquisition_plan_page(request: Request, pid: str):
+        return await page(request, lambda db, p: render(request, 'acquisition_plan.html', principal=p, pl=svc.decisions.plan_view(db, p, pid)))
+
+    @app.post('/console/acquisition-plans/{pid}/materialize', response_class=HTMLResponse)
+    async def acquisition_plan_materialize(request: Request, pid: str):
+        f = await form(request)
+        def fn(db, p):
+            m = svc.decisions.materialize(db, p, pid, {'diagnostic_amount': int(f.get('diagnostic') or 0)})
+            return RedirectResponse('/console/work/requests/' + m['request']['id'] if m.get('request') else '/console/acquisition-plans/' + pid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/sampling-plans/{pid}', response_class=HTMLResponse)
+    async def sampling_plan_page(request: Request, pid: str):
+        return await page(request, lambda db, p: render(request, 'sampling_plan.html', principal=p, sp=svc.sampling.view(db, p, pid)))
+
+    @app.post('/console/sampling-plans', response_class=HTMLResponse)
+    async def sampling_plan_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            body = {'job_id': f['job_id'], 'alpha': f.get('alpha') or '1/100', 'max_samples': int(f.get('max_samples') or 256)}
+            if f.get('defect_fraction'):
+                body['defect_fraction'] = f['defect_fraction']
+            else:
+                body['minimum_defects'] = int(f.get('minimum_defects') or 1)
+            if f.get('preview'):
+                sp = svc.sampling.create(db, p, body, preview=True)
+                return render(request, 'sampling_plan.html', principal=p, sp=sp)
+            sp = svc.sampling.create(db, p, body)
+            return RedirectResponse('/console/sampling-plans/' + sp['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/sampling-plans/{pid}/audit', response_class=HTMLResponse)
+    async def sampling_plan_audit(request: Request, pid: str):
+        await form(request)
+        def fn(db, p):
+            svc.sampling.audit(db, p, pid)
+            return RedirectResponse('/console/sampling-plans/' + pid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/portfolios', response_class=HTMLResponse)
+    async def portfolios_page(request: Request):
+        def fn(db, p):
+            P = svc.portfolios
+            cid = request.query_params.get('campaign')
+            catalog = {'families': P.families(), 'components': P.components(), 'portfolios': P.list(db, p)}
+            return render(request, 'portfolios.html', principal=p, catalog=catalog, campaigns=P.list_campaigns(db, p), campaign=P.campaign_view(db, p, cid) if cid else None)
+        return await page(request, fn)
+
+    @app.post('/console/portfolios/{action}', response_class=HTMLResponse)
+    async def portfolios_action(request: Request, action: str):
+        f = await form(request)
+        def fn(db, p):
+            P = svc.portfolios
+            if action == 'create':
+                P.create(db, p, {'name': f.get('name') or 'portfolio', 'components': [{'component': c.strip()} for c in (f.get('components') or '').split(',') if c.strip()]})
+            elif action == 'fault-suite':
+                P.create_fault_suite(db, p, {'name': f.get('name') or 'faults', 'seed': int(f.get('seed') or 1), 'cases_per_family': int(f.get('cases') or 2), 'holdout_per_family': int(f.get('holdout') or 1)})
+            elif action == 'campaign':
+                c = P.run_campaign(db, p, {'suite_id': f['suite_id'], 'portfolio_ids': [x.strip() for x in f['portfolio_ids'].split(',') if x.strip()], 'split': f.get('split') or 'dev'})
+                return RedirectResponse('/console/portfolios?campaign=' + c['id'], status_code=303)
+            else:
+                raise ServiceError('NOT_FOUND', 'action')
+            return RedirectResponse('/console/portfolios', status_code=303)
         return await page(request, fn, mutating=True)
 
     @app.get('/console/work/missions/{pid}', response_class=HTMLResponse)

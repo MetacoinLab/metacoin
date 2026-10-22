@@ -22,6 +22,17 @@ from . import assurance, kernels as K
 SUPPORTED_KINDS = {'temporal_batch': 'one committed scenario row of results.npy (index i in 0..N-1), recomputed exactly by temporal-energy/v1'}
 
 
+def _no_floats(obj):
+    """Floats are display estimates only; across the strict-JSON API they travel as decimal strings (exact values are rational strings already)."""
+    if isinstance(obj, float):
+        return repr(obj)
+    if isinstance(obj, dict):
+        return {k: _no_floats(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_no_floats(v) for v in obj]
+    return obj
+
+
 class Sampling:
     def __init__(self, settings, services):
         self.settings, self.svc = settings, services
@@ -53,6 +64,7 @@ class Sampling:
             plan = K.sampling_plan(n, body.get('minimum_defects'), body.get('alpha'), cap, frame_digest=frame, checker_digest=checker, sample_unit=SUPPORTED_KINDS[job['kind']], defect_fraction=body.get('defect_fraction'))
         except K.KernelInvalid as exc:
             raise ServiceError('VALIDATION', {'code': exc.code, **exc.detail})
+        plan = _no_floats(plan)                                                      # the API boundary is strict JSON: decimal strings, never floats
         plan.update({'target_job_id': job['id'], 'kind': job['kind'], 'result_commitment': job['evidence_root'], 'attempt_policy': 'single_fixed_size', 'challenge_model': verification_mod.CHALLENGE_POLICY,
                      'randomness': 'server-side CSPRNG seed drawn after the commitment; ranks by sha256(seed || commitment || index): uniform without replacement under a computational-pseudorandomness / random-oracle assumption; not independent of a malicious server',
                      'budget_note': 'max_samples is capped by the verification work bound (%d) and by N' % verification_mod.MAX_WORK['sampled_reference']})
@@ -93,6 +105,7 @@ class Sampling:
         job = db.execute('SELECT * FROM jobs WHERE id=?', (r['target_job_id'],)).fetchone()
         if job['evidence_root'] != r['result_commitment']:
             db.execute("UPDATE sampling_plans SET state='invalidated', updated_at=? WHERE id=?", (now(), pid))
+            db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')          # the invalidation is a durable fact even though this request is refused
             raise ServiceError('CONFLICT', {'code': 'sampling_plan_invalidated', 'note': 'the result root changed since the plan was bound'})
         v = self.svc.verification.request(db, principal, r['target_job_id'], 'sampled_reference', {'sampling_plan_id': pid})
         return dict(v, sampling_plan_id=pid, plan_digest=r['plan_digest'])

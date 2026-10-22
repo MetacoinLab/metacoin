@@ -140,7 +140,14 @@ class Decisions:
         principal.require('job:read')
         kinds = (kind,) if kind in ('decision_observability', 'evidence_acquisition') else ('decision_observability', 'evidence_acquisition')
         rows = db.execute('SELECT j.*, c.title AS title FROM jobs j JOIN contracts c ON c.id=j.contract_id WHERE j.workspace=? AND j.kind IN (%s) ORDER BY j.created_at DESC LIMIT 100' % ','.join('?' * len(kinds)), (principal.workspace, *kinds)).fetchall()
-        return [{'job_id': r['id'], 'kind': r['kind'], 'state': r['state'], 'conclusion': r['outcome'] if r['state'] == 'succeeded' else None, 'title': r['title'], 'created_at': r['created_at'], 'evidence_root': r['evidence_root']} for r in rows]
+        out = []
+        for r in rows:
+            summary = json.loads(r['summary_json']) if r['summary_json'] else {}
+            item = {'job_id': r['id'], 'kind': r['kind'], 'state': r['state'], 'conclusion': r['outcome'] if r['state'] == 'succeeded' else None, 'title': r['title'], 'created_at': r['created_at'], 'evidence_root': r['evidence_root'],
+                    'counts': {k: summary.get(k) for k in ('hypotheses', 'views', 'decision_relevant_pairs', 'ambiguous_pairs', 'separated_pairs', 'surviving_count', 'remaining_ambiguities')}}
+            item['reading'] = self._readings({'job': {'state': r['state'], 'error_code': r['error_code']}, 'projection': {'conclusion': item['conclusion']}})['label']
+            out.append(item)
+        return out
 
     # ---- acquisition plans -----------------------------------------------------------------------------------------------------
     def _plan_input(self, db, principal, body):

@@ -476,6 +476,88 @@ WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-fre
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
                  'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
+DECISION_COMMANDS = ('decision-analyze', 'decisions', 'decision', 'decision-projection', 'decision-witnesses', 'decision-bundle', 'acquisition-preview', 'acquisition-plan', 'acquisition-plans', 'acquisition-materialize',
+                     'work-deliver', 'work-delivery-spec', 'work-assurance', 'sampling-plan', 'sampling-plans', 'sampling-audit', 'sampling-verify', 'assurance-evaluate', 'assurance-claims', 'verification-assurance',
+                     'portfolio-create', 'portfolios', 'portfolio', 'portfolio-select', 'fault-suite', 'campaign', 'campaigns')
+
+
+def decision(args, go):
+    """Decision-evidence commands (order of 2026-10-22): analyses, acquisition plans, deliveries, assurance previews, sampling
+    plans and audits, portfolios. One authenticated HTTP request each; analysis never implies spending authority."""
+    c = args.command
+    jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    key = getattr(args, 'idempotency_key', None)
+    if c == 'decision-analyze':
+        return go('POST', '/api/v1/decisions/analyze', {'inputs': jf(), 'title': args.title or 'decision observability'}, idempotency_key=key)
+    if c == 'decisions':
+        return go('GET', '/api/v1/decisions' + ('?kind=' + args.kind if args.kind else ''))
+    if c == 'decision':
+        return go('GET', '/api/v1/decisions/' + args.job_id)
+    if c == 'decision-projection':
+        return go('GET', '/api/v1/decisions/' + args.job_id + '/projection')
+    if c == 'decision-witnesses':
+        return go('GET', '/api/v1/decisions/' + args.job_id + '/witnesses')
+    if c == 'decision-bundle':
+        status, content = go('GET', '/api/v1/decisions/' + args.job_id + '/bundle', raw=True)
+        if status == 200:
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'wb') as fh:
+                fh.write(content)
+            return status, {'written': args.out, 'bytes': len(content), 'replay': 'python -m metacoin_service.decision.replay %s --trust-root <service public key hex> --json' % args.out}
+        return status, json.loads(content)
+    if c in ('acquisition-preview', 'acquisition-plan'):
+        body = dict(jf(), analysis_job_id=args.job_id, budget=args.budget)
+        return go('POST', '/api/v1/acquisition-plans' + ('/preview' if c == 'acquisition-preview' else ''), body, idempotency_key=key)
+    if c == 'acquisition-plans':
+        return go('GET', '/api/v1/acquisition-plans')
+    if c == 'acquisition-materialize':
+        body = {'diagnostic_amount': args.diagnostic}
+        if args.title:
+            body['title'] = args.title
+        return go('POST', '/api/v1/acquisition-plans/' + args.plan_id + '/materialize', body, idempotency_key=key)
+    if c == 'work-deliver':
+        return go('POST', '/api/v1/work/awards/%s/milestones/%s/deliver' % (args.award_id, args.milestone), {'delivery': jf()}, idempotency_key=key)
+    if c == 'work-delivery-spec':
+        return go('GET', '/api/v1/work/awards/%s/milestones/%s/delivery-spec' % (args.award_id, args.milestone))
+    if c == 'work-assurance':
+        return go('GET', '/api/v1/work/awards/%s/milestones/%s/assurance' % (args.award_id, args.milestone))
+    if c == 'sampling-plan':
+        body = {'job_id': args.job_id, 'alpha': args.alpha, 'max_samples': args.max_samples}
+        if args.defect_fraction:
+            body['defect_fraction'] = args.defect_fraction
+        else:
+            body['minimum_defects'] = args.minimum_defects
+        if args.preview:
+            body['preview'] = True
+        return go('POST', '/api/v1/verification/sampling-plans', body)
+    if c == 'sampling-plans':
+        return go('GET', '/api/v1/verification/sampling-plans' + ('/' + args.plan_id if args.plan_id else ('?job_id=' + args.job_id if args.job_id else '')))
+    if c == 'sampling-audit':
+        return go('POST', '/api/v1/verification/sampling-plans/' + args.plan_id + '/audit', {}, idempotency_key=key)
+    if c == 'sampling-verify':
+        return go('POST', '/api/v1/verification/sampling-plans/verify', {'bundle': jf()})
+    if c == 'assurance-evaluate':
+        return go('POST', '/api/v1/verification/assurance/evaluate', {'job_id': args.job_id, 'requirement': jf()})
+    if c == 'assurance-claims':
+        return go('GET', '/api/v1/verification/assurance/claims')
+    if c == 'verification-assurance':
+        return go('GET', '/api/v1/verification/' + args.verification_id + '/assurance')
+    if c == 'portfolio-create':
+        return go('POST', '/api/v1/portfolios', jf(), idempotency_key=key)
+    if c == 'portfolios':
+        return go('GET', '/api/v1/portfolios')
+    if c == 'portfolio':
+        return go('GET', '/api/v1/portfolios/' + args.portfolio_id)
+    if c == 'portfolio-select':
+        return go('POST', '/api/v1/portfolios/select', {'suite_id': args.suite_id, 'required_families': args.families.split(','), **({'max_cost': args.max_cost} if args.max_cost is not None else {})})
+    if c == 'fault-suite':
+        return go('POST', '/api/v1/portfolios/fault-suite', jf(), idempotency_key=key)
+    if c == 'campaign':
+        return go('POST', '/api/v1/portfolios/campaigns', {'suite_id': args.suite_id, 'portfolio_ids': args.portfolio_ids.split(','), 'split': args.split}, idempotency_key=key)
+    if c == 'campaigns':
+        return go('GET', '/api/v1/portfolios/campaigns' + ('/' + args.campaign_id if args.campaign_id else ''))
+    return 2, {'error': 'unknown decision command'}
+
 
 def work(args, go):
     """Work-economy commands: every call is one authenticated HTTP request (or a documented short sequence); idempotency keys
@@ -839,6 +921,33 @@ def main(argv=None):
     w = sub.add_parser('work-challenge-package'); w.add_argument('challenge_id'); w.add_argument('--out')
     w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
     w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
+    d = sub.add_parser('decision-analyze', help='analyse a declared finite candidate model (JSON file: hypotheses, views, coordinates, optional observations, disclosure)'); d.add_argument('--file', required=True); d.add_argument('--title'); d.add_argument('--idempotency-key')
+    d = sub.add_parser('decisions'); d.add_argument('--kind')
+    d = sub.add_parser('decision'); d.add_argument('job_id')
+    d = sub.add_parser('decision-projection', help='the disclosure-policed projection (counts, conclusion, digests)'); d.add_argument('job_id')
+    d = sub.add_parser('decision-witnesses', help='private ambiguity witnesses (owner / designated reviewer)'); d.add_argument('job_id')
+    d = sub.add_parser('decision-bundle', help='authorized decision bundle for offline replay (python -m metacoin_service.decision.replay)'); d.add_argument('job_id'); d.add_argument('--out', required=True)
+    d = sub.add_parser('acquisition-preview', help='the next useful measurement set under a budget (nothing stored)'); d.add_argument('job_id'); d.add_argument('--budget', type=int, required=True); d.add_argument('--file', required=True, help='JSON {menu: [...]}')
+    d = sub.add_parser('acquisition-plan', help='store a bound acquisition plan'); d.add_argument('job_id'); d.add_argument('--budget', type=int, required=True); d.add_argument('--file', required=True); d.add_argument('--idempotency-key')
+    d = sub.add_parser('acquisition-plans')
+    d = sub.add_parser('acquisition-materialize', help='freeze decision-evidence-acquisition terms from a plan and open the request (nothing reserved until award)'); d.add_argument('plan_id'); d.add_argument('--diagnostic', type=int, default=0); d.add_argument('--title'); d.add_argument('--idempotency-key')
+    d = sub.add_parser('work-deliver', help='provider: deliver the observation (JSON file: delivery)'); d.add_argument('award_id'); d.add_argument('--milestone', default='m1'); d.add_argument('--file', required=True); d.add_argument('--idempotency-key')
+    d = sub.add_parser('work-delivery-spec'); d.add_argument('award_id'); d.add_argument('--milestone', default='m1')
+    d = sub.add_parser('work-assurance', help='required assurance, available evidence, satisfied / missing clauses, next checks'); d.add_argument('award_id'); d.add_argument('--milestone', default='m1')
+    d = sub.add_parser('sampling-plan', help='exact finite-population sampling plan for an itemwise job'); d.add_argument('job_id'); d.add_argument('--alpha', required=True, help='rational string, e.g. 1/100'); d.add_argument('--max-samples', type=int, required=True); d.add_argument('--minimum-defects', type=int); d.add_argument('--defect-fraction', help='rational string; ceiling rule'); d.add_argument('--preview', action='store_true')
+    d = sub.add_parser('sampling-plans'); d.add_argument('plan_id', nargs='?'); d.add_argument('--job-id')
+    d = sub.add_parser('sampling-audit', help='issue the bound challenge (single fixed-size attempt)'); d.add_argument('plan_id'); d.add_argument('--idempotency-key')
+    d = sub.add_parser('sampling-verify', help='recompute the sampling arithmetic of a signed statement bundle (JSON file)'); d.add_argument('--file', required=True)
+    d = sub.add_parser('assurance-evaluate', help='evaluate a typed assurance requirement (JSON file) against a job\'s evidence'); d.add_argument('job_id'); d.add_argument('--file', required=True)
+    d = sub.add_parser('assurance-claims')
+    d = sub.add_parser('verification-assurance'); d.add_argument('verification_id')
+    d = sub.add_parser('portfolio-create', help='versioned verification portfolio (JSON file: name, components)'); d.add_argument('--file', required=True); d.add_argument('--idempotency-key')
+    d = sub.add_parser('portfolios')
+    d = sub.add_parser('portfolio'); d.add_argument('portfolio_id')
+    d = sub.add_parser('portfolio-select'); d.add_argument('suite_id'); d.add_argument('--families', required=True); d.add_argument('--max-cost', type=int)
+    d = sub.add_parser('fault-suite', help='preregistered fault campaign suite (JSON file: name, seed, cases_per_family, holdout_per_family, families?)'); d.add_argument('--file', required=True); d.add_argument('--idempotency-key')
+    d = sub.add_parser('campaign'); d.add_argument('suite_id'); d.add_argument('--portfolio-ids', required=True); d.add_argument('--split', default='dev', choices=('dev', 'held-out')); d.add_argument('--idempotency-key')
+    d = sub.add_parser('campaigns'); d.add_argument('campaign_id', nargs='?')
     w = sub.add_parser('work-reconciliation', help='pending payment observations with the one bounded action that applies to each')
     w = sub.add_parser('work-provider-history', help='evidence-based provider history (dimensions with sample sizes; no score)'); w.add_argument('provider_id'); w.add_argument('--disclosed', action='store_true')
     w = sub.add_parser('work-provider-portfolio'); w.add_argument('provider_id')
@@ -1103,6 +1212,8 @@ def main(argv=None):
         status, out = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/log')
     elif args.command in WORK_COMMANDS:
         status, out = work(args, go)
+    elif args.command in DECISION_COMMANDS:
+        status, out = decision(args, go)
     elif args.command in EXPANSION_COMMANDS:
         status, out = expansion(args, go)
     elif args.command == 'share':

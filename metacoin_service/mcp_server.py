@@ -296,6 +296,52 @@ def build(api=None):
         s, b = api.call('GET', '/api/v1/work/providers/' + provider_id + '/history')
         return ok_or_refused(s, b)
 
+    # ---- decision evidence (order of 2026-10-22): analysis is readable under job permissions; purchasing needs work:award ---------
+    @mcp.tool(name='analyze_decision', description='Submit a finite decision-observability analysis (enumerated rational hypotheses with decision labels, declared linear views, bounded noise, optional observations). Creates a job under the caller\'s own contract permissions; never spends. Returns the job id; read it with decision_status.', annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False))
+    def analyze_decision(inputs: dict, title: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/decisions/analyze', {'inputs': inputs, 'title': title or 'decision observability'})
+        return ok_or_refused(s, b, (202,))
+
+    @mcp.tool(name='decision_status', description='A decision analysis or acquisition job: state, disclosure-policed projection (counts, conclusion: separated within these assumptions / ambiguous / missing evidence / unsupported), verifications, assurance statements, acquisition plans. Private witnesses are NOT returned here. Read-only.', annotations=READ)
+    def decision_status(job_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/decisions/' + job_id)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='preview_acquisition', description='The next useful measurement set under a budget for an ambiguous decision: selected views, costs, predicted remaining ambiguities, exact / unsupported status. Nothing is stored, reserved or purchased. Read-only.', annotations=READ)
+    def preview_acquisition(analysis_job_id: str, menu: list, budget: int) -> dict:
+        s, b = api.call('POST', '/api/v1/acquisition-plans/preview', {'analysis_job_id': analysis_job_id, 'menu': menu, 'budget': budget})
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='create_acquisition_contract', description='CONSEQUENTIAL: store the acquisition plan and freeze decision-evidence-acquisition work terms from it, opening a request for offers. Needs work:request and contract:freeze on the caller\'s grant; an analysis-only grant is refused by the server. Nothing is reserved until an award (award_work).', annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=False))
+    def create_acquisition_contract(analysis_job_id: str, menu: list, budget: int, diagnostic_amount: int = 0, idempotency_key: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/acquisition-plans', {'analysis_job_id': analysis_job_id, 'menu': menu, 'budget': budget}, idempotency_key=idempotency_key)
+        if s != 201:
+            return refused(s, b)
+        if b.get('state') == 'nothing_to_acquire':
+            return {'plan': b, 'materialized': False, 'note': 'the plan selects no view under this budget: no contract, no reservation, no charge'}
+        s2, m = api.call('POST', '/api/v1/acquisition-plans/' + b['id'] + '/materialize', {'diagnostic_amount': diagnostic_amount}, idempotency_key=(idempotency_key + '-mat') if idempotency_key else None)
+        return {'plan': b, 'materialized': s2 == 201, 'result': m if s2 == 201 else refused(s2, m)}
+
+    @mcp.tool(name='assurance_preview', description='Required assurance of an award milestone with the available evidence, satisfied and missing clauses and the next checks, in plain English. Read-only.', annotations=READ)
+    def assurance_preview(award_id: str, milestone: str = 'm1') -> dict:
+        s, b = api.call('GET', '/api/v1/work/awards/%s/milestones/%s/assurance' % (award_id, milestone))
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='sampling_plan_preview', description='Exact finite-population sampling plan for an itemwise job: the smallest sample meeting C(N-m,k)/C(N,k) <= alpha, or infeasible with the required budget. The defect count m is an assumption of the claim, not an observation. Preview only (nothing bound). Read-only.', annotations=READ)
+    def sampling_plan_preview(job_id: str, alpha: str, max_samples: int, minimum_defects: int | None = None, defect_fraction: str | None = None) -> dict:
+        body = {'job_id': job_id, 'alpha': alpha, 'max_samples': max_samples, 'preview': True}
+        if defect_fraction:
+            body['defect_fraction'] = defect_fraction
+        else:
+            body['minimum_defects'] = minimum_defects
+        s, b = api.call('POST', '/api/v1/verification/sampling-plans', body)
+        return ok_or_refused(s, b)
+
+    @mcp.tool(name='compare_portfolios', description='Paired comparison of verification portfolios on a named preregistered fault suite (dev split by default): false acceptance / rejection, abstention, cost and latency by failure family; suite coverage separate from any statistical rate. Runs synthetic cases under the caller\'s grant; no purchase.', annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False))
+    def compare_portfolios(suite_id: str, portfolio_ids: list, split: str = 'dev', idempotency_key: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/portfolios/campaigns', {'suite_id': suite_id, 'portfolio_ids': portfolio_ids, 'split': split}, idempotency_key=idempotency_key)
+        return ok_or_refused(s, b, (201,))
+
     @mcp.tool(name='evaluate_acceptance', description='Acceptance candidate for a milestone under the frozen policy with a predicate trace. Read-only: it never accepts, pays or publishes.', annotations=READ)
     def evaluate_acceptance(award_id: str, milestone: str = 'm1') -> dict:
         s, b = api.call('POST', '/api/v1/work/awards/%s/milestones/%s/evaluate' % (award_id, milestone), {})
