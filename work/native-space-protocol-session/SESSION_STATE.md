@@ -1,20 +1,24 @@
 # Native space protocol session — checkpoint
 
 Order: `~/CLAUDE_CODE_METACOIN_NATIVE_SPACE_PROTOCOL_ORDER_2026-10-22.md` (replaces the lunar-machine-economy order).
-Started: 2026-10-22T09:33:03Z (see `START`). Base: `0ded29d` (evidence/acquisition-assurance records commit; source candidate 7159389) — `artifacts/BASE_REVISION.txt`.
-Branch: `protocol/native-space-settlement-v0`.
+Started: 2026-10-22T09:33:03Z (`START`). Base: `0ded29d` (evidence/acquisition-assurance records commit; source candidate 7159389) — `artifacts/BASE_REVISION.txt`.
+Branch: `protocol/native-space-settlement-v0` (local, not pushed).
 
-## Commits so far
-- `6986181` native core: protocol module, migration 042, native service (domain, actors, fixtures, signed idempotent transfers, obligations, refunds, audit), routes, role `actor`.
-- (this checkpoint) economy hooks: native assets accepted in terms/offers; awards reserve the payer's native funds; acceptance creates native obligations (provider, fee, verifier); payment intents on rail `native` settle from the reservation with a signed intent, commit sequence and receipt; treasury view/allocate on native assets; `METACOIN_X402_DISABLED=1` switch; capabilities report `native` and `x402.required_by_native_core: false`.
+## Commits
+- `6986181` native core (protocol, migration 042, service, routes, actor role)
+- `a0e6583` economy hooks (native assets in terms/offers, award reservations, obligations, native rail, treasury, x402-disabled switch, 80-unit loop test)
+- `a34e895` inter-domain layer (peers, allocations, envelopes, courier, tombstones, rotation, quarantine, migration 043) + 9 two-domain tests
+- `a119fff` lunar products (terrain tile, route feasibility, scenario pack; LOLA LDEM_4 extracts; reference; integration) + lunar journeys
+- `7f47de2` disputes, procurement, evidence bridge, checker/vectors/model, export, console/MCP/CLI + tests
+- (working tree) journeys harness, browser script, benchmark, docs, packaging scripts, evidence-field split for large lunar results, agent native operations — to be committed after run 2
 
-## Verified (disposable instance, simulation mode, x402 disabled)
-- `metacoin_service.tests.test_native_protocol`: 80-unit loop (§14) — 35/32/9/3/1 after the treasury award; 80 conserved; purchase before earning refused (`insufficient_available`); treasury award beyond revenue refused; 6 settlements with commit sequences 1..6, receipts, finality `domain_local_settlement`; journal replay consistent.
-- Regression: test_work_money 4, test_work_board 5, test_work_terms 6, test_work_evidence 7 — all OK.
+## Verified so far (disposable instances, simulation mode, x402 disabled)
+- Unit suites green at 7f47de2: test_native_protocol 2, test_native_domains 9, test_native_lunar 3, test_native_conformance 5, test_native_model 21, test_native_interfaces 9, test_native_evidence 8; inherited test_work_money/board/terms/evidence, test_decision_service, test_service green.
+- Journeys run 1 (`artifacts/journeys/journeys-native-run1.json`): 17 passed / 23 failed / 1 blocked — failures were harness defects (cumulative balances, alice funding, j19 cleanup leaving quarantine, grant policy shape, migrations column) and one product defect (lunar results > 64 KiB evidence field → fixed by splitting grids into bounded fields). Run 2 in progress.
 
-## Running processes
-- Live service (tmux `metacoin-service`, pids 2827392/2827403, 127.0.0.1:8402) at 3e34126/schema 040 — untouched, NOT the baseline, not upgraded.
-- No background jobs from this session.
+## Running processes owned by this session
+- Background: journeys harness run 2 (two API + two worker processes in temp homes; self-terminating), unit suites run. No tmux use.
+- Live service (tmux `metacoin-service`, pids 2827392/2827403, 127.0.0.1:8402) at 3e34126/schema 040 — untouched, not the baseline, not upgraded.
 
 ## Next action
-§7–§9 domains/allocations/envelopes/adapters (two configured domains), then §16 disputes/rotation/recovery, §11 lunar products, §12–§13, §17 interfaces, §18 checker/vectors, §19 forty journeys, §20–§24.
+Read run 2; fix remaining journey defects; commit; benchmark (`metacoin_service.benchmark_native`) on a harness instance; package (`package.sh`), clean export (`clean_export.sh`, journey 39), FEATURE_LEDGER, HANDOFF, final report. Extensions after that if time remains.

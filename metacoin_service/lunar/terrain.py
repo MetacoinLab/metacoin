@@ -13,7 +13,7 @@ INPUT_SCHEMA = 'lunar-terrain-input/v1'
 RESULT_SCHEMA = 'lunar-terrain-tile/v1'
 MODEL_ID = 'lunar-terrain-tile/v1'
 OUTCOMES = ('TILE_COMPLETE', 'TILE_PARTIAL')
-MAX_CELLS = 128 * 128
+MAX_CELLS = 64 * 64              # evidence fields are bounded (64 KiB each); 64x64 keeps every grid well inside
 FLAG_OK, FLAG_EDGE, FLAG_NODATA = 0, 1, 2
 ASSUMPTIONS = ['slope is the grid-scale gradient of a resampled DEM (pixel spacing as declared); features smaller than one pixel (rocks, small craters, scarps) are invisible',
                'simple cylindrical grid: north-south spacing is constant, east-west spacing is pixel_spacing * cos(latitude) per row (computed per row; polar rows are refused)',
@@ -39,7 +39,7 @@ def validate(data):
     src = data.get('source')
     if type(src) is not dict or src.get('schema') != 'lunar-terrain-source/v1' or src.get('kind') not in ('ldem_tile', 'synthetic'):
         raise Invalid('source: lunar-terrain-source/v1 ldem_tile or synthetic')
-    lines = _int(src.get('lines'), 3, 128, 'lines'); samples = _int(src.get('samples'), 3, 128, 'samples')
+    lines = _int(src.get('lines'), 3, 64, 'lines'); samples = _int(src.get('samples'), 3, 64, 'samples')
     if lines * samples > MAX_CELLS:
         raise Invalid('tile too large')
     dn = src.get('dn')

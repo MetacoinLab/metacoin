@@ -135,7 +135,7 @@ def verify(path, trust_root=None, trust_roots=()):
         if 'private/evidence-vault.json' in files and 'private/input-vault.json' in files:
             try:
                 ev = json.loads(files['private/evidence-vault.json']); iv = json.loads(files['private/input-vault.json'])
-                inputs = {f['name']: f['value'] for f in iv['fields']}['inputs']; result = {f['name']: f['value'] for f in ev['fields']}['result']
+                inputs = {f['name']: f['value'] for f in iv['fields']}['inputs']; result = lunar_ops.reassemble({f['name']: f['value'] for f in ev['fields']})
                 chk = lunar_ref.check(kind, inputs, result)
                 replay = {'performed': True, 'reference_ok': chk['ok'], 'checks': chk['checks'], 'checker_id': chk['checker_id'], 'outcome': result.get('outcome'), 'scope': 'independent reference over the private input and evidence vaults'}
             except Exception as exc:

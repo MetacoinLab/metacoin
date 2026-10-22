@@ -1,0 +1,43 @@
+{
+ "schema": "metacoin-native-migrations/v1",
+ "chosen_by_inspection": "highest id before this order: 041_decision_evidence (evidence-acquisition order); 042 and 043 were free",
+ "migrations": [
+  {
+   "id": "042_native_protocol",
+   "statements": [
+    "CREATE TABLE principals_new (id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('owner','worker','reviewer','viewer",
+    "INSERT INTO principals_new SELECT id, name, role, workspace, created_at, revoked_at FROM principals",
+    "DROP TABLE principals",
+    "ALTER TABLE principals_new RENAME TO principals",
+    "CREATE TABLE native_domains (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, environment TEXT NOT NULL, authority_key_id TEXT NOT NULL, author",
+    "CREATE TABLE native_peers (domain_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, authority_key_id TEXT NOT NULL, authority_public_hex TEXT NO",
+    "CREATE TABLE native_assets (asset_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, label TEXT NOT NULL, zero_value INTEGER NOT NULL, origin_dom",
+    "CREATE TABLE native_accounts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, principal_id TEXT, kind TEXT NOT NULL CHECK (kind IN ('actor','t",
+    "CREATE UNIQUE INDEX native_accounts_principal ON native_accounts (workspace, principal_id) WHERE principal_id IS NOT NULL",
+    "CREATE TABLE native_intents (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, domain_id TEXT NOT NULL, actor_account TEXT NOT NULL REFERENCES n",
+    "CREATE TABLE native_obligations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, payer_account TEXT NOT NULL, payee_accoun",
+    "CREATE TABLE native_allocations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, direction TEXT NOT NULL CHECK (direction IN ('export','import",
+    "CREATE TABLE native_envelopes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, direction TEXT NOT NULL CHECK (direction IN ('out','in')), send",
+    "CREATE TABLE native_tombstones (key TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL, created_at INTEGER NOT",
+    "CREATE TABLE native_disputes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL",
+    "CREATE TABLE native_receipts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL"
+   ],
+   "fk_off": true
+  },
+  {
+   "id": "043_native_authority_keys",
+   "statements": [
+    "CREATE TABLE native_authority_keys (domain_id TEXT NOT NULL, epoch INTEGER NOT NULL, key_id TEXT NOT NULL, public_hex TEXT NOT NULL, local I",
+    "CREATE INDEX native_authority_keys_kid ON native_authority_keys(key_id)",
+    "CREATE INDEX native_envelopes_dir_state ON native_envelopes(workspace, direction, state, receiver)",
+    "CREATE INDEX native_allocations_state ON native_allocations(workspace, direction, state)"
+   ],
+   "fk_off": false
+  }
+ ],
+ "forward_only": true,
+ "historical_readers": "old evidence vaults, receipts and journal entries keep their schemas; native tables are additive except the principals rebuild (role CHECK gains actor; data copied as is)",
+ "no_reinterpretation": "no historical balance becomes a native asset: native accounts start empty; the only sources are dev fixture funding (admin) and imported backing",
+ "rollback": "schema rollback does not forget exported authority: the watermark file and peers' observations keep already-published commitments; a restored older database enters quarantine",
+ "live_upgrade": "NOT performed: the live service (tmux metacoin-service, 127.0.0.1:8402) stays at 3e34126 / schema 040; the exact operation is documented in MIGRATION_NOTES.md and was verified on an isolated copy (journey 40)"
+}

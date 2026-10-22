@@ -279,7 +279,11 @@ class Verification:
             if kind == 'evidence_acquisition':
                 from .decision import service as decision_svc
                 extra = decision_svc.stored_delivery(db, self.store, target)
-            result = audit(kind, cls, tinputs, files, values['result'], params, challenge, extra)
+            res = values['result']
+            if kind in ('terrain_tile', 'route_feasibility', 'scenario_pack'):
+                from .lunar import operations as lunar_ops
+                res = lunar_ops.reassemble(values)
+            result = audit(kind, cls, tinputs, files, res, params, challenge, extra)
         from .economy.ops import fault as _fault
         _fault(db, self.settings, 'verifier_completion')
         fault = db.execute("SELECT value FROM meta WHERE key=?", ('fault:verification_fail:' + target['id'],)).fetchone() if self.settings.limits.get('test_hooks') else None

@@ -28,7 +28,7 @@ class Lunar:
             return None
         vault = self.svc.store.load_json(db, job['evidence_artifact_id'], job['workspace'])
         from experiments.work_contracts import acceptance as v0
-        return v0.full_values(vault, vault['receipt']['root'])['result']
+        return operations.reassemble(v0.full_values(vault, vault['receipt']['root']))
 
     def _inputs(self, db, job, contract):
         vault = self.svc.store.load_json(db, contract['input_artifact_id'], job['workspace'])

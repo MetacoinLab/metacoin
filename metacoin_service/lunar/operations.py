@@ -32,3 +32,25 @@ def run(kind, inputs):
     if kind == 'scenario_pack':
         r = scenario.compute(inputs); return r, r['outcome'], scenario.summary(r)
     raise KeyError(kind)
+
+
+GRID_KEYS = ('height_mm', 'slope_milli_deg', 'slope_low_milli_deg', 'slope_high_milli_deg', 'flags', 'row_spacing_mm', 'reachable_optimistic', 'reachable_conservative', 'path', 'preview_png_base64')
+
+
+def evidence_fields(result):
+    """Split a product result into evidence-vault fields under the per-field limit: the large grids travel as separate
+    `grid_<key>` fields; `result` keeps everything else. `reassemble` is the inverse."""
+    core = {k: v for k, v in result.items() if k not in GRID_KEYS}
+    out = {'result': core, 'grid_keys': [k for k in GRID_KEYS if k in result]}
+    for k in out['grid_keys']:
+        out['grid_' + k] = result[k]
+    return out
+
+
+def reassemble(values):
+    """values: the evidence vault's {name: value} map (as full_values returns it)."""
+    res = dict(values['result'])
+    for k in values.get('grid_keys', []):
+        if 'grid_' + k in values:
+            res[k] = values['grid_' + k]
+    return res

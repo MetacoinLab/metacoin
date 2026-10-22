@@ -19,11 +19,12 @@ from .db import now
 from .errors import ServiceError
 
 POLICY_SCHEMA = 'metacoin-agent-policy/v1'
-AGENT_OPERATIONS = ('services:read', 'quote', 'invoke', 'job:submit', 'job:read', 'workflow:run', 'campaign:run', 'dataset:read', 'usage:read', 'action:create', 'work:read', 'work:award')
+AGENT_OPERATIONS = ('services:read', 'quote', 'invoke', 'job:submit', 'job:read', 'workflow:run', 'campaign:run', 'dataset:read', 'usage:read', 'action:create', 'work:read', 'work:award', 'native:read', 'native:transfer')
 OPERATION_TO_PERMISSION = {'services:read': ['contract:read'], 'quote': ['contract:create'], 'invoke': ['contract:create', 'contract:freeze', 'job:submit'], 'job:submit': ['job:submit'],
                            'job:read': ['job:read'], 'workflow:run': ['job:submit', 'contract:create', 'contract:freeze'], 'campaign:run': ['job:submit', 'contract:create', 'contract:freeze'],
                            'dataset:read': ['contract:read'], 'usage:read': ['budget:read'], 'action:create': ['action:create'],
-                           'work:read': ['work:read'], 'work:award': ['work:read', 'work:award', 'budget:read']}      # Order 08 §65: an agent may award only under an explicit grant operation and its amount ceiling
+                           'work:read': ['work:read'], 'work:award': ['work:read', 'work:award', 'budget:read'],
+                           'native:read': ['native:read'], 'native:transfer': ['native:read', 'native:transfer']}      # order 2026-10-22: a delegated actor spends only within the grant's amount ceilings      # Order 08 §65: an agent may award only under an explicit grant operation and its amount ceiling
 
 
 def validate_policy(policy):

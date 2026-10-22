@@ -1,0 +1,273 @@
+{
+ "protocol": "metacoin-native/v0",
+ "policy_version": "native-policy/v0",
+ "environments": [
+  "dev",
+  "test",
+  "production"
+ ],
+ "asset_id": "environment:authority:ledger:asset:scale (regex ^(dev|test|production):[a-z0-9][a-z0-9-]{0,47}:[a-z0-9][a-z0-9-]{0,47}:[A-Za-z0-9][A-Za-z0-9-]{0,31}:(0|[1-9]|1[0-8])$)",
+ "amount": "integer base units 1..4611686018427387903 (0 only where a zero amount is explicitly allowed)",
+ "encoding": "canonical JSON (sorted keys, ASCII, integers only, depth <= 16, strings <= 4096); strict parsing rejects duplicate keys, floats and constants",
+ "message_types": {
+  "intent": "metacoin/native/v0/intent",
+  "allocation_export": "metacoin/native/v0/export",
+  "allocation_certificate": "metacoin/native/v0/certificate",
+  "import_ack": "metacoin/native/v0/import-ack",
+  "return_request": "metacoin/native/v0/return-request",
+  "return_certificate": "metacoin/native/v0/return-certificate",
+  "commit_checkpoint": "metacoin/native/v0/checkpoint",
+  "envelope": "metacoin/native/v0/envelope",
+  "receipt": "metacoin/native/v0/receipt",
+  "rotation": "metacoin/native/v0/rotation",
+  "observation": "metacoin/native/v0/observation"
+ },
+ "signature": "Ed25519 over tag || sha256(canonical(body)); the tag separates message types; the body binds protocol, environment and authority",
+ "account_categories": [
+  "available",
+  "reserved",
+  "committed_outgoing",
+  "in_transit",
+  "disputed"
+ ],
+ "derived_views": [
+  "earned_unsettled",
+  "pending_claims",
+  "settled_in",
+  "settled_out"
+ ],
+ "intent_states": [
+  "proposed",
+  "reserved",
+  "authorized",
+  "committed",
+  "settled",
+  "pending",
+  "uncertain",
+  "disputed",
+  "rejected",
+  "cancelled"
+ ],
+ "intent_transitions": [
+  {
+   "from": "proposed",
+   "to": "reserved",
+   "precondition": "actor may act within its grant; available >= amount ceiling; recipient permitted; asset/domain/environment match",
+   "effect": "available -> reserved (journal); grant exposure counted",
+   "idempotency": "request_id: a repeated proposal returns the same intent"
+  },
+  {
+   "from": "reserved",
+   "to": "authorized",
+   "precondition": "signer holds the account key; canonical message bound to protocol, environment, actor, authority, asset, ceiling, recipient, obligation, grant, nonce, policy",
+   "effect": "signature stored; nothing moves",
+   "idempotency": "same nonce -> same signature; a changed field is a new intent"
+  },
+  {
+   "from": "authorized",
+   "to": "committed",
+   "precondition": "the domain authority (single fenced writer) orders the transition; obligation (if any) outstanding >= amount",
+   "effect": "reserved -> committed_outgoing (payer); obligation partially/fully satisfied",
+   "idempotency": "commit sequence assigned once; retries return the recorded commit"
+  },
+  {
+   "from": "committed",
+   "to": "settled",
+   "precondition": "same transaction as commit in the local domain (domain-local settlement)",
+   "effect": "committed_outgoing -> recipient available; fee legs to the treasury account; receipt issued",
+   "idempotency": "settlement sequence equals commit sequence"
+  },
+  {
+   "from": "reserved",
+   "to": "cancelled",
+   "precondition": "not yet committed",
+   "effect": "reserved -> available (release of provably unexposed amount)",
+   "idempotency": "repeat returns cancelled"
+  },
+  {
+   "from": "authorized",
+   "to": "cancelled",
+   "precondition": "not yet committed; signature retained as evidence",
+   "effect": "reserved -> available",
+   "idempotency": "repeat returns cancelled"
+  },
+  {
+   "from": "proposed",
+   "to": "rejected",
+   "precondition": "any precondition failed before value changed",
+   "effect": "none",
+   "idempotency": "the refusal is recorded with its reason"
+  },
+  {
+   "from": "committed",
+   "to": "uncertain",
+   "precondition": "the response to the submitter was lost after commit",
+   "effect": "none: the commit stands; the submitter must reconcile by intent id",
+   "idempotency": "reconciliation returns settled"
+  },
+  {
+   "from": "settled",
+   "to": "disputed",
+   "precondition": "a bounded dispute referencing this settlement is opened",
+   "effect": "the disputed amount is marked on the recipient (available -> disputed) only to the extent still available; history untouched",
+   "idempotency": "one dispute per settlement"
+  }
+ ],
+ "allocation_states": [
+  "reserved",
+  "export_committed",
+  "certified",
+  "imported",
+  "acknowledged",
+  "return_requested",
+  "returned",
+  "quarantined"
+ ],
+ "allocation_transitions": [
+  {
+   "from": "-",
+   "to": "reserved",
+   "where": "source",
+   "precondition": "source account available >= amount; destination domain pinned",
+   "effect": "available -> in_transit (journal)",
+   "crash_boundary": "source reservation"
+  },
+  {
+   "from": "reserved",
+   "to": "export_committed",
+   "where": "source",
+   "precondition": "authority orders the export; epoch current",
+   "effect": "in_transit -> backing:exported (nonspendable at the source, irrevocable once a certificate is issued)",
+   "crash_boundary": "source export commit"
+  },
+  {
+   "from": "export_committed",
+   "to": "certified",
+   "where": "source",
+   "precondition": "certificate signed by the source authority (bound to destination, asset, amount, allocation id, epoch, policy, commit evidence) and placed in the outbox",
+   "effect": "certificate durable; source backing stays locked",
+   "crash_boundary": "certificate publication"
+  },
+  {
+   "from": "certified",
+   "to": "imported",
+   "where": "destination",
+   "precondition": "certificate verifies under the pinned source root; destination == this domain; allocation id unseen (tombstone check); epoch policy",
+   "effect": "claim credited: backing:claim -> recipient available at the destination (spendable there)",
+   "crash_boundary": "destination durable import"
+  },
+  {
+   "from": "imported",
+   "to": "acknowledged",
+   "where": "both",
+   "precondition": "signed import acknowledgment delivered to the source",
+   "effect": "source marks the allocation acknowledged; nothing moves",
+   "crash_boundary": "acknowledgment"
+  },
+  {
+   "from": "imported|acknowledged",
+   "to": "return_requested",
+   "where": "destination",
+   "precondition": "the full allocation is unspent at the destination (partial return unsupported)",
+   "effect": "destination claim made nonspendable (available -> in_transit) and a signed return request issued",
+   "crash_boundary": "return initiation"
+  },
+  {
+   "from": "return_requested",
+   "to": "returned",
+   "where": "source",
+   "precondition": "return request verifies under the pinned destination root and names an allocation this source exported",
+   "effect": "backing:exported -> source account available; destination burns its claim on the return certificate",
+   "crash_boundary": "return completion"
+  },
+  {
+   "from": "*",
+   "to": "quarantined",
+   "where": "either",
+   "precondition": "conflicting signed histories, cloned authority or an unresolved rollback watermark",
+   "effect": "the allocation and the domain's outward spending are frozen until an administrator reconciles",
+   "crash_boundary": "none (safety state)"
+  }
+ ],
+ "finality": {
+  "local_authorization": "the actor may attempt the action within its grant (nothing recorded yet)",
+  "durable_local_commit": "the domain authority ordered and durably recorded the economic transition (commit sequence)",
+  "delivery_acknowledgment": "another endpoint received a message or artifact (says nothing about acceptance or settlement)",
+  "work_acceptance": "the frozen contract policy produced an acceptance decision on the delivered evidence root",
+  "cross_domain_pending_claim": "an exported allocation whose import or backing is still being reconciled",
+  "domain_local_settlement": "the obligation was paid under this domain's declared rules (spendable here)",
+  "reconciled_inter_domain_settlement": "both domains' durable state and the backing satisfy the transfer policy (acknowledged allocation; no duplicated ownership)"
+ },
+ "trust_model": {
+  "supported_domain": "a trusted ordering authority with one fenced writer (SQLite BEGIN IMMEDIATE on durable storage), authenticated actors, explicit administrator powers",
+  "not_provided": [
+   "Byzantine fault tolerance",
+   "independent validators (replicated processes of one operator are not independent)",
+   "equivocation prevention by signature alone (a key holder can sign two histories)",
+   "public-network finality",
+   "launched currency"
+  ],
+  "detected": [
+   "conflicting signed histories for one allocation id",
+   "certificates addressed to another domain",
+   "replayed allocation ids (tombstones)",
+   "rollback below the export watermark after a backup restore"
+  ],
+  "boundary": "crash / retry tolerance is provided by durable commits and idempotent request ids; Byzantine authority behaviour is detected and quarantined where two signed histories meet, never prevented"
+ },
+ "intent_fields": [
+  "actor_account",
+  "amount_ceiling",
+  "asset",
+  "authority",
+  "environment",
+  "grant_id",
+  "nonce",
+  "obligation_id",
+  "permitted_recipients",
+  "policy_version",
+  "protocol",
+  "purpose",
+  "recipient",
+  "request_id",
+  "type"
+ ],
+ "certificate_fields": [
+  "allocation_id",
+  "amount",
+  "asset",
+  "commit_digest",
+  "commit_sequence",
+  "destination_authority",
+  "environment",
+  "issued_at",
+  "policy_version",
+  "protocol",
+  "recipient_account",
+  "source_authority",
+  "source_epoch",
+  "type"
+ ],
+ "envelope_fields": [
+  "causality",
+  "created_at",
+  "environment",
+  "expires_at",
+  "id",
+  "message_type",
+  "payload_digest",
+  "protocol",
+  "receiver",
+  "sender",
+  "type"
+ ],
+ "ordering": "one commit sequence per domain, assigned by the fenced writer in transaction order; messages carry a causality reference and are applied idempotently by id with durable tombstones",
+ "replay": "intent nonces are unique per account; allocation ids and envelope ids are tombstoned for as long as they can affect economic state (never garbage-collected below the export watermark)",
+ "failure_and_recovery": "every transition is one durable transaction with its outbox record; a lost response is reconciled by id (uncertain != not committed); a restored backup below the export watermark enters quarantine until reconciled; timeouts never recreate value",
+ "what_a_development_ledger_is_not": [
+  "a launched currency",
+  "decentralized consensus",
+  "public-network adoption",
+  "space-qualified deployment"
+ ]
+}
