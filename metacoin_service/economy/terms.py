@@ -28,7 +28,7 @@ LIMITS = {'milestones': 16, 'deliverables': 16, 'predicates': 24, 'title_chars':
 DELIVERABLE_TYPES = {
     'exact_task_output': {'kinds': ('legacy_task_replay',), 'automatic': ('artifact_complete', 'exact_output_hash', 'source_revision', 'schema_valid', 'assurance_satisfied'), 'review_required': False,
                           'claim': 'canonical output of a frozen deterministic task compared exactly with its registered hash (legacy exact protocol rule, unchanged)'},
-    'determination': {'kinds': ('energy_audit', 'temporal_energy', 'safe_runtime', 'task_selection'), 'automatic': ('artifact_complete', 'outcome_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
+    'determination': {'kinds': ('energy_audit', 'temporal_energy', 'safe_runtime', 'task_selection', 'route_feasibility'), 'automatic': ('artifact_complete', 'outcome_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
                       'claim': 'a valid FEASIBLE / INFEASIBLE / INDETERMINATE determination under the declared exact model; a negative is a first-class deliverable'},
     'numerical_witness': {'kinds': ('resource_plan',), 'automatic': ('artifact_complete', 'status_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
                           'claim': 'a schedule/witness checked exactly by the independent integer simulator under the declared model; global optimality is claimed only with the solver status that says so'},
@@ -36,6 +36,8 @@ DELIVERABLE_TYPES = {
                                      'claim': 'numerical result replayed or audited under its manifest class and declared tolerance (not the legacy exact rule)'},
     'decision_evidence': {'kinds': ('evidence_acquisition', 'decision_observability'), 'automatic': ('artifact_complete', 'outcome_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
                           'claim': 'a delivered observation validated against the frozen measurement menu and conditioned on the frozen candidate model; resolved, ambiguous and model-inconsistent are all VALID deliveries, distinct from an invalid delivery or a failed acquisition'},
+    'lunar_product': {'kinds': ('terrain_tile', 'scenario_pack'), 'automatic': ('artifact_complete', 'outcome_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
+                      'claim': 'a terrain tile or scenario pack computed under the declared grid model and checked by the independent lunar reference (slopes within 1 milli-degree, witnesses re-walked); a product, never a traversability guarantee'},
     'reviewed_dataset_transformation': {'kinds': ('document_import',), 'automatic': ('artifact_complete', 'source_revision'), 'review_required': True,
                                         'claim': 'a dataset transformation whose mapping a designated reviewer confirmed; automation checks completeness and provenance only'},
     'evidence_linked_report': {'kinds': ('analysis_report',), 'automatic': ('artifact_complete', 'source_revision'), 'review_required': True,
@@ -54,6 +56,9 @@ def outcome_vocabulary(kind):
         return DECISION_OUTCOMES
     if kind == 'decision_observability':
         return ANALYSIS_OUTCOMES
+    if kind in ('terrain_tile', 'scenario_pack'):
+        from ..lunar import operations as lunar_ops
+        return lunar_ops.OUTCOMES[kind]
     return energy.OUTCOMES
 OUTCOME_TREATMENTS = ('accept', 'accept_diagnostic', 'reject')
 PAYMENT_CLASSES = ('complete', 'partial', 'diagnostic')
@@ -254,7 +259,7 @@ def validate(terms, mode='draft'):
         if 'max_bytes' in d:
             _int(d['max_bytes'], 1, 64 * 1024 * 1024, 'deliverable_max_bytes')
         if 'media' in d:
-            _enum_list(d['media'], ('application/json', 'application/x-npy', 'text/markdown', 'application/pdf', 'image/svg+xml'), 'deliverable_media')
+            _enum_list(d['media'], ('application/json', 'application/x-npy', 'text/markdown', 'application/pdf', 'image/svg+xml', 'image/png', 'application/zip'), 'deliverable_media')
         if 'partial_allowed' in d and type(d['partial_allowed']) is not bool:
             _err('deliverable_partial_allowed')
         if 'retention_seconds' in d:
@@ -562,6 +567,8 @@ def template(name, requester, workspace, *, ceiling=10, amount=None, kind=None, 
         return t
     if name == 'decision_evidence_acquisition':
         return decision_evidence_terms(requester, workspace, ceiling=ceiling, amount=amount, title=title)
+    if name in ('lunar_terrain_tile', 'lunar_route_feasibility', 'lunar_scenario_pack'):
+        return lunar_terms(name, requester, workspace, ceiling=ceiling, amount=amount, title=title, asset=asset)
     raise ServiceError('VALIDATION', {'code': 'template', 'allowed': list(TEMPLATES)})
 
 
@@ -591,8 +598,36 @@ def decision_evidence_terms(requester, workspace, *, ceiling, amount=None, diagn
     return t
 
 
+def lunar_terms(name, requester, workspace, *, ceiling, amount=None, title=None, asset='action-units', verification_class='analytical'):
+    """The three lunar products: outcome-neutral where the outcome is a determination (route), product-complete otherwise;
+    verification by the independent lunar reference checker (class analytical) unless the terms ask for a same-implementation replay."""
+    from ..lunar import operations as lunar_ops, reference as lunar_ref
+    amount = ceiling if amount is None else amount
+    kind = {'lunar_terrain_tile': 'terrain_tile', 'lunar_route_feasibility': 'route_feasibility', 'lunar_scenario_pack': 'scenario_pack'}[name]
+    titles = {'terrain_tile': 'Lunar terrain tile: elevation, slope, nodata and uncertainty on the declared LOLA/synthetic grid', 'route_feasibility': 'Lunar route feasibility: FEASIBLE / INFEASIBLE / INDETERMINATE under the declared rover model',
+              'scenario_pack': 'Lunar scenario pack: pinned inputs, seeded variations, reference outputs and a reproduction command'}
+    t = _base(requester, workspace, kind, title or titles[kind], ceiling, asset)
+    schema = {'terrain_tile': 'lunar-terrain-tile/v1', 'route_feasibility': 'lunar-route-result/v1', 'scenario_pack': 'lunar-scenario-pack/v1'}[kind]
+    dtype = 'determination' if kind == 'route_feasibility' else 'lunar_product'
+    t['deliverables'] = [{'key': 'product', 'type': dtype, 'schema': schema, 'required': True, 'media': ['application/json', 'image/png'] if kind == 'terrain_tile' else ['application/json', 'application/zip'] if kind == 'scenario_pack' else ['application/json'], 'provenance': {'bind_inputs': True, 'bind_method': True}}]
+    outcomes = list(lunar_ops.OUTCOMES[kind])
+    t['acceptance'] = {'schema': POLICY_SCHEMA, 'predicates': [{'id': 'complete', 'type': 'artifact_complete'}, {'id': 'source', 'type': 'source_revision'}, {'id': 'schema', 'type': 'schema_valid'},
+                                                               {'id': 'outcome', 'type': 'outcome_in', 'params': {'outcomes': outcomes}},
+                                                               {'id': 'reference', 'type': 'verification_passed', 'params': {'class': verification_class, 'distinct_verifier': False}}],
+                       'outcomes': {o: ('accept_diagnostic' if o == 'INDETERMINATE' else 'accept') for o in outcomes},
+                       'valid_negative': {'requires': ['verification_passed', 'artifact_complete'], 'note': 'a verified INFEASIBLE route (closure witness) earns the same as a verified FEASIBLE one; a partial tile (nodata) is a complete product with its gaps declared'},
+                       'required_verification': {'class': verification_class, 'distinct_verifier': False}, 'payment_rule': {'complete': amount, 'partial': 0, 'diagnostic': max(amount // 2, 0), 'outcome_neutral': True}}
+    t['eligibility'] = dict(t['eligibility'], verification_classes=['analytical', 'full_exact'])
+    t['milestones'] = [{'key': 'm1', 'deliverables': ['product'], 'max_payment': amount, 'depends_on': [], 'deadline_seconds': 86400, 'on_failure': 'stop_downstream'}]
+    t['notes'] = 'grid-scale model on the declared tile; a coarse DEM does not establish rock avoidance, wheel traction or safe physical navigation (assumptions are inside the product)'
+    return t
+
+
 TEMPLATES = {'determination': 'outcome-neutral determination (energy_audit): FEASIBLE and INFEASIBLE both paid when verified; INDETERMINATE earns the diagnostic amount',
              'infeasibility_witness': 'numerical witness (resource_plan): feasible schedule checked exactly or infeasibility established; solver limits are never negative proofs',
              'independent_replay': 'exact replay of a frozen deterministic task compared with its registered hash (legacy exact rule)',
              'diagnostic_delivery': 'determination with pre-agreed complete / partial / diagnostic amounts',
-             'decision_evidence_acquisition': 'decision-evidence-acquisition/v1 (evidence_acquisition): a valid delivered measurement is paid whatever it establishes; invalid deliveries earn nothing; created from an acquisition plan (POST /api/v1/acquisition-plans/{id}/materialize)'}
+             'decision_evidence_acquisition': 'decision-evidence-acquisition/v1 (evidence_acquisition): a valid delivered measurement is paid whatever it establishes; invalid deliveries earn nothing; created from an acquisition plan (POST /api/v1/acquisition-plans/{id}/materialize)',
+             'lunar_terrain_tile': 'lunar-terrain-tile/v1 (terrain_tile): elevation + slope with nodata, edge, projection-scale and uncertainty treatment; verified by the independent lunar reference',
+             'lunar_route_feasibility': 'lunar-route-feasibility/v1 (route_feasibility): outcome-neutral FEASIBLE / INFEASIBLE / INDETERMINATE with a checkable path or closure witness',
+             'lunar_scenario_pack': 'lunar-scenario-pack/v1 (scenario_pack): reproducible downloadable pack with pinned inputs, seeds, variations and reference outputs'}

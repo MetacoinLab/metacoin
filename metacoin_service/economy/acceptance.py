@@ -13,7 +13,7 @@ from ..errors import ServiceError
 from . import terms as terms_mod
 
 EXECUTION_STATES = {'queued': 'queued', 'running': 'running', 'succeeded': 'completed', 'failed': 'failed', 'cancelled': 'cancelled'}
-SCIENCE_KINDS = {'energy_audit': 'outcome', 'temporal_energy': 'outcome', 'safe_runtime': 'status', 'task_selection': 'status', 'resource_plan': 'status', 'legacy_task_replay': 'not_applicable', 'evidence_acquisition': 'outcome', 'decision_observability': 'outcome'}
+SCIENCE_KINDS = {'energy_audit': 'outcome', 'temporal_energy': 'outcome', 'safe_runtime': 'status', 'task_selection': 'status', 'resource_plan': 'status', 'legacy_task_replay': 'not_applicable', 'evidence_acquisition': 'outcome', 'decision_observability': 'outcome', 'terrain_tile': 'outcome', 'route_feasibility': 'outcome', 'scenario_pack': 'outcome'}
 NEGATIVE_OUTCOMES = ('INFEASIBLE',)
 DIAGNOSTIC_OUTCOMES = ('INDETERMINATE',)
 # LEGACY (policy schema v1 only): a universal strength ranking. replica and sampled_reference share rank 2 although they
@@ -38,7 +38,7 @@ def science_conclusion(kind, job):
                 'limit_no_candidate': 'INDETERMINATE', 'numerical_failure': 'INDETERMINATE', 'candidate_rejected_by_checker': 'INDETERMINATE', 'invalid_input': 'INDETERMINATE'}.get(out, 'unknown')
     if kind in ('safe_runtime', 'task_selection'):
         return {'FEASIBLE': 'FEASIBLE', 'INFEASIBLE': 'INFEASIBLE', 'INDETERMINATE': 'INDETERMINATE'}.get(out, 'not_applicable')
-    if kind in ('evidence_acquisition', 'decision_observability'):
+    if kind in ('evidence_acquisition', 'decision_observability', 'terrain_tile', 'route_feasibility', 'scenario_pack'):
         return out if out in terms_mod.outcome_vocabulary(kind) else 'unknown'
     return 'not_applicable'
 

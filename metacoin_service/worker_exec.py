@@ -52,6 +52,13 @@ def run(spec):
             evidence['delivery_digest'] = result.get('delivery_digest'); evidence['plan_digest'] = inputs['plan_digest']
         _, vault = merkle.commit(evidence)
         return {'evidence_vault': vault, 'outcome': outcome, 'summary': summary}
+    elif kind in ('terrain_tile', 'route_feasibility', 'scenario_pack'):
+        from metacoin_service.lunar import operations as lunar_ops
+        result, outcome, summary = lunar_ops.run(kind, inputs)
+        evidence = {'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'], 'verifier_id': lunar_ops.VERIFIER_ID, 'verifier_digest': lunar_ops.implementation_digest(),
+                    'result_schema': result['result_schema'], 'model_id': result['model_id'], 'result': result, 'scope': 'declared-grid-model;grid-scale-slopes;not-physical-traversability'}
+        _, vault = merkle.commit(evidence)
+        return {'evidence_vault': vault, 'outcome': outcome, 'summary': summary}
     elif kind == 'legacy_task_replay':
         from metacoin_service.economy import legacy_bridge
         result, outcome, summary = legacy_bridge.run(inputs)

@@ -81,6 +81,8 @@ class Services:
         self.portfolios = Portfolios(settings, self)
         from .native.service import Native
         self.native = Native(settings, self)
+        from .lunar.service import Lunar
+        self.lunar = Lunar(settings, self)
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
@@ -2413,6 +2415,8 @@ def create_app(settings):
     decision_routes.mount(app, svc, run, read_body, API)
     from .native import routes as native_routes
     native_routes.mount(app, svc, run, read_body, API)
+    from .lunar import routes as lunar_routes
+    lunar_routes.mount(app, svc, run, read_body, API)
     return app
 
 

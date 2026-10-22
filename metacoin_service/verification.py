@@ -46,11 +46,15 @@ SUPPORT = {
     'task_selection': {'full_exact': 'recomputation by science.select_tasks (same implementation)'},
     'legacy_task_replay': {'full_exact': 'frozen task recomputed by its registered implementation and compared exactly with the producer hash and the public ledger registration (legacy exact rule)'},
     'decision_observability': {'full_exact': 'recomputation by the decision kernels (same implementation: regression check, not independent)', 'analytical': 'every ambiguity witness, separated pair and conditioning re-decided from the raw hypotheses and views by the independent witness checker (decision-witness-checker/v1; no producer projections used)'},
+    'terrain_tile': {'analytical': 'every cell recomputed by the independent lunar reference (Fraction gradients, atan2); slopes within 1 milli-degree, flags, heights, stats and provenance binding exact', 'full_exact': 'recomputation by the same lunar implementation (regression check, not independent)'},
+    'route_feasibility': {'analytical': 'the path re-walked (passability at the slope upper bound, energy and length recomputed) or the closure witness verified cell by cell by the independent lunar reference', 'full_exact': 'recomputation by the same lunar implementation (regression check)'},
+    'scenario_pack': {'analytical': 'manifest digests recomputed from the frozen inputs and every variation re-walked by the independent lunar reference', 'full_exact': 'recomputation by the same lunar implementation (regression check)'},
     'evidence_acquisition': {'full_exact': 'conditioning recomputed by the decision kernels on the stored delivery (same implementation: regression check)', 'analytical': 'delivery validity and the surviving set re-decided from the raw frozen model and the stored delivery by the independent witness checker (decision-witness-checker/v1)'},
 }
 MAX_WORK = {'full_exact': 200_000, 'full_reference': 2_000_000, 'sampled_reference': 4096, 'analytical': 10 ** 9, 'replica': 10 ** 9}
 SHARED_CODE = {'temporal_batch': ['compute.inputs.scenario (parameter expansion)', 'compute.npy (array codec)'], 'monte_carlo_reliability': ['compute.inputs.apply_variation', 'stored samples_audit.json (producer-generated parameters)'],
                'heat_diffusion': ['compute.kernels.heat_initial_field (initial condition constructor)', 'compute.npy'], 'calibration_fit': ['compute.calibration.design/standardize (shared conventions)'], 'resource_plan': ['compute.resource_plan.simulate (the declared model; independent of the MILP encoding)'],
+               'terrain_tile': ['terrain.row_spacing (per-row east-west spacing) and the PNG preview are shared; gradients and angles are recomputed independently'], 'route_feasibility': ['step length/cost formulas are shared by definition of the declared model; the tile slopes are recomputed by the producer implementation before the walk'], 'scenario_pack': ['the SplitMix64 variation generator is shared by definition of the pack format'],
                'decision_observability': ['input normalisation is independent (checker parses the raw JSON itself); only the schema is shared'], 'evidence_acquisition': ['input normalisation is independent (checker parses the raw JSON itself); only the schema and the stored delivery artifact are shared']}
 
 
@@ -482,7 +486,20 @@ def audit(kind, cls, inputs, files, result, params, challenge, run):
         return legacy_bridge.audit(inputs, result)
     if kind in ('decision_observability', 'evidence_acquisition'):
         return _audit_decision(kind, cls, inputs, result, run)
+    if kind in ('terrain_tile', 'route_feasibility', 'scenario_pack'):
+        return _audit_lunar(kind, cls, inputs, result)
     return _audit_science(kind, inputs, result)
+
+
+def _audit_lunar(kind, cls, inputs, result):
+    from .lunar import operations as lunar_ops, reference as lunar_ref
+    if cls == 'full_exact':
+        fresh, _, _ = lunar_ops.run(kind, inputs)
+        same = merkle.canonical(fresh) == merkle.canonical(result)
+        return {'outcome': 'passed' if same else 'failed', 'checked': 1, 'total': 1, 'checks': [{'check': 'recomputation_same_implementation', 'ok': same, 'detail': None}], 'coverage': 'whole result, same implementation', 'statement': SUPPORT[kind]['full_exact']}
+    chk = lunar_ref.check(kind, inputs, result)
+    return {'outcome': 'passed' if chk['ok'] else 'failed', 'checked': sum(c['ok'] for c in chk['checks']), 'total': len(chk['checks']), 'checks': chk['checks'], 'coverage': 'whole result by the independent reference', 'statement': SUPPORT[kind]['analytical'],
+            'checker': {'id': lunar_ref.CHECKER_ID, 'digest': lunar_ops.reference_digest()}, 'tolerance': {'slope_milli_deg': lunar_ref.SLOPE_TOL_MDEG}}
 
 
 def _audit_decision(kind, cls, inputs, result, delivery):
