@@ -503,6 +503,8 @@ class Board:
         if selection['manual'] and (type(body.get('reason')) is not str or not body['reason'].strip()):
             raise ServiceError('VALIDATION', {'code': 'manual_reason_required', 'recommended': cmp['recommended']})
         approval_gate(self.svc.approvals, db, principal, 'work_award')
+        if getattr(self.svc, 'decisions', None) is not None:
+            self.svc.decisions.award_guard(db, terms)                               # evidence acquisition: quote expiry and plan binding rechecked inside the award transaction
         from ..agents import grant_of, guard
         if grant_of(principal):
             guard(db, principal, 'work:award', service_kind=terms['operation']['kind'], amount=o['price_amount'] + terms['payment'].get('verifier_compensation', 0), precheck_jobs=1)
@@ -541,6 +543,8 @@ class Board:
         history.record(db, principal.workspace, principal.id, 'work.awarded', 'work_award', aid, {'request_id': rid, 'offer_id': oid, 'provider_id': prow['id'], 'provider_revision': prow['revision'], 'terms_digest': t['digest'], 'ceiling': ceiling, 'reserved': ceiling, 'budget_node': node, 'selection': selection['policy']['policy'], 'manual': selection['manual']})
         from ..datasets import add_edge
         add_edge(db, principal.workspace, 'work_request', rid, 'work_award', aid, 'awarded'); add_edge(db, principal.workspace, 'work_offer', oid, 'work_award', aid, 'bound_offer')
+        if getattr(self.svc, 'decisions', None) is not None:
+            self.svc.decisions.on_award(db, aid, t['id'])
         self.dispatch_ready(db, aid)
         fault(db, self.settings, 'award_commit')
         return self.award_view(db, principal, db.execute('SELECT * FROM work_awards WHERE id=?', (aid,)).fetchone())
@@ -617,6 +621,8 @@ class Board:
             if award['state'] == 'awarded':
                 db.execute("UPDATE work_awards SET state='executing', updated_at=? WHERE id=?", (now(), aid))
             history.record(db, award['workspace'], 'scheduler', 'work.attempt', 'work_attempt', wat, {'award_id': aid, 'milestone': key, 'job_id': jid, 'generation': gen, 'execution': ex['type'], 'location_policy': json.loads(loc)})
+            if getattr(self.svc, 'decisions', None) is not None:
+                self.svc.decisions.on_dispatch(db, award, m, jid)
             from ..datasets import add_edge
             add_edge(db, award['workspace'], 'work_award', aid, 'job', jid, 'executes_milestone:' + key)
             started.append({'milestone': key, 'job_id': jid, 'attempt': wat})

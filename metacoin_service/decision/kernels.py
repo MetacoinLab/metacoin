@@ -288,10 +288,27 @@ def analyze(data):
             cond = 'DETERMINED_WITHIN_DECLARED_MODEL'
         else:
             cond = 'AMBIGUOUS_AFTER_OBSERVATION'
+        remaining = []
+        surv = [h for h, _ in survivors]
+        for a, b in itertools.combinations(surv, 2):
+            if a['label'] == b['label']:
+                continue
+            w, separable = {}, []
+            for v in views:
+                if v['id'] in observations:
+                    w[v['id']] = [frac_str(x) for x in observations[v['id']]]           # the actual observation lies in both boxes (both survived)
+                else:
+                    so = shared_observation(a, b, v)
+                    if so is None:
+                        separable.append(v['id'])
+                    else:
+                        w[v['id']] = [frac_str(x) for x in so]
+            remaining.append({'pair': [a['id'], b['id']], 'labels': [a['label'], b['label']], 'states': [[frac_str(x) for x in a['state']], [frac_str(x) for x in b['state']]], 'shared_observation': w,
+                              'separable_by_unobserved_views': separable, 'note': 'both hypotheses are compatible with every delivered observation; a declared but unobserved view listed here would separate them'})
         out['conditioning'] = {'observed_views': sorted(observations), 'observations': {k: [frac_str(x) for x in v] for k, v in observations.items()}, 'surviving': [h['id'] for h, _ in survivors], 'excluded': [{'id': h['id'], 'by_views': bad} for h, bad in excluded],
                                'surviving_labels': surviving_labels, 'determined_label': surviving_labels[0] if len(surviving_labels) == 1 and survivors else None, 'conclusion': cond,
                                'coverage_limitation': 'determined WITHIN the declared candidate model: a state outside the enumerated set is not considered; no nearest hypothesis is chosen when none is compatible',
-                               'remaining_witnesses': [w for w in witnesses if w['pair'][0] in {h['id'] for h, _ in survivors} and w['pair'][1] in {h['id'] for h, _ in survivors}]}
+                               'remaining_witnesses': remaining}
         out['conclusion'] = cond
     return out
 

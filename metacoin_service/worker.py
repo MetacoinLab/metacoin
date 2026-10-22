@@ -110,8 +110,11 @@ class Worker:
         doc = merkle.parse(contract['contract_json'])
         vault = self.store.load_json(db, contract['input_artifact_id'], job['workspace'])
         inputs = {f['name']: f['value'] for f in vault['fields']}['inputs']
-        return contract, {'kind': job['kind'], 'contract': doc, 'contract_digest': contract['contract_digest'],
-                          'input_root': contract['input_root'], 'input_vault': vault, 'inputs': inputs}
+        spec = {'kind': job['kind'], 'contract': doc, 'contract_digest': contract['contract_digest'], 'input_root': contract['input_root'], 'input_vault': vault, 'inputs': inputs}
+        if job['kind'] == 'evidence_acquisition':
+            from .decision.service import stored_delivery
+            spec['delivery'] = stored_delivery(db, self.store, job)
+        return contract, spec
 
     def execute(self, job):
         """Run one attempt in a child process; publish only if the lease is still ours."""

@@ -23,8 +23,12 @@ def validate_suite(items):
     if type(items) is not list or not 1 <= len(items) <= MAX_ITEMS:
         raise ServiceError('VALIDATION', 'items: 1..%d' % MAX_ITEMS)
     for it in items:
-        if type(it) is not dict or it.get('type') not in ('generation', 'knowledge', 'plan', 'intent') or type(it.get('id')) is not str or not 1 <= len(it['id']) <= 32:
-            raise ServiceError('VALIDATION', 'item: {id, type: generation|knowledge|plan|intent, ...}')
+        if type(it) is not dict or it.get('type') not in ('generation', 'knowledge', 'plan', 'intent', 'fault_case') or type(it.get('id')) is not str or not 1 <= len(it['id']) <= 32:
+            raise ServiceError('VALIDATION', 'item: {id, type: generation|knowledge|plan|intent|fault_case, ...}')
+        if it['type'] == 'fault_case':
+            from .decision.portfolio import FAMILIES
+            if it.get('family') not in FAMILIES or it.get('split', 'dev') not in ('dev', 'held-out') or type(it.get('case_seed')) is not int:
+                raise ServiceError('VALIDATION', 'fault_case item: family, split (dev|held-out), case_seed')
         if it['type'] == 'intent':
             req, exp = it.get('request'), it.get('expected')
             if type(req) is not dict or type(req.get('text')) is not str or type(exp) is not dict or exp.get('disposition') not in ('plan', 'clarification', 'abstention'):
@@ -171,6 +175,8 @@ class Evaluation:
         rev = self.svc.models.resolve(db, 'generate', model_revision_id)
         jobs, plan_results = {}, {}
         for it in items:
+            if it['type'] == 'fault_case':
+                continue                                                    # fault cases run through portfolio campaigns (POST /portfolios/campaigns), never as model jobs
             if it['type'] == 'plan':
                 plan_results[it['id']] = self._evaluate_plan(db, principal, it, model_host)
             elif it['type'] == 'intent':

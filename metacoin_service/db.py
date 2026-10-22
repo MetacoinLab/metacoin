@@ -454,6 +454,19 @@ MIGRATIONS = [
     CREATE TABLE mission_scenarios (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, portfolio_id TEXT NOT NULL REFERENCES mission_portfolios(id), name TEXT NOT NULL, assumptions_json TEXT NOT NULL, job_id TEXT NOT NULL REFERENCES jobs(id), created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     CREATE TABLE work_challenges (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, receipt_id TEXT NOT NULL REFERENCES work_receipts(id), award_id TEXT NOT NULL REFERENCES work_awards(id), challenger_id TEXT NOT NULL, claim TEXT NOT NULL, inputs_json TEXT NOT NULL, asserted_outcome TEXT NOT NULL, kind TEXT NOT NULL, contract_id TEXT NOT NULL REFERENCES contracts(id), job_id TEXT NOT NULL REFERENCES jobs(id), state TEXT NOT NULL, result_json TEXT, created_at INTEGER NOT NULL);
     """),
+    ('041_decision_evidence', """
+    CREATE TABLE sampling_plans (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, target_job_id TEXT NOT NULL REFERENCES jobs(id), kind TEXT NOT NULL, result_commitment TEXT NOT NULL, population INTEGER NOT NULL, frame_digest TEXT NOT NULL,
+        minimum_defects INTEGER NOT NULL, defects_rule TEXT NOT NULL, alpha TEXT NOT NULL, max_samples INTEGER NOT NULL, required_samples INTEGER NOT NULL, feasible INTEGER NOT NULL, achieved_bound_exact TEXT, checker_digest TEXT NOT NULL,
+        fault_model TEXT NOT NULL, sample_unit TEXT NOT NULL, attempt_policy TEXT NOT NULL, plan_json TEXT NOT NULL, plan_digest TEXT NOT NULL, state TEXT NOT NULL, verification_id TEXT, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX sampling_plans_job ON sampling_plans (target_job_id);
+    CREATE TABLE acquisition_plans (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, analysis_job_id TEXT NOT NULL REFERENCES jobs(id), candidate_model_digest TEXT NOT NULL, menu_digest TEXT NOT NULL, budget INTEGER NOT NULL, objective TEXT NOT NULL,
+        plan_json TEXT NOT NULL, plan_digest TEXT NOT NULL, cost INTEGER NOT NULL, selected_json TEXT NOT NULL, expires_at INTEGER, state TEXT NOT NULL, terms_id TEXT, request_id TEXT, award_id TEXT, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX acquisition_plans_job ON acquisition_plans (analysis_job_id);
+    CREATE TABLE job_deliveries (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, job_id TEXT NOT NULL REFERENCES jobs(id), award_id TEXT, milestone_id TEXT, artifact_id TEXT NOT NULL REFERENCES artifacts(id), delivery_digest TEXT NOT NULL, status TEXT NOT NULL,
+        delivered_by TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (job_id));
+    CREATE TABLE verification_portfolios (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, portfolio_json TEXT NOT NULL, digest TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, retired_at INTEGER, UNIQUE (workspace, name, version));
+    CREATE TABLE portfolio_campaigns (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, suite_id TEXT NOT NULL REFERENCES evaluation_suites(id), split TEXT NOT NULL, portfolios_json TEXT NOT NULL, report_json TEXT NOT NULL, started_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+    """),
 ]
 
 

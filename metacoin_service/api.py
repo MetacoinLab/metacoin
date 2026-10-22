@@ -73,6 +73,12 @@ class Services:
         self.reconciliations = Reconciliations(settings, self)
         from .economy.facade import Economy
         self.economy = Economy(settings, self)
+        from .decision.service import Decisions
+        from .decision.sampling import Sampling
+        from .decision.portfolio import Portfolios
+        self.decisions = Decisions(settings, self)
+        self.sampling = Sampling(settings, self)
+        self.portfolios = Portfolios(settings, self)
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
@@ -942,7 +948,7 @@ def create_app(settings):
         q = request.query_params
         def fn(db, p):
             p.require('history:read')
-            if object_type not in ('dataset_version', 'contract', 'job', 'artifact', 'review', 'workflow_run', 'workflow_definition', 'campaign', 'quote', 'usage', 'service'):
+            if object_type not in ('dataset_version', 'contract', 'job', 'artifact', 'review', 'workflow_run', 'workflow_definition', 'campaign', 'quote', 'usage', 'service', 'acquisition_plan', 'sampling_plan', 'work_terms', 'work_award', 'work_request', 'decision', 'verification'):
                 raise ServiceError('VALIDATION', 'object_type')
             return datasets_mod.lineage(db, p, object_type, object_id, depth=int(q.get('depth', 4)), limit=min(int(q.get('limit', 200)), 500))
         return await run(request, False, fn)
@@ -2401,6 +2407,8 @@ def create_app(settings):
     console.mount(app, svc)
     from .economy import routes as economy_routes
     economy_routes.mount(app, svc, run, read_body, API)
+    from .decision import routes as decision_routes
+    decision_routes.mount(app, svc, run, read_body, API)
     return app
 
 

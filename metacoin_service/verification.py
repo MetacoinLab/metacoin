@@ -45,10 +45,13 @@ SUPPORT = {
     'safe_runtime': {'full_exact': 'recomputation by science.safe_runtime (same implementation)'}, 'plan_comparison': {'full_exact': 'recomputation by science.compare_plans (same implementation)'},
     'task_selection': {'full_exact': 'recomputation by science.select_tasks (same implementation)'},
     'legacy_task_replay': {'full_exact': 'frozen task recomputed by its registered implementation and compared exactly with the producer hash and the public ledger registration (legacy exact rule)'},
+    'decision_observability': {'full_exact': 'recomputation by the decision kernels (same implementation: regression check, not independent)', 'analytical': 'every ambiguity witness, separated pair and conditioning re-decided from the raw hypotheses and views by the independent witness checker (decision-witness-checker/v1; no producer projections used)'},
+    'evidence_acquisition': {'full_exact': 'conditioning recomputed by the decision kernels on the stored delivery (same implementation: regression check)', 'analytical': 'delivery validity and the surviving set re-decided from the raw frozen model and the stored delivery by the independent witness checker (decision-witness-checker/v1)'},
 }
 MAX_WORK = {'full_exact': 200_000, 'full_reference': 2_000_000, 'sampled_reference': 4096, 'analytical': 10 ** 9, 'replica': 10 ** 9}
 SHARED_CODE = {'temporal_batch': ['compute.inputs.scenario (parameter expansion)', 'compute.npy (array codec)'], 'monte_carlo_reliability': ['compute.inputs.apply_variation', 'stored samples_audit.json (producer-generated parameters)'],
-               'heat_diffusion': ['compute.kernels.heat_initial_field (initial condition constructor)', 'compute.npy'], 'calibration_fit': ['compute.calibration.design/standardize (shared conventions)'], 'resource_plan': ['compute.resource_plan.simulate (the declared model; independent of the MILP encoding)']}
+               'heat_diffusion': ['compute.kernels.heat_initial_field (initial condition constructor)', 'compute.npy'], 'calibration_fit': ['compute.calibration.design/standardize (shared conventions)'], 'resource_plan': ['compute.resource_plan.simulate (the declared model; independent of the MILP encoding)'],
+               'decision_observability': ['input normalisation is independent (checker parses the raw JSON itself); only the schema is shared'], 'evidence_acquisition': ['input normalisation is independent (checker parses the raw JSON itself); only the schema and the stored delivery artifact are shared']}
 
 
 class Verification:
@@ -93,8 +96,21 @@ class Verification:
         job, contract = self._target(db, principal, job_id)
         if cls not in CLASSES or cls not in SUPPORT.get(job['kind'], {}):
             raise ServiceError('VALIDATION', {'code': 'class_unsupported_for_kind', 'kind': job['kind'], 'supported': sorted(SUPPORT.get(job['kind'], {}))})
-        if type(params) is not dict or set(params) - {'sample_count', 'backend'}:
-            raise ServiceError('VALIDATION', 'params: {sample_count?, backend?}')
+        if type(params) is not dict or set(params) - {'sample_count', 'backend', 'sampling_plan_id'}:
+            raise ServiceError('VALIDATION', 'params: {sample_count?, backend?, sampling_plan_id?}')
+        if 'sampling_plan_id' in params:
+            if cls != 'sampled_reference':
+                raise ServiceError('VALIDATION', {'code': 'sampling_plan_class', 'note': 'a sampling plan binds a sampled_reference audit only'})
+            plan = db.execute('SELECT * FROM sampling_plans WHERE id=? AND workspace=?', (params['sampling_plan_id'], principal.workspace)).fetchone()
+            if plan is None:
+                raise ServiceError('NOT_FOUND', 'sampling plan')
+            if plan['target_job_id'] != job_id or plan['result_commitment'] != job['evidence_root']:
+                raise ServiceError('CONFLICT', {'code': 'sampling_plan_binding', 'note': 'the plan binds another job or result commitment; a changed frame, scope, model or result root invalidates the plan'})
+            if not plan['feasible']:
+                raise ServiceError('CONFLICT', {'code': 'sampling_plan_infeasible', 'required_samples': plan['required_samples'], 'max_samples': plan['max_samples']})
+            if plan['state'] != 'bound':
+                raise ServiceError('CONFLICT', {'code': 'sampling_plan_attempt_policy', 'state': plan['state'], 'verification_id': plan['verification_id'], 'note': 'single_fixed_size: one challenge per plan; retrying until a challenge passes is refused'})
+            params['sample_count'] = plan['required_samples']
         if 'sample_count' in params and (type(params['sample_count']) is not int or not 1 <= params['sample_count'] <= MAX_WORK['sampled_reference']):
             raise ServiceError('VALIDATION', 'sample_count: 1..%d' % MAX_WORK['sampled_reference'])
         if cls == 'replica':
@@ -121,7 +137,12 @@ class Verification:
         vid = 'vf_' + secrets.token_hex(6)
         challenge = None
         if cls == 'sampled_reference':
-            challenge = {'policy': CHALLENGE_POLICY, 'seed': secrets.token_hex(16), 'result_commitment': commitment, 'sample_count': pv['params'].get('sample_count', 64), 'drawn_at': now(), 'drawn_by': 'service (server-side CSPRNG), not the producer'}
+            challenge = {'policy': CHALLENGE_POLICY, 'seed': secrets.token_hex(16), 'result_commitment': commitment, 'sample_count': pv['params'].get('sample_count', 64), 'drawn_at': now(), 'drawn_by': 'service (server-side CSPRNG), not the producer',
+                         'randomness_assumption': 'computational pseudorandomness of the server CSPRNG and sha256 ranking; NOT independent of a malicious server or operator'}
+            if pv['params'].get('sampling_plan_id'):
+                plan = db.execute('SELECT * FROM sampling_plans WHERE id=?', (pv['params']['sampling_plan_id'],)).fetchone()
+                challenge.update({'sampling_plan_id': plan['id'], 'plan_digest': plan['plan_digest'], 'frame_digest': plan['frame_digest'], 'population': plan['population'], 'bound_before_challenge': True})
+                db.execute("UPDATE sampling_plans SET state='challenged', verification_id=?, updated_at=? WHERE id=?", (vid, now(), plan['id']))
         db.execute('INSERT INTO verification_jobs (id, workspace, target_job_id, requested_by, class, params_json, state, preview_json, challenge_json, result_commitment, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
                    (vid, principal.workspace, job_id, principal.id, cls, json.dumps(pv['params']), 'queued', json.dumps(pv), json.dumps(challenge) if challenge else None, commitment, now()))
         elevated = _elevated(principal, {'contract:create', 'contract:freeze', 'job:submit'})
@@ -250,7 +271,11 @@ class Verification:
             except merkle.Invalid as exc:
                 result = {'outcome': 'failed', 'checked': 1, 'total': 1, 'checks': [{'check': 'full_private_recomputation', 'ok': False, 'detail': str(exc)[:200]}], 'statement': SUPPORT['energy_audit']['full_exact']}
         else:
-            result = audit(kind, cls, tinputs, files, values['result'], params, challenge, run)
+            extra = run
+            if kind == 'evidence_acquisition':
+                from .decision import service as decision_svc
+                extra = decision_svc.stored_delivery(db, self.store, target)
+            result = audit(kind, cls, tinputs, files, values['result'], params, challenge, extra)
         from .economy.ops import fault as _fault
         _fault(db, self.settings, 'verifier_completion')
         fault = db.execute("SELECT value FROM meta WHERE key=?", ('fault:verification_fail:' + target['id'],)).fetchone() if self.settings.limits.get('test_hooks') else None
@@ -277,7 +302,17 @@ class Verification:
     def _statement(self, db, vrow, result, target, tcontract):
         doc = merkle.parse(tcontract['contract_json'])
         from . import verification as self_mod
-        return _exactable({'schema': STATEMENT_SCHEMA, 'statement_version': STATEMENT_SCHEMA, 'verification_id': vrow['id'], 'workspace': vrow['workspace'], 'target_job_id': target['id'], 'kind': target['kind'],
+        sampling = None
+        params = json.loads(vrow['params_json'])
+        if params.get('sampling_plan_id'):
+            from .decision import records as decision_records
+            clause = decision_records.sampling_clause(db, vrow)
+            detected = sum(len((c.get('detail') or {}).get('mismatches') or []) for c in result.get('checks', []) if isinstance(c.get('detail'), dict))
+            sampling = {'plan_id': clause['plan_id'], 'plan_digest': clause['plan_digest'], 'population': clause['population'], 'frame_digest': clause['frame_digest'], 'minimum_defects_assumed': clause['minimum_defects'], 'alpha': clause['alpha'],
+                        'required_samples': clause['required_samples'], 'checked_items': result.get('checked'), 'detected_defects': detected, 'achieved_bound_exact': clause['achieved_bound_exact'], 'checker_digest': clause['checker_digest'], 'attempt_policy': clause['attempt_policy'],
+                        'attempt_number': len(clause['attempts']), 'conditional_detection_bound': 'P(no sampled item fails | at least %d of %d items are defective) <= %s under uniform sampling without replacement and a perfect itemwise checker' % (clause['minimum_defects'], clause['population'], clause['alpha']),
+                        'not_a_posterior': 'this is not a probability that the result is correct; model misspecification shared by producer and checker is outside its scope'}
+        return _exactable({'schema': STATEMENT_SCHEMA, 'sampling_plan': sampling, 'statement_version': STATEMENT_SCHEMA, 'verification_id': vrow['id'], 'workspace': vrow['workspace'], 'target_job_id': target['id'], 'kind': target['kind'],
                            'contract_digest': tcontract['contract_digest'], 'input_root': tcontract['input_root'], 'result_commitment': vrow['result_commitment'], 'producer_verifier_id': doc.get('verifier_id'),
                            'producer_verifier_digest': doc.get('verifier_digest'), 'auditor_id': 'metacoin-verification/v1', 'auditor_digest': implementation_digest(), 'class': vrow['class'],
                            'params': json.loads(vrow['params_json']), 'challenge_digest': hashlib.sha256(vrow['challenge_json'].encode()).hexdigest() if vrow['challenge_json'] else None,
@@ -445,7 +480,47 @@ def audit(kind, cls, inputs, files, result, params, challenge, run):
     if kind == 'legacy_task_replay':
         from .economy import legacy_bridge
         return legacy_bridge.audit(inputs, result)
+    if kind in ('decision_observability', 'evidence_acquisition'):
+        return _audit_decision(kind, cls, inputs, result, run)
     return _audit_science(kind, inputs, result)
+
+
+def _audit_decision(kind, cls, inputs, result, delivery):
+    """`delivery` carries the stored observation delivery for evidence_acquisition (passed through the `run` slot)."""
+    from .decision import checker as dchecker, operations as decision_ops
+    if cls == 'full_exact':
+        if kind == 'decision_observability':
+            fresh, _, _ = decision_ops.run_analysis(inputs)
+        else:
+            fresh, _, _ = decision_ops.run_acquisition(inputs, delivery)
+        same = merkle.canonical(fresh) == merkle.canonical(result)
+        return {'outcome': 'passed' if same else 'failed', 'checked': 1, 'total': 1, 'checks': [{'check': 'recomputation_same_implementation', 'ok': same, 'detail': None}], 'coverage': 'whole result, same implementation',
+                'statement': 'recomputed by the same decision kernels (regression check; not an independent reference)'}
+    if kind == 'decision_observability':
+        chk = dchecker.check_analysis(inputs, result)
+        n = len(result.get('ambiguity_witnesses', [])) + len(result.get('separated_pairs', []))
+        return {'outcome': 'passed' if chk['ok'] else 'failed', 'checked': n, 'total': n, 'checks': chk['checks'], 'coverage': 'every witness and separated pair; conditioning when present', 'tolerance': 'exact (rational)',
+                'statement': 'every ambiguity witness and separated pair re-decided from the raw hypotheses and views by %s; nothing taken from the producer projections' % dchecker.CHECKER_ID}
+    # evidence_acquisition: re-validate the delivery and re-decide the surviving set from the raw frozen model
+    cm = inputs['candidate_model']; sel = inputs['selected_views']
+    problem = decision_ops.validate_delivery(delivery, sel) if delivery is not None else 'no delivery stored'
+    checks = [{'check': 'delivery_valid', 'ok': problem is None, 'detail': problem}]
+    declared = result.get('outcome')
+    if problem is not None or (isinstance(delivery, dict) and delivery.get('status') == 'could_not_acquire'):
+        expected = 'DELIVERY_INVALID' if problem is not None else 'ACQUISITION_FAILED'
+        checks.append({'check': 'outcome_matches_delivery_state', 'ok': declared == expected, 'detail': {'declared': declared, 'expected': expected}})
+    else:
+        views = list(cm.get('views', [])) + list(sel)
+        chk = dchecker.check_conditioning(cm['hypotheses'], views, cm['coordinates'], delivery['observations'], (result.get('decision') or {}).get('surviving') or [])
+        checks += chk['checks']
+        surviving = (result.get('decision') or {}).get('surviving') or []
+        labels = {h['id']: h['label'] for h in cm['hypotheses']}
+        expected = 'MODEL_INCONSISTENT_WITH_OBSERVATIONS' if not surviving else ('DECISION_RESOLVED' if len({labels[i] for i in surviving}) == 1 else 'DECISION_AMBIGUOUS')
+        checks.append({'check': 'outcome_matches_conditioning', 'ok': declared == expected, 'detail': {'declared': declared, 'expected': expected}})
+        checks.append({'check': 'delivery_digest_bound', 'ok': result.get('delivery_digest') == hashlib.sha256(merkle.canonical(delivery)).hexdigest()})
+    ok = all(c['ok'] for c in checks)
+    return {'outcome': 'passed' if ok else 'failed', 'checked': len(checks), 'total': len(checks), 'checks': checks, 'coverage': 'delivery validity, surviving set and outcome from the raw frozen model', 'tolerance': 'exact (rational)',
+            'statement': 'the stored delivery re-validated against the frozen menu and the surviving set re-decided from the raw candidate model by %s' % dchecker.CHECKER_ID}
 
 
 def _audit_resource_plan(cls, inputs, files, result):
