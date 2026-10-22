@@ -1,0 +1,8 @@
+manifest ok: 89 files
+== scans (2026-10-22T11:31:50Z) archive 35d194ac18c053212828870a563a8c523c3535c3 base 0ded29d90706d4e5aafbd2e59b6d029d66d08702
+archive allowlist ok: no keys, credentials, databases, weights, vectors, node identities, venv or work dir
+no bearer/node-credential-shaped strings in logs/results
+no secret key material outside source text
+no private labels or live-state paths in results
+No errors detected in compressed data of /home/zhangd2/metacoin-native-space-protocol-delivery-2026-10-22/metacoin-native-space-protocol-source.zip.
+8.4M	/home/zhangd2/metacoin-native-space-protocol-delivery-2026-10-22

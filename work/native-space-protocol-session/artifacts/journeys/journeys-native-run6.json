@@ -1,0 +1,931 @@
+{
+ "schema": "metacoin-journeys-native/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "revision": "35d194ac18c053212828870a563a8c523c3535c3",
+ "python": "3.12.3",
+ "started_at": 1792668442,
+ "finished_at": 1792668481,
+ "results": [
+  {
+   "journey": 1,
+   "title": "x402 disabled and the facilitator blocked: accounts created, work accepted and settled natively.",
+   "status": "passed",
+   "evidence": {
+    "x402": {
+     "disabled": true,
+     "installed": false,
+     "required_by_native_core": false,
+     "role": "optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement"
+    },
+    "native": "dom-a",
+    "facilitator_url": "http://127.0.0.1:1/blocked",
+    "award": "wa_318a9b2cf0220da7",
+    "rail": "native",
+    "machine": 5,
+    "requester": 75,
+    "revision": "35d194ac18c053212828870a563a8c523c3535c3",
+    "seconds": 2.344
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "A provider becomes a buyer with the same earned balance: no hidden requester account.",
+   "status": "passed",
+   "evidence": {
+    "machine_before": 5,
+    "machine_after": 2,
+    "supplier": 3,
+    "same_identity": true,
+    "seconds": 1.455
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "Read-only credentials cannot authorize or spend; a delegated actor cannot expand its limits.",
+   "status": "passed",
+   "evidence": {
+    "viewer": 403,
+    "scoped_readonly": 403,
+    "agent_within": 201,
+    "agent_over_total": 400,
+    "agent_over_per_action": 400,
+    "agent_widening_grant": 403,
+    "owner_after": 17,
+    "seconds": 0.122
+   },
+   "caveat": null
+  },
+  {
+   "journey": 4,
+   "title": "Concurrent spending cannot exceed the account envelope.",
+   "status": "passed",
+   "evidence": {
+    "statuses": [
+     201,
+     201,
+     201,
+     201,
+     201,
+     400,
+     400,
+     400,
+     400,
+     400,
+     400,
+     400
+    ],
+    "racer": 0,
+    "racee": 50,
+    "seconds": 0.269
+   },
+   "caveat": null
+  },
+  {
+   "journey": 5,
+   "title": "Cross-environment, cross-asset, wrong-scale and wrong-recipient messages fail before value changes.",
+   "status": "passed",
+   "evidence": {
+    "wrong_asset": 422,
+    "wrong_scale": 422,
+    "wrong_recipient": 404,
+    "wrong_environment": 422,
+    "envelope_rejections": [
+     "wrong_environment",
+     "wrong_receiver",
+     "payload_digest_mismatch"
+    ],
+    "bob_claim": 0,
+    "seconds": 0.188
+   },
+   "caveat": null
+  },
+  {
+   "journey": 6,
+   "title": "A replayed payment or an alternate request id for the same settled obligation cannot pay twice.",
+   "status": "passed",
+   "evidence": {
+    "prepare_again": 409,
+    "submit_again": {
+     "status": 200,
+     "replayed": true
+    },
+    "alternate_request_id": {
+     "status": 409,
+     "code": "obligation_binding"
+    },
+    "seconds": 0.036
+   },
+   "caveat": null
+  },
+  {
+   "journey": 7,
+   "title": "Partial payment and refund behaviour is bounded or explicitly refused.",
+   "status": "passed",
+   "evidence": {
+    "refund_over": 409,
+    "refund_partial": 201,
+    "refund_beyond_remaining": 409,
+    "partial_payment_of_exact_obligation": 409,
+    "carla": 6,
+    "alice": 291,
+    "seconds": 0.112
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "A source export makes its allocated value unavailable before an importable certificate is released.",
+   "status": "passed",
+   "evidence": {
+    "crash_at_reserve": 409,
+    "available_after_reserve": 286,
+    "in_transit": 5,
+    "after_recovery": "certified",
+    "resumed": [
+     {
+      "allocation_id": "nal_13ece4aa59e9bfa2",
+      "from": "reserved",
+      "to": "certified"
+     }
+    ],
+    "seconds": 0.12
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "Destination import consumes an allocation once; duplicate delivery is idempotent.",
+   "status": "passed",
+   "evidence": {
+    "first": [
+     "accepted",
+     "accepted"
+    ],
+    "duplicate": [
+     "duplicate",
+     "duplicate"
+    ],
+    "bob_before": 0,
+    "bob_after": 8,
+    "acks_replayed": 2,
+    "seconds": 0.109
+   },
+   "caveat": null
+  },
+  {
+   "journey": 10,
+   "title": "A certificate addressed to domain B cannot credit domain C.",
+   "status": "passed",
+   "evidence": {
+    "as_is": "wrong_receiver",
+    "readdressed": "bad_signature",
+    "seconds": 0.89
+   },
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "title": "A lost import acknowledgment cannot trigger an unsafe source refund or re-export.",
+   "status": "passed",
+   "evidence": {
+    "state_without_ack": "certified",
+    "spend_beyond_available": 400,
+    "return_from_source": 404,
+    "reexport_same_request": true,
+    "seconds": 0.094
+   },
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "title": "Crash at each export/import persistence boundary recovers without duplicated spendable ownership.",
+   "status": "passed",
+   "evidence": {
+    "native_export_reserve": {
+     "crash": 409,
+     "durable": "reserved",
+     "retry": "certified"
+    },
+    "native_export_commit": {
+     "crash": 409,
+     "durable": "export_committed",
+     "retry": "certified"
+    },
+    "native_certificate_publish": {
+     "crash": 409,
+     "durable": "certified",
+     "retry": "certified"
+    },
+    "native_import_commit": {
+     "delivery_status": 409,
+     "bob_after": 10
+    },
+    "native_ack": {
+     "delivery_status": 409,
+     "bob_after": 10
+    },
+    "held_both": 450,
+    "fixture": 450,
+    "seconds": 0.479
+   },
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "title": "Disjoint preallocations support bounded work while the inter-domain link is cut.",
+   "status": "passed",
+   "evidence": {
+    "online_refused": "link_cut",
+    "bundle_items": 1,
+    "import": "accepted",
+    "pending_claims_before_ack": 6,
+    "local_spend": 201,
+    "seconds": 0.174
+   },
+   "caveat": null
+  },
+  {
+   "journey": 14,
+   "title": "Exhausted authority refuses further commitments without destroying completed work.",
+   "status": "passed",
+   "evidence": {
+    "refused": "insufficient_available",
+    "completed_transfers_kept": 1,
+    "carol": 19,
+    "alloc_after_ack": "acknowledged",
+    "seconds": 0.089
+   },
+   "caveat": null
+  },
+  {
+   "journey": 15,
+   "title": "A conflicting signed history (cloned authority) is detected and quarantined under the documented trust model.",
+   "status": "passed",
+   "evidence": {
+    "rejection": "conflicting_signed_history",
+    "quarantined_peers": [
+     "dom-a"
+    ],
+    "next_certificate": "peer_quarantined",
+    "carol_unchanged": 19,
+    "seconds": 0.263
+   },
+   "caveat": "equivocation is detected where two signed histories meet; it is not prevented (documented trust model)"
+  },
+  {
+   "journey": 16,
+   "title": "Reordered, delayed and duplicated messages converge where the protocol promises convergence.",
+   "status": "passed",
+   "evidence": {
+    "reversed_first": [
+     "accepted",
+     "accepted"
+    ],
+    "reversed_again": [
+     "duplicate",
+     "duplicate"
+    ],
+    "acks_back": [
+     "accepted",
+     "accepted",
+     "duplicate",
+     "duplicate",
+     "duplicate",
+     "duplicate",
+     "duplicate",
+     "duplicate"
+    ],
+    "final": {
+     "nal_15b4b308010eb4cf": "acknowledged",
+     "nal_989c8defbcaf1f44": "acknowledged"
+    },
+    "seconds": 0.19
+   },
+   "caveat": null
+  },
+  {
+   "journey": 17,
+   "title": "Reverse return follows the supported closure protocol; timeout alone cannot restore funds.",
+   "status": "passed",
+   "evidence": {
+    "request": "return_requested",
+    "source_before_closure": true,
+    "after_closure": "returned",
+    "alice_delta_after_closure": 4,
+    "partial": "return_partial_unsupported",
+    "seconds": 0.435
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "Global audit distinguishes backing from claims and proves conservation for the exercised sequence.",
+   "status": "passed",
+   "evidence": {
+    "A": {
+     "total_held": 425,
+     "fixture_funding": 450,
+     "backing_locked_for_exports": 25,
+     "claims_backed_elsewhere": 0,
+     "conserved": true
+    },
+    "B": {
+     "total_held": 24,
+     "fixture_funding": 0,
+     "backing_locked_for_exports": 0,
+     "claims_backed_elsewhere": 24,
+     "conserved": true
+    },
+    "held_both": 449,
+    "pending_backing_not_yet_imported": 1,
+    "trust": "a trusted ordering authority with one fenced writer (SQLite BEGIN IMMEDIATE on durable storage), authenticated actors, explicit administrator powers",
+    "seconds": 0.01
+   },
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "title": "Old backup restoration cannot silently resume outward spending as if no external commitments existed.",
+   "status": "passed",
+   "evidence": {
+    "after_restore": "quarantine",
+    "export": 409,
+    "transfer": 409,
+    "before_observation": "quarantine",
+    "after": "normal",
+    "reconstructed": [
+     {
+      "allocation_id": "nal_67489edc6a4b78a0",
+      "status": "locked",
+      "amount": 3
+     }
+    ],
+    "sequence": [
+     25,
+     25
+    ],
+    "seconds": 1.218
+   },
+   "caveat": "rollback is detected from the durable watermark file and the peer's signed observation; a restore that also restores the watermark is detected only through the peer"
+  },
+  {
+   "journey": 20,
+   "title": "Local finality, pending inter-domain claim and reconciled settlement appear correctly in the API and the UI.",
+   "status": "passed",
+   "evidence": {
+    "api_pending": "cross_domain_pending_claim",
+    "api_reconciled": "reconciled_inter_domain_settlement",
+    "ui_pending_shown": true,
+    "ui_reconciled_shown": true,
+    "local": "domain_local_settlement",
+    "seconds": 0.153
+   },
+   "caveat": null
+  },
+  {
+   "journey": 21,
+   "title": "The complete 80-unit example: real terrain work, native settlement, a real second purchase and a treasury award.",
+   "status": "passed",
+   "evidence": {
+    "purchase_before_earning": 400,
+    "after_step_2": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_available_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 32,
+     "s80": 9,
+     "v80": 3,
+     "treasury": 1
+    },
+    "total": 80,
+    "fees_additional_to_provider": true,
+    "terrain_outcome": "FEASIBLE",
+    "seconds": 4.61
+   },
+   "caveat": null
+  },
+  {
+   "journey": 22,
+   "title": "An unfunded or merely receivable-funded actor cannot buy; a settled actor can.",
+   "status": "passed",
+   "evidence": {
+    "unfunded": 400,
+    "receivable_only": {
+     "status": 400,
+     "earned_unsettled": 6,
+     "available": 0
+    },
+    "after_settlement": 201,
+    "seconds": 1.736
+   },
+   "caveat": null
+  },
+  {
+   "journey": 23,
+   "title": "Terrain processing on a verified public-data input agrees with the independent bounded reference.",
+   "status": "passed",
+   "evidence": {
+    "reference_checks": [
+     "slope_cells_within_tolerance",
+     "stats",
+     "outcome",
+     "heights",
+     "provenance_bound"
+    ],
+    "verification": [
+     "analytical"
+    ],
+    "provenance": {
+     "product_id": "LDEM_4",
+     "data_set_id": "LRO-L-LOLA-4-GDR-V1.0",
+     "image_sha256": "c04632eba6449af49e3108ed7c25b3b1c450600abd3690df4fc815853a1af476",
+     "acquired_at": "2026-10-22"
+    },
+    "download_cli": 0,
+    "seconds": 1.373
+   },
+   "caveat": "LDEM_4 is a 7.58 km/pixel public shape grid: grid-scale slopes, not traversability"
+  },
+  {
+   "journey": 24,
+   "title": "Missing data, units, orientation, projection scale, edges and near-threshold decisions are handled explicitly.",
+   "status": "passed",
+   "evidence": {
+    "nodata_cells": 5,
+    "edge_flag_corner": 1,
+    "nodata_flag": 2,
+    "refusals": {
+     "polar": 409,
+     "units": 409,
+     "orientation_projection": 409
+    },
+    "row_spacing_ns_ew_mm": [
+     7580840,
+     7580840
+    ],
+    "near_threshold_indeterminate_at_limit": null,
+    "uncertain_cells_reported": 0,
+    "seconds": 1.604
+   },
+   "caveat": null
+  },
+  {
+   "journey": 25,
+   "title": "An honestly verified negative result earns the contracted payment; an unsupported positive result is refused.",
+   "status": "passed",
+   "evidence": {
+    "negative": {
+     "science": "INFEASIBLE",
+     "decision": "accepted",
+     "paid": "settled"
+    },
+    "unsupported_positive": {
+     "candidate": "rejected",
+     "accept_attempt": 409
+    },
+    "machine": 35,
+    "seconds": 2.59
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "A cheap offer that violates energy reserve, deadline, permission or contact policy is ineligible.",
+   "status": "passed",
+   "evidence": {
+    "cheap_excluded": [
+     "resource_violation:energy_reserve_violation",
+     "resource_violation:thermal_permission_missing"
+    ],
+    "eligible": [
+     "wo_469ab19a27aa429a"
+    ],
+    "awarded_provider": "pv_3aaaae5ba880",
+    "seconds": 0.177
+   },
+   "caveat": null
+  },
+  {
+   "journey": 27,
+   "title": "No feasible plan produces an informative no-spend outcome.",
+   "status": "passed",
+   "evidence": {
+    "outcome": "NO_FEASIBLE_PLAN",
+    "violations": {
+     "local": [
+      "energy_reserve_violation"
+     ],
+     "remote": [
+      "exposure_exceeded",
+      "contact_window_missed",
+      "deadline_missed"
+     ],
+     "wait": [
+      "deadline_missed"
+     ],
+     "decline": []
+    },
+    "benchmark": {
+     "cheapest_eligible": {
+      "accepted_products": 39,
+      "total_spend": 100,
+      "resource_violations": 0,
+      "pending_exposure": 0
+     },
+     "earliest_delivery": {
+      "accepted_products": 39,
+      "total_spend": 100,
+      "resource_violations": 0,
+      "pending_exposure": 0
+     },
+     "fifo_ignoring_envelope": {
+      "accepted_products": 12,
+      "total_spend": 1423,
+      "resource_violations": 138,
+      "pending_exposure": 1363
+     },
+     "cheapest_ignoring_envelope": {
+      "accepted_products": 26,
+      "total_spend": 271,
+      "resource_violations": 124,
+      "pending_exposure": 234
+     }
+    },
+    "seconds": 0.066
+   },
+   "caveat": null
+  },
+  {
+   "journey": 28,
+   "title": "A decision-changing acquisition is purchased and updates the decision; a redundant acquisition is declined.",
+   "status": "passed",
+   "evidence": {
+    "before": "AMBIGUOUS",
+    "redundant": {
+     "state": "nothing_to_acquire",
+     "materialize": 409
+    },
+    "selected": [
+     "slope_calibration_pass",
+     "battery_gauge_read"
+    ],
+    "cost": 6,
+    "after": "DECISION_RESOLVED",
+    "label": "ROUTE_INFEASIBLE",
+    "paid_rail": "native",
+    "seconds": 1.958
+   },
+   "caveat": "declared finite states; a model-level decision, not physical truth"
+  },
+  {
+   "journey": 29,
+   "title": "Compatible paid artifacts can be reused; stale or incompatible ones are rejected.",
+   "status": "passed",
+   "evidence": {
+    "original_job": "j_e0f27cdf3d7a1cda",
+    "reused_from": "j_e0f27cdf3d7a1cda",
+    "incompatible_reused_from": null,
+    "contract_status": 201,
+    "seconds": 1.441
+   },
+   "caveat": "reuse is keyed by kind, canonical inputs and verifier digest; a changed parameter is a different key"
+  },
+  {
+   "journey": 30,
+   "title": "Partial delivery and later changed conditions obey the frozen payment terms.",
+   "status": "passed",
+   "evidence": {
+    "decision": "diagnostic",
+    "payable": 3,
+    "settled": 3,
+    "authorized_max": 6,
+    "amend_after_close": 422,
+    "award_terms_unchanged": true,
+    "seconds": 1.324
+   },
+   "caveat": null
+  },
+  {
+   "journey": 31,
+   "title": "Treasury cannot award against pending receipts, duplicate fees or unrelated assets.",
+   "status": "passed",
+   "evidence": {
+    "over_allocation": 400,
+    "first": 201,
+    "duplicate": 400,
+    "allocations_for_terms": 1,
+    "available_with_pending_fee": 0,
+    "expected": 0,
+    "unrelated_asset_available": 0,
+    "seconds": 1.554
+   },
+   "caveat": null
+  },
+  {
+   "journey": 32,
+   "title": "Fees and awards preserve conservation and the objective/subjective issuance separation.",
+   "status": "passed",
+   "evidence": {
+    "conserved": true,
+    "fixture_funding": 580,
+    "held": 551,
+    "journal_consistent": true,
+    "replay_differences": [],
+    "invariants_failed": [],
+    "conformance_suite_rc": 0,
+    "identity_digests": {
+     "WHITEPAPER.md": "3ac73c38b2903ae2871adaa4eab31e72562d69dbb40a1c9a6c01775c76093d10",
+     "TOKENOMICS.md": "9e1fe1a3654de7d47417440b0d16a3af4d08870222b07461680cddaaf55654be",
+     "protocol/ledger_anchor.json": "1f420ca3f7c103ad268d2b0e2a56ccdd759dc7190b88671469fad77d1ef45202",
+     "protocol/identity_text.py": "00ec00d11d7cf7b6d0b4fabf9edccb7852227098d25cdb65a9c025ce4acfb660"
+    },
+    "seconds": 1.837
+   },
+   "caveat": null
+  },
+  {
+   "journey": 33,
+   "title": "Unauthorized disputes, substituted signatures and changed acceptance policies cannot alter unrelated obligations.",
+   "status": "passed",
+   "evidence": {
+    "stranger_dispute": 403,
+    "party_dispute": 201,
+    "hold_bounded": 10,
+    "substituted_signature": "bad_signature",
+    "balances_unchanged_after_dismiss": true,
+    "seconds": 0.226
+   },
+   "caveat": null
+  },
+  {
+   "journey": 34,
+   "title": "Rotation/revocation handles delayed valid messages under the declared policy.",
+   "status": "passed",
+   "evidence": {
+    "epoch": 2,
+    "deliveries": [
+     "accepted",
+     "accepted",
+     "accepted"
+    ],
+    "peer_epoch": 2,
+    "old_key_grace_seconds": 3600,
+    "keys": [
+     [
+      1,
+      "retired"
+     ],
+     [
+      2,
+      "active"
+     ]
+    ],
+    "seconds": 0.205
+   },
+   "caveat": "an offline counterparty learns a rotation only when the notice arrives; the retiring key stays valid for messages created before retired_at + grace"
+  },
+  {
+   "journey": 35,
+   "title": "Offline bundle import enforces size and trust boundaries and does not execute arbitrary content.",
+   "status": "passed",
+   "evidence": {
+    "too_many_items": 422,
+    "too_large": 413,
+    "rejections": [
+     "item_shape",
+     "payload_digest_mismatch"
+    ],
+    "roots_unchanged": true,
+    "seconds": 0.035
+   },
+   "caveat": null
+  },
+  {
+   "journey": 36,
+   "title": "The independent checker accepts supported evidence and rejects all targeted tampering vectors.",
+   "status": "passed",
+   "evidence": {
+    "reports": {
+     "dom-a": {
+      "authorized_bookkeeping": true,
+      "cryptographic_authenticity": true,
+      "scientific_reproducibility": null,
+      "custody_assumptions": true,
+      "economic_backing": true
+     },
+     "dom-a_cli_rc": 0,
+     "dom-b": {
+      "authorized_bookkeeping": true,
+      "cryptographic_authenticity": true,
+      "scientific_reproducibility": null,
+      "custody_assumptions": true,
+      "economic_backing": true
+     },
+     "dom-b_cli_rc": 0
+    },
+    "wrong_root_separates_properties": {
+     "authenticity": false,
+     "bookkeeping": true
+    },
+    "vectors": {
+     "count": 16,
+     "all_as_expected": true
+    },
+    "model": {
+     "states": 22,
+     "violations": 0,
+     "bounds": "two domains, one allocation at a time, amounts 1..2 over a fixture of 3, sequences of length <= 5 over 13 events; not an unbounded proof"
+    },
+    "seconds": 0.241
+   },
+   "caveat": null
+  },
+  {
+   "journey": 37,
+   "title": "API, CLI, console and MCP show consistent balances and enforce the same authority.",
+   "status": "passed",
+   "evidence": {
+    "api": 52,
+    "cli": 52,
+    "console_shows": true,
+    "mcp": {
+     "tools": [
+      "lunar_product",
+      "lunar_sources",
+      "native_account",
+      "native_allocation_status",
+      "native_audit",
+      "native_domain_status",
+      "native_export_allocation",
+      "native_open_dispute",
+      "native_pay_entitlement",
+      "native_simulate_transfer",
+      "native_transfer",
+      "native_treasury",
+      "procurement_plan"
+     ],
+     "before": 52,
+     "after_simulate": 52,
+     "after_transfer": 51,
+     "retry_replayed": true
+    },
+    "viewer_cli_transfer_rc": 2,
+    "mcp_stderr": null,
+    "seconds": 1.812
+   },
+   "caveat": null
+  },
+  {
+   "journey": 38,
+   "title": "A real browser completes the native mission / account / treasury journey.",
+   "status": "passed",
+   "evidence": {
+    "passed": 13,
+    "failed": 0,
+    "checks": [
+     {
+      "check": "domain view: identity, custody, authority policy, connectivity and recovery state",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "domain view: x402 not required by the native core",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "machine account: available, reservations, earned receivables and pending inter-domain claims shown separately",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "settlement view explains local finality, remote acknowledgment and unresolved exposure",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "treasury view follows fee receipts into allocations and completed awards",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "mission screen shows deliverable, acceptance, resource envelope, maximum obligation and selected provider",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "product view shows the artifact scope, provenance, assumptions and reproduction path",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "product preview image renders",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "simulate shows would_succeed and moves nothing",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "committed transfer reduced the available balance by one",
+      "ok": true,
+      "detail": "('51', '50')"
+     },
+     {
+      "check": "viewer reads the account but has no transfer control",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "viewer cannot post a transfer form",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "narrow width: no horizontal page overflow on the native pages",
+      "ok": true,
+      "detail": "{'/console/native': True, '/console/native/accounts/na_bf9ab06b2eb9': True, '/console/native/settlement': True, '/console/native/treasury': True, '/console/native/missions/wa_642d873074778d5e': True, '/console/lunar/j_d6e084f60635b78b': True}"
+     }
+    ],
+    "screenshots": [
+     "01-native-domain.png",
+     "02-machine-account.png",
+     "03-settlement.png",
+     "04-treasury.png",
+     "05-mission.png",
+     "06-product.png",
+     "07-transfer.png",
+     "08-narrow-account.png"
+    ],
+    "crash": null,
+    "seconds": 2.589
+   },
+   "caveat": null
+  },
+  {
+   "journey": 39,
+   "title": "A clean export reproduces native operation without x402, remote facilitators, private local files or hidden data.",
+   "status": "blocked",
+   "evidence": {
+    "seconds": 0.0,
+    "blocked": "run by work/native-space-protocol-session/clean_export.sh after packaging; result file not supplied"
+   },
+   "caveat": null
+  },
+  {
+   "journey": 40,
+   "title": "Migration from the preserved previous database and safe recovery are verified on an isolated copy.",
+   "status": "passed",
+   "evidence": {
+    "before": {
+     "schema": "040_work_programs_pricing_challenges",
+     "jobs": 38,
+     "artifacts": 172,
+     "receipts": 0,
+     "native_tables_before": 0
+    },
+    "after": {
+     "schema": "043_native_authority_keys",
+     "jobs": 38,
+     "artifacts": 172,
+     "native_domains": 0
+    },
+    "migrate_rc": 0,
+    "smoke": {
+     "health": {
+      "ok": true,
+      "revision": "35d194ac18c053212828870a563a8c523c3535c3",
+      "provider_mode": "simulation",
+      "queued": 0,
+      "running": 0
+     },
+     "old_jobs_readable": true,
+     "domain": 201,
+     "fund": 201,
+     "transfer": 201,
+     "audit": true,
+     "replay": true,
+     "recovery": "normal"
+    },
+    "live_service_untouched": true,
+    "seconds": 0.849
+   },
+   "caveat": "isolated copy only; the live service was neither upgraded nor restarted"
+  }
+ ],
+ "passed": 39,
+ "failed": 0,
+ "blocked": 1,
+ "total": 40
+}

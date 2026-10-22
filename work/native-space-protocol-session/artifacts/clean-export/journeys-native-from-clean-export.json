@@ -5,8 +5,8 @@
  "facilitator_url": "http://127.0.0.1:1/blocked",
  "revision": "unavailable",
  "python": "3.12.3",
- "started_at": 1792668346,
- "finished_at": 1792668360,
+ "started_at": 1792668666,
+ "finished_at": 1792668679,
  "results": [
   {
    "journey": 1,
@@ -21,12 +21,12 @@
     },
     "native": "dom-a",
     "facilitator_url": "http://127.0.0.1:1/blocked",
-    "award": "wa_4001234d32a37093",
+    "award": "wa_750d82596181c5ab",
     "rail": "native",
     "machine": 5,
     "requester": 75,
     "revision": "unavailable",
-    "seconds": 2.255
+    "seconds": 1.762
    },
    "caveat": null
   },
@@ -39,7 +39,7 @@
     "machine_after": 2,
     "supplier": 3,
     "same_identity": true,
-    "seconds": 1.297
+    "seconds": 1.242
    },
    "caveat": null
   },
@@ -64,59 +64,172 @@
     ],
     "racer": 0,
     "racee": 50,
-    "seconds": 0.259
+    "seconds": 0.186
+   },
+   "caveat": null
+  },
+  {
+   "journey": 5,
+   "title": "Cross-environment, cross-asset, wrong-scale and wrong-recipient messages fail before value changes.",
+   "status": "passed",
+   "evidence": {
+    "wrong_asset": 422,
+    "wrong_scale": 422,
+    "wrong_recipient": 404,
+    "wrong_environment": 422,
+    "envelope_rejections": [
+     "wrong_environment",
+     "wrong_receiver",
+     "payload_digest_mismatch"
+    ],
+    "bob_claim": 0,
+    "seconds": 0.172
    },
    "caveat": null
   },
   {
    "journey": 8,
    "title": "A source export makes its allocated value unavailable before an importable certificate is released.",
-   "status": "failed",
+   "status": "passed",
    "evidence": {
-    "exception": "StopIteration",
-    "detail": "",
-    "trace": "/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 329, in j8\n    allocs = A.call('get', '/api/v1/native/allocations')[1]['items']; al = next(x for x in allocs if x['evidence'].get('request_id') == 'j8')\n                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nStopIteration\n",
-    "last_award_errors": [],
-    "seconds": 0.098
+    "crash_at_reserve": 409,
+    "available_after_reserve": 292,
+    "in_transit": 5,
+    "after_recovery": "certified",
+    "resumed": [
+     {
+      "allocation_id": "nal_ce33a29e4b867b2f",
+      "from": "reserved",
+      "to": "certified"
+     }
+    ],
+    "seconds": 0.093
    },
    "caveat": null
   },
   {
    "journey": 9,
    "title": "Destination import consumes an allocation once; duplicate delivery is idempotent.",
-   "status": "failed",
+   "status": "passed",
    "evidence": {
-    "exception": "KeyError",
-    "detail": "'results'",
-    "trace": "mp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 338, in j9\n    ok = out['ok'] and all(r['state'] == 'accepted' for r in out['results']) and all(r['state'] == 'duplicate' for r in again['results']) and after == before + credited and len(again['replies']) >= 1\n                                                             ~~~^^^^^^^^^^^\nKeyError: 'results'\n",
-    "last_award_errors": [],
-    "seconds": 0.022
+    "first": [
+     "accepted",
+     "accepted"
+    ],
+    "duplicate": [
+     "duplicate",
+     "duplicate"
+    ],
+    "bob_before": 0,
+    "bob_after": 8,
+    "acks_replayed": 2,
+    "seconds": 0.085
    },
    "caveat": null
   },
   {
    "journey": 12,
    "title": "Crash at each export/import persistence boundary recovers without duplicated spendable ownership.",
-   "status": "failed",
+   "status": "passed",
    "evidence": {
-    "exception": "StopIteration",
-    "detail": "",
-    "trace": "ile \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 366, in j12\n    al = next(x for x in A.call('get', '/api/v1/native/allocations')[1]['items'] if x['evidence'].get('request_id') == 'crash-' + point)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nStopIteration\n",
-    "last_award_errors": [],
-    "seconds": 0.038
+    "native_export_reserve": {
+     "crash": 409,
+     "durable": "reserved",
+     "retry": "certified"
+    },
+    "native_export_commit": {
+     "crash": 409,
+     "durable": "export_committed",
+     "retry": "certified"
+    },
+    "native_certificate_publish": {
+     "crash": 409,
+     "durable": "certified",
+     "retry": "certified"
+    },
+    "native_import_commit": {
+     "delivery_status": 409,
+     "bob_after": 8
+    },
+    "native_ack": {
+     "delivery_status": 409,
+     "bob_after": 8
+    },
+    "held_both": 430,
+    "fixture": 430,
+    "seconds": 0.374
+   },
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "title": "Disjoint preallocations support bounded work while the inter-domain link is cut.",
+   "status": "passed",
+   "evidence": {
+    "online_refused": "link_cut",
+    "bundle_items": 1,
+    "import": "accepted",
+    "pending_claims_before_ack": 6,
+    "local_spend": 201,
+    "seconds": 0.133
+   },
+   "caveat": null
+  },
+  {
+   "journey": 14,
+   "title": "Exhausted authority refuses further commitments without destroying completed work.",
+   "status": "passed",
+   "evidence": {
+    "refused": "insufficient_available",
+    "completed_transfers_kept": 1,
+    "carol": 17,
+    "alloc_after_ack": "acknowledged",
+    "seconds": 0.083
+   },
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "title": "Reordered, delayed and duplicated messages converge where the protocol promises convergence.",
+   "status": "passed",
+   "evidence": {
+    "reversed_first": [
+     "accepted",
+     "accepted"
+    ],
+    "reversed_again": [
+     "duplicate",
+     "duplicate"
+    ],
+    "acks_back": [
+     "accepted",
+     "accepted",
+     "duplicate",
+     "duplicate",
+     "duplicate",
+     "duplicate",
+     "duplicate",
+     "duplicate"
+    ],
+    "final": {
+     "nal_a8da6c54b940ed08": "acknowledged",
+     "nal_8b5cdc32d7721ba0": "acknowledged"
+    },
+    "seconds": 0.142
    },
    "caveat": null
   },
   {
    "journey": 17,
    "title": "Reverse return follows the supported closure protocol; timeout alone cannot restore funds.",
-   "status": "failed",
+   "status": "passed",
    "evidence": {
-    "exception": "KeyError",
-    "detail": "'id'",
-    "trace": "Traceback (most recent call last):\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 430, in j17\n    sr, rr = B.call('post', '/api/v1/native/allocations/' + al['id'] + '/return', role='bob', json={}); mid = A.bal('alice'); out = self.push(B, A)\n                                                            ~~^^^^^^\nKeyError: 'id'\n",
-    "last_award_errors": [],
-    "seconds": 0.013
+    "request": "return_requested",
+    "source_before_closure": true,
+    "after_closure": "returned",
+    "alice_delta_after_closure": 4,
+    "partial": "return_partial_unsupported",
+    "seconds": 0.316
    },
    "caveat": null
   },
@@ -126,23 +239,23 @@
    "status": "passed",
    "evidence": {
     "A": {
-     "total_held": 130,
-     "fixture_funding": 130,
-     "backing_locked_for_exports": 0,
+     "total_held": 409,
+     "fixture_funding": 430,
+     "backing_locked_for_exports": 21,
      "claims_backed_elsewhere": 0,
      "conserved": true
     },
     "B": {
-     "total_held": 0,
+     "total_held": 21,
      "fixture_funding": 0,
      "backing_locked_for_exports": 0,
-     "claims_backed_elsewhere": 0,
+     "claims_backed_elsewhere": 21,
      "conserved": true
     },
-    "held_both": 130,
+    "held_both": 430,
     "pending_backing_not_yet_imported": 0,
     "trust": "a trusted ordering authority with one fenced writer (SQLite BEGIN IMMEDIATE on durable storage), authenticated actors, explicit administrator powers",
-    "seconds": 0.008
+    "seconds": 0.007
    },
    "caveat": null
   },
@@ -169,7 +282,7 @@
     "total": 80,
     "fees_additional_to_provider": true,
     "terrain_outcome": "FEASIBLE",
-    "seconds": 4.444
+    "seconds": 4.388
    },
    "caveat": null
   },
@@ -185,68 +298,54 @@
      "available": 0
     },
     "after_settlement": 201,
-    "seconds": 2.264
+    "seconds": 1.764
    },
    "caveat": null
   },
   {
    "journey": 36,
    "title": "The independent checker accepts supported evidence and rejects all targeted tampering vectors.",
-   "status": "failed",
+   "status": "passed",
    "evidence": {
-    "exception": "IndexError",
-    "detail": "list index out of range",
-    "trace": "nt call last):\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 225, in guard\n    fn(t0)\n  File \"/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-native/metacoin-native-space-protocol/metacoin_service/tests/journeys_native.py\", line 669, in j36\n    wrong = native_checker.check(A.call('get', '/api/v1/native/export')[1], {k: [dict(v[0], public_hex='00' * 32)] for k, v in roots.items()})\n                                                                                      ~^^^\nIndexError: list index out of range\n",
-    "last_award_errors": [
-     {
-      "award": {
-       "error": true,
-       "code": "BUDGET_EXHAUSTED",
-       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
-       "detail": {
-        "code": "insufficient_available",
-        "available": 0,
-        "requested": 2,
-        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
-       }
-      },
-      "offer": "offered",
-      "eligibility": {
-       "eligible": true,
-       "reasons": []
-      },
-      "who": "unfunded",
-      "template": "determination"
+    "reports": {
+     "dom-a": {
+      "authorized_bookkeeping": true,
+      "cryptographic_authenticity": true,
+      "scientific_reproducibility": null,
+      "custody_assumptions": true,
+      "economic_backing": true
      },
-     {
-      "award": {
-       "error": true,
-       "code": "BUDGET_EXHAUSTED",
-       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
-       "detail": {
-        "code": "insufficient_available",
-        "available": 0,
-        "requested": 2,
-        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
-       }
-      },
-      "offer": "offered",
-      "eligibility": {
-       "eligible": true,
-       "reasons": []
-      },
-      "who": "earner",
-      "template": "determination"
-     }
-    ],
-    "seconds": 0.142
+     "dom-a_cli_rc": 0,
+     "dom-b": {
+      "authorized_bookkeeping": true,
+      "cryptographic_authenticity": true,
+      "scientific_reproducibility": null,
+      "custody_assumptions": true,
+      "economic_backing": true
+     },
+     "dom-b_cli_rc": 0
+    },
+    "wrong_root_separates_properties": {
+     "authenticity": false,
+     "bookkeeping": true
+    },
+    "vectors": {
+     "count": 16,
+     "all_as_expected": true
+    },
+    "model": {
+     "states": 22,
+     "violations": 0,
+     "bounds": "two domains, one allocation at a time, amounts 1..2 over a fixture of 3, sequences of length <= 5 over 13 events; not an unbounded proof"
+    },
+    "seconds": 0.175
    },
    "caveat": null
   }
  ],
- "passed": 6,
- "failed": 5,
+ "passed": 15,
+ "failed": 0,
  "blocked": 0,
- "total": 11,
- "archive_sha256": "4a1f9ea7af889d988d3f5e8425364507da53ff3f18d2afd532c22c405914c228"
+ "total": 15,
+ "archive_sha256": "7c668cc872b3ab6b5827f9fdf951eea5225da71db929a5d4d3d6bffbe8377974"
 }

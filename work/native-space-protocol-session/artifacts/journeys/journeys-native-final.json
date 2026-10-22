@@ -3,10 +3,10 @@
  "provider_mode": "simulation",
  "x402_disabled": true,
  "facilitator_url": "http://127.0.0.1:1/blocked",
- "revision": "691d68ba91ac4c1e61f14770582c9e75cc3f2ee7",
+ "revision": "35d194ac18c053212828870a563a8c523c3535c3",
  "python": "3.12.3",
- "started_at": 1792668219,
- "finished_at": 1792668257,
+ "started_at": 1792668442,
+ "finished_at": 1792668481,
  "results": [
   {
    "journey": 1,
@@ -21,12 +21,12 @@
     },
     "native": "dom-a",
     "facilitator_url": "http://127.0.0.1:1/blocked",
-    "award": "wa_924459cee3212eca",
+    "award": "wa_318a9b2cf0220da7",
     "rail": "native",
     "machine": 5,
     "requester": 75,
-    "revision": "691d68ba91ac4c1e61f14770582c9e75cc3f2ee7",
-    "seconds": 1.749
+    "revision": "35d194ac18c053212828870a563a8c523c3535c3",
+    "seconds": 2.344
    },
    "caveat": null
   },
@@ -39,7 +39,7 @@
     "machine_after": 2,
     "supplier": 3,
     "same_identity": true,
-    "seconds": 1.318
+    "seconds": 1.455
    },
    "caveat": null
   },
@@ -55,7 +55,7 @@
     "agent_over_per_action": 400,
     "agent_widening_grant": 403,
     "owner_after": 17,
-    "seconds": 0.132
+    "seconds": 0.122
    },
    "caveat": null
   },
@@ -80,7 +80,7 @@
     ],
     "racer": 0,
     "racee": 50,
-    "seconds": 0.253
+    "seconds": 0.269
    },
    "caveat": null
   },
@@ -99,7 +99,7 @@
      "payload_digest_mismatch"
     ],
     "bob_claim": 0,
-    "seconds": 0.148
+    "seconds": 0.188
    },
    "caveat": null
   },
@@ -117,7 +117,7 @@
      "status": 409,
      "code": "obligation_binding"
     },
-    "seconds": 0.034
+    "seconds": 0.036
    },
    "caveat": null
   },
@@ -132,7 +132,7 @@
     "partial_payment_of_exact_obligation": 409,
     "carla": 6,
     "alice": 291,
-    "seconds": 0.089
+    "seconds": 0.112
    },
    "caveat": null
   },
@@ -147,12 +147,12 @@
     "after_recovery": "certified",
     "resumed": [
      {
-      "allocation_id": "nal_0ff25d8935378a52",
+      "allocation_id": "nal_13ece4aa59e9bfa2",
       "from": "reserved",
       "to": "certified"
      }
     ],
-    "seconds": 0.098
+    "seconds": 0.12
    },
    "caveat": null
   },
@@ -172,7 +172,7 @@
     "bob_before": 0,
     "bob_after": 8,
     "acks_replayed": 2,
-    "seconds": 0.078
+    "seconds": 0.109
    },
    "caveat": null
   },
@@ -183,7 +183,7 @@
    "evidence": {
     "as_is": "wrong_receiver",
     "readdressed": "bad_signature",
-    "seconds": 0.838
+    "seconds": 0.89
    },
    "caveat": null
   },
@@ -196,7 +196,7 @@
     "spend_beyond_available": 400,
     "return_from_source": 404,
     "reexport_same_request": true,
-    "seconds": 0.046
+    "seconds": 0.094
    },
    "caveat": null
   },
@@ -230,7 +230,7 @@
     },
     "held_both": 450,
     "fixture": 450,
-    "seconds": 0.401
+    "seconds": 0.479
    },
    "caveat": null
   },
@@ -244,7 +244,7 @@
     "import": "accepted",
     "pending_claims_before_ack": 6,
     "local_spend": 201,
-    "seconds": 0.156
+    "seconds": 0.174
    },
    "caveat": null
   },
@@ -257,7 +257,7 @@
     "completed_transfers_kept": 1,
     "carol": 19,
     "alloc_after_ack": "acknowledged",
-    "seconds": 0.091
+    "seconds": 0.089
    },
    "caveat": null
   },
@@ -272,7 +272,7 @@
     ],
     "next_certificate": "peer_quarantined",
     "carol_unchanged": 19,
-    "seconds": 0.204
+    "seconds": 0.263
    },
    "caveat": "equivocation is detected where two signed histories meet; it is not prevented (documented trust model)"
   },
@@ -300,10 +300,10 @@
      "duplicate"
     ],
     "final": {
-     "nal_4cc81cfef834fa84": "acknowledged",
-     "nal_c613934dcbc63db7": "acknowledged"
+     "nal_15b4b308010eb4cf": "acknowledged",
+     "nal_989c8defbcaf1f44": "acknowledged"
     },
-    "seconds": 0.136
+    "seconds": 0.19
    },
    "caveat": null
   },
@@ -317,7 +317,7 @@
     "after_closure": "returned",
     "alice_delta_after_closure": 4,
     "partial": "return_partial_unsupported",
-    "seconds": 0.316
+    "seconds": 0.435
    },
    "caveat": null
   },
@@ -343,7 +343,7 @@
     "held_both": 449,
     "pending_backing_not_yet_imported": 1,
     "trust": "a trusted ordering authority with one fenced writer (SQLite BEGIN IMMEDIATE on durable storage), authenticated actors, explicit administrator powers",
-    "seconds": 0.009
+    "seconds": 0.01
    },
    "caveat": null
   },
@@ -359,7 +359,7 @@
     "after": "normal",
     "reconstructed": [
      {
-      "allocation_id": "nal_04a644c1dc6451a2",
+      "allocation_id": "nal_67489edc6a4b78a0",
       "status": "locked",
       "amount": 3
      }
@@ -368,7 +368,7 @@
      25,
      25
     ],
-    "seconds": 1.153
+    "seconds": 1.218
    },
    "caveat": "rollback is detected from the durable watermark file and the peer's signed observation; a restore that also restores the watermark is detected only through the peer"
   },
@@ -382,7 +382,7 @@
     "ui_pending_shown": true,
     "ui_reconciled_shown": true,
     "local": "domain_local_settlement",
-    "seconds": 0.148
+    "seconds": 0.153
    },
    "caveat": null
   },
@@ -409,7 +409,7 @@
     "total": 80,
     "fees_additional_to_provider": true,
     "terrain_outcome": "FEASIBLE",
-    "seconds": 4.495
+    "seconds": 4.61
    },
    "caveat": null
   },
@@ -425,7 +425,7 @@
      "available": 0
     },
     "after_settlement": 201,
-    "seconds": 1.679
+    "seconds": 1.736
    },
    "caveat": null
   },
@@ -451,7 +451,7 @@
      "acquired_at": "2026-10-22"
     },
     "download_cli": 0,
-    "seconds": 1.951
+    "seconds": 1.373
    },
    "caveat": "LDEM_4 is a 7.58 km/pixel public shape grid: grid-scale slopes, not traversability"
   },
@@ -474,7 +474,7 @@
     ],
     "near_threshold_indeterminate_at_limit": null,
     "uncertain_cells_reported": 0,
-    "seconds": 1.439
+    "seconds": 1.604
    },
    "caveat": null
   },
@@ -493,7 +493,7 @@
      "accept_attempt": 409
     },
     "machine": 35,
-    "seconds": 2.969
+    "seconds": 2.59
    },
    "caveat": null
   },
@@ -507,10 +507,10 @@
      "resource_violation:thermal_permission_missing"
     ],
     "eligible": [
-     "wo_51fac30db5d890da"
+     "wo_469ab19a27aa429a"
     ],
-    "awarded_provider": "pv_8f84917948bc",
-    "seconds": 0.127
+    "awarded_provider": "pv_3aaaae5ba880",
+    "seconds": 0.177
    },
    "caveat": null
   },
@@ -560,7 +560,7 @@
       "pending_exposure": 234
      }
     },
-    "seconds": 0.046
+    "seconds": 0.066
    },
    "caveat": null
   },
@@ -582,7 +582,7 @@
     "after": "DECISION_RESOLVED",
     "label": "ROUTE_INFEASIBLE",
     "paid_rail": "native",
-    "seconds": 1.816
+    "seconds": 1.958
    },
    "caveat": "declared finite states; a model-level decision, not physical truth"
   },
@@ -591,11 +591,11 @@
    "title": "Compatible paid artifacts can be reused; stale or incompatible ones are rejected.",
    "status": "passed",
    "evidence": {
-    "original_job": "j_6469a741e92567bb",
-    "reused_from": "j_6469a741e92567bb",
+    "original_job": "j_e0f27cdf3d7a1cda",
+    "reused_from": "j_e0f27cdf3d7a1cda",
     "incompatible_reused_from": null,
     "contract_status": 201,
-    "seconds": 1.399
+    "seconds": 1.441
    },
    "caveat": "reuse is keyed by kind, canonical inputs and verifier digest; a changed parameter is a different key"
   },
@@ -610,7 +610,7 @@
     "authorized_max": 6,
     "amend_after_close": 422,
     "award_terms_unchanged": true,
-    "seconds": 1.269
+    "seconds": 1.324
    },
    "caveat": null
   },
@@ -626,7 +626,7 @@
     "available_with_pending_fee": 0,
     "expected": 0,
     "unrelated_asset_available": 0,
-    "seconds": 1.878
+    "seconds": 1.554
    },
    "caveat": null
   },
@@ -648,7 +648,7 @@
      "protocol/ledger_anchor.json": "1f420ca3f7c103ad268d2b0e2a56ccdd759dc7190b88671469fad77d1ef45202",
      "protocol/identity_text.py": "00ec00d11d7cf7b6d0b4fabf9edccb7852227098d25cdb65a9c025ce4acfb660"
     },
-    "seconds": 1.842
+    "seconds": 1.837
    },
    "caveat": null
   },
@@ -662,7 +662,7 @@
     "hold_bounded": 10,
     "substituted_signature": "bad_signature",
     "balances_unchanged_after_dismiss": true,
-    "seconds": 0.159
+    "seconds": 0.226
    },
    "caveat": null
   },
@@ -689,7 +689,7 @@
       "active"
      ]
     ],
-    "seconds": 0.158
+    "seconds": 0.205
    },
    "caveat": "an offline counterparty learns a rotation only when the notice arrives; the retiring key stays valid for messages created before retired_at + grace"
   },
@@ -705,7 +705,7 @@
      "payload_digest_mismatch"
     ],
     "roots_unchanged": true,
-    "seconds": 0.029
+    "seconds": 0.035
    },
    "caveat": null
   },
@@ -745,7 +745,7 @@
      "violations": 0,
      "bounds": "two domains, one allocation at a time, amounts 1..2 over a fixture of 3, sequences of length <= 5 over 13 events; not an unbounded proof"
     },
-    "seconds": 0.159
+    "seconds": 0.241
    },
    "caveat": null
   },
@@ -780,7 +780,7 @@
     },
     "viewer_cli_transfer_rc": 2,
     "mcp_stderr": null,
-    "seconds": 1.692
+    "seconds": 1.812
    },
    "caveat": null
   },
@@ -855,7 +855,7 @@
      {
       "check": "narrow width: no horizontal page overflow on the native pages",
       "ok": true,
-      "detail": "{'/console/native': True, '/console/native/accounts/na_fd6081b67f27': True, '/console/native/settlement': True, '/console/native/treasury': True, '/console/native/missions/wa_caa6b0ce895b3445': True, '/console/lunar/j_877afec18f39a1f9': True}"
+      "detail": "{'/console/native': True, '/console/native/accounts/na_bf9ab06b2eb9': True, '/console/native/settlement': True, '/console/native/treasury': True, '/console/native/missions/wa_642d873074778d5e': True, '/console/lunar/j_d6e084f60635b78b': True}"
      }
     ],
     "screenshots": [
@@ -869,17 +869,24 @@
      "08-narrow-account.png"
     ],
     "crash": null,
-    "seconds": 2.748
+    "seconds": 2.589
    },
    "caveat": null
   },
   {
    "journey": 39,
    "title": "A clean export reproduces native operation without x402, remote facilitators, private local files or hidden data.",
-   "status": "blocked",
+   "status": "passed",
    "evidence": {
-    "seconds": 0.0,
-    "blocked": "run by work/native-space-protocol-session/clean_export.sh after packaging; result file not supplied"
+    "from_clean_export": {
+     "passed": 15,
+     "failed": 0,
+     "blocked": 0,
+     "total": 15,
+     "revision": "unavailable"
+    },
+    "archive_sha256": "7c668cc872b3ab6b5827f9fdf951eea5225da71db929a5d4d3d6bffbe8377974",
+    "seconds": 0.0
    },
    "caveat": null
   },
@@ -905,7 +912,7 @@
     "smoke": {
      "health": {
       "ok": true,
-      "revision": "691d68ba91ac4c1e61f14770582c9e75cc3f2ee7",
+      "revision": "35d194ac18c053212828870a563a8c523c3535c3",
       "provider_mode": "simulation",
       "queued": 0,
       "running": 0
@@ -919,13 +926,14 @@
      "recovery": "normal"
     },
     "live_service_untouched": true,
-    "seconds": 0.802
+    "seconds": 0.849
    },
    "caveat": "isolated copy only; the live service was neither upgraded nor restarted"
   }
  ],
- "passed": 39,
+ "passed": 40,
  "failed": 0,
- "blocked": 1,
- "total": 40
+ "blocked": 0,
+ "total": 40,
+ "note": "journey 39 recorded from the clean-export run of the packaged archive (clean-export/journeys-native-from-clean-export.json); journeys 1-38 and 40 from run 6 on the same source revision"
 }

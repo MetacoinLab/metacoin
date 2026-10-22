@@ -1,0 +1,33 @@
+{
+ "schema": "metacoin-journeys-native/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "revision": "35d194ac18c053212828870a563a8c523c3535c3",
+ "python": "3.12.3",
+ "started_at": 1792668691,
+ "finished_at": 1792668693,
+ "results": [
+  {
+   "journey": 39,
+   "title": "A clean export reproduces native operation without x402, remote facilitators, private local files or hidden data.",
+   "status": "passed",
+   "evidence": {
+    "from_clean_export": {
+     "passed": 15,
+     "failed": 0,
+     "blocked": 0,
+     "total": 15,
+     "revision": "unavailable"
+    },
+    "archive_sha256": "7c668cc872b3ab6b5827f9fdf951eea5225da71db929a5d4d3d6bffbe8377974",
+    "seconds": 0.0
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 1,
+ "failed": 0,
+ "blocked": 0,
+ "total": 1
+}

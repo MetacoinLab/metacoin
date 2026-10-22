@@ -1,6 +1,6 @@
 {
  "schema": "metacoin-feature-ledger/v2",
- "source": "691d68ba91ac4c1e61f14770582c9e75cc3f2ee7",
+ "source": "35d194ac18c053212828870a563a8c523c3535c3",
  "capabilities": [
   {
    "capability": "Native protocol v0 (types, canonical encoding, signed intents, published transition tables, 7 finality levels)",
@@ -330,9 +330,9 @@
      39
     ],
     "statuses": [
-     "blocked"
+     "passed"
     ],
-    "executed": false
+    "executed": true
    },
    "environment_assumptions": "fresh venv from the lock with local wheel caches",
    "unresolved_limitations": "recorded separately after packaging"
