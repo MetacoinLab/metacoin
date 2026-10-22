@@ -12,8 +12,22 @@ import sys
 import time
 from playwright.sync_api import sync_playwright
 
-sys.path.insert(0, os.getcwd())
-from metacoin_service.tests.test_decision_service import analysis_inputs, menu, delivery  # noqa: E402
+HOT = [{'id': 'hot_cell_1', 'label': 'DO_NOT_START', 'state': [100, 20], 'provenance': 'thermal model v3'}, {'id': 'hot_cell_2', 'label': 'START_UNDER_DECLARED_MODEL', 'state': [20, 100], 'provenance': 'thermal model v3'}]
+TOTAL = {'id': 'total', 'rows': [[1, 1]], 'noise': [2], 'output_units': ['mJ'], 'cost': 0}
+
+
+def analysis_inputs():   # the same synthetic fixture as metacoin_service.tests.test_decision_service (this script runs in the Playwright venv)
+    return {'schema': 'decision-observability-input/v1', 'model': {'id': 'finite-decision-observability/v1', 'version': 1}, 'candidate_set_version': 'cs-2026-10-22', 'measurement_menu_version': 'mm-1',
+            'coordinates': [{'name': 'cell_1', 'unit': 'mJ'}, {'name': 'cell_2', 'unit': 'mJ'}], 'hypotheses': HOT, 'views': [TOTAL], 'question': 'may the heater start?', 'private_label': 'BROWSER_DECISION'}
+
+
+def menu(expires):
+    return [{'id': 'total_again', 'rows': [[1, 1]], 'noise': [2], 'output_units': ['mJ'], 'cost': 1, 'quote_expires_at': expires, 'execution_modes': ['local_worker']},
+            {'id': 'cell_1_sensor', 'rows': [[1, 0]], 'noise': [2], 'output_units': ['mJ'], 'cost': 3, 'quote_expires_at': expires, 'execution_modes': ['local_worker', 'instrument']}]
+
+
+def delivery(obs):
+    return {'schema': 'observation-delivery/v1', 'status': 'acquired', 'observations': obs, 'provenance': {'instrument': 'cell-1 calorimeter (simulated)', 'acquired_at': 1760000000, 'units_confirmed': True, 'simulated': True}}
 
 BASE, OWNER, PROVIDER, VIEWER, SHOTS = sys.argv[1:6]
 os.makedirs(SHOTS, exist_ok=True)
