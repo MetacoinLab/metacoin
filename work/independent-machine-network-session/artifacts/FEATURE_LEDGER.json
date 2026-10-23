@@ -1,0 +1,458 @@
+{
+ "schema": "metacoin-feature-ledger/v4",
+ "source_revision": "1fc3bda1fb69bbee196b83a552a86d904990ebd2",
+ "journeys": {
+  "passed": 57,
+  "failed": 0,
+  "blocked": 0,
+  "skipped": 0,
+  "total": 57
+ },
+ "required_journeys": {
+  "passed": 51,
+  "failed": 0,
+  "blocked": 0,
+  "total": 51
+ },
+ "extension_journeys": {
+  "passed": 6,
+  "failed": 0,
+  "total": 6
+ },
+ "groups": {
+  "A": {
+   "capability": "Complete economic custody separation: context-bound signing requests, per-actor durable signer policy, no development-custody fallback (METACOIN_REQUIRE_EXTERNAL_CUSTODY), enrolment/export/preview/delegation/rotation/recovery through the signer, admin cannot bypass",
+   "code": "metacoin_service/native/signing.py, native/signer.py (policy, context binding), native/controller.py (await_signature), native/service.py (require_external_custody, settlement_preview), economy/money.py",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     4,
+     5,
+     6,
+     7,
+     8,
+     40
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "signers are separate processes on the same host under the same operator (process-separated, weaker than operator-separated); the domain authority key stays with the service",
+   "unresolved_limits": "cross-domain exports by external-custody accounts are not yet a signable intent (exports in the journeys run under development custody at dom-a)"
+  },
+  "B": {
+   "capability": "Installable provider distribution: standard-library client with pinned identity and version negotiation, identity separation (operator/machine/worker/signer/domain), shared-operator disclosure, authenticated transport beyond loopback, drain/withdraw, CLI wizard, outcome history (no trust score)",
+   "code": "provider_client/metacoin_provider/{client,api,signer,__main__}.py, economy/board.py (identity_view), economy/routes.py (/work/providers/{id}/identity)",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     3,
+     9,
+     10,
+     15
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "one host; a second host is a configuration generator only (native/hostconfig.py)",
+   "unresolved_limits": "real second-host / separate-operator rehearsal not performed (no authorized host); pip install of the client needs setuptools"
+  },
+  "C": {
+   "capability": "Canonical resource pools behind overlapping offers: interval-aware admission inside the reservation transaction, exact unit conversion, refused reductions below commitments, draining keeps delivered work",
+   "code": "native/pools.py (sweep, admissible, Pools), native/market.py (reserve), db.py 048",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     11,
+     12,
+     13,
+     14,
+     15
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "capacity is a provider declaration; no physical contention model",
+   "unresolved_limits": "legacy offers created before 048 keep per-offer semantics (no implicit pool is back-filled)"
+  },
+  "D": {
+   "capability": "Native sub-contracting: child missions bound to parent revision/milestone, requester prefund (signed) or settled machine earnings, circular funding refused, depth/fan-out/duplicate limits, private input redaction, failed child closes its award and releases the reservation",
+   "code": "native/subcontracts.py, native/mission_contracts.py (redaction), native/controller.py (award close on reject), db.py 050",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     16,
+     17,
+     18,
+     19,
+     20,
+     21
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "same operator for primary and sub-contractor processes",
+   "unresolved_limits": "return-unused applies to prefunded sub-contracts; machine-earnings funding is released by award close"
+  },
+  "E": {
+   "capability": "Versioned reusable products with provenance (pinned LOLA tile, sha256, integer mm/px), licenses, idempotent purchase and delivery, crash recovery after settlement, compatibility checks",
+   "code": "native/products.py, db.py 052, economy/ops.py (product_delivery fault)",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     22,
+     23,
+     24,
+     25
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "products are verified computations over public data; no ownership claims",
+   "unresolved_limits": "the Apollo 11 LDEM_4 extract is a grid-scale demonstration only"
+  },
+  "F": {
+   "capability": "Two-hop paid relay: per-hop contact reservations, separate queues and evidence kinds, bounded fees, dispute policies, admission limits, restart-safe queues, missed windows cancelled in full",
+   "code": "native/relay.py, db.py 053",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     26,
+     27,
+     28,
+     29,
+     30
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "emulated loop transport labelled as such",
+   "unresolved_limits": "not BPv7 (no daemon available: bpv7-probe.json)"
+  },
+  "G": {
+   "capability": "Partial return with explicit claim lots: in-place splits, owner-only retirement, source releases exactly once, v2 return messages refused by v1 peers, crash boundaries, no invented provenance for legacy claims",
+   "code": "native/lots.py, native/domains.py (return_request_partial, partial certificates, accounting), native/protocol.py (v2 fields), db.py 051",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     31,
+     32,
+     33,
+     34,
+     35
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "two local domains under one operator",
+   "unresolved_limits": "transferred lots stay backed until re-exported (not retirable by the transferee)"
+  },
+  "H": {
+   "capability": "Fenced controller generations: authority-granted takeover, stale mutations refused and recorded, no self-issued generation, quarantine refuses takeover, continuity reconstruction, restart-safe runner",
+   "code": "native/controller.py (generations, continuity, _fence), native/controller_runner.py, db.py 054",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     36,
+     37,
+     38,
+     39,
+     40
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "the authoritative domain is the single ordering authority",
+   "unresolved_limits": "a controller holding an old generation can still read; only mutations are fenced"
+  },
+  "I": {
+   "capability": "Portfolio planner with liquidity split, declared priorities, reference / exhaustive oracle / bounded improved admission, independent validator (pool_oversold, not_spendable), evidence purchase, rolling vs fixed comparison, pool-aware mission planner",
+   "code": "native/portfolio.py, native/planner.py, native/mission_planning.py",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     41,
+     42,
+     43,
+     44
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "bounded fixtures only (40 seeds, \u22643 missions); optimality only where the oracle exhausts",
+   "unresolved_limits": "synthetic observations are labelled; the planner never spends"
+  },
+  "J": {
+   "capability": "Connected operator and provider surfaces: console workflow pages, API/CLI parity, MCP read vs spend tools, expired session keeps the draft, real-browser evidence",
+   "code": "console_ui.py, templates/network_*.html, mcp_server.py, client_cli.py",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     46,
+     45,
+     2
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "Chromium via Playwright on the same host",
+   "unresolved_limits": "a provider completes a mission through public interfaces only in the clean-client journey (3) and the demonstration"
+  }
+ },
+ "cross_cutting": {
+  "\u00a71 demonstration": {
+   "capability": "Custody-separated mission with competition for a shared pool, disconnected interval, failed branch, replanning, return of unspent funds, fee-funded contribution; independently audited",
+   "code": "tests/journeys_network.py (_demo)",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     0
+    ],
+    "statuses": [
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "dom-c with four signer processes on one host",
+   "unresolved_limits": "cross-domain claim exported by a development-custody account at dom-a"
+  },
+  "\u00a717 model/checker/vectors": {
+   "capability": "Bounded network model (pools, subcontracts, lots, generations; 323 states, 0 violations) replayed through real instances; checker and client verifier recompute overlap, lot partition, obligations; conformance vectors v2 (32 cases)",
+   "code": "native/model_network.py, tests/test_native_model_network.py, native/checker.py, provider_client/metacoin_provider/verify.py, native/conformance_fixtures.py",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     45,
+     3
+    ],
+    "statuses": [
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "bounded enumeration is not a proof",
+   "unresolved_limits": "malicious authority and arbitrary network size outside the model"
+  },
+  "\u00a718 endurance/benchmarks": {
+   "capability": "\u226530 min mixed workload with partitions, signer and API restarts, fixed seed; benchmarks before/after on the base worktree plus pool contention, provider overhead, signer round trips, lineage growth; lock-wait timeouts are 503 JOURNAL_BUSY (Retry-After, nothing begun) retried with the identical request, FIFO write gate per process, worker continuity under a busy database (found by runs 2\u20133, fixed in f537220)",
+   "code": "endurance_network.py, benchmark_network.py, run_benchmark.py, db.py (FairGate), tests/test_db_contention.py",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     48
+    ],
+    "statuses": [
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "single host, loopback, SQLite",
+   "unresolved_limits": "numbers are relative to this host; one SQLite writer per domain: busy refusals under saturation are retryable, the single-writer throughput ceiling is unchanged; API and worker processes still contend through SQLite's busy handler"
+  },
+  "\u00a719 migrations": {
+   "capability": "048\u2013054 rehearsed on an isolated copy of the live database (040) and on prior-state databases produced by the base revision (047); rollback by whole-snapshot restore; legacy claims conservative",
+   "code": "db.py, MIGRATIONS.json, MIGRATION_NOTES.md",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     47
+    ],
+    "statuses": [
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "live service untouched",
+   "unresolved_limits": "the live upgrade itself is not authorized by this order"
+  },
+  "\u00a722 packaging": {
+   "capability": "Archive, patch, locks, docs, vectors, checker, benchmark/endurance evidence, browser evidence, deployment guide, SHA256SUMS on a fresh extraction, clean-start from the extraction",
+   "code": "package.sh, clean_export.sh",
+   "implemented": true,
+   "executed": {
+    "journeys": [
+     49,
+     50
+    ],
+    "statuses": [
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "exercised": true,
+   "topology_trust_assumptions": "local delivery directory",
+   "unresolved_limits": "not pushed, not merged, not published"
+  }
+ },
+ "extensions": {
+  "1 bidding": {
+   "capability": "Multi-provider bidding under a declared deterministic selection policy (lowest_price / earliest_window / declared_preference), bidding window and minimum bids, funded ceiling respected, offers private to their providers, ranking recorded in the award; no reputation score",
+   "code": "native/bidding.py, native/controller.py (opened branch), native/mission_contracts.py (selection validation)",
+   "status": "completed",
+   "journeys": [
+    51
+   ],
+   "statuses": [
+    "passed"
+   ],
+   "exercised": true
+  },
+  "2 substitution": {
+   "capability": "Explicit provider substitution for unstarted milestones as an amendment revision authorized by every affected party (old and new providers); awarded work immutable; parent obligations untouched",
+   "code": "native/substitution.py, routes (missions/{id}/substitute)",
+   "status": "completed",
+   "journeys": [
+    52
+   ],
+   "statuses": [
+    "passed"
+   ],
+   "exercised": true
+  },
+  "3 route planning": {
+   "capability": "Shared communication-route planning across relay offers: bounded hop enumeration, deterministic ranking, exposure re-derived independently from the offers, then the planned route carried by the relay service",
+   "code": "native/route_planning.py, routes (relay/plan), MCP relay_plan",
+   "status": "completed",
+   "journeys": [
+    53
+   ],
+   "statuses": [
+    "passed"
+   ],
+   "exercised": true
+  },
+  "4 subscriptions": {
+   "capability": "Bounded prepaid subscriptions as N not_before-gated work milestones with their own settlements; stop (subscriber) / revoke (provider) cancel unstarted periods and release ceilings; no automatic renewal",
+   "code": "native/subscriptions.py, native/controller.py (not_before wait), routes (subscriptions)",
+   "status": "completed",
+   "journeys": [
+    54
+   ],
+   "statuses": [
+    "passed"
+   ],
+   "exercised": true
+  },
+  "5 offline console": {
+   "capability": "Static page from a signed export with the independent checker verdict and explicit freshness; rendered with the API down",
+   "code": "native/offline_console.py",
+   "status": "completed",
+   "journeys": [
+    55
+   ],
+   "statuses": [
+    "passed"
+   ],
+   "exercised": true
+  },
+  "6 second host / BPv7": {
+   "capability": "Blocked external track: configuration generator and static checker only",
+   "code": "native/hostconfig.py",
+   "status": "blocked (external)",
+   "journeys": [],
+   "statuses": [
+    "unit tests only"
+   ],
+   "exercised": null
+  },
+  "7 starter kit": {
+   "capability": "Independently written minimal provider and receipt consumer with a compatibility test against the v2 conformance vectors (24 cases)",
+   "code": "provider_client/starter_kit/",
+   "status": "completed",
+   "journeys": [],
+   "statuses": [
+    "unit tests only"
+   ],
+   "exercised": null
+  },
+  "8 scenarios": {
+   "capability": "Evidence-versus-delay scenario comparison under fixed declared assumptions, every row labelled a model estimate; breakeven probability reported",
+   "code": "native/scenarios.py, routes (portfolio/scenarios), MCP evidence_scenarios",
+   "status": "completed",
+   "journeys": [
+    56
+   ],
+   "statuses": [
+    "passed"
+   ],
+   "exercised": true
+  }
+ },
+ "external_tracks_blocked_not_passed": {
+  "second_host_separate_operator": "blocked: no authorized reachable second host; configuration generator tested statically",
+  "bpv7": "blocked: no installable RFC 9171 daemon (bpv7-probe.json); the relay service is not BPv7",
+  "separate_os_identities": "not performed: no privileged accounts or host changes are part of this order"
+ }
+}

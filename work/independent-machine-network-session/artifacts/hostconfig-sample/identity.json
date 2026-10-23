@@ -1,0 +1,11 @@
+{
+ "relationship": "independent_declared",
+ "identity": {
+  "operator_id": "operator-b",
+  "machine_id": "rig-b",
+  "worker_instance": "prov-b-w1",
+  "signer_id": "signer-b",
+  "domain": "dom-a"
+ },
+ "note": "declared by the provider; the service discloses shared operators and never counts a declaration as independence"
+}

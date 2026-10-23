@@ -1,0 +1,10 @@
+{
+ "stopped": {
+  "worker": "terminated",
+  "api": "terminated",
+  "signer": "terminated",
+  "witness": "terminated"
+ },
+ "home": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-network/metacoin-independent-machine-network/local-home",
+ "note": "state kept under the home; up again resumes the same service home, signer and witness"
+}

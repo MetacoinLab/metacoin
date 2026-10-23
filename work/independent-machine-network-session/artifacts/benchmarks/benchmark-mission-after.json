@@ -1,0 +1,174 @@
+{
+ "schema": "metacoin-mission-benchmark/v1",
+ "started_at": 1792756487,
+ "environment": {
+  "python": "3.12.3",
+  "host": "single host, loopback, SQLite on local disk",
+  "cpus": 20
+ },
+ "signer_overhead": {
+  "samples": 60,
+  "development_custody_transfer": {
+   "p50_s": 0.0163,
+   "p95_s": 0.0242,
+   "mean_s": 0.0173
+  },
+  "external_signer_transfer": {
+   "prepare": {
+    "p50_s": 0.0127,
+    "p95_s": 0.0169,
+    "mean_s": 0.0129
+   },
+   "sign": {
+    "p50_s": 0.0062,
+    "p95_s": 0.0114,
+    "mean_s": 0.0066
+   },
+   "submit": {
+    "p50_s": 0.0177,
+    "p95_s": 0.0213,
+    "mean_s": 0.0175
+   },
+   "total": {
+    "p50_s": 0.0372,
+    "p95_s": 0.0435,
+    "mean_s": 0.0371
+   }
+  },
+  "overhead_p50_s": 0.0209,
+  "note": "three round trips (prepare, sign, submit) on loopback; the signer records exposure durably before answering"
+ },
+ "reservation_contention": {
+  "contenders": 16,
+  "quantity_each": 5,
+  "capacity": 40,
+  "accepted": 8,
+  "refused": {
+   "capacity_exhausted": 8
+  },
+  "elapsed_s": 0.141,
+  "p50_s": 0.1173,
+  "p95_s": 0.1365,
+  "reserved_after": 40,
+  "available_after": 0,
+  "consistent": true
+ },
+ "offline_backlog_recovery": {
+  "queued_exports": 40,
+  "queue_time_s": 1.483,
+  "recovery_time_s": 0.133,
+  "courier_rounds": 2,
+  "items_per_s": 301.6,
+  "credited_at_peer": 40,
+  "complete": true
+ },
+ "planner_runtime": {
+  "sizes": [
+   {
+    "tasks": 6,
+    "offers": 8,
+    "baseline": {
+     "status": "feasible",
+     "runtime_ms": 0,
+     "nodes": null,
+     "objective": [
+      70,
+      4
+     ]
+    },
+    "improved": {
+     "status": "optimal",
+     "runtime_ms": 0,
+     "nodes": 15,
+     "objective": [
+      70,
+      4
+     ]
+    },
+    "oracle": {
+     "status": "optimal",
+     "runtime_ms": 2,
+     "nodes": null,
+     "objective": [
+      70,
+      4
+     ]
+    },
+    "api_round_trip_s": 0.0038
+   },
+   {
+    "tasks": 10,
+    "offers": 10,
+    "baseline": {
+     "status": "infeasible",
+     "runtime_ms": 0,
+     "nodes": null,
+     "objective": null
+    },
+    "improved": {
+     "status": "infeasible",
+     "runtime_ms": 2,
+     "nodes": 430,
+     "objective": null
+    },
+    "api_round_trip_s": 0.0058
+   },
+   {
+    "tasks": 14,
+    "offers": 12,
+    "baseline": {
+     "status": "infeasible",
+     "runtime_ms": 0,
+     "nodes": null,
+     "objective": null
+    },
+    "improved": {
+     "status": "infeasible",
+     "runtime_ms": 1,
+     "nodes": 248,
+     "objective": null
+    },
+    "api_round_trip_s": 0.0049
+   },
+   {
+    "tasks": 20,
+    "offers": 12,
+    "baseline": {
+     "status": "infeasible",
+     "runtime_ms": 0,
+     "nodes": null,
+     "objective": null
+    },
+    "improved": {
+     "status": "infeasible",
+     "runtime_ms": 287,
+     "nodes": 87833,
+     "objective": null
+    },
+    "api_round_trip_s": 0.3079
+   }
+  ],
+  "note": "in-process solve and one API round trip per size; the improved planner is exhaustive under its bound (status optimal) or reports feasible_timeout"
+ },
+ "worker_resource_use": {
+  "awards": 4,
+  "completed": 4,
+  "elapsed_s": 1.55,
+  "jobs_per_s": 2.574,
+  "worker_before": {
+   "cpu_s": 0.72,
+   "rss_kb": 64048,
+   "peak_rss_kb": 64048
+  },
+  "worker_after": {
+   "cpu_s": 0.8,
+   "rss_kb": 64048,
+   "peak_rss_kb": 64048
+  },
+  "worker_cpu_delta_s": 0.08,
+  "note": "one background worker process; CPU from /proc stat, RSS from /proc status; lunar route search on the pinned tile"
+ },
+ "finished_at": 1792756495,
+ "revision": "1fc3bda1fb69bbee196b83a552a86d904990ebd2",
+ "tree": "/home/zhangd2/projects/metacoin"
+}

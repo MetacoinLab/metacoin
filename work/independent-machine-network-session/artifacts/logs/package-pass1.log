@@ -1,0 +1,8 @@
+/home/zhangd2/metacoin-independent-machine-network-delivery-2026-10-23/native_hostconfig.py
+SECRET MATERIAL FOUND
+manifest ok: 199 files
+== scans (2026-10-23T11:55:13Z) archive 1fc3bda1fb69bbee196b83a552a86d904990ebd2 base a6d672d2d1d95c66fd021f43dccccf9e453c540a
+archive allowlist ok: no keys, credentials, databases, weights, vectors, node identities, venv or work dir
+no bearer/node-credential-shaped strings in logs/results
+No errors detected in compressed data of /home/zhangd2/metacoin-independent-machine-network-delivery-2026-10-23/metacoin-independent-machine-network-source.zip.
+13M	/home/zhangd2/metacoin-independent-machine-network-delivery-2026-10-23

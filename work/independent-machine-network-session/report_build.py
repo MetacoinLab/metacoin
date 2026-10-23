@@ -3,6 +3,15 @@ import json, os, sys, time
 A = sys.argv[1].rstrip('/') + '/'
 J = json.load(open(A + 'journeys/journeys-network.json')); d = json.load(open(A + 'demonstration/demonstration.json')); C = json.load(open(A + 'CANDIDATE.json')); L = json.load(open(A + 'FEATURE_LEDGER.json'))
 e = json.load(open(A + 'benchmarks/endurance-network.json')) if os.path.exists(A + 'benchmarks/endurance-network.json') else None
+e2 = json.load(open(A + 'benchmarks/endurance-network-run2-53c9d49.json')) if os.path.exists(A + 'benchmarks/endurance-network-run2-53c9d49.json') else None
+def _cmp(a, b):
+    if not (a and b):
+        return 'earlier run not available'
+    tot = lambda x: (sum(v['ok'] for v in x['loops'].values()), sum(sum(v['expected_refusals'].values()) for v in x['loops'].values()))
+    return ('run 2 at 53c9d49 (before the fix) vs the final run: completed %d → %d, expected refusals %d → %d, unexpected %d → %d, p99 %.2f s → %.2f s, jobs executed %s → %s; per-loop completed %s → %s. '
+            'Strict FIFO queuing redistributes the single writer: the greedy plain-transfer loop no longer overtakes the others (fewer plain transfers, more of every other operation, lower tails).') % (
+        tot(a)[0], tot(b)[0], tot(a)[1], tot(b)[1], a['summary']['unexpected_failures'], b['summary']['unexpected_failures'], a['summary']['latency_p99_s'], b['summary']['latency_p99_s'], a['final']['jobs'], b['final']['jobs'],
+        {k: v['ok'] for k, v in a['loops'].items()}, {k: v['ok'] for k, v in b['loops'].items()})
 bn = json.load(open(A + 'benchmarks/benchmark-network.json')) if os.path.exists(A + 'benchmarks/benchmark-network.json') else None
 bm = {k: (json.load(open(A + 'benchmarks/benchmark-mission-%s.json' % k)) if os.path.exists(A + 'benchmarks/benchmark-mission-%s.json' % k) else None) for k in ('before', 'after')}
 bnat = {k: (json.load(open(A + 'benchmarks/benchmark-native-%s.json' % k)) if os.path.exists(A + 'benchmarks/benchmark-native-%s.json' % k) else None) for k in ('before', 'after')}
@@ -44,6 +53,9 @@ Final table: {json.dumps(d['final_table'])}. Conservation: {json.dumps(d['conser
 - Browser (journey 46, Chromium): {j46.get('passed')} checks passed, {j46.get('failed')} failed; screenshots in `browser-screenshots/` ({len(j46.get('screenshots') or [])} files), including the expired-session draft ({j46.get('expired_session_paid_nothing')} = nothing paid).
 - Migrations 048–054 (journey 47): live-database copy {live.get('before', {}).get('schema')} → {live.get('after', {}).get('schema')}, balances preserved {live.get('balances_preserved')}, rollback snapshot intact {live.get('rollback_snapshot_intact')}; prior state produced by the base revision ({prior.get('base_revision', '')[:7]}): {json.dumps(g(prior, 'smoke', 'old-b'))}.
 - Endurance ({e['seconds'] if e else 'not run'} s, seed {e['seed'] if e else '-'}): {json.dumps(e['summary']) if e else 'absent'}; restarts {json.dumps(e['restarts']) if e else '-'}, partitions {e['partitions'] if e else '-'}; loops {json.dumps({k: {kk: v[kk] for kk in ('ok', 'p95_s', 'p99_s')} for k, v in e['loops'].items()}) if e else '-'}. Wall clock, compute time, planned contact time and emulator delay are stated in `time_accounting`.
+- Endurance revision: the final run executed at `{(open(A + 'ENDURANCE_REVISION.txt').read().strip() if os.path.exists(A + 'ENDURANCE_REVISION.txt') else 'see ENDURANCE_REVISION.txt')}`; the source candidate differs from it by: {(open(A + 'ENDURANCE_REVISION_DIFF.txt').read().strip() if os.path.exists(A + 'ENDURANCE_REVISION_DIFF.txt') else 'nothing recorded')}.
+- Endurance busy accounting (`busy` in the endurance record): {json.dumps({k: e['busy'].get(k) for k in ('refusals', 'retried_ok', 'retried_refused_expected', 'exhausted', 'by_loop')}) if e and e.get('busy') else 'not recorded'}; service busy logs {json.dumps(e['busy'].get('service_busy_log')) if e and e.get('busy') else '-'}; workers at the end {json.dumps(e.get('workers')) if e else '-'}. Earlier runs at 53c9d49 are kept beside it (`endurance-network-run2-53c9d49.json`, `endurance-network-run3-53c9d49.json` + `.defects-end-a.log`): they had 6 and 4 `LOCAL_OPERATION_FAILED` responses, every one a 15 s lock-wait timeout masked by a failing ROLLBACK, and run 3 lost both workers to the same timeout — diagnosed and fixed in f537220 (ISSUES.md "Endurance defects"; regression suite `tests/test_db_contention.py`). A lock-wait timeout is now `503 JOURNAL_BUSY` (Retry-After, nothing begun) and is retried with the identical request; the retry's outcome is what the counts above report.
+- Endurance before/after the contention fix: {_cmp(e2, e)}
 - Clean export (journey 49): {json.dumps({k: j49.get(k) for k in ('passed', 'failed', 'blocked', 'total', 'archive_sha256')})}.
 
 ## Benchmarks (same host, loopback, SQLite; same workloads on the base revision and HEAD)

@@ -1,0 +1,28 @@
+finalize at 1fc3bda1fb69bbee196b83a552a86d904990ebd2 11:52:57Z
+== journeys (pass A) 11:52:57Z
+rc=0
+56 passed Extension 8: scenario comparison of extra evidence versus delay under fixed declared assum
+== ledger 11:54:07Z
+ledger groups 10 all exercised True cross {'§1 demonstration': True, '§17 model/checker/vectors': True, '§18 endurance/benchmarks': False, '§19 migrations': True, '§22 packaging': False}
+== benchmarks 11:54:07Z
+rc=0
+all benchmark modules rc 0
+== package pass 1 11:55:12Z
+rc=0
+no bearer/node-credential-shaped strings in logs/results
+No errors detected in compressed data of /home/zhangd2/metacoin-independent-machine-network-delivery-2026-10-23/metacoin-independent-machine-network-source.zip.
+13M	/home/zhangd2/metacoin-independent-machine-network-delivery-2026-10-23
+== clean export 11:55:13Z
+rc=0
+rc=0 0s :: .venv/bin/python -m metacoin_service.native.hostconfig generate --role provider --service-url https://host-a.example:8443 --ca /etc/metacoin/ca.pem --out ./hostcfg-sample
+rc=0 0s :: .venv/bin/python -m metacoin_service.native.hostconfig check ./hostcfg-sample
+rc=0 39s :: .venv/bin/python -m metacoin_service.tests.journeys_network --only 1,2,3,4,9,11,12,16,18,22,23,26,31,32,36,37,42,44,0,51,53,54 --out /home/zhangd2/projects/metacoin/work/independent-machine-network-session/artifacts/clean-export/journeys-network-from-clean-export.json
+CLEAN_EXPORT rc=0
+== journeys (pass B, with inputs) 11:57:46Z
+rc=0
+56 passed Extension 8: scenario comparison of extra evidence versus delay under fixed declared assum
+== ledger + candidate + report 11:58:54Z
+ledger groups 10 all exercised True cross {'§1 demonstration': True, '§17 model/checker/vectors': True, '§18 endurance/benchmarks': True, '§19 migrations': True, '§22 packaging': True}
+{"source_candidate": "1fc3bda1fb69bbee196b83a552a86d904990ebd2", "journeys": {"required": {"passed": 51, "failed": 0, "blocked": 0, "total": 51}, "extensions": {"passed": 6, "failed": 0, "total": 6}}, "unit_suites": true, "endurance_ok": true, "records_commit": null}
+report written 15830
+FINALIZE DONE 11:58:54Z

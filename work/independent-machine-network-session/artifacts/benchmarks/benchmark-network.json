@@ -1,0 +1,170 @@
+{
+ "schema": "metacoin-network-benchmark/v1",
+ "started_at": 1792756495,
+ "environment": {
+  "python": "3.12.3",
+  "host": "single host, loopback, SQLite on local disk",
+  "cpus": 20
+ },
+ "signer_round_trips": {
+  "samples": 60,
+  "development_custody_transfer": {
+   "p50_s": 0.0192,
+   "p95_s": 0.0247,
+   "mean_s": 0.0195,
+   "n": 60
+  },
+  "external_signer_transfer": {
+   "prepare": {
+    "p50_s": 0.0144,
+    "p95_s": 0.0237,
+    "mean_s": 0.0151,
+    "n": 60
+   },
+   "sign": {
+    "p50_s": 0.0068,
+    "p95_s": 0.0135,
+    "mean_s": 0.0073,
+    "n": 60
+   },
+   "submit": {
+    "p50_s": 0.0258,
+    "p95_s": 0.0326,
+    "mean_s": 0.026,
+    "n": 60
+   },
+   "total": {
+    "p50_s": 0.0478,
+    "p95_s": 0.0647,
+    "mean_s": 0.0485,
+    "n": 60
+   },
+   "context_bound_reservation_total": {
+    "p50_s": 0.0266,
+    "p95_s": 0.0521,
+    "mean_s": 0.0335,
+    "n": 30
+   }
+  },
+  "overhead_p50_s": 0.0286,
+  "note": "an external-custody payment costs three round trips (prepare, sign at the signer, submit); the signer is a separate process on loopback"
+ },
+ "pool_contention": {
+  "shared_pool": {
+   "label": "shared pool, two overlapping offers, same 10-minute interval (capacity 4 channels)",
+   "contenders": 16,
+   "accepted": 4,
+   "refused": {
+    "pool_capacity_exceeded": 12
+   },
+   "elapsed_s": 0.169,
+   "latency": {
+    "p50_s": 0.1209,
+    "p95_s": 0.1612,
+    "mean_s": 0.1176,
+    "n": 16
+   }
+  },
+  "plain_offer": {
+   "label": "plain offer (implicit pool), capacity 4 x 600 units",
+   "contenders": 16,
+   "accepted": 4,
+   "refused": {
+    "capacity_exhausted": 12
+   },
+   "elapsed_s": 0.135,
+   "latency": {
+    "p50_s": 0.1149,
+    "p95_s": 0.1292,
+    "mean_s": 0.1125,
+    "n": 16
+   }
+  },
+  "pool_after": {
+   "peak_slots_used": 4,
+   "all_within_capacity": true
+  },
+  "note": "both races admit exactly the pool capacity; the pool path adds the interval sweep inside the reservation transaction"
+ },
+ "provider_overhead": {
+  "raw_api_offer_publish": {
+   "p50_s": 0.0158,
+   "p95_s": 0.019,
+   "mean_s": 0.0157,
+   "n": 20
+  },
+  "client_offer_publish": {
+   "p50_s": 0.0151,
+   "p95_s": 0.022,
+   "mean_s": 0.0157,
+   "n": 20
+  },
+  "overhead_p50_s": -0.0007,
+  "capabilities_round_trip_s": 0.3966,
+  "note": "the standard-library client (urllib, strict JSON parsing, bounded sizes) vs the benchmark's raw urllib client; both on loopback"
+ },
+ "lineage_growth": {
+  "allocations": 40,
+  "rows": [
+   {
+    "allocations": 1,
+    "lots_total": 42,
+    "retire_request_s": 0.0218,
+    "retire_to_release_s": 0.0848,
+    "accounting_s": 0.0039,
+    "lots_view_s": 0.0024,
+    "export_s": 0.0092,
+    "export_bytes": 276125,
+    "partition_ok": true
+   },
+   {
+    "allocations": 11,
+    "lots_total": 62,
+    "retire_request_s": 0.022,
+    "retire_to_release_s": 0.0945,
+    "accounting_s": 0.0041,
+    "lots_view_s": 0.003,
+    "export_s": 0.0134,
+    "export_bytes": 423833,
+    "partition_ok": true
+   },
+   {
+    "allocations": 21,
+    "lots_total": 82,
+    "retire_request_s": 0.0188,
+    "retire_to_release_s": 0.1083,
+    "accounting_s": 0.0049,
+    "lots_view_s": 0.0031,
+    "export_s": 0.0178,
+    "export_bytes": 571576,
+    "partition_ok": true
+   },
+   {
+    "allocations": 31,
+    "lots_total": 102,
+    "retire_request_s": 0.0211,
+    "retire_to_release_s": 0.0852,
+    "accounting_s": 0.0044,
+    "lots_view_s": 0.003,
+    "export_s": 0.0225,
+    "export_bytes": 719439,
+    "partition_ok": true
+   },
+   {
+    "allocations": 40,
+    "lots_total": 120,
+    "retire_request_s": 0.0322,
+    "retire_to_release_s": 0.0957,
+    "accounting_s": 0.0073,
+    "lots_view_s": 0.0048,
+    "export_s": 0.0435,
+    "export_bytes": 852531,
+    "partition_ok": true
+   }
+  ],
+  "conserved": true,
+  "note": "each allocation of 20 is split 13/7 at the peer and 13 retired; latency per retirement and the accounting / export cost as the lot table grows"
+ },
+ "finished_at": 1792756511,
+ "revision": "1fc3bda1fb69bbee196b83a552a86d904990ebd2"
+}

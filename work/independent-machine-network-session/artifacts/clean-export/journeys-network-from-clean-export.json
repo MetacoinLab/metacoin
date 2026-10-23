@@ -1,0 +1,826 @@
+{
+ "schema": "metacoin-journeys-network/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "domains": {
+  "dom-a": "development custody permitted (fixtures, claim journeys)",
+  "dom-b": "development custody permitted (claim destination)",
+  "dom-c": "development custody disabled; signers sig-requester / sig-machine / sig-supplier / sig-others"
+ },
+ "revision": "unavailable",
+ "python": "3.12.3",
+ "started_at": 1792756627,
+ "finished_at": 1792756666,
+ "results": [
+  {
+   "journey": 1,
+   "title": "Recover the completed baseline and reproduce the six-actor 80-unit native replay.",
+   "status": "passed",
+   "evidence": {
+    "base_revision": "a6d672d2d1d95c66fd021f43dccccf9e453c540a",
+    "revision": "unavailable",
+    "purchase_before_earning": 400,
+    "after_terrain_settlement": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 30,
+     "s80": 9,
+     "v80": 3,
+     "c80": 2,
+     "treasury": 1
+    },
+    "expected": {
+     "r80": 35,
+     "m80": 30,
+     "s80": 9,
+     "v80": 3,
+     "c80": 2,
+     "treasury": 1
+    },
+    "total": 80,
+    "six_actors_distinct": true,
+    "no_extra_fees_squeezed_in": true,
+    "seconds": 4.299
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "Run the new connected mission with x402 disabled and its facilitator unreachable.",
+   "status": "passed",
+   "evidence": {
+    "x402": {
+     "disabled": true,
+     "installed": false,
+     "required_by_native_core": false,
+     "role": "optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement"
+    },
+    "facilitator_probe": "ConnectError",
+    "mission": "mc_179f208da3a6",
+    "machine_delta": 44,
+    "custody": "enabled",
+    "seconds": 3.383
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "Enroll a clean provider without server database imports or copied private state.",
+   "status": "passed",
+   "evidence": {
+    "install_method": "package directory on PYTHONPATH (pip could not build offline: ModuleNotFoundError: No module named 'setuptools')",
+    "conformance": {
+     "version": "metacoin-provider-conformance/v2",
+     "cases": 32,
+     "passed": 32,
+     "ok": true
+    },
+    "third_party_modules_imported": [],
+    "enrolled_custody": "external-signer:sig-test",
+    "server_key_files_for_provider": 0,
+    "pinned": {
+     "domain": "dom-a",
+     "environment": "dev",
+     "authority_key_id": "k_6e8ec654724722849cb344ea",
+     "authority_public_hex": "7ee195a474c34d40a913c4dd6eaabbacdd11acf8a162d484a70c160cf59cd510",
+     "epoch": 1,
+     "protocol": "metacoin-native/v0",
+     "policy_version": "native-policy/v0",
+     "pinned_at": 1792756641
+    },
+    "handshake": true,
+    "delivery_labels": {
+     "measurement": "provider_assertion",
+     "verification": "verified"
+    },
+    "settled": "settled",
+    "receipts_verified_offline": 1,
+    "export_verified_offline": true,
+    "signed_payment": "settled",
+    "seconds": 2.515
+   },
+   "caveat": "same host: the client ran in a fresh virtual environment with only the standard library; no database or key material was copied"
+  },
+  {
+   "journey": 4,
+   "title": "Execute requester funding, machine spending and supplier settlement through configured external signers with no silent custody fallback.",
+   "status": "passed",
+   "evidence": {
+    "development_custody": [
+     501,
+     "development_custody_disabled"
+    ],
+    "requester_settlement_waited": true,
+    "other_work_continued": {
+     "action": "open_request",
+     "milestone": "compute",
+     "offer_id": null,
+     "amount": 45,
+     "reason": null
+    },
+    "requester_signed": [
+     [
+      "settlement",
+      200
+     ],
+     [
+      "settlement",
+      200
+     ],
+     [
+      "settlement",
+      200
+     ],
+     [
+      "settlement",
+      200
+     ]
+    ],
+    "after_compute": {
+     "machine": 44,
+     "verifier": 3,
+     "treasury": 2
+    },
+    "machine_reservation_waited": true,
+    "wrong_signer_refused": "unknown_or_revoked_actor",
+    "machine_reserved": 20,
+    "supplier": {
+     "unsigned": [
+      409,
+      "signature_required"
+     ],
+     "signed": "settled",
+     "earned": 19
+    },
+    "service_actor_key_files": [],
+    "signers": {
+     "c_req": "sig-requester",
+     "c_mach": "sig-machine",
+     "c_sup": "sig-supplier",
+     "c_sub": "sig-others",
+     "c_ver": "sig-others",
+     "c_relay": "sig-others",
+     "c_con": "sig-others"
+    },
+    "seconds": 3.652
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "Detect and disclose shared-operator deployment rather than labelling it independent.",
+   "status": "passed",
+   "evidence": {
+    "rig1": {
+     "independent_party": false,
+     "shared_operator": true,
+     "same_operator_providers": [
+      {
+       "provider_id": "pv_5da22ae61c53",
+       "name": "rig-2",
+       "machine_id": "rig-2",
+       "worker_instance": "w-rig-2"
+      }
+     ],
+     "disclosure": "providers declaring the same operator_id are one economic party: several workers under one operator are never counted as independent; independence is declared and disclosed, never inferred from keys"
+    },
+    "rig2_declared_independent_but": "providers declaring the same operator_id are one economic party: several workers under one operator are never counted as",
+    "domains_operator": {
+     "dom-a": "same operator (journey host)",
+     "dom-b": "same operator (journey host)",
+     "dom-c": "same operator (journey host)"
+    },
+    "two_local_domains_are_not_independent_parties": true,
+    "seconds": 0.097
+   },
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "title": "Publish overlapping offers against one pool and refuse overselling their shared interval.",
+   "status": "passed",
+   "evidence": {
+    "first": [
+     201,
+     1
+    ],
+    "overlapping_refused": [
+     409,
+     "pool_capacity_exceeded",
+     {
+      "start": 1792758500,
+      "end": 1792760300,
+      "used": 2,
+      "capacity": 1,
+      "ok": false
+     }
+    ],
+    "non_overlapping_tail": 201,
+    "pool": {
+     "peak_slots_used": 1,
+     "all_within_capacity": true
+    },
+    "seconds": 0.113
+   },
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "title": "Race reservations across two offers while conserving both capacity and funds.",
+   "status": "passed",
+   "evidence": {
+    "results": [
+     [
+      "r1",
+      201
+     ],
+     [
+      "m2",
+      201
+     ],
+     [
+      "m1",
+      409
+     ],
+     [
+      "r2",
+      409
+     ]
+    ],
+    "peak_slots_used": 2,
+    "reserved_delta": 7200000,
+    "conserved": true,
+    "seconds": 0.125
+   },
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "title": "Create a funded subcontract bound to parent terms and permitted inputs.",
+   "status": "passed",
+   "evidence": {
+    "subcontract": "sc_fcd0aa01a408",
+    "bound_to": {
+     "mission": "mc_220ebd497bb6",
+     "revision": 1,
+     "milestone": "compute"
+    },
+    "inputs_digest": "5f7cf8de2f31350c",
+    "before_funding": [
+     "not_funded",
+     403,
+     "duplicate_subcontract"
+    ],
+    "prefund_bound_obligation": "no_c03cfb6aece8e399",
+    "funded": "funded",
+    "seconds": 1.712
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "Execute a subcontract from settled machine earnings and settle it once.",
+   "status": "passed",
+   "evidence": {
+    "decision": "accepted",
+    "paid_once": [
+     10,
+     10
+    ],
+    "timeline": {
+     "reserved": 0,
+     "spent": 10,
+     "earned_by_provider": 10,
+     "disputed": 0,
+     "returned": 0,
+     "events": [
+      {
+       "at": 1792756647,
+       "event": "proposed",
+       "funded_amount": 12,
+       "mode": "requester_prefund",
+       "state": "awaiting_prefund"
+      },
+      {
+       "at": 1792756647,
+       "event": "prefunded",
+       "intent": "ni_e051b18121ed2520",
+       "amount": 12
+      },
+      {
+       "at": 1792756647,
+       "event": "running"
+      },
+      {
+       "at": 1792756649,
+       "event": "completed"
+      }
+     ]
+    },
+    "returned_unused": 2,
+    "parent_milestone": "executing",
+    "earnings_funded_second": [
+     201,
+     "funded"
+    ],
+    "seconds": 1.548
+   },
+   "caveat": null
+  },
+  {
+   "journey": 22,
+   "title": "Publish a versioned mission product with explicit provenance and rights.",
+   "status": "passed",
+   "evidence": {
+    "product": "mp_78324ab0cc92",
+    "version": 1,
+    "source_data": {
+     "product_id": "LDEM_4",
+     "image_sha256": "c04632eba6449af49e3108ed7c25b3b1c450600abd3690df4fc815853a1af476",
+     "coordinate_system": null,
+     "units": null
+    },
+    "resolution_mm_per_pixel": 7580840,
+    "license": "processing-service",
+    "rights": "access entitlement only: not ownership of public data, not scientific validity, not exclusivity; revocation or refund ca",
+    "unsupported_license": "license_unsupported",
+    "same_content_same_version": true,
+    "seconds": 0.037
+   },
+   "caveat": null
+  },
+  {
+   "journey": 23,
+   "title": "Purchase and reuse a compatible product through native settlement.",
+   "status": "passed",
+   "evidence": {
+    "purchase": "purchased",
+    "content_hash_matches": true,
+    "retry_replayed": true,
+    "other_actor_download": 403,
+    "compatible_reuse": true,
+    "external_buyer": {
+     "before_signature": [
+      "awaiting_signature",
+      409
+     ],
+     "after": [
+      200,
+      200
+     ]
+    },
+    "seller_delta": 10,
+    "seconds": 0.224
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "Execute a paid two-hop relay with separate queues and bounded fees.",
+   "status": "passed",
+   "evidence": {
+    "route": "rl_83b94b7a9a69",
+    "fees_bound": 9,
+    "queues_after_hop0": [
+     "forwarded",
+     "stored"
+    ],
+    "recipient_before_final": 409,
+    "settlement": {
+     "before_ack": [
+      "settled",
+      "awaiting_acknowledgment"
+     ],
+     "after_ack": [
+      "settled",
+      "settled"
+     ]
+    },
+    "paid": {
+     "supplier": 2,
+     "relay2": 4
+    },
+    "undelivered_kib_released": true,
+    "seconds": 0.293
+   },
+   "caveat": null
+  },
+  {
+   "journey": 31,
+   "title": "Split a 20-unit claim, spend 7 and retire only the holder's remaining 13.",
+   "status": "passed",
+   "evidence": {
+    "allocation": "nal_44b537f8afef4cca",
+    "after_spend": {
+     "bob_lots": [
+      [
+       13,
+       "active"
+      ]
+     ],
+     "carol_lots": [
+      [
+       7,
+       "active",
+       1
+      ]
+     ],
+     "retirable": [
+      13,
+      0
+     ]
+    },
+    "over_retire": [
+     409,
+     "retire_exceeds_owned"
+    ],
+    "retire_13": [
+     "return_requested",
+     "retirement_pending"
+    ],
+    "v2_message": {
+     "partial": true,
+     "amount": 13,
+     "returned_before": 0
+    },
+    "seconds": 0.175
+   },
+   "caveat": null
+  },
+  {
+   "journey": 32,
+   "title": "Release 13 at the source once while leaving the supplier's 7 fully backed.",
+   "status": "passed",
+   "evidence": {
+    "source": {
+     "state": "partially_returned",
+     "returned": 13,
+     "lotter_delta": 13,
+     "backing_locked": 7
+    },
+    "destination": {
+     "state": "imported",
+     "returned": 13,
+     "carol": 7
+    },
+    "replayed_request_and_certificate_duplicates": [
+     true,
+     true
+    ],
+    "accounting": {
+     "partition_ok": true,
+     "returned_total": 13
+    },
+    "seconds": 0.176
+   },
+   "caveat": null
+  },
+  {
+   "journey": 36,
+   "title": "Reconstruct a mission after controller failure and acquire a valid fenced generation.",
+   "status": "passed",
+   "evidence": {
+    "mission": "mc_3ebcdf9924fa",
+    "runner_A": {
+     "rc": 0,
+     "generation": 1,
+     "events": [
+      "reconstructed",
+      "generation_granted",
+      "step",
+      "steps_exhausted"
+     ]
+    },
+    "reconstructed_by_B": {
+     "state": "running",
+     "active_generation": 1,
+     "pending_operations": 1,
+     "safe_actions": [
+      "award"
+     ]
+    },
+    "runner_B": {
+     "rc": 0,
+     "generation": 2,
+     "events": [
+      "reconstructed",
+      "generation_granted",
+      "step",
+      "step",
+      "step",
+      "steps_exhausted"
+     ]
+    },
+    "generations": [
+     [
+      "runner-A",
+      "superseded"
+     ],
+     [
+      "runner-B",
+      "active"
+     ]
+    ],
+    "seconds": 1.08
+   },
+   "caveat": null
+  },
+  {
+   "journey": 37,
+   "title": "Reject stale-controller mutations after takeover.",
+   "status": "passed",
+   "evidence": {
+    "stale_runner_exit": 3,
+    "stale_event": {
+     "event": "stale_generation_refused",
+     "presented": 1,
+     "active": 2,
+     "active_holder": "runner-B",
+     "at": 1792756651
+    },
+    "api_refusals": {
+     "step": "stale_generation",
+     "run": "stale_generation",
+     "propose": "stale_generation"
+    },
+    "header_form": "stale_generation",
+    "no_generation_presented": "stale_generation",
+    "recorded_refusals": 6,
+    "active_generation_steps": 200,
+    "seconds": 0.177
+   },
+   "caveat": null
+  },
+  {
+   "journey": 42,
+   "title": "Schedule competing missions across shared pools and domain-local liquidity.",
+   "status": "passed",
+   "evidence": {
+    "status": "optimal",
+    "admitted_in_priority_order": true,
+    "binding": false,
+    "validator": true,
+    "liquidity_split": {
+     "held_locally": 12807476,
+     "reserved": 7200044,
+     "cross_domain_claims_held": 0,
+     "cross_domain_pending": 0,
+     "expected_earnings": 0,
+     "spendable": 12807476
+    },
+    "improved_status": "optimal",
+    "bound": [
+     180,
+     1
+    ],
+    "seconds": 0.198
+   },
+   "caveat": null
+  },
+  {
+   "journey": 44,
+   "title": "Reject a planner output spending pending remote claims or overselling resources.",
+   "status": "passed",
+   "evidence": {
+    "oversold": {
+     "pool": "rp_472de8ae6a01",
+     "constraint": "pool_oversold",
+     "segments": [
+      {
+       "start": 1792762651,
+       "end": 1792762711,
+       "used": 3,
+       "capacity": 0,
+       "ok": false
+      }
+     ],
+     "note": "the plan schedules an impossible overlap against live commitments"
+    },
+    "not_spendable": {
+     "mission": "mc_ae3872950f3a",
+     "constraint": "not_spendable",
+     "cost": 12807477,
+     "spendable": 12807476,
+     "pending_remote_claims": 0,
+     "expected_earnings": 0,
+     "note": "the plan spends money that is reserved, in transit, a pending remote claim or an expected earning"
+    },
+    "pending_remote_claim": {
+     "allocation": "nal_283794458a8f147c",
+     "state": "certified",
+     "machine_liquidity_at_dom_c": {
+      "held_locally": 24,
+      "cross_domain_claims_held": 0,
+      "cross_domain_pending": 0,
+      "spendable": 24
+     },
+     "plan_beyond_spendable": [
+      200,
+      "not_spendable"
+     ]
+    },
+    "seconds": 0.125
+   },
+   "caveat": null
+  },
+  {
+   "journey": 0,
+   "title": "Economically complete mission under custody separation: requester, primary machine, subcontractor, resource provider, verifier and relay hold their own keys at separately configured signers; competition for a shared pool, a disconnected interval, a failed delivery branch, safe replanning, return of legitimately unspent funds and a fee-funded contribution; every monetary transition independently auditable.",
+   "status": "passed",
+   "evidence": {
+    "mission": "mc_724883617cfe",
+    "steps": [
+     "funding: zero-value development asset credited to the requester only (fixture); ",
+     "competition for the shared antenna pool (one channel): two signed reservations r",
+     "acquisition milestone settled (signed by the requester); the compute milestone a",
+     "subcontract: requester prefunded 12 (signed at sig-requester), subcontractor del",
+     "failed delivery branch: the second subcontract (funded 4 from the machine's own ",
+     "terrain analysis computed from the pinned public tile and accepted by the verifi",
+     "blackout: link cut; mission settled locally from reserved funds (provider 40 + f",
+     "machine purchased compute from its settled earnings on the shared pool (signed a",
+     "relay with safe replanning: the first route missed its early contact window and ",
+     "reconnection: the certificate was delivered, the 10-unit claim credited to the m",
+     "fee-funded contribution: the treasury paid a distinct recipient 2 from collected"
+    ],
+    "conditions": {
+     "race": true,
+     "science": true,
+     "prefund": true,
+     "sub_returned": true,
+     "blackout_pay": true,
+     "export_undeliverable": true,
+     "followon": true,
+     "failed_branch": true,
+     "relay_replanned": true,
+     "reconnection": true,
+     "treasury": true,
+     "conserved": true
+    },
+    "final_table": {
+     "c_req": 6892,
+     "c_mach": 42,
+     "c_sub": 210,
+     "c_sup": 41,
+     "c_ver": 7,
+     "c_relay": 4,
+     "c_con": 2,
+     "treasury": 2,
+     "reserved": {
+      "c_req": 0,
+      "c_mach": 0
+     }
+    },
+    "conserved": true,
+    "checker": {
+     "authorized_bookkeeping": true,
+     "cryptographic_authenticity": true,
+     "scientific_reproducibility": null,
+     "custody_assumptions": false,
+     "economic_backing": true,
+     "resource_and_lineage": true
+    },
+    "seconds": 10.613
+   },
+   "caveat": null
+  },
+  {
+   "journey": 51,
+   "title": "Extension 1: multi-provider bidding under a declared deterministic policy with private offers and a funded ceiling.",
+   "status": "passed",
+   "evidence": {
+    "first_bid_waited": true,
+    "rival_sees_only_own_offer": true,
+    "awarded": true,
+    "selection_record": {
+     "policy": "lowest_price",
+     "min_bids": 2,
+     "bids": 2,
+     "window_closed": false,
+     "ranking": [
+      {
+       "offer_id": "wo_9da6f9cbb33858a1",
+       "provider_id": "pv_dacccac3400c",
+       "price_amount": 15,
+       "within_ceiling": true
+      },
+      {
+       "offer_id": "wo_169752f911499eba",
+       "provider_id": "pv_f686f265eca9",
+       "price_amount": 18,
+       "within_ceiling": true
+      }
+     ],
+     "note": "deterministic policy declared in the frozen terms; no reputation score; competing offers are private to their providers"
+    },
+    "decision": "accepted",
+    "seconds": 1.501
+   },
+   "caveat": null
+  },
+  {
+   "journey": 53,
+   "title": "Extension 3: shared route planning across relay offers with bounded hops and independently checked exposure, then the planned route carried.",
+   "status": "passed",
+   "evidence": {
+    "cheapest": 3,
+    "two_hop": 9,
+    "exposure_check": true,
+    "exposure_refused_under_low_ceiling": true,
+    "route_created_fees_bound": 9,
+    "forward_states": [
+     "in_transit",
+     "delivered"
+    ],
+    "bound": "exhaustive over the cheapest offer of each relay account, hop count \u2264 2; not a guarantee of delivery",
+    "seconds": 0.14
+   },
+   "caveat": null
+  },
+  {
+   "journey": 54,
+   "title": "Extension 4: bounded prepaid subscription (no renewal); first period delivered and paid, the rest stopped and released.",
+   "status": "passed",
+   "evidence": {
+    "periods": 3,
+    "renewal": "none",
+    "ceiling_before_after": [
+     30,
+     10
+    ],
+    "period_2_waits": true,
+    "stopped": {
+     "stopped": 2,
+     "cancelled": 2,
+     "delivered": 1
+    },
+    "machine_paid": 10,
+    "seconds": 1.484
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 22,
+ "failed": 0,
+ "blocked": 0,
+ "skipped": 0,
+ "total": 22,
+ "required": {
+  "passed": 19,
+  "failed": 0,
+  "blocked": 0,
+  "total": 19
+ },
+ "extensions": {
+  "passed": 3,
+  "failed": 0,
+  "total": 3
+ },
+ "archive_sha256": "68ae4ecfa5a1862b61ddf2c5d534ef6d39925894f66861f4877de2674bfc5610",
+ "step_results": [
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m metacoin_service.deploy_local up --home ./local-home --domain-id dom-clean"
+  },
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m metacoin_service.deploy_local status --home ./local-home"
+  },
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m metacoin_service.deploy_local down --home ./local-home"
+  },
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m unittest metacoin_service.tests.test_native_pools metacoin_service.tests.test_native_custody metacoin_service.tests.test_native_subcontracts"
+  },
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m metacoin_service.tests.test_native_model_network"
+  },
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m metacoin_service.native.vectors"
+  },
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m metacoin_service.native.hostconfig generate --role provider --service-url https://host-a.example:8443 --ca /etc/metacoin/ca.pem --out ./host"
+  },
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m metacoin_service.native.hostconfig check ./hostcfg-sample"
+  },
+  {
+   "rc": 0,
+   "step": ".venv/bin/python -m metacoin_service.tests.journeys_network --only 1,2,3,4,9,11,12,16,18,22,23,26,31,32,36,37,42,44,0,51,53,54 --out /home/zhangd2/projects/meta"
+  }
+ ],
+ "all_steps_ok": true,
+ "steps": "clean-start (deploy_local up/status/down), 11 unit suites, model replay, provider conformance v2 in a standard-library venv, vectors, hostconfig generate/check, 18 journeys + demonstration + 3 extension journeys"
+}

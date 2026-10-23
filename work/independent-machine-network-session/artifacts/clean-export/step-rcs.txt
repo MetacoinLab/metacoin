@@ -1,0 +1,9 @@
+0 .venv/bin/python -m metacoin_service.deploy_local up --home ./local-home --domain-id dom-clean
+0 .venv/bin/python -m metacoin_service.deploy_local status --home ./local-home
+0 .venv/bin/python -m metacoin_service.deploy_local down --home ./local-home
+0 .venv/bin/python -m unittest metacoin_service.tests.test_native_pools metacoin_service.tests.test_native_custody metacoin_service.tests.test_native_subcontracts metacoin_service.tests.test_native_products metacoin_service.tests.test_native_relay metacoin_service.tests.test_native_lots metacoin_service.tests.test_native_continuity metacoin_service.tests.test_native_portfolio metacoin_service.tests.test_native_onboarding metacoin_service.tests.test_console_network metacoin_service.tests.test_native_conformance metacoin_service.tests.test_native_extensions
+0 .venv/bin/python -m metacoin_service.tests.test_native_model_network
+0 .venv/bin/python -m metacoin_service.native.vectors
+0 .venv/bin/python -m metacoin_service.native.hostconfig generate --role provider --service-url https://host-a.example:8443 --ca /etc/metacoin/ca.pem --out ./hostcfg-sample
+0 .venv/bin/python -m metacoin_service.native.hostconfig check ./hostcfg-sample
+0 .venv/bin/python -m metacoin_service.tests.journeys_network --only 1,2,3,4,9,11,12,16,18,22,23,26,31,32,36,37,42,44,0,51,53,54 --out /home/zhangd2/projects/metacoin/work/independent-machine-network-session/artifacts/clean-export/journeys-network-from-clean-export.json

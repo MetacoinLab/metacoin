@@ -1,0 +1,2 @@
+{"role": "provider", "out": "/home/zhangd2/projects/metacoin/work/independent-machine-network-session/artifacts/hostconfig-sample", "files": ["README.txt", "enroll.sh", "identity.json", "provider.env", "run-signer.sh", "selfcheck.sh"], "service_loopback": false, "tls_required": true}
+{"ok": true, "problems": [], "files": ["README.txt", "enroll.sh", "identity.json", "provider.env", "run-signer.sh", "selfcheck.sh"], "note": "static check only; real second-host behaviour unverified until selfcheck.sh runs there"}

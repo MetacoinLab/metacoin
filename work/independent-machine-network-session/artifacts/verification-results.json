@@ -1,0 +1,235 @@
+{
+ "schema": "metacoin-verification-results/v2",
+ "revision": "1fc3bda1fb69bbee196b83a552a86d904990ebd2",
+ "unit_suites": [
+  {
+   "suite": "test_native_pools",
+   "result": "Ran 8 tests in 4.541s OK",
+   "rc": 0,
+   "seconds": 4.8
+  },
+  {
+   "suite": "test_native_custody",
+   "result": "Ran 3 tests in 4.834s OK",
+   "rc": 0,
+   "seconds": 5.2
+  },
+  {
+   "suite": "test_native_subcontracts",
+   "result": "Ran 2 tests in 4.247s OK",
+   "rc": 0,
+   "seconds": 4.6
+  },
+  {
+   "suite": "test_native_lots",
+   "result": "Ran 21 tests in 22.462s OK",
+   "rc": 0,
+   "seconds": 22.8
+  },
+  {
+   "suite": "test_native_products",
+   "result": "Ran 8 tests in 9.672s OK",
+   "rc": 0,
+   "seconds": 10.0
+  },
+  {
+   "suite": "test_native_relay",
+   "result": "Ran 2 tests in 4.849s OK",
+   "rc": 0,
+   "seconds": 5.1
+  },
+  {
+   "suite": "test_native_continuity",
+   "result": "Ran 1 test in 1.941s OK",
+   "rc": 0,
+   "seconds": 2.2
+  },
+  {
+   "suite": "test_native_portfolio",
+   "result": "Ran 3 tests in 1.997s OK",
+   "rc": 0,
+   "seconds": 2.3
+  },
+  {
+   "suite": "test_native_onboarding",
+   "result": "Ran 5 tests in 6.819s OK",
+   "rc": 0,
+   "seconds": 7.1
+  },
+  {
+   "suite": "test_console_network",
+   "result": "Ran 1 test in 2.294s OK",
+   "rc": 0,
+   "seconds": 2.6
+  },
+  {
+   "suite": "test_native_model_network",
+   "result": "Ran 45 tests in 42.934s OK",
+   "rc": 0,
+   "seconds": 43.2
+  },
+  {
+   "suite": "test_native_extensions",
+   "result": "Ran 10 tests in 5.215s OK",
+   "rc": 0,
+   "seconds": 5.5
+  },
+  {
+   "suite": "test_native_missions",
+   "result": "Ran 8 tests in 11.121s OK",
+   "rc": 0,
+   "seconds": 11.4
+  },
+  {
+   "suite": "test_native_market",
+   "result": "Ran 5 tests in 3.862s OK",
+   "rc": 0,
+   "seconds": 4.1
+  },
+  {
+   "suite": "test_native_signer",
+   "result": "Ran 4 tests in 4.739s OK",
+   "rc": 0,
+   "seconds": 5.1
+  },
+  {
+   "suite": "test_native_provider_client",
+   "result": "Ran 2 tests in 2.920s OK",
+   "rc": 0,
+   "seconds": 3.2
+  },
+  {
+   "suite": "test_native_lineage",
+   "result": "Ran 20 tests in 21.459s OK",
+   "rc": 0,
+   "seconds": 21.8
+  },
+  {
+   "suite": "test_native_domains",
+   "result": "Ran 9 tests in 9.611s OK",
+   "rc": 0,
+   "seconds": 9.9
+  },
+  {
+   "suite": "test_native_witness",
+   "result": "Ran 22 tests in 28.731s OK",
+   "rc": 0,
+   "seconds": 29.1
+  },
+  {
+   "suite": "test_native_conformance",
+   "result": "Ran 5 tests in 1.831s OK",
+   "rc": 0,
+   "seconds": 1.9
+  },
+  {
+   "suite": "test_native_planner",
+   "result": "Ran 4 tests in 0.295s OK",
+   "rc": 0,
+   "seconds": 0.3
+  },
+  {
+   "suite": "test_native_model",
+   "result": "Ran 21 tests in 30.004s OK",
+   "rc": 0,
+   "seconds": 30.3
+  },
+  {
+   "suite": "test_native_protocol",
+   "result": "Ran 2 tests in 3.751s OK",
+   "rc": 0,
+   "seconds": 4.1
+  },
+  {
+   "suite": "test_native_interfaces",
+   "result": "Ran 9 tests in 8.655s OK",
+   "rc": 0,
+   "seconds": 9.1
+  },
+  {
+   "suite": "test_native_evidence",
+   "result": "Ran 8 tests in 9.403s OK",
+   "rc": 0,
+   "seconds": 9.7
+  },
+  {
+   "suite": "test_native_lunar",
+   "result": "Ran 3 tests in 4.244s OK",
+   "rc": 0,
+   "seconds": 4.5
+  },
+  {
+   "suite": "test_work_money",
+   "result": "Ran 4 tests in 7.711s OK",
+   "rc": 0,
+   "seconds": 8.0
+  },
+  {
+   "suite": "test_service",
+   "result": "Ran 19 tests in 20.354s OK",
+   "rc": 0,
+   "seconds": 20.7
+  },
+  {
+   "suite": "test_mcp",
+   "result": "rc=0",
+   "rc": 0,
+   "seconds": 1.1
+  },
+  {
+   "suite": "test_console_pages",
+   "result": "Ran 1 test in 1.672s OK",
+   "rc": 0,
+   "seconds": 1.9
+  },
+  {
+   "suite": "test_work_evidence",
+   "result": "Ran 7 tests in 9.613s OK",
+   "rc": 0,
+   "seconds": 9.9
+  },
+  {
+   "suite": "test_work_terms",
+   "result": "Ran 6 tests in 6.759s OK",
+   "rc": 0,
+   "seconds": 7.0
+  },
+  {
+   "suite": "test_work_board",
+   "result": "Ran 5 tests in 3.960s OK",
+   "rc": 0,
+   "seconds": 4.2
+  },
+  {
+   "suite": "test_work_faults",
+   "result": "Ran 13 tests in 20.233s OK",
+   "rc": 0,
+   "seconds": 20.6
+  },
+  {
+   "suite": "test_agent_paid",
+   "result": "Ran 1 test in 3.098s OK",
+   "rc": 0,
+   "seconds": 3.3
+  },
+  {
+   "suite": "test_db_contention",
+   "result": "Ran 8 tests in 11.970s OK",
+   "rc": 0,
+   "seconds": 12.3
+  }
+ ],
+ "all_ok": true,
+ "provider_conformance": {
+  "version": "metacoin-provider-conformance/v2",
+  "cases": 32,
+  "passed": 32,
+  "ok": true
+ },
+ "starter_kit_compat": {
+  "cases": 24,
+  "passed": 24,
+  "skipped": 2,
+  "ok": true
+ }
+}

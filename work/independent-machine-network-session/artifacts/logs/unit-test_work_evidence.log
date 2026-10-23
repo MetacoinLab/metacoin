@@ -1,0 +1,28 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpfv93x6l9/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmprqvg8hqf/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpj2mowaup/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmplcoasqjv/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp7ukjamjz/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp86t466u3/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp29vmz8zf/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.
+----------------------------------------------------------------------
+Ran 7 tests in 9.613s
+
+OK

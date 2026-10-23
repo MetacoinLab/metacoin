@@ -1,0 +1,78 @@
+{
+ "schema": "metacoin-native-benchmark/v0",
+ "workload": {
+  "transfers": 300,
+  "concurrency": 8,
+  "awards_per_rail": 4
+ },
+ "started_at": 1792756449,
+ "transfers": {
+  "count": 300,
+  "elapsed_s": 3.015,
+  "throughput_per_s": 99.5,
+  "p50_s": 0.016,
+  "p95_s": 0.2399,
+  "max_s": 1.5417,
+  "errors": [],
+  "payee_available_after": 300,
+  "correct": true
+ },
+ "settlement": {
+  "native": {
+   "rail": "native",
+   "awards": 4,
+   "failed_or_unaccepted": 0,
+   "verification_jobs": 8,
+   "award_p50_s": 0.0337,
+   "award_p95_s": 0.0384,
+   "to_accepted_p50_s": 1.155,
+   "pay_p50_s": 0.0546,
+   "pay_p95_s": 0.0582
+  },
+  "application_journal": {
+   "rail": "application-journal",
+   "awards": 4,
+   "failed_or_unaccepted": 0,
+   "verification_jobs": 8,
+   "award_p50_s": 0.0265,
+   "award_p95_s": 0.0464,
+   "to_accepted_p50_s": 1.137,
+   "pay_p50_s": 0.0487,
+   "pay_p95_s": 0.0545
+  }
+ },
+ "journal_replay": {
+  "seconds": 0.057,
+  "consistent": true,
+  "scopes": 2
+ },
+ "bundle_bytes_queued": 455,
+ "queued_envelopes": 0,
+ "recovery_sweep": {
+  "seconds": 0.002,
+  "resumed": 0
+ },
+ "health": {
+  "revision": "a6d672d2d1d95c66fd021f43dccccf9e453c540a",
+  "queued": 1
+ },
+ "audit": {
+  "conserved": true,
+  "total_held": 1640,
+  "fixture_funding": 1640
+ },
+ "storage_bytes": {
+  "service_sqlite": 4190208,
+  "wal": 0
+ },
+ "economic_summary": {
+  "protocol_operations": 332,
+  "accepted_work_products": 8,
+  "same_operator_transfer_volume": 300,
+  "external_demand": 0,
+  "note": "operation count is not accepted work; all volume is same-operator; verification jobs and unaccepted awards are included above"
+ },
+ "finished_at": 1792756464,
+ "revision": "a6d672d2d1d95c66fd021f43dccccf9e453c540a",
+ "tree": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/base-wt"
+}
