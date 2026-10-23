@@ -98,6 +98,47 @@ class TransactionManagerTests(unittest.TestCase):
         self.assertEqual(order, [-4, 1, 2, 3])
 
 
+class CrossProcessFairnessTests(unittest.TestCase):
+    def test_a_second_process_gets_its_turn_behind_a_saturated_process(self):
+        """This process keeps the write lock saturated from 8 threads (gated hand-off chain); a separate process does single
+        transactions meanwhile. It must get a fair share without a single lock-wait timeout at a 2 s budget — the seamless hand-off
+        chain of endurance run 5 starved the worker processes (90 timeouts of 15 s, work loop collapsed)."""
+        import subprocess, sys
+        tmp = tempfile.TemporaryDirectory(); path = Path(tmp.name) / 'x.sqlite'
+        c = database.open_db(path, create=True); c.execute('CREATE TABLE t(who TEXT, n INTEGER)'); c.close()
+        child = subprocess.Popen([sys.executable, '-c', '''
+import sys, time, sqlite3; sys.path.insert(0, %r)
+from metacoin_service import db as D
+Db = D.Database(%r, busy_timeout_ms=2000); n = 0; fail = 0; t_end = time.time() + 3.0; waits = []
+while time.time() < t_end:
+    t0 = time.perf_counter()
+    try:
+        with Db.tx() as x:
+            x.execute("INSERT INTO t VALUES ('child', ?)", (n,)); time.sleep(0.002)
+        n += 1; waits.append(time.perf_counter() - t0)
+    except sqlite3.OperationalError:
+        fail += 1
+print(n, fail, round(max(waits), 3) if waits else None)
+''' % (str(Path(__file__).resolve().parents[2]), str(path))], stdout=subprocess.PIPE, text=True)
+        D = database.Database(path, busy_timeout_ms=2000); stop = time.time() + 3.5; mine = []; my_fail = []
+        def hog(i):
+            k = 0
+            while time.time() < stop:
+                try:
+                    with D.tx() as x:
+                        x.execute("INSERT INTO t VALUES ('parent', ?)", (k,)); time.sleep(0.002)
+                    k += 1
+                except sqlite3.OperationalError:
+                    my_fail.append(1)
+            mine.append(k)
+        ts = [threading.Thread(target=hog, args=(i,)) for i in range(8)]; [t.start() for t in ts]
+        out = child.communicate(timeout=30)[0].split(); [t.join() for t in ts]
+        n, fail, max_wait = int(out[0]), int(out[1]), out[2]
+        print('\ncross-process: child %d transactions, %d lock timeouts, max wait %s s; parent %d transactions, %d timeouts' % (n, fail, max_wait, sum(mine), len(my_fail)))
+        self.assertEqual(fail, 0); self.assertGreaterEqual(n, 30); self.assertEqual(my_fail, [])
+        tmp.cleanup()
+
+
 class ApiBusyRefusalTests(unittest.TestCase):
     def test_api_returns_503_journal_busy_with_retry_after_and_logs_it_as_busy_not_defect(self):
         os.environ['METACOIN_DB_BUSY_TIMEOUT_MS'] = '300'; database.DEFAULT_BUSY_TIMEOUT_MS = 300

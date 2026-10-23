@@ -216,7 +216,9 @@ def main(argv=None):
                'time_accounting': {'wall_clock_s': elapsed, 'planned_contact_time': 'contact reservations are half-open intervals on the shared pool (seconds); no emulator delay is injected', 'transport_emulator_delay_s': 0, 'compute_time': 'energy_audit jobs executed by the background worker (see jobs)'},
                'busy': dict(busy, note='JOURNAL_BUSY = write lock not obtained within the busy timeout (503, Retry-After); nothing begun; the identical request was repeated and its outcome counted', service_busy_log=busy_log),
                'workers': workers,
-               'ok': conserved and unexpected == 0 and not dup_intents and not dup_res and all(stats[k]['ok'] > 0 for k in keys) and elapsed >= min(a.seconds, 1800) - 5 and workers_alive and ((int(time.time()) - oldest_queued) if oldest_queued else 0) <= 300 and busy['exhausted'] == 0, 'note': 'same host, loopback, SQLite; restarts interrupt in-flight requests whose retries reuse request ids (transport errors are expected refusals); partitions refuse cross-domain delivery (expected) while local work continues'}
+               'ok': conserved and unexpected == 0 and not dup_intents and not dup_res and all(stats[k]['ok'] > 0 for k in keys) and elapsed >= min(a.seconds, 1800) - 5 and workers_alive and ((int(time.time()) - oldest_queued) if oldest_queued else 0) <= 300 and busy['exhausted'] == 0
+                     and sum((v.get('count') or 0) for v in busy_log.values()) <= 10 and (pct(stats['work']['latency'], 0.99) or 0) <= 90,      # a starved worker shows as dozens of 15 s lock-wait timeouts and a collapsed work loop (run 5: 90 timeouts, p99 157 s)
+               'note': 'same host, loopback, SQLite; restarts interrupt in-flight requests whose retries reuse request ids (transport errors are expected refusals); partitions refuse cross-domain delivery (expected) while local work continues'}
         if a.out:
             with open(a.out, 'w') as f:
                 json.dump(out, f, indent=1)

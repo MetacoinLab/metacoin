@@ -563,6 +563,8 @@ MIGRATIONS = [
 
 
 DEFAULT_BUSY_TIMEOUT_MS = int(os.environ.get('METACOIN_DB_BUSY_TIMEOUT_MS', '15000'))
+BEGIN_POLL_S = 0.001            # fixed retry interval for BEGIN IMMEDIATE across processes (SQLite's default handler backs off to 100 ms)
+HANDOFF_YIELD_S = 0.0005        # a thread that received the gate by hand-off leaves the file lock free this long before BEGIN
 
 
 def is_busy(exc):
@@ -671,12 +673,14 @@ class FairGate:
     produced 15 s lock-wait timeouts in the 2026-10-23 endurance runs while commits kept flowing every second. A plain
     threading.Lock would not do (a releasing thread's successor can be barged by a new arrival), and a notify_all ticket lock
     cost a third of the transfer throughput (every release woke every waiter): here release() hands ownership directly to the
-    oldest waiter and wakes only that thread. Cross-process contention (API vs workers) still goes through SQLite's busy handler,
-    with far fewer contenders."""
+    oldest waiter and wakes only that thread. Cross-process contention (API vs workers) is settled by _begin_immediate's fixed-interval
+    poll plus a sub-millisecond yield on every hand-off: a seamless hand-off chain otherwise never leaves the file lock free long
+    enough for another process's poll to land (endurance run 5, 2026-10-23: 90 worker lock-wait timeouts behind a busy API)."""
     def __init__(self):
         self._mu = threading.Lock(); self._held = False; self._q = collections.deque(); self.waiters_max = 0
 
     def acquire(self, timeout):
+        """True when acquired. self.handed_off (per call, read right after) tells whether ownership arrived by hand-off."""
         with self._mu:
             if not self._held and not self._q:
                 self._held = True; return True
@@ -723,15 +727,14 @@ class Database:
         db = open_db(self.path, busy_timeout_ms=self.busy_timeout_ms)                 # connection set-up and tear-down stay outside the gate
         try:
             gate = _gate_for(self.path) if self.gate_enabled else None
+            t_gate = time.monotonic()
             if gate is not None and not gate.acquire(timeout=self.busy_timeout_ms / 1000.0):
                 self.busy_count += 1
                 raise sqlite3.OperationalError('database is locked')                  # same refusal as SQLite's own timeout: nothing begun
             try:
-                try:
-                    db.execute('BEGIN IMMEDIATE')
-                except sqlite3.OperationalError:
-                    self.busy_count += 1
-                    raise
+                if gate is not None and time.monotonic() - t_gate > 0.0002:
+                    time.sleep(HANDOFF_YIELD_S)                                        # arrived by hand-off: leave the file lock free for a moment so other processes can take a turn
+                self._begin_immediate(db, deadline=t_gate + self.busy_timeout_ms / 1000.0)
                 try:
                     yield db
                     db.execute('COMMIT')
@@ -744,6 +747,25 @@ class Database:
                     gate.release()
         finally:
             db.close()
+
+    def _begin_immediate(self, db, deadline):
+        """BEGIN IMMEDIATE with a fixed-interval retry instead of SQLite's exponential back-off: every process polls at the same
+        cadence, so no process is systematically overtaken (the in-process gate keeps one poller per process). SQLite's own
+        busy timeout stays in force for every other statement."""
+        db.execute('PRAGMA busy_timeout=0')
+        try:
+            while True:
+                try:
+                    db.execute('BEGIN IMMEDIATE'); return
+                except sqlite3.OperationalError as exc:
+                    if not is_busy(exc):
+                        raise
+                    if time.monotonic() >= deadline:
+                        self.busy_count += 1
+                        raise sqlite3.OperationalError('database is locked') from None
+                    time.sleep(BEGIN_POLL_S)
+        finally:
+            db.execute('PRAGMA busy_timeout=%d' % self.busy_timeout_ms)
 
     @contextmanager
     def read(self):
