@@ -113,9 +113,13 @@ def check(export, roots, environment='dev'):
     for it in export.get('envelopes_in', []) + export.get('envelopes_out', []):
         auth += verify_item(it, roots, environment)
     auth += verify_receipts(export.get('receipts', []), roots, environment, export.get('domain'))
+    hist = {}
+    for k in export.get('account_keys', []):
+        hist.setdefault(k.get('account_id'), []).append(k['public_hex'])
     for i in export.get('intents', []):
-        if i.get('signature_hex') and i.get('message') and i.get('signer_public_hex'):
-            auth.append(_ok('intent:' + i['id'], crypto.verify(i['signer_public_hex'], P.signing_bytes('intent', i['message']), i['signature_hex']) and P.digest(i['message']) == i.get('message_digest'), {'account': i.get('actor_account')}))
+        if i.get('signature_hex') and i.get('message') and (i.get('signer_public_hex') or hist.get(i.get('actor_account'))):
+            cands = [p for p in [i.get('signer_public_hex')] + hist.get(i.get('actor_account'), []) if p]; sb = P.signing_bytes('intent', i['message'])
+            auth.append(_ok('intent:' + i['id'], any(crypto.verify(p, sb, i['signature_hex']) for p in cands) and P.digest(i['message']) == i.get('message_digest'), {'account': i.get('actor_account'), 'keys_considered': len(cands)}))
         elif i.get('type') == 'settlement' and not i.get('signature_hex'):
             auth.append(_ok('intent:' + i['id'], True, {'note': 'treasury/authority-ordered settlement: no actor signature by design; authority receipt applies'}))
     missing = [c['check'] for c in auth if c['check'] == 'sender_root_pinned' and not c['ok']]

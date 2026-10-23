@@ -24,15 +24,20 @@ def verify_receipts(receipts, roots, domain):
     return out
 
 
-def verify_intents(intents, accounts=None):
-    """An intent's signature must verify under the actor account's recorded public key and its digest must match the message.
-    The public key is data from the record: this establishes consistency of the record, not the identity of the signer."""
-    out = []; pub = {a['id']: a.get('public_hex') for a in (accounts or [])}
+def verify_intents(intents, accounts=None, account_keys=None):
+    """An intent's signature must verify under a public key recorded for the actor account (the current key, or a key of its
+    history: rotated primaries and delegates) and its digest must match the message. The keys are data from the record: this
+    establishes consistency of the record, not the identity of the signer."""
+    out = []; pub = {a['id']: a.get('public_hex') for a in (accounts or [])}; hist = {}
+    for k in account_keys or []:
+        hist.setdefault(k.get('account_id'), []).append(k)
     for i in intents or []:
         if i.get('signature_hex') and i.get('message'):
-            p = i.get('signer_public_hex') or pub.get(i.get('actor_account'))
-            ok = bool(p) and wire.verify(p, wire.signing_bytes('intent', i['message']), i['signature_hex']) and wire.digest(i['message']) == i.get('message_digest')
-            out.append(_ok('intent:' + str(i.get('id')), ok, {'actor_account': i.get('actor_account'), 'amount_final': i.get('amount_final'), 'bound_to': {k: i['message'].get(k) for k in ('authority', 'recipient', 'amount_ceiling', 'obligation_id')}}))
+            acct = i.get('actor_account'); keys = hist.get(acct, []); named = [k['public_hex'] for k in keys if k.get('key_id') == i.get('signer_key_id')]
+            cands = [p for p in (named + [i.get('signer_public_hex'), pub.get(acct)] + [k['public_hex'] for k in keys]) if p]
+            sb = wire.signing_bytes('intent', i['message']); used = next((p for p in cands if wire.verify(p, sb, i['signature_hex'])), None)
+            ok = used is not None and wire.digest(i['message']) == i.get('message_digest')
+            out.append(_ok('intent:' + str(i.get('id')), ok, {'actor_account': acct, 'amount_final': i.get('amount_final'), 'key': 'named key' if used and named and used == named[0] else ('current key' if used == pub.get(acct) else ('key history' if used else None)), 'bound_to': {k: i['message'].get(k) for k in ('authority', 'recipient', 'amount_ceiling', 'obligation_id')}}))
         elif i.get('type') == 'settlement':
             out.append(_ok('intent:' + str(i.get('id')), True, {'note': 'authority-ordered settlement without an actor signature (treasury or reservation settlement); the authority receipt applies'}))
     return out
@@ -72,7 +77,7 @@ def verify_bundle(bundle, roots):
         st = seal.get('statement') or {}
         C.append(_ok('seal_signature', wire.verify(key['public_hex'], wire.signing_bytes('receipt', st), seal.get('signature_hex', '')) and st.get('claims', {}).get('content_digest') == seal.get('content_digest'), {'issued_at': st.get('issued_at')}))
     C += verify_receipts(content.get('receipts'), roots, domain)
-    C += verify_intents(content.get('intents'), content.get('accounts'))
+    C += verify_intents(content.get('intents'), content.get('accounts'), content.get('account_keys'))
     bk, bal = bookkeeping(content.get('journal_entries'), complete=False); C += bk
     # ledger recomputation: settled amounts per intent -> spent per milestone; released and reserved from the obligation/reservation states
     settled_by_ref = {}
@@ -98,6 +103,6 @@ def verify_bundle(bundle, roots):
 
 def verify_export(export, roots):
     """Native record export (GET /api/v1/native/export): receipts, intents, bookkeeping."""
-    C = verify_receipts(export.get('receipts'), roots, export.get('domain')) + verify_intents(export.get('intents'), export.get('accounts'))
+    C = verify_receipts(export.get('receipts'), roots, export.get('domain')) + verify_intents(export.get('intents'), export.get('accounts'), export.get('account_keys'))
     bk, _ = bookkeeping(export.get('journal_entries')); C += bk
     return {'schema': 'metacoin-export-verification/v1', 'domain': export.get('domain'), 'checks': C, 'ok': all(c['ok'] for c in C)}

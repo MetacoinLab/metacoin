@@ -798,8 +798,12 @@ def _mixin(cls):
         entries = [e for e in journal.entries(db, ws, limit=5000) if e['network'] == d['id']]
         obligations = [self.obligation_view(db, principal, r['id']) for r in db.execute('SELECT id FROM native_obligations WHERE workspace=? ORDER BY created_at', (ws,)).fetchall()]
         keys = [dict(k) for k in db.execute('SELECT domain_id, epoch, key_id, public_hex, local, state, valid_from, retired_at, grace_until FROM native_authority_keys ORDER BY domain_id, epoch').fetchall()]
+        account_keys = [dict(k) for k in db.execute('SELECT account_id, key_id, public_hex, kind, epoch, state, retired_at, grace_until FROM native_account_keys WHERE workspace=? ORDER BY account_id, epoch', (ws,)).fetchall()]
+        for i in intents:
+            hist = json.loads(db.execute('SELECT history_json FROM native_intents WHERE id=?', (i['id'],)).fetchone()['history_json'] or '[]')
+            i['signer_key_id'] = next((h.get('key_id') for h in reversed(hist) if isinstance(h, dict) and h.get('key_id')), None)
         return {'schema': 'metacoin-native-export/v0', 'domain': d['id'], 'environment': d['environment'], 'operator': d['operator'], 'host': d['host'], 'epoch': d['epoch'], 'commit_sequence': d['commit_sequence'], 'recovery_state': d['recovery_state'],
-                'self_description_keys': keys, 'accounts': accts, 'intents': intents, 'receipts': receipts, 'obligations': obligations, 'allocations': allocs, 'envelopes_in': envs['in'], 'envelopes_out': envs['out'],
+                'self_description_keys': keys, 'account_keys': account_keys, 'accounts': accts, 'intents': intents, 'receipts': receipts, 'obligations': obligations, 'allocations': allocs, 'envelopes_in': envs['in'], 'envelopes_out': envs['out'],
                 'journal_entries': entries, 'audits': {a: self.audit(db, principal, a) for a in [r['asset_id'] for r in db.execute('SELECT asset_id FROM native_assets WHERE workspace=?', (ws,)).fetchall()]}, 'exported_at': now(),
                 'note': 'keys listed here are data; a verifier pins roots from an out-of-band source (the domain view read over an authenticated channel, or the operator)'}
 
