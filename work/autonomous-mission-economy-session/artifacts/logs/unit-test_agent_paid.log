@@ -1,0 +1,21 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpkb3h31ij/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_agent_paid.py:62: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpkb3h31ij/paid/checkpoint.json' mode='r' encoding='UTF-8'>
+  state = json.load(open(cp)); ident = state['steps']['payment']['identifier']; state['steps'].pop('job'); json.dump(state, open(cp, 'w'))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_agent_paid.py:62: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpkb3h31ij/paid/checkpoint.json' mode='w' encoding='UTF-8'>
+  state = json.load(open(cp)); ident = state['steps']['payment']['identifier']; state['steps'].pop('job'); json.dump(state, open(cp, 'w'))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_agent_paid.py:65: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpkb3h31ij/paid/checkpoint.json' mode='r' encoding='UTF-8'>
+  self.assertEqual(json.load(open(cp))['steps']['payment']['identifier'], ident)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.
+----------------------------------------------------------------------
+Ran 1 test in 3.133s
+
+OK
+sys:1: ResourceWarning: unclosed file <_io.BufferedReader name=4>
+sys:1: ResourceWarning: unclosed <socket.socket fd=3, family=2, type=1, proto=6, laddr=('127.0.0.1', 54728), raddr=('127.0.0.1', 44529)>

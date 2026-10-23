@@ -1,0 +1,79 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+{
+ "seconds": 150,
+ "restart": {
+  "t": 75.0,
+  "api_back_after_s": 0.74
+ },
+ "loops": {
+  "transfers": {
+   "ok": 2163,
+   "errors": {
+    "transport:ConnectError": 2
+   },
+   "per_s": 14.42,
+   "p50_s": 0.0296,
+   "p95_s": 0.2043
+  },
+  "reservations": {
+   "ok": 2989,
+   "errors": {
+    "insufficient_available": 1967,
+    "transport:ConnectError": 6
+   },
+   "per_s": 19.93,
+   "p50_s": 0.0297,
+   "p95_s": 0.4402
+  },
+  "work": {
+   "ok": 45,
+   "errors": {
+    "exception:ConnectError": 1
+   },
+   "per_s": 0.3,
+   "p50_s": 2.705,
+   "p95_s": 6.3791
+  },
+  "cross_domain": {
+   "ok": 188,
+   "errors": {
+    "transport:ConnectError": 1,
+    "courier:ConnectError": 1
+   },
+   "per_s": 1.25,
+   "p50_s": 0.0607,
+   "p95_s": 0.7662
+  }
+ },
+ "ok": true
+}
+{
+ "audit_a": {
+  "total_held": 13059,
+  "fixture_funding": 13200,
+  "backing_locked_for_exports": 141,
+  "claims_backed_elsewhere": 0,
+  "conserved": true
+ },
+ "audit_b_asset_a": {
+  "total_held": 141,
+  "claims_backed_elsewhere": 141,
+  "conserved": true
+ },
+ "accounting_checks": {
+  "backing_matches_journal": true,
+  "claims_matches_journal": true
+ },
+ "conserved_across_domains": true,
+ "duplicate_settled_intents": 0,
+ "duplicate_reservations": 0,
+ "reservations": {
+  "settled": 599,
+  "cancelled": 295
+ },
+ "jobs": {
+  "succeeded": 90
+ },
+ "recovery_state": "normal"
+}

@@ -1,0 +1,2804 @@
+{
+ "schema": "metacoin-demonstration/v1",
+ "title": "Autonomous mission economy: connected two-domain mission with signers",
+ "x402": "disabled; facilitator URL closed",
+ "actors": {
+  "d_req": "requester",
+  "d_mach": "machine provider",
+  "d_sup": "resource supplier (external signer custody)",
+  "d_ver": "verifier",
+  "d_con": "award recipient (distinct)",
+  "na_treasury_dom-a": "treasury (dom-a)",
+  "d_mach_b": "machine account at dom-b",
+  "d_sup_b": "storage supplier at dom-b"
+ },
+ "funding_table": {
+  "d_req": 5000,
+  "d_mach": 0,
+  "d_sup": 0,
+  "d_ver": 0,
+  "d_con": 0,
+  "treasury": 7,
+  "dom-b:d_mach_b": 0,
+  "dom-b:d_sup_b": 0
+ },
+ "steps": [
+  {
+   "step": "initial funding (zero-value development asset; fixture funding of the requester only)",
+   "balances": {
+    "d_req": 5000,
+    "d_mach": 0,
+    "d_sup": 0,
+    "d_ver": 0,
+    "d_con": 0,
+    "treasury": 7,
+    "dom-b:d_mach_b": 0,
+    "dom-b:d_sup_b": 0
+   },
+   "journal_entries": {
+    "dom-a": 211,
+    "dom-b": 0
+   }
+  },
+  {
+   "step": "terrain analysis computed from the pinned public tile and accepted (not yet settled)",
+   "balances": {
+    "d_req": 4951,
+    "d_mach": 4,
+    "d_sup": 0,
+    "d_ver": 0,
+    "d_con": 0,
+    "treasury": 7,
+    "dom-b:d_mach_b": 0,
+    "dom-b:d_sup_b": 0
+   },
+   "journal_entries": {
+    "dom-a": 221,
+    "dom-b": 0
+   },
+   "science": "FEASIBLE",
+   "product": {
+    "kind": "route_feasibility",
+    "scope": "exact bounded search on the declared tile and rover model",
+    "provenance": {
+     "kind": "ldem_tile",
+     "label": "NASA PDS LOLA GDR LDEM_4 extract (public archive data; real measurements, resampled grid)",
+     "product_id": "LDEM_4",
+     "data_set_id": "LRO-L-LOLA-4-GDR-V1.0",
+     "product_version": "V3.0",
+     "source_url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_4.img",
+     "label_url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_4.lbl",
+     "image_sha256": "c04632eba6449af49e3108ed7c25b3b1c450600abd3690df4fc815853a1af476",
+     "label_sha256": "b5a197b4d417e3b5e0e84f8fe15f9a1d2203b8eb5d7213236c0ffbc86e940cc6",
+     "acquired_at": "2026-10-22",
+     "projection": "simple_cylindrical",
+     "datum": "sphere radius 1737.4 km; MEAN EARTH/POLAR AXIS OF DE421 body-fixed",
+     "units": {
+      "dn_scaling_factor_milli": 500,
+      "height": "meter",
+      "offset_m": 1737400
+     },
+     "orientation": "line 1 = +90 deg latitude (north up); sample 1 = 0 deg east longitude; east to the right",
+     "origin_line": 341,
+     "origin_sample": 78,
+     "lines": 32,
+     "samples": 32,
+     "first_line_latitude_milli_deg": 4625,
+     "first_sample_longitude_milli_deg": 19625,
+     "redistribution": "NASA PDS archive data; publicly released without restriction stated in the label; cite LRO LOLA team (D. E. Smith, GSFC), data set LRO-L-LOLA-4-GDR-V1.0",
+     "region": "apollo11_32",
+     "what_this_is_not": "a 7.58 km/pixel shape grid: no rock, crater (<7.6 km), traction or illumination information; slopes are grid-scale proxies, not traversability truth"
+    },
+    "assumptions": [
+     "slope is the grid-scale gradient of a resampled DEM (pixel spacing as declared); features smaller than one pixel (rocks, small craters, scarps) are invisible",
+     "simple cylindrical grid: north-south spacing is constant, east-west spacing is pixel_spacing * cos(latitude) per row (computed per row; polar rows are refused)",
+     "heights are DN * scaling relative to the reference sphere; no geoid correction (slopes are unaffected by a constant offset)",
+     "vertical error is a declared parameter applied as an independent bound on every neighbour (not a measured error model)",
+     "edge cells use one-sided differences and are flagged; cells touching nodata have no slope (flagged nodata)",
+     "this is not a traversability, traction, illumination or communication product",
+     "energy per step = length * (flat cost + slope cost * slope of the entered cell); no slope sign (uphill and downhill cost alike), no battery dynamics, no thermal or illumination terms",
+     "passability is the slope of the entered cell against the rover limit; the grid-scale slope is a proxy (sub-pixel hazards are not modelled)",
+     "eight-neighbour moves; diagonal length = sqrt(ns^2 + ew^2) per row; the search minimizes energy, then checks length (a shorter-but-costlier route is not explored: a length violation is INDETERMINATE, not INFEASIBLE)",
+     "INFEASIBLE is exact for the declared model and tile only (nothing outside the tile is considered)",
+     "safety-critical control must not depend on this product or on any payment response"
+    ]
+   },
+   "terms_digest": "5ec41a719469d4211e9ae6e3627c2723a9a8bf71f51a12e9eab8d671cc3e19e6"
+  },
+  {
+   "step": "blackout: link cut; mission settled locally from reserved funds (provider 40 + fee 2 + verifier 3); export to dom-b certified but undeliverable",
+   "balances": {
+    "d_req": 4951,
+    "d_mach": 34,
+    "d_sup": 0,
+    "d_ver": 3,
+    "d_con": 0,
+    "treasury": 9,
+    "dom-b:d_mach_b": 0,
+    "dom-b:d_sup_b": 0
+   },
+   "journal_entries": {
+    "dom-a": 236,
+    "dom-b": 0
+   },
+   "paid": {
+    "action": "pay",
+    "milestone": "settle",
+    "offer_id": null,
+    "amount": 45,
+    "reason": null
+   },
+   "export_state": "certified",
+   "transport": {
+    "refused": true,
+    "stage": "outbox",
+    "status": 409,
+    "code": "link_cut"
+   },
+   "outbox_status": 409,
+   "operator_blackout": {
+    "possible": [
+     [
+      "reserve",
+      "link"
+     ],
+     [
+      "pay",
+      "settle"
+     ],
+     [
+      "reserve",
+      "store"
+     ],
+     [
+      "reserve",
+      "link"
+     ],
+     [
+      "reserve",
+      "link"
+     ],
+     [
+      "open_request",
+      "acquire"
+     ],
+     [
+      "reserve",
+      "store"
+     ],
+     [
+      "pay",
+      "settle"
+     ],
+     [
+      "reserve",
+      "store"
+     ],
+     [
+      "reserve",
+      "store"
+     ]
+    ],
+    "disabled": [
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 10 (available 1009"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 10 (available 1009"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 10 (available 1009"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 10 (available 1009"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 10 (available 1009"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 10 (available 1009"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 10 (available 1009"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 10 (available 1009"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 2 available < 500"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 90 available < 500"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 5 available < 500"
+     ],
+     [
+      "reserve",
+      "window_closed"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 44 available < 500"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 50 available < 500"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 105 available < 500"
+     ],
+     [
+      "await_delivery",
+      "waiting_for_delivery"
+     ],
+     [
+      "await_delivery",
+      "waiting_for_delivery"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 2 available < 95"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 90 available < 95"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 5 available < 95"
+     ],
+     [
+      "reserve",
+      "window_closed"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 44 available < 95"
+     ],
+     [
+      "reserve",
+      "capacity_insufficient: 50 available < 95"
+     ],
+     [
+      "open_request",
+      "grant_revoked"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 97 (available 247 "
+     ]
+    ]
+   }
+  },
+  {
+   "step": "machine purchased compute from its settled earnings (local market, still in blackout); measured delivery settled",
+   "balances": {
+    "d_req": 4951,
+    "d_mach": 14,
+    "d_sup": 20,
+    "d_ver": 3,
+    "d_con": 0,
+    "treasury": 9,
+    "dom-b:d_mach_b": 0,
+    "dom-b:d_sup_b": 0
+   },
+   "journal_entries": {
+    "dom-a": 239,
+    "dom-b": 0
+   },
+   "reserve": {
+    "action": "reserve",
+    "milestone": "followon",
+    "offer_id": "ro_2f405f325c76",
+    "amount": 20,
+    "reason": null
+   },
+   "delivered_cpu_ms": 20,
+   "labels": [
+    "metered_fact",
+    "verified"
+   ],
+   "settled": {
+    "action": "settle_reservation",
+    "milestone": "followon",
+    "offer_id": null,
+    "amount": 20,
+    "reason": null
+   }
+  },
+  {
+   "step": "outage: the early contact window was missed (provider outage); reservation released in full, replanned to the next window, delivered and settled once",
+   "balances": {
+    "d_req": 1951,
+    "d_mach": 14,
+    "d_sup": 3020,
+    "d_ver": 3,
+    "d_con": 0,
+    "treasury": 9,
+    "dom-b:d_mach_b": 0,
+    "dom-b:d_sup_b": 0
+   },
+   "journal_entries": {
+    "dom-a": 244,
+    "dom-b": 0
+   },
+   "first": {
+    "action": "reserve",
+    "milestone": "link",
+    "offer_id": "ro_269deb318d3d",
+    "amount": 1500,
+    "reason": null
+   },
+   "released": {
+    "released_reservation": "rr_250776e4c469",
+    "state": "cancelled",
+    "released_amount": 1500,
+    "next": "plan again (POST /missions/{id}/plan) or let the controller pick the next offer"
+   },
+   "replanned_to": {
+    "mc_ae1593fb9ca0:link": "ro_929b69ce1394"
+   },
+   "second": {
+    "action": "reserve",
+    "milestone": "link",
+    "offer_id": "ro_929b69ce1394",
+    "amount": 3000,
+    "reason": null
+   },
+   "settled": {
+    "action": "settle_reservation",
+    "milestone": "link",
+    "offer_id": null,
+    "amount": 3000,
+    "reason": null
+   }
+  },
+  {
+   "step": "reconnection: certificate delivered, claim credited at dom-b, acknowledged and witnessed; accounting reconciled",
+   "balances": {
+    "d_req": 1951,
+    "d_mach": 14,
+    "d_sup": 3020,
+    "d_ver": 3,
+    "d_con": 0,
+    "treasury": 9,
+    "dom-b:d_mach_b": 10,
+    "dom-b:d_sup_b": 0
+   },
+   "journal_entries": {
+    "dom-a": 244,
+    "dom-b": 1
+   },
+   "transport": [
+    "accepted"
+   ],
+   "allocation": "acknowledged",
+   "witness_sequence": 40,
+   "recovery": "normal",
+   "accounting_checks": {
+    "backing_matches_journal": true,
+    "claims_matches_journal": true
+   }
+  },
+  {
+   "step": "at dom-b the machine bought storage with the imported claim (claim partially consumed: nonreturnable)",
+   "balances": {
+    "d_req": 1951,
+    "d_mach": 14,
+    "d_sup": 3020,
+    "d_ver": 3,
+    "d_con": 0,
+    "treasury": 9,
+    "dom-b:d_mach_b": 6,
+    "dom-b:d_sup_b": 4
+   },
+   "journal_entries": {
+    "dom-a": 244,
+    "dom-b": 5
+   },
+   "reservation": [
+    201,
+    "reserved"
+   ],
+   "lineage": [
+    [
+     "partially_consumed",
+     6,
+     0
+    ]
+   ]
+  },
+  {
+   "step": "supplier (external signer custody) pays the verifier 1: unsigned refused, signed through the signer settled",
+   "balances": {
+    "d_req": 1951,
+    "d_mach": 14,
+    "d_sup": 3019,
+    "d_ver": 4,
+    "d_con": 0,
+    "treasury": 9,
+    "dom-b:d_mach_b": 6,
+    "dom-b:d_sup_b": 4
+   },
+   "journal_entries": {
+    "dom-a": 247,
+    "dom-b": 5
+   },
+   "unsigned": [
+    409,
+    "signature_required"
+   ],
+   "signed": "settled"
+  },
+  {
+   "step": "treasury award: a distinct recipient paid 2 from collected fees only",
+   "balances": {
+    "d_req": 1951,
+    "d_mach": 14,
+    "d_sup": 3019,
+    "d_ver": 4,
+    "d_con": 2,
+    "treasury": 7,
+    "dom-b:d_mach_b": 6,
+    "dom-b:d_sup_b": 4
+   },
+   "journal_entries": {
+    "dom-a": 256,
+    "dom-b": 5
+   },
+   "treasury_available_before": 9,
+   "decision": "accepted"
+  }
+ ],
+ "final_table": {
+  "d_req": 1951,
+  "d_mach": 14,
+  "d_sup": 3019,
+  "d_ver": 4,
+  "d_con": 2,
+  "treasury": 7,
+  "dom-b:d_mach_b": 6,
+  "dom-b:d_sup_b": 4
+ },
+ "conservation": {
+  "dom-a": {
+   "total_held": 22320,
+   "fixture_funding": 22330,
+   "backing_locked_for_exports": 10,
+   "claims_backed_elsewhere": 0,
+   "conserved": true
+  },
+  "dom-b (asset of dom-a)": {
+   "total_held": 10,
+   "claims_backed_elsewhere": 10,
+   "conserved": true
+  },
+  "ok": true
+ },
+ "postings": {
+  "dom-a": [
+   {
+    "id": "je_d294972d5f370830",
+    "event_key": "fixture:nf_0d254a678cae",
+    "kind": "fixture_funding",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_account",
+    "ref_id": "na_528804ab8454",
+    "memo": "development fixture funding",
+    "created_at": 1792728463,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/equity:fixture_funding",
+      "debit": 5000,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:available",
+      "debit": 0,
+      "credit": 5000
+     }
+    ]
+   },
+   {
+    "id": "je_dc61d5fc1a294831",
+    "event_key": "award-reserve:wa_3190ee6ebf545e81",
+    "kind": "native_award_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "work_award",
+    "ref_id": "wa_3190ee6ebf545e81",
+    "memo": "reserved for an award (ceiling incl. fee and verifier legs)",
+    "created_at": 1792728463,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:available",
+      "debit": 4,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 0,
+      "credit": 4
+     }
+    ]
+   },
+   {
+    "id": "je_00dae43d8a2d6ffe",
+    "event_key": "accept:wm_fc2dbe72db23:wd_dd78a6b3e4057aab",
+    "kind": "acceptance",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "work_milestone",
+    "ref_id": "wm_fc2dbe72db23",
+    "memo": "accepted obligation to the provider (entitlement of the milestone)",
+    "created_at": 1792728465,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/expense:work_accepted",
+      "debit": 4,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 0,
+      "credit": 4
+     }
+    ]
+   },
+   {
+    "id": "je_8021be1c8e59de69",
+    "event_key": "submit:pi_e8822ed96412b7a2:1",
+    "kind": "submission",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_e8822ed96412b7a2",
+    "memo": "settlement submitted (attempt 1); exposure until observed",
+    "created_at": 1792728465,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 4,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 0,
+      "credit": 4
+     }
+    ]
+   },
+   {
+    "id": "je_38cbfb23a937c742",
+    "event_key": "commit:ni_862634424f9e666a",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_862634424f9e666a",
+    "memo": "committed from the award reservation (sequence 36)",
+    "created_at": 1792728465,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 4,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 0,
+      "credit": 4
+     }
+    ]
+   },
+   {
+    "id": "je_beafd8e45b5f9346",
+    "event_key": "settle:ni_862634424f9e666a",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_862634424f9e666a",
+    "memo": "domain-local settlement of a provider obligation",
+    "created_at": 1792728465,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 4,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:available",
+      "debit": 0,
+      "credit": 4
+     }
+    ]
+   },
+   {
+    "id": "je_dc93e48b3b4b5a8b",
+    "event_key": "settle:pi_e8822ed96412b7a2",
+    "kind": "settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_e8822ed96412b7a2",
+    "memo": "transfer observed on the rail (native)",
+    "created_at": 1792728465,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 4,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/asset:payer_cash",
+      "debit": 0,
+      "credit": 4
+     }
+    ]
+   },
+   {
+    "id": "je_10f2515461a8610f",
+    "event_key": "award-reserve:wa_1e20205fe9001ca7",
+    "kind": "native_award_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "work_award",
+    "ref_id": "wa_1e20205fe9001ca7",
+    "memo": "reserved for an award (ceiling incl. fee and verifier legs)",
+    "created_at": 1792728465,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:available",
+      "debit": 45,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 0,
+      "credit": 45
+     }
+    ]
+   },
+   {
+    "id": "je_65e219720af4588e",
+    "event_key": "verifier:wm_1cf6b24e88c7:vf_88a5437555db",
+    "kind": "verifier_obligation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "work_entitlement",
+    "ref_id": "wen_b75cf56145c9cd54",
+    "memo": "verifier compensation for a completed verification (outcome passed); not verdict-dependent",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/expense:verifier",
+      "debit": 3,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 0,
+      "credit": 3
+     }
+    ]
+   },
+   {
+    "id": "je_4439756c8cbb6663",
+    "event_key": "accept:wm_1cf6b24e88c7:wd_d9bd1a53499d9945",
+    "kind": "acceptance",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "work_milestone",
+    "ref_id": "wm_1cf6b24e88c7",
+    "memo": "accepted obligation to the provider (entitlement of the milestone)",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/expense:work_accepted",
+      "debit": 40,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 0,
+      "credit": 40
+     }
+    ]
+   },
+   {
+    "id": "je_f44687f639b0002c",
+    "event_key": "fee:wm_1cf6b24e88c7:wd_d9bd1a53499d9945",
+    "kind": "fee_obligation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "work_entitlement",
+    "ref_id": "wen_2a745558127c21cf",
+    "memo": "treasury fee obligation bound to the frozen price policy",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/expense:platform_fee",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_411c68478d136c88",
+    "event_key": "submit:pi_ce8aac0c30c10d59:1",
+    "kind": "submission",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_ce8aac0c30c10d59",
+    "memo": "settlement submitted (attempt 1); exposure until observed",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 3,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 0,
+      "credit": 3
+     }
+    ]
+   },
+   {
+    "id": "je_2f5a089aca94e60c",
+    "event_key": "commit:ni_9d47a234ab498425",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_9d47a234ab498425",
+    "memo": "committed from the award reservation (sequence 37)",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 3,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 0,
+      "credit": 3
+     }
+    ]
+   },
+   {
+    "id": "je_9b3126a38fa3674d",
+    "event_key": "settle:ni_9d47a234ab498425",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_9d47a234ab498425",
+    "memo": "domain-local settlement of a verifier obligation",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 3,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_69950d8106df:available",
+      "debit": 0,
+      "credit": 3
+     }
+    ]
+   },
+   {
+    "id": "je_8071dd095a44c1db",
+    "event_key": "settle:pi_ce8aac0c30c10d59",
+    "kind": "settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_ce8aac0c30c10d59",
+    "memo": "transfer observed on the rail (native)",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 3,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/asset:payer_cash",
+      "debit": 0,
+      "credit": 3
+     }
+    ]
+   },
+   {
+    "id": "je_e9fa60dbad9e2394",
+    "event_key": "submit:pi_e01382abe031ea87:1",
+    "kind": "submission",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_e01382abe031ea87",
+    "memo": "settlement submitted (attempt 1); exposure until observed",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 40,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 0,
+      "credit": 40
+     }
+    ]
+   },
+   {
+    "id": "je_8762e33bc9a2d84f",
+    "event_key": "commit:ni_84184275a41244b6",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_84184275a41244b6",
+    "memo": "committed from the award reservation (sequence 38)",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 40,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 0,
+      "credit": 40
+     }
+    ]
+   },
+   {
+    "id": "je_2a3e0f1ad0a89235",
+    "event_key": "settle:ni_84184275a41244b6",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_84184275a41244b6",
+    "memo": "domain-local settlement of a provider obligation",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 40,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:available",
+      "debit": 0,
+      "credit": 40
+     }
+    ]
+   },
+   {
+    "id": "je_7f0c9b1098b3578d",
+    "event_key": "settle:pi_e01382abe031ea87",
+    "kind": "settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_e01382abe031ea87",
+    "memo": "transfer observed on the rail (native)",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 40,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/asset:payer_cash",
+      "debit": 0,
+      "credit": 40
+     }
+    ]
+   },
+   {
+    "id": "je_4d8683528c9fd9a1",
+    "event_key": "submit:pi_4e016734939a96c7:1",
+    "kind": "submission",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_4e016734939a96c7",
+    "memo": "settlement submitted (attempt 1); exposure until observed",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_b272beadd53b1566",
+    "event_key": "commit:ni_97cc0a83899a157c",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_97cc0a83899a157c",
+    "memo": "committed from the award reservation (sequence 39)",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_b4ef800e6e027386",
+    "event_key": "settle:ni_97cc0a83899a157c",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_97cc0a83899a157c",
+    "memo": "domain-local settlement of a fee obligation",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_treasury_dom-a:available",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_b7e95cc9d0a4eef7",
+    "event_key": "settle:pi_4e016734939a96c7",
+    "kind": "settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_4e016734939a96c7",
+    "memo": "transfer observed on the rail (native)",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/asset:payer_cash",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_127f0ab1e8c9bb25",
+    "event_key": "fee-credit:pi_4e016734939a96c7",
+    "kind": "fee_credit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_4e016734939a96c7",
+    "memo": "platform fee observed as settled to the treasury address; credited once per settlement event",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/treasury:cash",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/treasury:revenue",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_29b8e9c679a727cd",
+    "event_key": "alloc-reserve:nal_b9f5191dfd6b9e70",
+    "kind": "native_export_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_allocation",
+    "ref_id": "nal_b9f5191dfd6b9e70",
+    "memo": "reserved for export to dom-b",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:available",
+      "debit": 10,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:in_transit",
+      "debit": 0,
+      "credit": 10
+     }
+    ]
+   },
+   {
+    "id": "je_f9e8d9e2106b46a2",
+    "event_key": "alloc-export:nal_b9f5191dfd6b9e70",
+    "kind": "native_export_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_allocation",
+    "ref_id": "nal_b9f5191dfd6b9e70",
+    "memo": "export committed (sequence 40): nonspendable at the source",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:in_transit",
+      "debit": 10,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/backing:exported:nal_b9f5191dfd6b9e70",
+      "debit": 0,
+      "credit": 10
+     }
+    ]
+   },
+   {
+    "id": "je_23c60f38cc82369b",
+    "event_key": "rr-reserve:rr_f47cb40439d9",
+    "kind": "native_resource_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "resource_reservation",
+    "ref_id": "rr_f47cb40439d9",
+    "memo": "funded reservation of 20 cpu_ms on ro_2f405f325c76",
+    "created_at": 1792728466,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:available",
+      "debit": 20,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:reserved",
+      "debit": 0,
+      "credit": 20
+     }
+    ]
+   },
+   {
+    "id": "je_f4725f36ab641f7f",
+    "event_key": "commit:ni_e8f1c5af0563c96f",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_e8f1c5af0563c96f",
+    "memo": "resource delivery committed (sequence 41)",
+    "created_at": 1792728467,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:reserved",
+      "debit": 20,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:committed_outgoing",
+      "debit": 0,
+      "credit": 20
+     }
+    ]
+   },
+   {
+    "id": "je_5ecb7ac6b545caef",
+    "event_key": "settle:ni_e8f1c5af0563c96f",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_e8f1c5af0563c96f",
+    "memo": "resource delivery settled",
+    "created_at": 1792728467,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9ff7d93eea68:committed_outgoing",
+      "debit": 20,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9a7bdc3f7df5:available",
+      "debit": 0,
+      "credit": 20
+     }
+    ]
+   },
+   {
+    "id": "je_8a6c7b77149d12d5",
+    "event_key": "rr-reserve:rr_250776e4c469",
+    "kind": "native_resource_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "resource_reservation",
+    "ref_id": "rr_250776e4c469",
+    "memo": "funded reservation of 1500 kib on ro_269deb318d3d",
+    "created_at": 1792728467,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:available",
+      "debit": 1500,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 0,
+      "credit": 1500
+     }
+    ]
+   },
+   {
+    "id": "je_5b8330a84d6e4e70",
+    "event_key": "rr-cancel:rr_250776e4c469",
+    "kind": "native_resource_release",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "resource_reservation",
+    "ref_id": "rr_250776e4c469",
+    "memo": "cancelled before activation: funds and capacity released in full",
+    "created_at": 1792728472,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 1500,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:available",
+      "debit": 0,
+      "credit": 1500
+     }
+    ]
+   },
+   {
+    "id": "je_f996588de4531394",
+    "event_key": "rr-reserve:rr_28b57c076118",
+    "kind": "native_resource_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "resource_reservation",
+    "ref_id": "rr_28b57c076118",
+    "memo": "funded reservation of 1500 kib on ro_929b69ce1394",
+    "created_at": 1792728472,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:available",
+      "debit": 3000,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 0,
+      "credit": 3000
+     }
+    ]
+   },
+   {
+    "id": "je_ec9a59d3e535d0e7",
+    "event_key": "commit:ni_494e39e84fee4a23",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_494e39e84fee4a23",
+    "memo": "resource delivery committed (sequence 42)",
+    "created_at": 1792728472,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:reserved",
+      "debit": 3000,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 0,
+      "credit": 3000
+     }
+    ]
+   },
+   {
+    "id": "je_e69d50a0647e43ee",
+    "event_key": "settle:ni_494e39e84fee4a23",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_494e39e84fee4a23",
+    "memo": "resource delivery settled",
+    "created_at": 1792728472,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_528804ab8454:committed_outgoing",
+      "debit": 3000,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9a7bdc3f7df5:available",
+      "debit": 0,
+      "credit": 3000
+     }
+    ]
+   },
+   {
+    "id": "je_8886464e94e3a007",
+    "event_key": "reserve:ni_11b0d986b726df96",
+    "kind": "native_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_11b0d986b726df96",
+    "memo": "reserved for a signed intent",
+    "created_at": 1792728474,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9a7bdc3f7df5:available",
+      "debit": 1,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9a7bdc3f7df5:reserved",
+      "debit": 0,
+      "credit": 1
+     }
+    ]
+   },
+   {
+    "id": "je_cbf2989b55cbf026",
+    "event_key": "commit:ni_11b0d986b726df96",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_11b0d986b726df96",
+    "memo": "committed by the domain authority (sequence 43)",
+    "created_at": 1792728474,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9a7bdc3f7df5:reserved",
+      "debit": 1,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9a7bdc3f7df5:committed_outgoing",
+      "debit": 0,
+      "credit": 1
+     }
+    ]
+   },
+   {
+    "id": "je_c2147facca6715de",
+    "event_key": "settle:ni_11b0d986b726df96",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_11b0d986b726df96",
+    "memo": "domain-local settlement",
+    "created_at": 1792728474,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_9a7bdc3f7df5:committed_outgoing",
+      "debit": 1,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_69950d8106df:available",
+      "debit": 0,
+      "credit": 1
+     }
+    ]
+   },
+   {
+    "id": "je_e90bc0c9e663735e",
+    "event_key": "treasury-reserve:ta_cffe9ec0e1fe",
+    "kind": "treasury_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "treasury_allocation",
+    "ref_id": "ta_cffe9ec0e1fe",
+    "memo": "treasury commitment reserved under confirmed revenue",
+    "created_at": 1792728474,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/treasury:committed",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/treasury:available_memo",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_94bfe9812aa3efa3",
+    "event_key": "treasury-native-reserve:ta_cffe9ec0e1fe",
+    "kind": "native_treasury_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "treasury_allocation",
+    "ref_id": "ta_cffe9ec0e1fe",
+    "memo": "treasury award reserved from settled fee revenue",
+    "created_at": 1792728474,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_treasury_dom-a:available",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_treasury_dom-a:reserved",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_e2d2dd17b54f0adb",
+    "event_key": "accept:wm_24737a724a46:wd_c6246fa146ecb6ab",
+    "kind": "acceptance",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "work_milestone",
+    "ref_id": "wm_24737a724a46",
+    "memo": "accepted obligation to the provider (entitlement of the milestone)",
+    "created_at": 1792728475,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/expense:work_accepted",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_4ca8029be536e4e2",
+    "event_key": "submit:pi_d82a3054047933af:1",
+    "kind": "submission",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_d82a3054047933af",
+    "memo": "settlement submitted (attempt 1); exposure until observed",
+    "created_at": 1792728475,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/liability:payable",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_aa10f8f77139c51c",
+    "event_key": "commit:ni_4af44af9da58719c",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_4af44af9da58719c",
+    "memo": "committed from the award reservation (sequence 44)",
+    "created_at": 1792728475,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_treasury_dom-a:reserved",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_treasury_dom-a:committed_outgoing",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_9746688bec41beda",
+    "event_key": "settle:ni_4af44af9da58719c",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_4af44af9da58719c",
+    "memo": "domain-local settlement of a provider obligation",
+    "created_at": 1792728475,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_treasury_dom-a:committed_outgoing",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/acct:na_3d19042df8c6:available",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_198c61551dfe1acd",
+    "event_key": "settle:pi_d82a3054047933af",
+    "kind": "settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_d82a3054047933af",
+    "memo": "transfer observed on the rail (native)",
+    "created_at": 1792728475,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/exposure:pending",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/asset:payer_cash",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_b9077db38254819a",
+    "event_key": "treasury-spend:pi_d82a3054047933af",
+    "kind": "treasury_spend",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "payment_intent",
+    "ref_id": "pi_d82a3054047933af",
+    "memo": "treasury-funded award settled",
+    "created_at": 1792728475,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/treasury:spent",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/treasury:cash",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   },
+   {
+    "id": "je_69eb9b8ca2538d18",
+    "event_key": "treasury-release:ta_cffe9ec0e1fe",
+    "kind": "treasury_release",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-a",
+    "environment": "synthetic-local",
+    "ref_type": "treasury_allocation",
+    "ref_id": "ta_cffe9ec0e1fe",
+    "memo": "commitment closed: spent 2, released 0",
+    "created_at": 1792728475,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/treasury:available_memo",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-a/treasury:committed",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   }
+  ],
+  "dom-b": [
+   {
+    "id": "je_a6c85a3a5c4ac66a",
+    "event_key": "alloc-import:nal_b9f5191dfd6b9e70",
+    "kind": "native_import",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-b",
+    "environment": "dev",
+    "ref_type": "native_allocation",
+    "ref_id": "nal_b9f5191dfd6b9e70",
+    "memo": "claim credited from dom-a certificate (sequence 40)",
+    "created_at": 1792728472,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/backing:claim:nal_b9f5191dfd6b9e70",
+      "debit": 10,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_5741a903ee77:available",
+      "debit": 0,
+      "credit": 10
+     }
+    ]
+   },
+   {
+    "id": "je_97fd927f21d68ee5",
+    "event_key": "rr-reserve:rr_a49f30a896df",
+    "kind": "native_resource_reservation",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-b",
+    "environment": "dev",
+    "ref_type": "resource_reservation",
+    "ref_id": "rr_a49f30a896df",
+    "memo": "funded reservation of 6 kib_seconds on ro_447b87188245",
+    "created_at": 1792728472,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_5741a903ee77:available",
+      "debit": 6,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_5741a903ee77:reserved",
+      "debit": 0,
+      "credit": 6
+     }
+    ]
+   },
+   {
+    "id": "je_f2f3951e9d9aa544",
+    "event_key": "commit:ni_3244279ec63591bf",
+    "kind": "native_commit",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-b",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_3244279ec63591bf",
+    "memo": "resource delivery committed (sequence 2)",
+    "created_at": 1792728474,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_5741a903ee77:reserved",
+      "debit": 4,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_5741a903ee77:committed_outgoing",
+      "debit": 0,
+      "credit": 4
+     }
+    ]
+   },
+   {
+    "id": "je_88e3fb7b018c1352",
+    "event_key": "settle:ni_3244279ec63591bf",
+    "kind": "native_settlement",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-b",
+    "environment": "dev",
+    "ref_type": "native_intent",
+    "ref_id": "ni_3244279ec63591bf",
+    "memo": "resource delivery settled",
+    "created_at": 1792728474,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_5741a903ee77:committed_outgoing",
+      "debit": 4,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_46a4560ccdd6:available",
+      "debit": 0,
+      "credit": 4
+     }
+    ]
+   },
+   {
+    "id": "je_ec8e6d5a4a0b3476",
+    "event_key": "rr-release:rr_a49f30a896df",
+    "kind": "native_resource_release",
+    "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+    "network": "dom-b",
+    "environment": "dev",
+    "ref_type": "resource_reservation",
+    "ref_id": "rr_a49f30a896df",
+    "memo": "undelivered portion released",
+    "created_at": 1792728474,
+    "postings": [
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_5741a903ee77:reserved",
+      "debit": 2,
+      "credit": 0
+     },
+     {
+      "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-b/acct:na_5741a903ee77:available",
+      "debit": 0,
+      "credit": 2
+     }
+    ]
+   }
+  ]
+ },
+ "mission": "mc_4a982c4ab1ac",
+ "relay_mission": "mc_ae1593fb9ca0",
+ "job": "j_55064bd19451b8c6",
+ "operator_screen_during_blackout": {
+  "schema": "metacoin-operator-screen/v1",
+  "domain": "dom-a",
+  "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+  "connectivity": "cut",
+  "recovery_state": "normal",
+  "machines": [
+   {
+    "account": "na_0fd306080468",
+    "label": "requester",
+    "custody": null,
+    "owns": {
+     "available": 10094,
+     "reserved": 552,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 3533,
+     "obligations": 9
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [
+      {
+       "reservation": "rr_21d8856e4ecb",
+       "kind": "contact",
+       "quantity": 8,
+       "state": "reserved",
+       "price": 8
+      },
+      {
+       "reservation": "rr_b938c62ff13a",
+       "kind": "compute",
+       "quantity": 10,
+       "state": "reserved",
+       "price": 30
+      },
+      {
+       "reservation": "rr_61e7e9446aab",
+       "kind": "contact",
+       "quantity": 95,
+       "state": "reserved",
+       "price": 95
+      },
+      {
+       "reservation": "rr_19e302a5c84e",
+       "kind": "contact",
+       "quantity": 95,
+       "state": "reserved",
+       "price": 380
+      }
+     ],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_457918515fbd",
+    "label": "machine",
+    "custody": null,
+    "owns": {
+     "available": 5172,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 4116,
+     "obligations": 2
+    },
+    "owed": {
+     "outstanding": 30,
+     "obligations": 1,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_919995372c42",
+    "label": "verifier",
+    "custody": null,
+    "owns": {
+     "available": 9,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 3,
+     "obligations": 1,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_7fefb2399572",
+    "label": "supplier",
+    "custody": null,
+    "owns": {
+     "available": 978,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 7255,
+     "obligations": 8,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": [
+      {
+       "reservation": "rr_21d8856e4ecb",
+       "kind": "contact",
+       "quantity": 8,
+       "state": "reserved"
+      },
+      {
+       "reservation": "rr_b938c62ff13a",
+       "kind": "compute",
+       "quantity": 10,
+       "state": "reserved"
+      },
+      {
+       "reservation": "rr_0ce64e17b36e",
+       "kind": "compute",
+       "quantity": 20,
+       "state": "reserved"
+      },
+      {
+       "reservation": "rr_61e7e9446aab",
+       "kind": "contact",
+       "quantity": 95,
+       "state": "reserved"
+      }
+     ]
+    }
+   },
+   {
+    "account": "na_9ea0b78c5f5a",
+    "label": "contributor",
+    "custody": null,
+    "owns": {
+     "available": 0,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 380,
+     "obligations": 1,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": [
+      {
+       "reservation": "rr_19e302a5c84e",
+       "kind": "contact",
+       "quantity": 95,
+       "state": "reserved"
+      }
+     ]
+    }
+   },
+   {
+    "account": "na_8090e40126b4",
+    "label": "r80",
+    "custody": null,
+    "owns": {
+     "available": 35,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_27f51392498f",
+    "label": "m80",
+    "custody": null,
+    "owns": {
+     "available": 30,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_7137211fc2ba",
+    "label": "v80",
+    "custody": null,
+    "owns": {
+     "available": 3,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_d6637ef3bcab",
+    "label": "s80",
+    "custody": null,
+    "owns": {
+     "available": 9,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_129eab771325",
+    "label": "c80",
+    "custody": null,
+    "owns": {
+     "available": 2,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_7746155070b5",
+    "label": "ext-alice",
+    "custody": null,
+    "owns": {
+     "available": 35,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_f303b8164cfc",
+    "label": "ext-bob",
+    "custody": null,
+    "owns": {
+     "available": 20,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_c2ca2d3a32a1",
+    "label": "ext-carol",
+    "custody": null,
+    "owns": {
+     "available": 14,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_233e537b2ac9",
+    "label": "ext-dave",
+    "custody": null,
+    "owns": {
+     "available": 35,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_6950020269f3",
+    "label": "mach17",
+    "custody": null,
+    "owns": {
+     "available": 24,
+     "reserved": 20,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 20,
+     "obligations": 1
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [
+      {
+       "reservation": "rr_0ce64e17b36e",
+       "kind": "compute",
+       "quantity": 20,
+       "state": "reserved",
+       "price": 20
+      }
+     ],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_1dcc35544a98",
+    "label": "owner",
+    "custody": null,
+    "owns": {
+     "available": 247,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_a133ea9c4472",
+    "label": "mach18",
+    "custody": null,
+    "owns": {
+     "available": 44,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_528804ab8454",
+    "label": "d_req",
+    "custody": null,
+    "owns": {
+     "available": 4951,
+     "reserved": 45,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 45,
+     "obligations": 3
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_9ff7d93eea68",
+    "label": "d_mach",
+    "custody": null,
+    "owns": {
+     "available": 4,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 40,
+     "obligations": 1,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_69950d8106df",
+    "label": "d_ver",
+    "custody": null,
+    "owns": {
+     "available": 0,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 3,
+     "obligations": 1,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_3d19042df8c6",
+    "label": "d_con",
+    "custody": null,
+    "owns": {
+     "available": 0,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_9a7bdc3f7df5",
+    "label": "d_sup",
+    "custody": null,
+    "owns": {
+     "available": 0,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   }
+  ],
+  "missing_evidence": [
+   {
+    "mission": "mc_edc101ef979c",
+    "milestone": "link",
+    "kind": "resource",
+    "state": "executing",
+    "missing": "activation and measured delivery by the provider",
+    "binding": {
+     "reservation_id": "rr_61e7e9446aab"
+    }
+   },
+   {
+    "mission": "mc_062c44ab3a68",
+    "milestone": "link",
+    "kind": "resource",
+    "state": "executing",
+    "missing": "activation and measured delivery by the provider",
+    "binding": {
+     "reservation_id": "rr_19e302a5c84e"
+    }
+   },
+   {
+    "mission": "mc_d00575ad2434",
+    "milestone": "followon",
+    "kind": "resource",
+    "state": "executing",
+    "missing": "activation and measured delivery by the provider",
+    "binding": {
+     "reservation_id": "rr_0ce64e17b36e"
+    }
+   }
+  ],
+  "missions": [
+   {
+    "id": "mc_8a9f4f791493",
+    "title": "reserve conflict",
+    "state": "frozen",
+    "stop_reason": null,
+    "spendable_settled": 10,
+    "reserved_exposure": 552
+   },
+   {
+    "id": "mc_b5cb7ea29235",
+    "title": "deadline conflict",
+    "state": "frozen",
+    "stop_reason": null,
+    "spendable_settled": 10094,
+    "reserved_exposure": 552
+   },
+   {
+    "id": "mc_4a982c4ab1ac",
+    "title": "terrain analysis delivery",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 4951,
+    "reserved_exposure": 45
+   },
+   {
+    "id": "mc_edc101ef979c",
+    "title": "competing A",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 10094,
+    "reserved_exposure": 552
+   },
+   {
+    "id": "mc_062c44ab3a68",
+    "title": "competing B",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 10094,
+    "reserved_exposure": 552
+   },
+   {
+    "id": "mc_eeab2f8805e4",
+    "title": "competing C",
+    "state": "frozen",
+    "stop_reason": null,
+    "spendable_settled": 10094,
+    "reserved_exposure": 552
+   },
+   {
+    "id": "mc_7172907a7414",
+    "title": "terrain_delivery",
+    "state": "running",
+    "stop_reason": "grant_revoked",
+    "spendable_settled": 247,
+    "reserved_exposure": 0
+   },
+   {
+    "id": "mc_4953a9e0570c",
+    "title": "terrain_delivery",
+    "state": "frozen",
+    "stop_reason": null,
+    "spendable_settled": 49,
+    "reserved_exposure": 0
+   },
+   {
+    "id": "mc_c4702e23869e",
+    "title": "terrain_delivery",
+    "state": "waiting",
+    "stop_reason": null,
+    "spendable_settled": 97,
+    "reserved_exposure": 0
+   },
+   {
+    "id": "mc_d00575ad2434",
+    "title": "terrain_delivery",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 10094,
+    "reserved_exposure": 552
+   },
+   {
+    "id": "mc_531073feba31",
+    "title": "terrain_delivery",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 10094,
+    "reserved_exposure": 552
+   },
+   {
+    "id": "mc_5a6665825f83",
+    "title": "partial delivery",
+    "state": "waiting",
+    "stop_reason": null,
+    "spendable_settled": 10094,
+    "reserved_exposure": 552
+   },
+   {
+    "id": "mc_8786f3f24837",
+    "title": "terrain_delivery",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 10094,
+    "reserved_exposure": 552
+   }
+  ],
+  "blackout": {
+   "active": true,
+   "possible_now": [
+    {
+     "mission": "mc_b5cb7ea29235",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 1500,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_4a982c4ab1ac",
+     "action": "pay",
+     "milestone": "settle",
+     "amount": 45,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_4a982c4ab1ac",
+     "action": "reserve",
+     "milestone": "store",
+     "amount": 2048,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_eeab2f8805e4",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 285,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_eeab2f8805e4",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 380,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_4953a9e0570c",
+     "action": "open_request",
+     "milestone": "acquire",
+     "amount": 4,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_d00575ad2434",
+     "action": "reserve",
+     "milestone": "store",
+     "amount": 2048,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_531073feba31",
+     "action": "pay",
+     "milestone": "settle",
+     "amount": 34,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_531073feba31",
+     "action": "reserve",
+     "milestone": "store",
+     "amount": 2048,
+     "reason": "ok"
+    },
+    {
+     "mission": "mc_8786f3f24837",
+     "action": "reserve",
+     "milestone": "store",
+     "amount": 2048,
+     "reason": "ok"
+    }
+   ],
+   "disabled_now": [
+    {
+     "mission": "mc_8a9f4f791493",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 500,
+     "reason": "insufficient_liquidity: spendable settled 10 (available 10094 minus minimum reserve 10084) < 500; receivables 0 are not spendable"
+    },
+    {
+     "mission": "mc_8a9f4f791493",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 500,
+     "reason": "insufficient_liquidity: spendable settled 10 (available 10094 minus minimum reserve 10084) < 500; receivables 0 are not spendable"
+    },
+    {
+     "mission": "mc_8a9f4f791493",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 500,
+     "reason": "insufficient_liquidity: spendable settled 10 (available 10094 minus minimum reserve 10084) < 500; receivables 0 are not spendable"
+    },
+    {
+     "mission": "mc_8a9f4f791493",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 500,
+     "reason": "insufficient_liquidity: spendable settled 10 (available 10094 minus minimum reserve 10084) < 500; receivables 0 are not spendable"
+    },
+    {
+     "mission": "mc_8a9f4f791493",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 1000,
+     "reason": "insufficient_liquidity: spendable settled 10 (available 10094 minus minimum reserve 10084) < 1000; receivables 0 are not spendable"
+    },
+    {
+     "mission": "mc_8a9f4f791493",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 1000,
+     "reason": "insufficient_liquidity: spendable settled 10 (available 10094 minus minimum reserve 10084) < 1000; receivables 0 are not spendable"
+    },
+    {
+     "mission": "mc_8a9f4f791493",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 1500,
+     "reason": "insufficient_liquidity: spendable settled 10 (available 10094 minus minimum reserve 10084) < 1500; receivables 0 are not spendable"
+    },
+    {
+     "mission": "mc_8a9f4f791493",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 2000,
+     "reason": "insufficient_liquidity: spendable settled 10 (available 10094 minus minimum reserve 10084) < 2000; receivables 0 are not spendable"
+    },
+    {
+     "mission": "mc_b5cb7ea29235",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 500,
+     "reason": "capacity_insufficient: 2 available < 500"
+    },
+    {
+     "mission": "mc_b5cb7ea29235",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 500,
+     "reason": "capacity_insufficient: 90 available < 500"
+    },
+    {
+     "mission": "mc_b5cb7ea29235",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 500,
+     "reason": "capacity_insufficient: 5 available < 500"
+    },
+    {
+     "mission": "mc_b5cb7ea29235",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 500,
+     "reason": "window_closed"
+    },
+    {
+     "mission": "mc_b5cb7ea29235",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 1000,
+     "reason": "capacity_insufficient: 44 available < 500"
+    },
+    {
+     "mission": "mc_b5cb7ea29235",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 1000,
+     "reason": "capacity_insufficient: 50 available < 500"
+    },
+    {
+     "mission": "mc_b5cb7ea29235",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 2000,
+     "reason": "capacity_insufficient: 105 available < 500"
+    },
+    {
+     "mission": "mc_edc101ef979c",
+     "action": "await_delivery",
+     "milestone": "link",
+     "amount": null,
+     "reason": "waiting_for_delivery"
+    },
+    {
+     "mission": "mc_062c44ab3a68",
+     "action": "await_delivery",
+     "milestone": "link",
+     "amount": null,
+     "reason": "waiting_for_delivery"
+    },
+    {
+     "mission": "mc_eeab2f8805e4",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 95,
+     "reason": "capacity_insufficient: 2 available < 95"
+    },
+    {
+     "mission": "mc_eeab2f8805e4",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 95,
+     "reason": "capacity_insufficient: 90 available < 95"
+    },
+    {
+     "mission": "mc_eeab2f8805e4",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 95,
+     "reason": "capacity_insufficient: 5 available < 95"
+    },
+    {
+     "mission": "mc_eeab2f8805e4",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 95,
+     "reason": "window_closed"
+    },
+    {
+     "mission": "mc_eeab2f8805e4",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 190,
+     "reason": "capacity_insufficient: 44 available < 95"
+    },
+    {
+     "mission": "mc_eeab2f8805e4",
+     "action": "reserve",
+     "milestone": "link",
+     "amount": 190,
+     "reason": "capacity_insufficient: 50 available < 95"
+    },
+    {
+     "mission": "mc_7172907a7414",
+     "action": "open_request",
+     "milestone": "compute",
+     "amount": 45,
+     "reason": "grant_revoked"
+    },
+    {
+     "mission": "mc_c4702e23869e",
+     "action": "reserve",
+     "milestone": "store",
+     "amount": 2048,
+     "reason": "insufficient_liquidity: spendable settled 97 (available 247 minus minimum reserve 150) < 2048; receivables 0 are not spendable"
+    }
+   ],
+   "rule": "during a cut link only local actions within already funded reservations and preallocated authority proceed; relay, cross-domain and witness-dependent actions are refused with link_cut"
+  },
+  "pending_cross_domain": {
+   "allocations": [],
+   "queued_outbox_messages": 0,
+   "accounting": {
+    "source_backing_locked": 0,
+    "claims_active": 0,
+    "retirements_pending": 0,
+    "returns_completed": 0
+   },
+   "checks": {
+    "backing_matches_journal": true,
+    "claims_matches_journal": true
+   }
+  },
+  "recovery": {
+   "state": "normal",
+   "rollback_detection": "UNAVAILABLE: no witness reachable and no watermark file; a restored database cannot be told from the newest one",
+   "witness": {
+    "configured": true,
+    "reachable": true,
+    "identity_pinned_matches": true,
+    "latest_sequence": null,
+    "age_seconds": null,
+    "witness_id": "w-test",
+    "fresh": false
+   },
+   "quarantined_peers": [],
+   "quarantined_allocations": []
+  },
+  "audit": {
+   "total_held": 22330,
+   "fixture_funding": 22330,
+   "backing_locked_for_exports": 0,
+   "claims_backed_elsewhere": 0,
+   "conserved": true
+  },
+  "source": "projection of journal, obligations, reservations, allocations, missions and controller validation; no second balance"
+ },
+ "custody_note": "mission payments and the machine's purchases run under development custody (service-held keys); the supplier and the clean-client provider use external signer custody",
+ "elapsed_seconds": 12.2
+}

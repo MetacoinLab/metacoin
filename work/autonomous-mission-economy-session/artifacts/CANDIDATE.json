@@ -1,0 +1,19 @@
+{
+ "schema": "metacoin-candidate/v1",
+ "order": "autonomous mission economy (2026-10-23)",
+ "branch": "feature/autonomous-mission-economy-v1",
+ "base_revision": "6a9b5926bfd35c8b521847707d49ac2eacfe4647",
+ "source_candidate": "809b95eb974337c934dd78c7e736678a3bf1c83c",
+ "journeys_revision": "809b95eb974337c934dd78c7e736678a3bf1c83c",
+ "migrations": [
+  "044_native_account_keys",
+  "045_claim_lineage_checkpoints_fragments",
+  "046_resource_market",
+  "047_mission_contracts"
+ ],
+ "x402": "disabled; facilitator URL closed",
+ "published": false,
+ "pushed": false,
+ "merged": false,
+ "live_upgraded": false
+}
