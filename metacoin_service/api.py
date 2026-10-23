@@ -93,6 +93,8 @@ class Services:
         from .native.mission_planning import MissionPlanning; self.planning = MissionPlanning(self)
         from .native.operator import OperatorScreen; self.operator = OperatorScreen(self)
         from .native.signing import Signing; self.signing = Signing(settings, self)
+        from .native.subcontracts import Subcontracts; self.subcontracts = Subcontracts(settings, self)
+        self.on_signed_hooks = {'subcontract': [self.subcontracts.on_signed]}
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start

@@ -535,6 +535,10 @@ MIGRATIONS = [
     CREATE TABLE native_signing_requests (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL, kind TEXT NOT NULL, message_json TEXT NOT NULL, context_json TEXT NOT NULL, policy_hash TEXT NOT NULL, ref_type TEXT, ref_id TEXT, state TEXT NOT NULL, signature_hex TEXT, key_id TEXT, result_json TEXT, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     CREATE INDEX native_signing_requests_acct ON native_signing_requests(workspace, account_id, state);
     """),
+    ('050_mission_subcontracts', """
+    CREATE TABLE mission_subcontracts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, parent_mission TEXT NOT NULL REFERENCES mission_contracts(id), parent_revision INTEGER NOT NULL, parent_milestone TEXT NOT NULL, primary_principal TEXT NOT NULL, primary_account TEXT NOT NULL, provider_id TEXT NOT NULL, provider_principal TEXT NOT NULL, child_mission TEXT NOT NULL REFERENCES mission_contracts(id), deliverable_json TEXT NOT NULL, deliverable_digest TEXT NOT NULL, acceptance_json TEXT NOT NULL, deadline_at INTEGER, funded_amount INTEGER NOT NULL, funding_mode TEXT NOT NULL, prefund_obligation TEXT, return_destination TEXT, depth INTEGER NOT NULL, state TEXT NOT NULL, timeline_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX mission_subcontracts_parent ON mission_subcontracts(parent_mission, parent_milestone);
+    """),
 ]
 
 

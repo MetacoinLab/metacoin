@@ -308,12 +308,24 @@ class Missions:
 
     def view(self, db, principal, mid):
         principal.require('work:read'); r = self._row(db, principal.workspace, mid)
-        ms = []
+        ms = []; party = principal.id == r['owner_principal'] or principal.can('native:admin')
+        prov_principals = set()
+        for m0 in db.execute('SELECT spec_json, binding_json FROM mission_milestones WHERE mission_id=?', (mid,)).fetchall():
+            for pid in (json.loads(m0['spec_json']).get('permitted_providers') or []) + [json.loads(m0['binding_json']).get('provider_id')]:
+                if pid:
+                    pr = db.execute('SELECT principal_id FROM providers WHERE id=?', (pid,)).fetchone()
+                    if pr:
+                        prov_principals.add(pr['principal_id'])
+        party = party or principal.id in prov_principals
         for m in db.execute('SELECT * FROM mission_milestones WHERE mission_id=? ORDER BY created_at', (mid,)).fetchall():
-            ms.append({'id': m['id'], 'key': m['key'], 'kind': m['kind'], 'actor': m['actor'], 'optional': bool(m['optional']), 'depends': json.loads(m['depends_json']), 'spec': json.loads(m['spec_json']), 'spec_digest': m['spec_digest'], 'state': m['state'], 'binding': json.loads(m['binding_json']), 'result': json.loads(m['result_json']) if m['result_json'] else None, 'reason': m['reason'], 'ceiling': ceiling_of(json.loads(m['spec_json']), m['kind'])})
+            spec = json.loads(m['spec_json'])
+            if not party and isinstance(spec.get('inputs'), dict):
+                spec = dict(spec, inputs={'redacted': True, 'inputs_digest': digest(spec['inputs']), 'note': 'private inputs are visible to the owner and the permitted providers only'})
+            ms.append({'id': m['id'], 'key': m['key'], 'kind': m['kind'], 'actor': m['actor'], 'optional': bool(m['optional']), 'depends': json.loads(m['depends_json']), 'spec': spec, 'spec_digest': m['spec_digest'], 'state': m['state'], 'binding': json.loads(m['binding_json']), 'result': json.loads(m['result_json']) if m['result_json'] else None, 'reason': m['reason'], 'ceiling': ceiling_of(json.loads(m['spec_json']), m['kind'])})
         revs = [{'revision': x['revision'], 'state': x['state'], 'digest': x['digest'], 'affected': json.loads(x['affected_json']), 'authorizations': json.loads(x['authorizations_json']), 'reason': x['reason'], 'created_at': x['created_at']} for x in db.execute('SELECT * FROM mission_revisions WHERE mission_id=? ORDER BY revision', (mid,)).fetchall()]
         events = [{'seq': e['seq'], 'at': e['at'], 'actor': e['actor'], 'kind': e['kind'], 'detail': json.loads(e['detail_json'])} for e in db.execute('SELECT * FROM mission_events WHERE mission_id=? ORDER BY seq DESC LIMIT 200', (mid,)).fetchall()]
-        return {'schema': 'metacoin-mission-contract/v1', 'id': mid, 'title': r['title'], 'template': r['template'], 'state': r['state'], 'pause_reason': r['pause_reason'], 'owner_principal': r['owner_principal'], 'owner_account': r['owner_account'], 'asset': r['asset'], 'grant_id': r['grant_id'], 'policy': json.loads(r['policy_json']),
+        subs = [{'id': x['id'], 'milestone': x['parent_milestone'], 'provider_id': x['provider_id'], 'state': x['state'], 'funded_amount': x['funded_amount'], 'mode': x['funding_mode'], 'child_mission': x['child_mission']} for x in db.execute('SELECT * FROM mission_subcontracts WHERE parent_mission=? ORDER BY created_at', (mid,)).fetchall()] if db.execute("SELECT 1 FROM sqlite_master WHERE name='mission_subcontracts'").fetchone() else []
+        return {'schema': 'metacoin-mission-contract/v1', 'id': mid, 'title': r['title'], 'template': r['template'], 'state': r['state'], 'pause_reason': r['pause_reason'], 'owner_principal': r['owner_principal'], 'owner_account': r['owner_account'], 'asset': r['asset'], 'grant_id': r['grant_id'], 'policy': json.loads(r['policy_json']), 'subcontracts': subs, 'viewer_is_party': party,
                 'revision': r['revision'], 'frozen_revision': r['frozen_revision'], 'revisions': revs, 'milestones': ms, 'ceiling': self.ceiling(db, mid), 'events': events, 'created_at': r['created_at'], 'updated_at': r['updated_at']}
 
     def list(self, db, principal):

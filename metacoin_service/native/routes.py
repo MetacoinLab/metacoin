@@ -379,6 +379,30 @@ def mount(app, svc, run, read_body, API):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, False, lambda db, p: M.reserve_prepare(db, p, body))
 
+    @app.post(API + '/subcontracts', status_code=201)
+    async def subcontract_create(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.subcontracts.create(db, p, body), 201), 'subcontract.create', raw)
+
+    @app.get(API + '/subcontracts')
+    async def subcontracts_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.subcontracts.list(db, p, request.query_params.get('parent'))})
+
+    @app.get(API + '/subcontracts/{sid}')
+    async def subcontract_view(request: Request, sid: str):
+        return await run(request, False, lambda db, p: svc.subcontracts.view(db, p, sid))
+
+    @app.post(API + '/subcontracts/{sid}/{action}')
+    async def subcontract_action(request: Request, sid: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        if action == 'prefund-prepare':
+            return await run(request, False, lambda db, p: svc.subcontracts.prefund_prepare(db, p, sid))
+        fn = {'prefund': lambda db, p: svc.subcontracts.prefund_submit(db, p, sid, body), 'step': lambda db, p: svc.subcontracts.step(db, p, sid), 'return-unused': lambda db, p: svc.subcontracts.return_unused(db, p, sid), 'cancel': lambda db, p: svc.subcontracts.cancel(db, p, sid)}.get(action)
+        if fn is None:
+            from ..errors import ServiceError
+            raise ServiceError('NOT_FOUND', 'subcontract action')
+        return await run(request, True, fn, 'subcontract.' + action, raw)
+
     @app.get(API + '/native/operator')
     async def native_operator(request: Request):
         return await run(request, False, lambda db, p: svc.operator.view(db, p, request.query_params.get('asset')))
