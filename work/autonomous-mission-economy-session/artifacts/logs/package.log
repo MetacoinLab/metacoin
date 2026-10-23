@@ -1,0 +1,7 @@
+manifest ok: 115 files
+== scans (2026-10-23T04:18:11Z) archive 810aaaac39a7245c0bec376c40d18aea3ee5b7e9 base 6a9b5926bfd35c8b521847707d49ac2eacfe4647
+archive allowlist ok: no keys, credentials, databases, weights, vectors, node identities, venv or work dir
+no bearer/node-credential-shaped strings in logs/results
+no secret key material outside source text
+No errors detected in compressed data of /home/zhangd2/metacoin-autonomous-mission-economy-delivery-2026-10-23/metacoin-autonomous-mission-economy-source.zip.
+14M	/home/zhangd2/metacoin-autonomous-mission-economy-delivery-2026-10-23
