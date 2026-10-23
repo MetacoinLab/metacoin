@@ -82,19 +82,20 @@ class Controller:
             raise ServiceError('VALIDATION', {'code': 'proposal', 'allowed': ['action', 'milestone?', 'offer_id?']})
         return self.step(db, principal, mid, proposal=body)
 
-    def explain(self, db, principal, mid):
-        """What the controller sees: permissible actions and why each would be accepted or rejected now (no action performed)."""
-        principal.require('work:read'); m = self.M._row(db, principal.workspace, mid); ctx = self._context(db, principal, m)
+    def explain(self, db, principal, mid, observe=False):
+        """What the controller sees: permissible actions and why each would be accepted or rejected now (no action performed).
+        observe=True lets an administrator see the owner's view (read only; stepping still requires the owner or provider)."""
+        principal.require('work:read'); m = self.M._row(db, principal.workspace, mid); ctx = self._context(db, principal, m, observe=observe)
         out = []
         for c in self._candidates(db, principal, m, ctx):
             ok, why = self._validate(db, principal, m, ctx, c); out.append({'action': c['action'], 'milestone': c.get('milestone'), 'offer_id': c.get('offer_id'), 'amount': c.get('amount'), 'permitted': ok, 'reason': why})
         return {'mission_id': mid, 'state': m['state'], 'context': ctx['public'], 'actions': out, 'stop_reason': ctx['stop_reason']}
 
     # ---- context: recorded constraints only --------------------------------------------------------------------------------------
-    def _context(self, db, principal, m):
+    def _context(self, db, principal, m, observe=False):
         N = self.svc.native; d = N.domain(db, principal.workspace); pol = json.loads(m['policy_json'])
         owner_acct = N.account_row(db, principal.workspace, m['owner_account'])
-        role = 'requester' if principal.id == m['owner_principal'] else 'provider'
+        role = 'requester' if principal.id == m['owner_principal'] or (observe and principal.can('native:admin')) else 'provider'
         acting = owner_acct if role == 'requester' else N.account_of(db, principal, principal.workspace, create=False)
         if acting is None:
             raise ServiceError('FORBIDDEN', {'code': 'no_account', 'note': 'the caller has no native account on this domain'})

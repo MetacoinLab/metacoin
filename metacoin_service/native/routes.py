@@ -334,6 +334,10 @@ def mount(app, svc, run, read_body, API):
     async def mission_view(request: Request, mid: str):
         return await run(request, False, lambda db, p: MS.view(db, p, mid))
 
+    @app.get(API + '/native/operator')
+    async def native_operator(request: Request):
+        return await run(request, False, lambda db, p: svc.operator.view(db, p, request.query_params.get('asset')))
+
     @app.get(API + '/missions/{mid}/bundle')
     async def mission_bundle(request: Request, mid: str):
         return await run(request, False, lambda db, p: MS.bundle(db, p, mid))

@@ -1022,6 +1022,12 @@ def mount(app, svc):
     # ---- mission contracts (order 2026-10-23 groups C, D) --------------------------------------------------------------------------
     MS, CT = svc.missions, svc.controller
 
+    @app.get('/console/operator', response_class=HTMLResponse)
+    async def operator_page(request: Request):
+        def fn(db, p):
+            return render(request, 'native_operator.html', principal=p, o=svc.operator.view(db, p, None))
+        return await page(request, fn)
+
     @app.get('/console/missions', response_class=HTMLResponse)
     async def missions_page(request: Request):
         def fn(db, p):

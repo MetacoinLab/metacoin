@@ -484,6 +484,14 @@ def build(api=None):
     def resource_reserve(offer_id: str, offer_version: int, quantity: int, request_id: str) -> dict:
         s, b = api.call('POST', '/api/v1/resources/reservations', {'offer_id': offer_id, 'offer_version': offer_version, 'quantity': quantity, 'request_id': request_id}, idempotency_key=request_id); return ok_or_refused(s, b, (201,))
 
+    @mcp.tool(name='operator_screen', description='READ: what each machine owns and owes, committed resources, missing evidence, what is possible/disabled now (blackout aware, with reasons), pending cross-domain state, recovery state.', annotations=READ)
+    def operator_screen() -> dict:
+        s, b = api.call('GET', '/api/v1/native/operator'); return ok_or_refused(s, b)
+
+    @mcp.tool(name='mission_plan', description='ANALYSIS: bounded planner over the mission\'s unstarted milestones and the live market (objective earliest_delivery | lowest_cost). Returns a schedule or an unsatisfied-constraint witness; locks nothing and spends nothing.', annotations=READ)
+    def mission_plan(mission_id: str, objective: str = 'earliest_delivery', planner: str = 'improved') -> dict:
+        s, b = api.call('POST', '/api/v1/missions/' + mission_id + '/plan', {'objective': objective, 'planner': planner}); return ok_or_refused(s, b)
+
     @mcp.tool(name='mission_status', description='READ: a mission contract: frozen revision, milestones with bindings and evidence, budget ledger projection.', annotations=READ)
     def mission_status(mission_id: str) -> dict:
         s, b = api.call('GET', '/api/v1/missions/' + mission_id)

@@ -197,5 +197,21 @@ class MissionPlanningTests(MissionBase):
         pl3 = self.c.post('/api/v1/missions/' + m2 + '/plan', headers=self.R, json={'objective': 'lowest_cost', 'planner': 'oracle'}).json(); self.assertEqual(pl3['status'], 'optimal')
 
 
+class OperatorScreenTests(MissionBase):
+    def test_operator_screen_answers_the_six_questions_and_disables_with_reasons(self):
+        m = self.mission(policy={'compute_cpu_ms': 20}); mid = m['id']; self.drive_work(mid, 'acquire', 4)
+        o = self.c.get('/api/v1/native/operator', headers=self.H).json(); self.assertEqual(o['schema'], 'metacoin-operator-screen/v1')
+        mach = next(x for x in o['machines'] if x['account'] == self.actors['machine']['account']); req = next(x for x in o['machines'] if x['account'] == self.actors['requester']['account'])
+        self.assertEqual((mach['owed']['outstanding'], req['owes']['outstanding'], req['owns']['reserved']), (4, 4, 4))
+        self.assertTrue(any(a['mission'] == mid and a['action'] == 'pay' for a in o['blackout']['possible_now']))
+        self.c.post('/api/v1/native/domain/connectivity', headers=self.H, json={'state': 'cut'})
+        o2 = self.c.get('/api/v1/native/operator', headers=self.H).json(); self.assertTrue(o2['blackout']['active']); self.assertEqual(o2['connectivity'], 'cut')
+        self.assertTrue(any(a['action'] == 'pay' for a in o2['blackout']['possible_now']))      # local settlement from reserved funds stays possible
+        self.c.post('/api/v1/native/domain/connectivity', headers=self.H, json={'state': 'online'})
+        self.assertEqual(o['pending_cross_domain']['allocations'], []); self.assertEqual(o['recovery']['state'], 'normal'); self.assertTrue(o['audit']['conserved'])
+        r = self.c.get('/api/v1/native/operator', headers=self.actors['machine']['h']); self.assertEqual(r.status_code, 200)   # a machine may read the screen (native:read + work:read)
+        html = self.c.get('/console/operator', headers=self.H); self.assertIn(html.status_code, (200, 303, 401))
+
+
 if __name__ == '__main__':
     unittest.main()

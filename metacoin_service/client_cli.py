@@ -476,7 +476,7 @@ WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-fre
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
                  'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
-MISSION_COMMANDS = ('missions', 'mission-templates', 'mission-create', 'mission', 'mission-ledger', 'mission-explain', 'mission-action', 'mission-authorize')
+MISSION_COMMANDS = ('native-operator', 'mission-plan', 'mission-bundle', 'missions', 'mission-templates', 'mission-create', 'mission', 'mission-ledger', 'mission-explain', 'mission-action', 'mission-authorize')
 MARKET_COMMANDS = ('resources', 'resource-offer-publish', 'resource-offers', 'resource-quote', 'resource-reserve', 'resource-reservations', 'resource-reservation', 'resource-action', 'resource-storage-put')
 SIGNER_COMMANDS = ('signer-health', 'signer-enroll', 'signer-rotate', 'signer-revoke', 'signer-delegate', 'signer-keys', 'native-keys', 'native-key-revoke', 'native-transfer-signed')
 NATIVE_COMMANDS = SIGNER_COMMANDS + MARKET_COMMANDS + MISSION_COMMANDS + ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
@@ -542,6 +542,15 @@ def signer_commands(args, go):
 
 def mission_commands(args, go):
     c = args.command; key = getattr(args, 'idempotency_key', None); jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    if c == 'native-operator':
+        return go('GET', '/api/v1/native/operator')
+    if c == 'mission-plan':
+        return go('POST', '/api/v1/missions/%s/plan' % args.mission_id, {'objective': args.objective, 'planner': args.planner, 'apply': bool(args.apply)}, idempotency_key=key)
+    if c == 'mission-bundle':
+        st, b = go('GET', '/api/v1/missions/%s/bundle' % args.mission_id)
+        if st < 400 and args.out:
+            Path(args.out).write_text(json.dumps(b)); return st, {'written': args.out, 'seal': b.get('seal')}
+        return st, b
     if c == 'missions':
         return go('GET', '/api/v1/missions')
     if c == 'mission-templates':
@@ -1165,6 +1174,9 @@ def main(argv=None):
     w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
     w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
     # ---- missions ----
+    sub.add_parser('native-operator', help='operator screen: owns/owes, committed resources, missing evidence, blackout possibilities, pending cross-domain')
+    n = sub.add_parser('mission-plan'); n.add_argument('mission_id'); n.add_argument('--objective', default='earliest_delivery', choices=('earliest_delivery', 'lowest_cost')); n.add_argument('--planner', default='improved', choices=('baseline', 'improved', 'oracle')); n.add_argument('--apply', action='store_true'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('mission-bundle', help='portable, sealed mission bundle for offline verification'); n.add_argument('mission_id'); n.add_argument('--out')
     sub.add_parser('missions'); sub.add_parser('mission-templates')
     n = sub.add_parser('mission-create', help='create (and optionally freeze) a mission from a template or a JSON graph file'); n.add_argument('--template'); n.add_argument('--policy', help='JSON policy (price, verifier_pay_to, min_cash_reserve, ...)'); n.add_argument('--file'); n.add_argument('--freeze', action='store_true'); n.add_argument('--idempotency-key')
     n = sub.add_parser('mission'); n.add_argument('mission_id'); n = sub.add_parser('mission-ledger'); n.add_argument('mission_id'); n = sub.add_parser('mission-explain'); n.add_argument('mission_id')
