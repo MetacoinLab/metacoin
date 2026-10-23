@@ -36,12 +36,17 @@ def main(argv=None):
     p = sub.add_parser('pack'); p.add_argument('inputs'); p.add_argument('--out', required=True)
     p = sub.add_parser('reproduce'); p.add_argument('inputs'); p.add_argument('--manifest', required=True)
     p = sub.add_parser('check'); p.add_argument('kind'); p.add_argument('inputs'); p.add_argument('result')
+    p = sub.add_parser('task', help='provider executor: read {kind, source, inputs?} and print the product JSON (no preview)'); p.add_argument('task')
     a = ap.parse_args(argv)
     from . import operations, reference, scenario, sources
     if a.cmd == 'sources':
         print(json.dumps(sources.catalog(), indent=1)); return 0
     if a.cmd == 'example':
         print(json.dumps(example(a.name, a.source), separators=(',', ':'))); return 0
+    if a.cmd == 'task':
+        t = json.loads(Path(a.task).read_text()); kind = t.get('kind', 'terrain_tile'); inputs = t.get('inputs') or example('terrain' if kind == 'terrain_tile' else 'route', t.get('source', 'apollo11_32'))
+        r, outcome, summary = operations.run('terrain_tile' if kind == 'terrain_tile' else 'route_feasibility', inputs); r.pop('preview_png_base64', None)
+        print(json.dumps(r, separators=(',', ':'))); return 0
     if a.cmd in ('terrain', 'route'):
         inputs = json.loads(Path(a.inputs).read_text()); r, outcome, summary = operations.run('terrain_tile' if a.cmd == 'terrain' else 'route_feasibility', inputs)
         if a.png and 'preview_png_base64' in r:

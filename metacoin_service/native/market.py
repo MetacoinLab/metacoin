@@ -214,7 +214,12 @@ class Market:
         if r['state'] != 'active':
             raise ServiceError('CONFLICT', {'code': 'state', 'state': r['state'], 'note': 'activate first; delivery is recorded on an active reservation'})
         body = body or {}; meta = json.loads(o['meta_json'])
-        if o['kind'] == 'compute':
+        if o['kind'] == 'compute' and body.get('executed_by') == 'provider':
+            # portable provider client: the task ran on the provider's host; CPU time is the provider's assertion, the product is
+            # verified here against the public lunar reference (labels kept apart; the buyer's policy decides what it pays for)
+            m = self.accept_provider_execution(body, cpu_quantity=r['quantity'])
+            quantity = min(m['claimed_cpu_ms'], r['quantity']) if m.get('reference_ok') else 0
+        elif o['kind'] == 'compute':
             m = self.measure_compute(body.get('task') or {'kind': 'terrain_tile', 'source': 'apollo11_32'}, cpu_limit_s=max(1, r['quantity'] // 1000 + 2))
             quantity = min(m['cpu_ms'], r['quantity'])
         elif o['kind'] == 'storage':
@@ -238,7 +243,22 @@ class Market:
         history.record(db, principal.workspace, principal.id, 'native.obligation', 'resource_reservation', resid, {'delivered_quantity': quantity, 'unit': o['unit'], 'measured': True, 'verified': verified.get('ok')})
         return self.reservation_view(db, principal, resid)
 
+    def accept_provider_execution(self, body, cpu_quantity):
+        """Provider-executed compute: the output is checked against the lunar reference (verified); cpu_ms is a provider assertion."""
+        from ..lunar import reference
+        from ..lunar.__main__ import example
+        task = body.get('task') or {}; kind = task.get('kind', 'terrain_tile'); src = task.get('source', 'apollo11_32'); out = body.get('output')
+        cpu = _int(body.get('cpu_ms', 0), 1, 10 ** 9, 'cpu_ms')
+        if type(out) is not dict:
+            raise ServiceError('VALIDATION', {'code': 'output', 'note': 'the executed product JSON is required for provider-executed delivery'})
+        inputs = example('terrain' if kind == 'terrain_tile' else 'route', src)
+        chk = reference.check(kind if kind in ('terrain_tile', 'route_feasibility') else 'terrain_tile', inputs, out)
+        return {'kind': 'provider_assertion', 'claimed_cpu_ms': cpu, 'claimed_wall_ms': body.get('wall_ms'), 'task': {'kind': kind, 'source': src}, 'output_digest': hashlib.sha256(json.dumps(out, sort_keys=True).encode()).hexdigest(), 'reference_ok': chk['ok'], 'checker_id': chk['checker_id'],
+                'measurement_source': 'provider host rusage as asserted by the provider client; not measured by this service', 'executed_by': 'provider'}
+
     def _verify_delivery(self, kind, m):
+        if kind == 'compute' and m.get('executed_by') == 'provider':
+            return {'kind': 'verified', 'ok': bool(m.get('reference_ok')), 'method': 'independent lunar reference check of the provider-submitted product; the CPU time itself is a provider assertion, not verified', 'checker': m.get('checker_id')}
         if kind == 'compute':
             return {'kind': 'verified', 'ok': bool(m.get('reference_ok')), 'method': 'independent lunar reference check of the child output', 'checker': m.get('checker_id')}
         if kind == 'storage':

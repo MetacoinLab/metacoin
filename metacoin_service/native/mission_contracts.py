@@ -254,7 +254,10 @@ class Missions:
         """Projection of the authoritative journal and obligations onto this mission's milestones: ceiling, reserved, spent, released."""
         r = self._row(db, principal.workspace, mid); rows = db.execute('SELECT * FROM mission_milestones WHERE mission_id=? ORDER BY created_at', (mid,)).fetchall(); out = []; tot = {'ceiling': 0, 'reserved': 0, 'spent': 0, 'released': 0}
         for m in rows:
-            b = json.loads(m['binding_json']); sp = json.loads(m['spec_json']); row = {'key': m['key'], 'kind': m['kind'], 'state': m['state'], 'ceiling': ceiling_of(sp, m['kind']), 'reserved': 0, 'spent': 0, 'released': 0, 'binding': b}
+            b = json.loads(m['binding_json']); sp = json.loads(m['spec_json']); row = {'key': m['key'], 'kind': m['kind'], 'state': m['state'], 'ceiling': ceiling_of(sp, m['kind']), 'reserved': 0, 'spent': 0, 'released': 0, 'binding': b, 'obligations': []}
+            for aid_key in ('award_id', 'acquisition_award_id'):
+                if b.get(aid_key):
+                    row['obligations'] += [o['id'] for o in db.execute("SELECT id FROM native_obligations WHERE json_extract(policy_json, '$.award_id')=?", (b[aid_key],)).fetchall()]
             if b.get('award_id'):
                 aw = db.execute('SELECT * FROM work_awards WHERE id=?', (b['award_id'],)).fetchone()
                 if aw:
@@ -263,7 +266,7 @@ class Missions:
             for resid in [x.get('reservation_id') for x in (b.get('previous_reservations') or [])] + ([b['reservation_id']] if b.get('reservation_id') else []):
                 rr = db.execute('SELECT * FROM resource_reservations WHERE id=?', (resid,)).fetchone()
                 if rr:
-                    ob = db.execute('SELECT settled_amount FROM native_obligations WHERE id=?', (rr['obligation_id'],)).fetchone(); paid = ob['settled_amount'] if ob else 0
+                    ob = db.execute('SELECT settled_amount FROM native_obligations WHERE id=?', (rr['obligation_id'],)).fetchone(); paid = ob['settled_amount'] if ob else 0; row['obligations'].append(rr['obligation_id'])
                     row['spent'] += paid; row['reserved'] += rr['price'] - paid if rr['state'] in ('reserved', 'active', 'delivered') else 0; row['released'] += (rr['price'] - paid) if rr['state'] in ('settled', 'cancelled') else 0
             if b.get('acquisition_award_id'):
                 aw = db.execute('SELECT * FROM work_awards WHERE id=?', (b['acquisition_award_id'],)).fetchone()
@@ -275,6 +278,33 @@ class Missions:
             out.append(row)
         acct = self.svc.native.account_view(db, principal, r['owner_account'], None) if principal.can('native:read') else None
         return {'mission_id': mid, 'asset': r['asset'], 'milestones': out, 'totals': tot, 'owner_account': {'id': r['owner_account'], 'available': acct['available'], 'reserved': acct['reserved'], 'earned_unsettled': acct['earned_unsettled']} if acct else None, 'source': 'projection of the journal, work awards and reservations; not a second balance'}
+
+    def bundle(self, db, principal, mid):
+        """Portable mission bundle (metacoin-mission-bundle/v1): the mission, its ledger projection, the related obligations, intents
+        (signed messages), authority receipts, journal entries and public account identities, sealed by an authority receipt over
+        the content digest. Verifiable offline by metacoin_provider.verify under pinned roots; nothing in it is a root."""
+        view = self.view(db, principal, mid); led = self.budget_ledger(db, principal, mid); N = self.svc.native; d = N.domain(db, principal.workspace); ws = principal.workspace
+        obl_ids = sorted({o for row in led['milestones'] for o in row['obligations']})
+        res_ids = sorted({x.get('reservation_id') for row in led['milestones'] for x in [row['binding']] + (row['binding'].get('previous_reservations') or []) if x.get('reservation_id')})
+        intents = []
+        if obl_ids:
+            q = 'SELECT * FROM native_intents WHERE workspace=? AND obligation_ref IN (%s) ORDER BY created_at' % ','.join('?' * len(obl_ids))
+            for r in db.execute(q, (ws, *obl_ids)).fetchall():
+                pub = db.execute('SELECT public_hex FROM native_accounts WHERE id=?', (r['actor_account'],)).fetchone()
+                intents.append({'id': r['id'], 'type': r['type'], 'actor_account': r['actor_account'], 'recipient': r['recipient'], 'asset': r['asset'], 'amount_final': r['amount_final'], 'state': r['state'], 'commit_sequence': r['commit_sequence'], 'obligation_id': r['obligation_ref'],
+                                'message': json.loads(r['message_json']), 'message_digest': r['message_digest'], 'signature_hex': r['signature_hex'], 'signer_public_hex': pub['public_hex'] if pub else None})
+        ref_ids = set(i['id'] for i in intents) | set(res_ids) | set(obl_ids)
+        receipts = [{'id': r['id'], 'kind': r['kind'], 'ref_type': r['ref_type'], 'ref_id': r['ref_id'], 'statement': json.loads(r['statement_json']), 'signature_hex': r['signature_hex'], 'key_id': r['key_id']} for r in db.execute('SELECT * FROM native_receipts WHERE workspace=? ORDER BY created_at', (ws,)).fetchall() if r['ref_id'] in ref_ids]
+        from ..economy import journal
+        entries = [e for e in journal.entries(db, ws, limit=20000) if e['network'] == d['id'] and e['ref_id'] in ref_ids]
+        acct_ids = {i['actor_account'] for i in intents} | {i['recipient'] for i in intents if i['recipient']} | {view['owner_account']}
+        accounts = [dict(a) for a in db.execute('SELECT id, kind, label, key_id, public_hex, custody, state FROM native_accounts WHERE workspace=?', (ws,)).fetchall() if a['id'] in acct_ids]
+        obligations = [N.obligation_view(db, principal, o) for o in obl_ids]
+        content = {'domain': d['id'], 'environment': d['environment'], 'mission': dict(view, receipt_ids=[r['id'] for r in receipts]), 'ledger': led, 'obligations': obligations, 'intents': intents, 'receipts': receipts, 'journal_entries': entries, 'accounts': accounts, 'exported_at': now()}
+        cd = P.digest(content); st = {'schema': 'metacoin-native-receipt/v0', 'protocol': P.PROTOCOL, 'kind': 'mission_bundle_seal', 'ref_type': 'mission', 'ref_id': mid, 'claims': {'content_digest': cd, 'mission_id': mid, 'revision': view['frozen_revision']}, 'issued_at': now(), 'nonce': secrets.token_hex(8)}
+        sig, kid = N.authority_sign(db, ws, 'receipt', st)
+        return {'schema': 'metacoin-mission-bundle/v1', 'content': content, 'seal': {'content_digest': cd, 'statement': st, 'signature_hex': sig, 'key_id': kid, 'domain': d['id']},
+                'verification': 'metacoin_provider verify <bundle.json> --roots <roots.json> (offline; roots pinned out of band, e.g. GET /api/v1/native/domain at enrolment)'}
 
     def view(self, db, principal, mid):
         principal.require('work:read'); r = self._row(db, principal.workspace, mid)
