@@ -19,6 +19,11 @@ class Native:
         self.settings, self.svc = settings, services
         self.environment = ENV_OF.get(settings.provider_mode, 'dev')
         self._local = {}
+        from . import lots as _lots
+        ledger.LOT_HOOK[0] = lambda db, ws, kind, asset, domain, amount, src, dst, rt, rid: _lots.on_move(db, ws, kind, asset, domain, amount, src, dst, rt, rid, lambda: self._lot_sequence(db, ws))
+
+    def _lot_sequence(self, db, ws):
+        return db.execute("SELECT COALESCE(MAX(created_sequence),0)+1 FROM native_claim_lots WHERE workspace=?", (ws,)).fetchone()[0]
 
     # ---- domain --------------------------------------------------------------------------------------------------------------
     def _key_path(self, name):

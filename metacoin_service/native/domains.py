@@ -418,8 +418,10 @@ def _mixin(cls):
         for r in rows:
             r['returnable'] = r['amount'] if r['consumed'] == 0 and r['state'] == 'active' else 0
             r['consumptions'] = [dict(c) for c in db.execute('SELECT amount, ref_type, ref_id, created_at FROM native_claim_consumption WHERE allocation_id=? ORDER BY id', (r['allocation_id'],)).fetchall()]
-        return {'account_id': account, 'claims': rows, 'returnable_total': sum(r['returnable'] for r in rows),
-                'rule': 'spending consumes unlineaged units first, then claims oldest first; any consumption makes a claim nonreturnable; transferred units lose lineage'}
+        from . import lots as L
+        lots = L.summary(db, principal.workspace, account)
+        return {'account_id': account, 'claims': rows, 'returnable_total': sum(r['returnable'] for r in rows), 'lots': lots, 'retirable_total': lots['retirable_total'],
+                'rule': 'legacy view: any consumption made a claim nonreturnable; with lots (v2) the original recipient retires exactly the lots it still owns, transferred lots stay backed with their new owner'}
 
     def accounting_view(self, db, principal, asset=None):
         """Independent accounting over source backing, active claims, retired claims and returns (counts and sums from the allocation and lineage records, cross-checked with the journal audit)."""
@@ -434,6 +436,9 @@ def _mixin(cls):
                'returns_completed': q("SELECT COALESCE(SUM(amount),0) FROM native_allocations WHERE workspace=? AND direction='import' AND asset=? AND state='returned'", ws, asset)}
         au = self.audit(db, principal, asset); out['journal_audit'] = {k: au[k] for k in ('total_held', 'fixture_funding', 'backing_locked_for_exports', 'claims_backed_elsewhere', 'conserved')}
         out['checks'] = {'backing_matches_journal': out['source_backing_locked'] == au['backing_locked_for_exports'], 'claims_matches_journal': out['claims_active'] + out['claims_consumed'] + out['retirements_pending'] == au['claims_backed_elsewhere'] or au['claims_backed_elsewhere'] == 0}
+        from . import lots as L
+        inv = [L.invariants(db, ws, r['id']) for r in db.execute("SELECT id FROM native_allocations WHERE workspace=? AND direction='import' AND asset=?", (ws, asset)).fetchall()]
+        out['lots'] = {'allocations': len(inv), 'partition_ok': all(i['partition_ok'] for i in inv), 'backed_matches_lots': all(i['backed_matches_lots'] in (True, None) for i in inv), 'returned_total': sum(i['returned_amount'] for i in inv), 'invariant': 'for every imported allocation: lots partition its amount; active + committed + spent lots = amount − returned'}
         out['states_exposed'] = ['exported (certified, backing locked)', 'in_transit (certificate issued, import not acknowledged)', 'imported (claim active, returnable)', 'partially_consumed (nonreturnable)', 'consumed', 'retirement_pending (destination debit committed; certificate awaited)', 'reconciled (acknowledged / returned)']
         return out
 
@@ -467,7 +472,7 @@ def _mixin(cls):
         self._consume_claims(db, principal.workspace, src['id'], asset, amt, 'native_export', rid)
         aid = 'nal_' + secrets.token_hex(8)
         ev = {'request_id': rid, 'created_by': principal.id, 'steps': [{'state': 'reserved', 'at': now()}]}
-        db.execute('INSERT INTO native_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (aid, principal.workspace, 'export', d['id'], peer['domain_id'], asset, amt, src['id'], rcpt, 'reserved', d['epoch'], None, None, None, None, None, json.dumps(ev), now(), now()))
+        db.execute('INSERT INTO native_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)', (aid, principal.workspace, 'export', d['id'], peer['domain_id'], asset, amt, src['id'], rcpt, 'reserved', d['epoch'], None, None, None, None, None, json.dumps(ev), now(), now()))
         ledger.move(db, principal.workspace, 'alloc-reserve:' + aid, 'native_export_reservation', asset, d['id'], self.environment, amt, ledger.account_name(src['id'], 'available'), ledger.account_name(src['id'], 'in_transit'), 'native_allocation', aid, 'reserved for export to ' + peer['domain_id'])
         history.record(db, principal.workspace, principal.id, 'native.allocation', 'native_allocation', aid, {'state': 'reserved', 'amount': amt, 'destination': peer['domain_id'], 'recipient': rcpt})
         _checkpoint(db); _fault(db, self.settings, 'native_export_reserve')
@@ -508,7 +513,7 @@ def _mixin(cls):
         for i, amt in enumerate(amts):
             aid = 'nal_' + secrets.token_hex(8); ids.append(aid)
             ev = {'request_id': '%s#%d' % (rid, i), 'batch_request_id': rid, 'portion_index': i, 'portion_count': len(amts), 'batch_total': total, 'created_by': principal.id, 'steps': [{'state': 'reserved', 'at': now()}]}
-            db.execute('INSERT INTO native_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (aid, principal.workspace, 'export', d['id'], peer['domain_id'], asset, amt, src['id'], rcpt, 'reserved', d['epoch'], None, None, None, None, None, json.dumps(ev), now(), now()))
+            db.execute('INSERT INTO native_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)', (aid, principal.workspace, 'export', d['id'], peer['domain_id'], asset, amt, src['id'], rcpt, 'reserved', d['epoch'], None, None, None, None, None, json.dumps(ev), now(), now()))
             ledger.move(db, principal.workspace, 'alloc-reserve:' + aid, 'native_export_reservation', asset, d['id'], self.environment, amt, ledger.account_name(src['id'], 'available'), ledger.account_name(src['id'], 'in_transit'), 'native_allocation', aid, 'portion %d/%d of batch %s reserved for export to %s' % (i + 1, len(amts), rid, peer['domain_id']))
         history.record(db, principal.workspace, principal.id, 'native.allocation', 'native_allocation', ids[0], {'batch': rid, 'portions': amts, 'total': total, 'destination': peer['domain_id'], 'allocation_ids': ids})
         _checkpoint(db); _fault(db, self.settings, 'native_export_reserve')
@@ -561,14 +566,16 @@ def _mixin(cls):
         if a is None:
             raise ServiceError('NOT_FOUND', 'allocation')
         env = db.execute("SELECT id, state, attempts, reason FROM native_envelopes WHERE workspace=? AND direction='out' AND causality=? ORDER BY created_at", (principal.workspace, aid)).fetchall()
-        fin = {'reserved': 'local_authorization', 'export_committed': 'durable_local_commit', 'certified': 'cross_domain_pending_claim', 'imported': 'domain_local_settlement', 'acknowledged': 'reconciled_inter_domain_settlement', 'return_requested': 'cross_domain_pending_claim', 'returned': 'reconciled_inter_domain_settlement', 'quarantined': 'cross_domain_pending_claim'}[a['state']]
+        fin = {'reserved': 'local_authorization', 'export_committed': 'durable_local_commit', 'certified': 'cross_domain_pending_claim', 'imported': 'domain_local_settlement', 'acknowledged': 'reconciled_inter_domain_settlement', 'return_requested': 'cross_domain_pending_claim', 'returned': 'reconciled_inter_domain_settlement', 'quarantined': 'cross_domain_pending_claim', 'partially_returned': 'reconciled_inter_domain_settlement'}.get(a['state'], 'cross_domain_pending_claim')
         lin = db.execute('SELECT * FROM native_claim_lineage WHERE allocation_id=?', (aid,)).fetchone()
-        exposed = {'reserved': 'reserved', 'export_committed': 'exported', 'certified': 'in_transit', 'acknowledged': 'reconciled', 'returned': 'reconciled', 'return_requested': 'retirement_pending', 'quarantined': 'quarantined', 'imported': ('returnable' if lin and lin['state'] == 'active' and lin['consumed'] == 0 else 'partially_consumed' if lin and lin['state'] == 'partially_consumed' else 'consumed' if lin and lin['state'] == 'consumed' else 'retirement_pending' if lin and lin['state'] == 'retired' else 'imported')}[a['state']]
-        return {'schema': 'metacoin-native-allocation/v0', 'id': aid, 'exposed_state': exposed, 'returnable_amount': (a['amount'] if lin and lin['state'] == 'active' and lin['consumed'] == 0 else 0) if a['direction'] == 'import' else None, 'consumed_amount': lin['consumed'] if lin else None, 'batch': {'request_id': json.loads(a['evidence_json']).get('batch_request_id'), 'portion_index': json.loads(a['evidence_json']).get('portion_index'), 'portion_count': json.loads(a['evidence_json']).get('portion_count')} if json.loads(a['evidence_json']).get('batch_request_id') else None, 'direction': a['direction'], 'source_domain': a['source_domain'], 'destination_domain': a['destination_domain'], 'asset': a['asset'], 'amount': a['amount'], 'source_account': a['source_account'], 'recipient_account': a['recipient_account'],
+        exposed = {'reserved': 'reserved', 'export_committed': 'exported', 'certified': 'in_transit', 'acknowledged': 'reconciled', 'returned': 'reconciled', 'return_requested': 'retirement_pending', 'quarantined': 'quarantined', 'imported': ('returnable' if lin and lin['state'] == 'active' and lin['consumed'] == 0 else 'partially_consumed' if lin and lin['state'] == 'partially_consumed' else 'consumed' if lin and lin['state'] == 'consumed' else 'retirement_pending' if lin and lin['state'] == 'retired' else 'imported'), 'partially_returned': 'partially_returned'}.get(a['state'], a['state'])
+        from . import lots as L
+        retirable = L.retirable(db, principal.workspace, a['recipient_account'], aid)[0] if a['direction'] == 'import' and a['state'] in ('imported', 'acknowledged') else 0
+        return {'schema': 'metacoin-native-allocation/v0', 'id': aid, 'exposed_state': exposed, 'returnable_amount': retirable if a['direction'] == 'import' else None, 'returned_amount': a['returned_amount'] if 'returned_amount' in a.keys() else 0, 'lot_invariants': L.invariants(db, principal.workspace, aid) if a['direction'] == 'import' else None, 'consumed_amount': lin['consumed'] if lin else None, 'batch': {'request_id': json.loads(a['evidence_json']).get('batch_request_id'), 'portion_index': json.loads(a['evidence_json']).get('portion_index'), 'portion_count': json.loads(a['evidence_json']).get('portion_count')} if json.loads(a['evidence_json']).get('batch_request_id') else None, 'direction': a['direction'], 'source_domain': a['source_domain'], 'destination_domain': a['destination_domain'], 'asset': a['asset'], 'amount': a['amount'], 'source_account': a['source_account'], 'recipient_account': a['recipient_account'],
                 'state': a['state'], 'finality': fin, 'epoch': a['epoch'], 'commit_sequence': a['commit_sequence'], 'certificate': json.loads(a['certificate_json']) if a['certificate_json'] else None, 'certificate_signature': a['certificate_signature'],
                 'acknowledgment': json.loads(a['ack_json']) if a['ack_json'] else None, 'return': json.loads(a['return_json']) if a['return_json'] else None, 'evidence': json.loads(a['evidence_json']), 'messages': [dict(e) for e in env],
                 'explanation': {'reserved': 'the amount left the source account\'s spendable funds; nothing has been promised to the destination yet', 'export_committed': 'the source backing is locked and sequenced; a certificate can be issued', 'certified': 'irrevocable: the destination may import once; the source backing stays locked until a return certificate closes it',
-                                'imported': 'credited at the destination under its pinned trust policy (spendable there); the source has not yet confirmed it knows', 'acknowledged': 'both domains hold durable, consistent state; one owner', 'return_requested': 'the destination made the full claim nonspendable and asked the source to unlock', 'returned': 'the source backing is spendable again; the destination claim is burned', 'quarantined': 'conflicting evidence; frozen until an administrator reconciles'}[a['state']], 'created_at': a['created_at'], 'updated_at': a['updated_at']}
+                                'imported': 'credited at the destination under its pinned trust policy (spendable there); the source has not yet confirmed it knows', 'acknowledged': 'both domains hold durable, consistent state; one owner', 'return_requested': 'the destination made the full claim nonspendable and asked the source to unlock', 'returned': 'the source backing is spendable again; the destination claim is burned', 'quarantined': 'conflicting evidence; frozen until an administrator reconciles', 'partially_returned': 'part of the backing was released on a partial return certificate; the remainder stays locked for the lots still held at the destination'}.get(a['state'], 'see evidence steps'), 'created_at': a['created_at'], 'updated_at': a['updated_at']}
 
     def allocations(self, db, principal, direction=None, state=None):
         principal.require('native:read')
@@ -603,7 +610,7 @@ def _mixin(cls):
             db.execute('INSERT INTO native_assets VALUES (?,?,?,?,?,?)', (cert['asset'], principal.workspace, 'claim on %s (imported allocations)' % env['sender'], 1, env['sender'], now()))
         seq = self.next_sequence(db, principal.workspace)
         ev = {'imported_from_envelope': env['id'], 'certificate_key_id': key['key_id'], 'steps': [{'state': 'imported', 'at': now(), 'sequence': seq}]}
-        db.execute('INSERT INTO native_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (aid, principal.workspace, 'import', env['sender'], d['id'], cert['asset'], cert['amount'], None, cert['recipient_account'], 'imported', cert['source_epoch'], seq, json.dumps(cert), sig, None, None, json.dumps(ev), now(), now()))
+        db.execute('INSERT INTO native_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)', (aid, principal.workspace, 'import', env['sender'], d['id'], cert['asset'], cert['amount'], None, cert['recipient_account'], 'imported', cert['source_epoch'], seq, json.dumps(cert), sig, None, None, json.dumps(ev), now(), now()))
         ledger.move(db, principal.workspace, 'alloc-import:' + aid, 'native_import', cert['asset'], d['id'], self.environment, cert['amount'], 'backing:claim:' + aid, ledger.account_name(rcpt['id'], 'available'), 'native_allocation', aid, 'claim credited from %s certificate (sequence %d)' % (env['sender'], cert['commit_sequence']))
         db.execute('INSERT INTO native_claim_lineage VALUES (?,?,?,?,?,0,?,?,NULL,?,?)', (aid, principal.workspace, rcpt['id'], cert['asset'], cert['amount'], 'active', seq, now(), now()))
         _fault(db, self.settings, 'native_import_commit')
@@ -638,6 +645,8 @@ def _mixin(cls):
     def return_request(self, db, principal, body):
         principal.require('native:export')
         aid = body.get('allocation_id') if type(body) is dict else None
+        if type(body) is dict and body.get('amount') is not None:
+            return self.return_request_partial(db, principal, body)
         a = db.execute("SELECT * FROM native_allocations WHERE id=? AND workspace=? AND direction='import'", (aid, principal.workspace)).fetchone()
         if a is None:
             raise ServiceError('NOT_FOUND', 'imported allocation')
@@ -666,7 +675,48 @@ def _mixin(cls):
         history.record(db, principal.workspace, principal.id, 'native.allocation', 'native_allocation', aid, {'state': 'return_requested'})
         return self.allocation_view(db, principal, aid)
 
+    def return_request_partial(self, db, principal, body):
+        """Partial return with explicit lot lineage: the original recipient retires exactly `amount` of the lots it still owns
+        (irrevocably, before any certificate); the source will release exactly that amount of the allocation's backing."""
+        from . import lots as L
+        aid = body.get('allocation_id'); amt = body.get('amount')
+        a = db.execute("SELECT * FROM native_allocations WHERE id=? AND workspace=? AND direction='import'", (aid, principal.workspace)).fetchone()
+        if a is None:
+            raise ServiceError('NOT_FOUND', 'imported allocation')
+        try:
+            P.amount(amt)
+        except P.ProtocolError as exc:
+            raise ServiceError('VALIDATION', {'code': exc.code})
+        d = self.domain(db, principal.workspace); self.require_normal(d, 'return')
+        rcpt = self.account_row(db, principal.workspace, a['recipient_account'])
+        if rcpt['principal_id'] != principal.id and not principal.can('native:admin'):
+            raise ServiceError('FORBIDDEN', 'only the original recipient (or an administrator) retires its lots')
+        if a['state'] == 'return_requested':
+            if a['return_json'] and not db.execute("SELECT 1 FROM native_envelopes WHERE workspace=? AND direction='out' AND message_type='return_request' AND causality=?", (principal.workspace, aid)).fetchone():
+                self._outbox(db, principal.workspace, a['source_domain'], 'return_request', json.loads(a['return_json']), aid)
+            return dict(self.allocation_view(db, principal, aid), replayed=True)
+        if a['state'] not in ('imported', 'acknowledged'):
+            raise ServiceError('CONFLICT', {'code': 'return_state', 'state': a['state'], 'note': 'one return at a time per allocation: wait for the certificate of the pending one'})
+        retirable, lot_ids = L.retirable(db, principal.workspace, rcpt['id'], aid)
+        if not lot_ids:
+            raise ServiceError('CONFLICT', {'code': 'missing_lineage', 'note': 'no lot of exact provenance is owned by the original recipient (legacy mixed claim, transferred units, or unknown provenance): refused, not simulated'})
+        if amt > retirable:
+            raise ServiceError('CONFLICT', {'code': 'retire_exceeds_owned', 'retirable': retirable, 'requested': amt, 'note': 'lots transferred to another owner stay backed and are not yours to retire'})
+        if a['asset'] != db.execute('SELECT asset FROM native_claim_lots WHERE lot_id=?', (lot_ids[0],)).fetchone()['asset']:
+            raise ServiceError('CONFLICT', {'code': 'mixed_asset'})
+        seq = self.next_sequence(db, principal.workspace); retired = L.retire(db, principal.workspace, rcpt['id'], aid, amt, seq)
+        ledger.move(db, principal.workspace, 'alloc-return-init:%s:%d' % (aid, seq), 'native_return_initiation', a['asset'], d['id'], self.environment, amt, ledger.account_name(rcpt['id'], 'available'), ledger.account_name(rcpt['id'], 'in_transit'), 'native_allocation', aid, 'partial retirement of %d committed irrevocably at the destination (lots %s); the return certificate follows' % (amt, ','.join(retired)))
+        req = {'protocol': P.PROTOCOL, 'type': 'return_request', 'allocation_id': aid, 'environment': self.environment, 'source_authority': a['source_domain'], 'destination_authority': d['id'], 'asset': a['asset'], 'amount': amt, 'recipient_account': rcpt['id'], 'destination_sequence': seq, 'requested_at': now(), 'partial': True, 'lots': retired, 'returned_before': a['returned_amount']}
+        ev = json.loads(a['evidence_json']); ev['steps'].append({'state': 'return_requested', 'at': now(), 'sequence': seq, 'amount': amt, 'lots': retired, 'partial': True})
+        db.execute("UPDATE native_allocations SET state='return_requested', return_json=?, evidence_json=?, updated_at=? WHERE id=?", (json.dumps(req), json.dumps(ev), now(), aid))
+        _checkpoint(db); _fault(db, self.settings, 'native_return_init')
+        self._outbox(db, principal.workspace, a['source_domain'], 'return_request', req, aid)
+        history.record(db, principal.workspace, principal.id, 'native.allocation', 'native_allocation', aid, {'state': 'return_requested', 'partial': True, 'amount': amt, 'lots': retired})
+        return self.allocation_view(db, principal, aid)
+
     def _on_return_request(self, db, principal, d, env, req, sig, key):
+        if req.get('partial') is True:
+            return self._on_return_request_partial(db, principal, d, env, req, sig, key)
         a = db.execute("SELECT * FROM native_allocations WHERE id=? AND workspace=? AND direction='export'", (req['allocation_id'], principal.workspace)).fetchone()
         if a is None or a['destination_domain'] != env['sender'] or req['source_authority'] != d['id'] or req['asset'] != a['asset'] or req['amount'] != a['amount'] or req['recipient_account'] != a['recipient_account']:
             raise P.ProtocolError('return_binding', {'allocation_id': req['allocation_id'], 'note': 'the return must name this source, the exact asset, amount and recipient of the allocation'})
@@ -687,7 +737,33 @@ def _mixin(cls):
         history.record(db, principal.workspace, principal.id, 'native.allocation', 'native_allocation', a['id'], {'state': 'returned', 'sequence': seq})
         return {'allocation_id': a['id'], 'replies': [json.loads(db.execute('SELECT envelope_json FROM native_envelopes WHERE id=?', (eid,)).fetchone()['envelope_json'])]}
 
+    def _on_return_request_partial(self, db, principal, d, env, req, sig, key):
+        a = db.execute("SELECT * FROM native_allocations WHERE id=? AND workspace=? AND direction='export'", (req['allocation_id'], principal.workspace)).fetchone()
+        if a is None or a['destination_domain'] != env['sender'] or req['source_authority'] != d['id'] or req['asset'] != a['asset'] or req['recipient_account'] != a['recipient_account']:
+            raise P.ProtocolError('return_binding', {'allocation_id': req['allocation_id']})
+        if a['state'] not in ('certified', 'acknowledged', 'partially_returned'):
+            raise P.ProtocolError('return_state', {'state': a['state']})
+        ev = json.loads(a['evidence_json']); done = next((st for st in ev['steps'] if st.get('state') == 'partially_returned' and st.get('destination_sequence') == req['destination_sequence']), None)
+        if done:
+            r = db.execute("SELECT envelope_json FROM native_envelopes WHERE workspace=? AND direction='out' AND message_type='return_certificate' AND causality=? AND json_extract(payload_json, '$.destination_sequence')=?", (principal.workspace, a['id'], req['destination_sequence'])).fetchone()
+            return {'state': 'duplicate', 'reason': 'already_released_for_this_request', 'replies': [json.loads(r['envelope_json'])] if r else []}
+        if req['returned_before'] != a['returned_amount'] or req['amount'] > a['amount'] - a['returned_amount']:
+            raise P.ProtocolError('return_amount', {'requested': req['amount'], 'returned_before_claimed': req['returned_before'], 'returned_so_far': a['returned_amount'], 'remaining_backing': a['amount'] - a['returned_amount'], 'note': 'reordered or stale partial returns are refused; backing is released at most once per retirement'})
+        self.require_normal(d, 'return completion'); seq = self.next_sequence(db, principal.workspace)
+        ledger.move(db, principal.workspace, 'alloc-return:%s:%d' % (a['id'], req['destination_sequence']), 'native_return_completion', a['asset'], d['id'], self.environment, req['amount'], 'backing:exported:' + a['id'], ledger.account_name(a['source_account'], 'available'), 'native_allocation', a['id'], 'partial return by %s (destination sequence %d): exactly %d of the backing released; %d stays backed' % (env['sender'], req['destination_sequence'], req['amount'], a['amount'] - a['returned_amount'] - req['amount']))
+        _fault(db, self.settings, 'native_return_complete')
+        new_ret = a['returned_amount'] + req['amount']; remaining = a['amount'] - new_ret; state = 'returned' if remaining == 0 else 'partially_returned'
+        cert = {'protocol': P.PROTOCOL, 'type': 'return_certificate', 'allocation_id': a['id'], 'environment': self.environment, 'source_authority': d['id'], 'destination_authority': env['sender'], 'asset': a['asset'], 'amount': req['amount'], 'source_sequence': seq, 'returned_at': now(), 'partial': True, 'lots': req['lots'], 'destination_sequence': req['destination_sequence'], 'remaining': remaining}
+        ev['steps'].append({'state': 'partially_returned' if remaining else 'returned', 'at': now(), 'sequence': seq, 'destination_sequence': req['destination_sequence'], 'amount': req['amount'], 'remaining': remaining, 'envelope': env['id']})
+        db.execute("UPDATE native_allocations SET state=?, returned_amount=?, return_json=?, evidence_json=?, updated_at=? WHERE id=?", (state, new_ret, json.dumps(req), json.dumps(ev), now(), a['id']))
+        eid = self._outbox(db, principal.workspace, env['sender'], 'return_certificate', cert, a['id'])
+        self._watermark_write(db, principal.workspace); self.checkpoint(db, principal.workspace)
+        history.record(db, principal.workspace, principal.id, 'native.allocation', 'native_allocation', a['id'], {'state': state, 'released': req['amount'], 'remaining_backing': remaining, 'sequence': seq})
+        return {'allocation_id': a['id'], 'replies': [json.loads(db.execute('SELECT envelope_json FROM native_envelopes WHERE id=?', (eid,)).fetchone()['envelope_json'])]}
+
     def _on_return_certificate(self, db, principal, d, env, cert, sig, key):
+        if cert.get('partial') is True:
+            return self._on_return_certificate_partial(db, principal, d, env, cert, sig, key)
         a = db.execute("SELECT * FROM native_allocations WHERE id=? AND workspace=? AND direction='import'", (cert['allocation_id'], principal.workspace)).fetchone()
         if a is None or a['source_domain'] != env['sender'] or cert['destination_authority'] != d['id'] or cert['amount'] != a['amount'] or cert['asset'] != a['asset']:
             raise P.ProtocolError('return_certificate_binding')
@@ -699,6 +775,23 @@ def _mixin(cls):
         ev = json.loads(a['evidence_json']); ev['steps'].append({'state': 'returned', 'at': now(), 'envelope': env['id']})
         db.execute("UPDATE native_allocations SET state='returned', evidence_json=?, updated_at=? WHERE id=?", (json.dumps(ev), now(), a['id']))
         history.record(db, principal.workspace, principal.id, 'native.allocation', 'native_allocation', a['id'], {'state': 'returned', 'claim': 'burned'})
+        return {'allocation_id': a['id']}
+
+    def _on_return_certificate_partial(self, db, principal, d, env, cert, sig, key):
+        a = db.execute("SELECT * FROM native_allocations WHERE id=? AND workspace=? AND direction='import'", (cert['allocation_id'], principal.workspace)).fetchone()
+        if a is None or a['source_domain'] != env['sender'] or cert['destination_authority'] != d['id'] or cert['asset'] != a['asset']:
+            raise P.ProtocolError('return_certificate_binding')
+        ev = json.loads(a['evidence_json'])
+        if any(st.get('state') == 'return_completed' and st.get('destination_sequence') == cert['destination_sequence'] for st in ev['steps']):
+            return {'state': 'duplicate', 'reason': 'already_burned_for_this_request'}
+        req = json.loads(a['return_json']) if a['return_json'] else None
+        if a['state'] != 'return_requested' or not req or req.get('destination_sequence') != cert['destination_sequence'] or req['amount'] != cert['amount'] or sorted(req['lots']) != sorted(cert['lots']):
+            raise P.ProtocolError('return_certificate_state', {'state': a['state'], 'note': 'a partial certificate closes exactly the pending retirement it names (sequence, amount, lots); nothing else unlocks'})
+        ledger.move(db, principal.workspace, 'alloc-burn:%s:%d' % (a['id'], cert['destination_sequence']), 'native_claim_burn', a['asset'], d['id'], self.environment, cert['amount'], ledger.account_name(a['recipient_account'], 'in_transit'), 'backing:claim:' + a['id'], 'native_allocation', a['id'], 'retired lots burned on the source\'s partial return certificate')
+        new_ret = a['returned_amount'] + cert['amount']; state = 'returned' if new_ret == a['amount'] else 'imported'
+        ev['steps'].append({'state': 'return_completed', 'at': now(), 'destination_sequence': cert['destination_sequence'], 'amount': cert['amount'], 'remaining': a['amount'] - new_ret, 'envelope': env['id']})
+        db.execute("UPDATE native_allocations SET state=?, returned_amount=?, evidence_json=?, updated_at=? WHERE id=?", (state, new_ret, json.dumps(ev), now(), a['id']))
+        history.record(db, principal.workspace, principal.id, 'native.allocation', 'native_allocation', a['id'], {'state': state, 'burned': cert['amount'], 'returned_total': new_ret})
         return {'allocation_id': a['id']}
 
     # ---- rotation and observations -------------------------------------------------------------------------------------------
@@ -760,7 +853,7 @@ def _mixin(cls):
                 if type(amt) is not int or amt <= 0 or avail < amt:
                     ok = False; report['reconstructed'].append({'allocation_id': m['allocation_id'], 'status': 'cannot_lock', 'note': 'supply amounts[allocation_id] from the peer\'s certificate copy; the source account must still hold the funds'}); continue
                 ledger.move(db, principal.workspace, 'alloc-reconstruct:' + m['allocation_id'], 'native_export_reconstruction', asset, d['id'], self.environment, amt, ledger.account_name(src, 'available'), 'backing:exported:' + m['allocation_id'], 'native_allocation', m['allocation_id'], 'backing locked from the peer\'s signed observation after a rollback')
-                db.execute('INSERT INTO native_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (m['allocation_id'], principal.workspace, 'export', d['id'], p, asset, amt, src, '?', 'acknowledged', d['epoch'], m['commit_sequence'], None, None, None, None, json.dumps({'reconstructed_from_observation': p, 'steps': [{'state': 'reconstructed', 'at': now()}]}), now(), now()))
+                db.execute('INSERT INTO native_allocations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)', (m['allocation_id'], principal.workspace, 'export', d['id'], p, asset, amt, src, '?', 'acknowledged', d['epoch'], m['commit_sequence'], None, None, None, None, json.dumps({'reconstructed_from_observation': p, 'steps': [{'state': 'reconstructed', 'at': now()}]}), now(), now()))
                 report['reconstructed'].append({'allocation_id': m['allocation_id'], 'status': 'locked', 'amount': amt})
         if ok and d['recovery_state'] != 'normal':
             wm = self._watermark_path(d['id'])
@@ -803,11 +896,12 @@ def _mixin(cls):
         for pr in pools:
             pr.pop('schedule_json', None)
         commitments = [dict(r) for r in db.execute('SELECT id, pool_id, reservation_id, start, end, slots, state FROM pool_commitments WHERE workspace=?', (ws,)).fetchall()]
+        claim_lots = [dict(r) for r in db.execute("SELECT lot_id, origin_allocation, parent_lot, asset, amount, owner_account, status, transferred, created_sequence FROM native_claim_lots WHERE workspace=? AND status<>'merged'", (ws,)).fetchall()]
         for i in intents:
             hist = json.loads(db.execute('SELECT history_json FROM native_intents WHERE id=?', (i['id'],)).fetchone()['history_json'] or '[]')
             i['signer_key_id'] = next((h.get('key_id') for h in reversed(hist) if isinstance(h, dict) and h.get('key_id')), None)
         return {'schema': 'metacoin-native-export/v0', 'domain': d['id'], 'environment': d['environment'], 'operator': d['operator'], 'host': d['host'], 'epoch': d['epoch'], 'commit_sequence': d['commit_sequence'], 'recovery_state': d['recovery_state'],
-                'self_description_keys': keys, 'account_keys': account_keys, 'resource_pools': pools, 'pool_commitments': commitments, 'accounts': accts, 'intents': intents, 'receipts': receipts, 'obligations': obligations, 'allocations': allocs, 'envelopes_in': envs['in'], 'envelopes_out': envs['out'],
+                'self_description_keys': keys, 'account_keys': account_keys, 'resource_pools': pools, 'pool_commitments': commitments, 'claim_lots': claim_lots, 'accounts': accts, 'intents': intents, 'receipts': receipts, 'obligations': obligations, 'allocations': allocs, 'envelopes_in': envs['in'], 'envelopes_out': envs['out'],
                 'journal_entries': entries, 'audits': {a: self.audit(db, principal, a) for a in [r['asset_id'] for r in db.execute('SELECT asset_id FROM native_assets WHERE workspace=?', (ws,)).fetchall()]}, 'exported_at': now(),
                 'note': 'keys listed here are data; a verifier pins roots from an out-of-band source (the domain view read over an authenticated channel, or the operator)'}
 
@@ -822,6 +916,6 @@ def _mixin(cls):
                 'what_is_detected': P.TRUST_MODEL['detected'], 'what_is_not': P.TRUST_MODEL['not_provided'], 'safety_limitation': P.TRUST_MODEL['boundary'], 'rollback_note': ROLLBACK_NOTE}
 
     for f in (export_record, _journal_root, checkpoint, witness_latest, _reassemble, _fragment_items, _consume_claims, lineage_view, accounting_view, export_batch, _watermark_path, _watermark_write, rollback_check, require_normal, _record_local_key, _current_key_path, _sign_with, pin_peer, peer_view, _peer, _verify_peer_signature, rotate_authority, _outbox, outbox, outbox_mark, transport_gc, inbox, _record_rejection, _apply_item, _replay_replies,
-              export_create, export_resume, recover_exports, allocation_view, allocations, _on_certificate, _quarantine, _on_ack, return_request, _on_return_request, _on_return_certificate, _on_rotation, observation, _on_observation, recovery_reconcile, recovery_view):
+              export_create, export_resume, recover_exports, allocation_view, allocations, _on_certificate, _quarantine, _on_ack, return_request, return_request_partial, _on_return_request, _on_return_request_partial, _on_return_certificate, _on_return_certificate_partial, _on_rotation, observation, _on_observation, recovery_reconcile, recovery_view):
         setattr(cls, f.__name__, f)
     return cls

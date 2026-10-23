@@ -105,8 +105,8 @@ def mount(app, svc, run, read_body, API):
 
     @app.post(API + '/native/allocations/{aid}/return')
     async def native_return(request: Request, aid: str):
-        raw = await request.body(); read_body(request, raw)
-        return await run(request, True, lambda db, p: N.return_request(db, p, {'allocation_id': aid}), 'native.allocation.return', raw)
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: N.return_request(db, p, dict({'allocation_id': aid}, **({'amount': body['amount']} if isinstance(body, dict) and body.get('amount') is not None else {}))), 'native.allocation.return', raw)
 
     @app.get(API + '/native/allocations')
     async def native_allocations(request: Request):
@@ -402,6 +402,23 @@ def mount(app, svc, run, read_body, API):
             from ..errors import ServiceError
             raise ServiceError('NOT_FOUND', 'subcontract action')
         return await run(request, True, fn, 'subcontract.' + action, raw)
+
+    @app.get(API + '/native/accounts/{aid}/lots')
+    async def native_lots(request: Request, aid: str):
+        from . import lots as L
+        return await run(request, False, lambda db, p: (p.require('native:read'), L.summary(db, p.workspace, aid, request.query_params.get('asset')))[1])
+
+    @app.post(API + '/native/accounts/{aid}/lots/consolidate')
+    async def native_lots_consolidate(request: Request, aid: str):
+        from . import lots as L
+        raw = await request.body(); read_body(request, raw)
+        def fn(db, p):
+            acct = N.account_row(db, p.workspace, aid)
+            if acct['principal_id'] != p.id and not p.can('native:admin'):
+                from ..errors import ServiceError
+                raise ServiceError('FORBIDDEN', 'only the holder consolidates its lots')
+            return {'merged': L.consolidate(db, p.workspace, aid), 'lots': L.summary(db, p.workspace, aid)}
+        return await run(request, True, fn, 'native.lots.consolidate', raw)
 
     @app.get(API + '/native/operator')
     async def native_operator(request: Request):

@@ -539,6 +539,13 @@ MIGRATIONS = [
     CREATE TABLE mission_subcontracts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, parent_mission TEXT NOT NULL REFERENCES mission_contracts(id), parent_revision INTEGER NOT NULL, parent_milestone TEXT NOT NULL, primary_principal TEXT NOT NULL, primary_account TEXT NOT NULL, provider_id TEXT NOT NULL, provider_principal TEXT NOT NULL, child_mission TEXT NOT NULL REFERENCES mission_contracts(id), deliverable_json TEXT NOT NULL, deliverable_digest TEXT NOT NULL, acceptance_json TEXT NOT NULL, deadline_at INTEGER, funded_amount INTEGER NOT NULL, funding_mode TEXT NOT NULL, prefund_obligation TEXT, return_destination TEXT, depth INTEGER NOT NULL, state TEXT NOT NULL, timeline_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
     CREATE INDEX mission_subcontracts_parent ON mission_subcontracts(parent_mission, parent_milestone);
     """),
+    ('051_claim_lots', """
+    CREATE TABLE native_claim_lots (lot_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, origin_allocation TEXT NOT NULL, parent_lot TEXT, asset TEXT NOT NULL, amount INTEGER NOT NULL, owner_account TEXT NOT NULL, status TEXT NOT NULL, transferred INTEGER NOT NULL DEFAULT 0, created_sequence INTEGER NOT NULL, ref_json TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX native_claim_lots_owner ON native_claim_lots(workspace, owner_account, asset, status);
+    CREATE INDEX native_claim_lots_origin ON native_claim_lots(origin_allocation, status);
+    ALTER TABLE native_allocations ADD COLUMN returned_amount INTEGER NOT NULL DEFAULT 0;
+    INSERT INTO native_claim_lots SELECT 'lot_legacy_' || substr(allocation_id, 4), workspace, allocation_id, NULL, asset, amount, account_id, 'active', 0, imported_sequence, '{"migrated_from":"native_claim_lineage","exact_provenance":true}', created_at, created_at FROM native_claim_lineage WHERE consumed = 0 AND state = 'active';
+    """),
 ]
 
 

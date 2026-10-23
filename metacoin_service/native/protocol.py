@@ -168,6 +168,9 @@ ENVELOPE_FIELDS = {'protocol', 'type', 'id', 'environment', 'sender', 'receiver'
 ACK_FIELDS = {'protocol', 'type', 'allocation_id', 'environment', 'source_authority', 'destination_authority', 'import_sequence', 'imported_at'}
 RETURN_REQUEST_FIELDS = {'protocol', 'type', 'allocation_id', 'environment', 'source_authority', 'destination_authority', 'asset', 'amount', 'recipient_account', 'destination_sequence', 'requested_at'}
 RETURN_CERT_FIELDS = {'protocol', 'type', 'allocation_id', 'environment', 'source_authority', 'destination_authority', 'asset', 'amount', 'source_sequence', 'returned_at'}
+# partial returns (v2, order 2026-10-23 group G): explicit extra fields; a v1 peer refuses them as unknown fields (never reinterprets them as a full return)
+RETURN_REQUEST_FIELDS_V2 = RETURN_REQUEST_FIELDS | {'partial', 'lots', 'returned_before'}
+RETURN_CERT_FIELDS_V2 = RETURN_CERT_FIELDS | {'partial', 'lots', 'destination_sequence', 'remaining'}
 ROTATION_FIELDS = {'protocol', 'type', 'authority', 'environment', 'old_epoch', 'new_epoch', 'old_key_id', 'new_key_id', 'new_public_hex', 'grace_seconds', 'rotated_at'}
 OBSERVATION_FIELDS = {'protocol', 'type', 'observer', 'observed', 'environment', 'allocations', 'issued_at'}
 MESSAGE_FIELDS = {'import_ack': ACK_FIELDS, 'return_request': RETURN_REQUEST_FIELDS, 'return_certificate': RETURN_CERT_FIELDS, 'rotation': ROTATION_FIELDS, 'observation': OBSERVATION_FIELDS}
@@ -227,11 +230,17 @@ def validate_message(message_type, body, environment):
     fields = MESSAGE_FIELDS.get(message_type)
     if fields is None:
         raise ProtocolError('unsupported_message_type', {'type': message_type})
+    if isinstance(body, dict) and body.get('partial') is True and message_type in ('return_request', 'return_certificate'):
+        fields = RETURN_REQUEST_FIELDS_V2 if message_type == 'return_request' else RETURN_CERT_FIELDS_V2
+        if not isinstance(body.get('lots'), list) or not body['lots'] or len(body['lots']) > 512 or not all(isinstance(x, str) for x in body['lots']):
+            raise ProtocolError('return_lots', {'note': 'a partial return names the retired lots (1..512 ids)'})
     if not isinstance(body, dict) or set(body) != fields:
         raise ProtocolError('message_fields', {'type': message_type, 'expected': sorted(fields), 'got': sorted(body) if isinstance(body, dict) else None})
     if body['protocol'] != PROTOCOL or body['type'] != message_type or body['environment'] != environment:
         raise ProtocolError('message_binding', {'type': message_type})
     for k, v in body.items():
+        if k == 'partial' and v is True:
+            continue
         if isinstance(v, str):
             short_str(v, k)
         elif isinstance(v, bool) or (not isinstance(v, (int, list)) and v is not None):

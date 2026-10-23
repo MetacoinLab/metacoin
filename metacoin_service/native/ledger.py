@@ -39,10 +39,16 @@ def post(db, workspace, event_key, kind, asset, domain, environment, postings, r
     return journal.post(db, workspace, event_key, kind, asset, domain, environment, postings, ref_type, ref_id, memo)
 
 
+LOT_HOOK = [None]        # set by the native service: claim-lot accounting runs inside every move between account categories
+
+
 def move(db, workspace, event_key, kind, asset, domain, environment, amount, src, dst, ref_type, ref_id, memo):
     """Move `amount` from account/category src to account/category dst (each 'acct:x:cat' or a system account name)."""
     P.amount(amount)
-    return post(db, workspace, event_key, kind, asset, domain, environment, [(src, amount, 0), (dst, 0, amount)], ref_type, ref_id, memo)
+    out = post(db, workspace, event_key, kind, asset, domain, environment, [(src, amount, 0), (dst, 0, amount)], ref_type, ref_id, memo)
+    if LOT_HOOK[0] is not None:
+        LOT_HOOK[0](db, workspace, kind, asset, domain, amount, src, dst, ref_type, ref_id)
+    return out
 
 
 def require_available(db, workspace, asset, domain, account_id, amount):
