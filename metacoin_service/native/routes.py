@@ -319,6 +319,17 @@ def mount(app, svc, run, read_body, API):
         from . import mission_templates as MT
         return await run(request, False, lambda db, p: {'templates': MT.TEMPLATES})
 
+    @app.post(API + '/missions/plan')
+    async def missions_plan_joint(request: Request):
+        raw = await request.body(); body = read_body(request, raw); ids = body.get('mission_ids') or []
+        return await run(request, True, lambda db, p: svc.planning.plan(db, p, ids, {k: v for k, v in body.items() if k != 'mission_ids'}), 'mission.plan', raw)
+
+    @app.post(API + '/plans/solve')
+    async def plans_solve(request: Request):
+        from . import planner as PL
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, False, lambda db, p: (p.require('work:read'), PL.solve(body.get('problem') or {}, body.get('planner', 'improved'), int(body.get('timeout_ms', 2000))))[1])
+
     @app.get(API + '/missions/{mid}')
     async def mission_view(request: Request, mid: str):
         return await run(request, False, lambda db, p: MS.view(db, p, mid))
@@ -335,7 +346,8 @@ def mount(app, svc, run, read_body, API):
     async def mission_action(request: Request, mid: str, action: str):
         raw = await request.body(); body = read_body(request, raw)
         fn = {'freeze': lambda db, p: MS.freeze(db, p, mid), 'amend': lambda db, p: MS.amend(db, p, mid, body), 'pause': lambda db, p: MS.pause(db, p, mid, body), 'resume': lambda db, p: MS.resume(db, p, mid),
-              'step': lambda db, p: CT.step(db, p, mid), 'run': lambda db, p: CT.run(db, p, mid, int(body.get('max_steps', 12))), 'propose': lambda db, p: CT.propose(db, p, mid, body), 'gate': lambda db, p: {'conclusion': CT.gate_progress(db, p, mid, body.get('milestone', 'gate'))}}.get(action)
+              'step': lambda db, p: CT.step(db, p, mid), 'run': lambda db, p: CT.run(db, p, mid, int(body.get('max_steps', 12))), 'propose': lambda db, p: CT.propose(db, p, mid, body), 'gate': lambda db, p: {'conclusion': CT.gate_progress(db, p, mid, body.get('milestone', 'gate'))},
+              'plan': lambda db, p: svc.planning.plan(db, p, [mid] + [x for x in (body.get('mission_ids') or []) if x != mid], {k: v for k, v in body.items() if k != 'mission_ids'})}.get(action)
         if fn is None:
             from ..errors import ServiceError
             raise ServiceError('NOT_FOUND', 'mission action')

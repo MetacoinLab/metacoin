@@ -89,6 +89,7 @@ class Services:
         from .native.controller import Controller
         self.missions = Missions(settings, self)
         self.controller = Controller(settings, self)
+        from .native.mission_planning import MissionPlanning; self.planning = MissionPlanning(self)
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start

@@ -260,11 +260,11 @@ class Missions:
                 if aw:
                     paid = db.execute("SELECT COALESCE(SUM(amount_final),0) FROM native_intents WHERE type='settlement' AND state='settled' AND obligation_ref IN (SELECT id FROM native_obligations WHERE json_extract(policy_json, '$.award_id')=?)", (aw['id'],)).fetchone()[0]
                     row['spent'] = paid; row['reserved'] = aw['ceiling'] - paid if aw['state'] != 'closed' else 0; row['released'] = (aw['ceiling'] - paid) if aw['state'] == 'closed' else 0
-            if b.get('reservation_id'):
-                rr = db.execute('SELECT * FROM resource_reservations WHERE id=?', (b['reservation_id'],)).fetchone()
+            for resid in [x.get('reservation_id') for x in (b.get('previous_reservations') or [])] + ([b['reservation_id']] if b.get('reservation_id') else []):
+                rr = db.execute('SELECT * FROM resource_reservations WHERE id=?', (resid,)).fetchone()
                 if rr:
-                    ob = db.execute('SELECT settled_amount FROM native_obligations WHERE id=?', (rr['obligation_id'],)).fetchone()
-                    row['spent'] = ob['settled_amount'] if ob else 0; row['reserved'] = rr['price'] - row['spent'] if rr['state'] in ('reserved', 'active', 'delivered') else 0; row['released'] = (rr['price'] - row['spent']) if rr['state'] in ('settled', 'cancelled') else 0
+                    ob = db.execute('SELECT settled_amount FROM native_obligations WHERE id=?', (rr['obligation_id'],)).fetchone(); paid = ob['settled_amount'] if ob else 0
+                    row['spent'] += paid; row['reserved'] += rr['price'] - paid if rr['state'] in ('reserved', 'active', 'delivered') else 0; row['released'] += (rr['price'] - paid) if rr['state'] in ('settled', 'cancelled') else 0
             if b.get('acquisition_award_id'):
                 aw = db.execute('SELECT * FROM work_awards WHERE id=?', (b['acquisition_award_id'],)).fetchone()
                 if aw:

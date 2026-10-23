@@ -15,7 +15,7 @@ from ..errors import ServiceError
 from . import ledger
 from . import mission_contracts as MC
 
-ACTIONS = ('open_request', 'award', 'await_execution', 'verify', 'decide', 'pay', 'reserve', 'activate_reservation', 'record_delivery', 'settle_reservation', 'analyze', 'buy_evidence', 'await_delivery', 'skip_gate', 'relay', 'wait', 'stop')
+ACTIONS = ('open_request', 'award', 'await_execution', 'verify', 'decide', 'pay', 'reserve', 'release_missed_reservation', 'activate_reservation', 'record_delivery', 'settle_reservation', 'analyze', 'buy_evidence', 'await_delivery', 'skip_gate', 'relay', 'wait', 'stop')
 
 
 class Rejected(Exception):
@@ -130,7 +130,7 @@ class Controller:
         return 'nothing to do: waiting for providers, execution or dependencies'
 
     # ---- candidates -----------------------------------------------------------------------------------------------------------------
-    PRIORITY = {'pay': 0, 'settle_reservation': 0, 'decide': 1, 'verify': 1, 'award': 2, 'skip_gate': 4, 'await_execution': 5, 'await_delivery': 5, 'wait': 6}
+    PRIORITY = {'pay': 0, 'settle_reservation': 0, 'release_missed_reservation': 0, 'decide': 1, 'verify': 1, 'award': 2, 'skip_gate': 4, 'await_execution': 5, 'await_delivery': 5, 'wait': 6}
 
     def _candidates(self, db, principal, m, ctx):
         """Enumerated in graph order, then stably sorted so incurred obligations settle and decisions resolve before new spending."""
@@ -173,17 +173,21 @@ class Controller:
                         out.append({'action': 'await_execution', 'milestone': ms['key'], 'award_id': aw['id']})
             elif k == 'resource':
                 if ms['state'] in ('ready', 'waiting') and not b.get('reservation_id'):
+                    planned = b.get('planned_offer_id'); cands = []
                     for o in self.svc.market.offers(db, principal, sp['offer_kind']):
                         if sp.get('offer_id') and o['id'] != sp['offer_id']:
                             continue
                         if sp.get('provider_account') and o['provider_account'] != sp['provider_account']:
                             continue
-                        out.append({'action': 'reserve', 'milestone': ms['key'], 'offer_id': o['id'], 'offer_version': o['version'], 'amount': sp['quantity'] * o['price_per_unit'], 'quantity': sp['quantity'], 'offer': o, 'spec': sp})
+                        cands.append({'action': 'reserve', 'milestone': ms['key'], 'offer_id': o['id'], 'offer_version': o['version'], 'amount': sp['quantity'] * o['price_per_unit'], 'quantity': sp['quantity'], 'offer': o, 'spec': sp, 'planned': o['id'] == planned})
+                    out.extend(sorted(cands, key=lambda c: (not c['planned'], c['amount'])))      # the applied plan's offer first, then cheapest; each still revalidated
                     if not any(c['milestone'] == ms['key'] for c in out):
                         out.append({'action': 'wait', 'milestone': ms['key'], 'reason': 'no_offer_for_' + sp['offer_kind']})
                 elif b.get('reservation_id'):
                     r = self.svc.market.reservation_view(db, principal, b['reservation_id'])
-                    if r['state'] == 'reserved':
+                    if r['state'] == 'reserved' and r['window']['end'] <= now():
+                        out.append({'action': 'release_missed_reservation', 'milestone': ms['key'], 'reservation_id': r['id'], 'reason': 'window_missed: the provider never activated before the window closed; cancel before activation returns funds and capacity in full, then replan'})
+                    elif r['state'] == 'reserved':
                         out.append({'action': 'await_delivery', 'milestone': ms['key'], 'reservation_id': r['id'], 'note': 'the provider activates and records measured delivery'})
                     elif r['state'] == 'active':
                         out.append({'action': 'await_delivery', 'milestone': ms['key'], 'reservation_id': r['id']})
@@ -311,10 +315,17 @@ class Controller:
                 i = E.money.prepare(db, principal, eid, {}); E.money.authorize(db, principal, i['id']); s = E.money.submit(db, principal, i['id'], {}); paid.append({'entitlement': eid, 'intent': i['id'], 'state': s['state'], 'rail': s.get('rail'), 'final': s.get('final_amount')})
             self.M.set_milestone(db, m['id'], ms['key'], 'settled', {'paid': paid}, {'paid': paid}); return {'paid': paid}
         if a == 'reserve':
-            buyer = ctx['acting']['id']
-            r = self.svc.market.reserve(db, principal, {'offer_id': c['offer_id'], 'offer_version': c['offer_version'], 'quantity': c['quantity'], 'request_id': 'mission-%s-%s' % (m['id'], ms['key']), 'buyer_account': buyer, 'purpose': 'mission %s milestone %s' % (m['id'], ms['key'])})
-            self.M.set_milestone(db, m['id'], ms['key'], 'executing', {'reservation_id': r['id'], 'offer_id': c['offer_id'], 'offer_version': c['offer_version'], 'price': r['price'], 'buyer_account': buyer}, {'energy_mwh_per_unit': c['offer'].get('energy_mwh_per_unit', 0)})
-            return {'reservation_id': r['id'], 'price': r['price'], 'quantity': c['quantity']}
+            buyer = ctx['acting']['id']; attempt = len(b.get('previous_reservations') or []) + 1
+            r = self.svc.market.reserve(db, principal, {'offer_id': c['offer_id'], 'offer_version': c['offer_version'], 'quantity': c['quantity'], 'request_id': 'mission-%s-%s-%d' % (m['id'], ms['key'], attempt), 'buyer_account': buyer, 'purpose': 'mission %s milestone %s attempt %d' % (m['id'], ms['key'], attempt)})
+            self.M.set_milestone(db, m['id'], ms['key'], 'executing', {'reservation_id': r['id'], 'offer_id': c['offer_id'], 'offer_version': c['offer_version'], 'price': r['price'], 'buyer_account': buyer, 'attempt': attempt}, {'energy_mwh_per_unit': c['offer'].get('energy_mwh_per_unit', 0)})
+            return {'reservation_id': r['id'], 'price': r['price'], 'quantity': c['quantity'], 'attempt': attempt, 'planned': c.get('planned', False)}
+        if a == 'release_missed_reservation':
+            r = self.svc.market.cancel(db, principal, c['reservation_id'], {'reason': 'mission replan after a missed window'})
+            prev = list(b.get('previous_reservations') or []) + [{'reservation_id': r['id'], 'offer_id': b.get('offer_id'), 'outcome': r['state'], 'released': r.get('price'), 'at': now()}]
+            nb = {k: v for k, v in b.items() if k not in ('reservation_id', 'offer_id', 'offer_version', 'price', 'planned_offer_id', 'planned_start_at', 'planned_end_at', 'plan_digest', 'planned_cost')}
+            db.execute('UPDATE mission_milestones SET binding_json=?, state=?, updated_at=? WHERE id=?', (json.dumps(dict(nb, previous_reservations=prev)), 'ready', now(), ms['id']))
+            self.M._event(db, m['id'], principal.id, 'window_missed', {'milestone': ms['key'], 'reservation_id': r['id'], 'released': r.get('price'), 'note': 'no payment was made for the missed window; the milestone is ready for a replanned reservation'})
+            return {'released_reservation': r['id'], 'state': r['state'], 'released_amount': r.get('price'), 'next': 'plan again (POST /missions/{id}/plan) or let the controller pick the next offer'}
         if a == 'settle_reservation':
             r = self.svc.market.settle(db, principal, c['reservation_id']); self.M.set_milestone(db, m['id'], ms['key'], 'settled', {'settled': True}, {'delivered_quantity': r['delivered_quantity'], 'owed': r['obligation']['settled_amount'] if r.get('obligation') else 0, 'measurement': r.get('measurement')})
             return {'reservation_id': r['id'], 'state': r['state'], 'delivered_quantity': r['delivered_quantity']}

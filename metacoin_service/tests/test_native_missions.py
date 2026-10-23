@@ -11,7 +11,7 @@ from metacoin_service.tests.test_native_protocol import NativeBase
 class MissionBase(NativeBase):
     def setUp(self):
         super().setUp(); self.inst.settings.limits['test_hooks'] = 1; self.fund('requester', 200)
-        self.R, self.M, self.S, self.V = (self.actors[k]['h'] for k in ('requester', 'machine', 'verifier', 'supplier'))
+        self.R, self.M, self.S, self.V = (self.actors[k]['h'] for k in ('requester', 'machine', 'supplier', 'verifier'))
         self.prov = self.c.post('/api/v1/work/providers', headers=self.H, json={'name': 'machine-provider', 'principal_id': self.actors['machine']['principal_id'], 'capabilities': {'kinds': ['terrain_tile', 'route_feasibility', 'scenario_pack', 'energy_audit', 'evidence_acquisition'], 'verification_classes': ['analytical', 'full_exact'], 'payment_schemes': ['exact', 'upto']}}).json()
         self.sup = self.c.post('/api/v1/work/providers', headers=self.H, json={'name': 'supplier-provider', 'principal_id': self.actors['supplier']['principal_id'], 'capabilities': {'kinds': ['energy_audit', 'evidence_acquisition'], 'verification_classes': ['analytical', 'full_exact'], 'payment_schemes': ['exact']}}).json()
         t = int(time.time())
@@ -137,6 +137,64 @@ class MissionTests(MissionBase):
         if pay:
             self.assertTrue(pay[0]['permitted']); s = self.step(mid); self.assertEqual(s['performed']['action'], 'pay')
         led = self.c.get('/api/v1/missions/' + mid + '/ledger', headers=self.R).json(); self.assertGreaterEqual(led['totals']['spent'], 4)
+
+
+class MissionPlanningTests(MissionBase):
+    """Journeys 22–25 at mission level: the planner reads the market and the owner's authority, never locks capacity; competing
+    missions share capacity; a missed contact window is released and replanned without duplicate payments; reserve/deadline
+    conflicts return a witness."""
+    def graph(self, key='link', kind='contact', qty=8, deadline=None):
+        sp = {'offer_kind': kind, 'quantity': qty, 'max_price_per_unit': 5}
+        if deadline:
+            sp['deadline_at'] = deadline
+        return {'milestones': [{'key': key, 'kind': 'resource', 'depends': [], 'spec': sp}]}
+
+    def offer(self, kind, cap, price, ws, we, h=None):
+        r = self.c.post('/api/v1/resources/offers', headers=h or self.S, json={'kind': kind, 'resource_id': '%s-%d-%d' % (kind, ws, price), 'capacity': cap, 'price_per_unit': price, 'window_start': ws, 'window_end': we}); self.assertEqual(r.status_code, 201, r.text); return r.json()
+
+    def test_joint_plan_shares_capacity_and_reservations_revalidate(self):
+        t = int(time.time()); cheap = self.offer('contact', 10, 1, t - 1, t + 3600); dear = self.offer('contact', 20, 4, t - 1, t + 3600, h=self.V)
+        a = self.mission(graph=self.graph(qty=6), template=None)['id']; b = self.mission(graph=self.graph(qty=6), template=None)['id']
+        r = self.c.post('/api/v1/missions/plan', headers=self.R, json={'mission_ids': [a, b], 'objective': 'lowest_cost', 'apply': True}); self.assertEqual(r.status_code, 200, r.text); pl = r.json()
+        self.assertEqual((pl['status'], pl['binding'], pl['incumbent']['cost']), ('optimal', False, 30)); self.assertEqual(sorted(pl['incumbent']['choice'].values()), sorted([cheap['id'], dear['id']]))
+        self.assertEqual(sorted(pl['applied']), sorted([a + ':link', b + ':link']))
+        self.assertEqual(self.c.get('/api/v1/resources/offers/' + cheap['id'], headers=self.R).json()['available'], 10)      # nothing locked by planning
+        sa = self.step(a); sb = self.step(b); self.assertEqual((sa['performed']['action'], sb['performed']['action']), ('reserve', 'reserve')); self.assertTrue(sa['result']['planned'] and sb['result']['planned'])
+        self.assertEqual({sa['performed']['offer_id'], sb['performed']['offer_id']}, {cheap['id'], dear['id']})
+        self.assertEqual(self.c.get('/api/v1/resources/offers/' + cheap['id'], headers=self.R).json()['available'], 4)
+        # a third mission planned alone would also take the cheap offer; the market, not the plan, refuses overcommitment
+        c3 = self.mission(graph=self.graph(qty=6), template=None)['id']; pl3 = self.c.post('/api/v1/missions/' + c3 + '/plan', headers=self.R, json={'objective': 'lowest_cost'}).json()
+        self.assertEqual(pl3['incumbent']['choice'][c3 + ':link'], dear['id'])     # planner reads live availability (cheap has 4 left)
+        self.assertEqual(self.bal('requester', 'reserved'), 30)
+
+    def test_missed_window_released_and_replanned_without_duplicate_payment(self):
+        t = int(time.time()); early = self.offer('contact', 10, 1, t - 1, t + 2); late = self.offer('contact', 10, 2, t + 4, t + 3600)
+        m = self.mission(graph=self.graph(qty=5), template=None)['id']
+        pl = self.c.post('/api/v1/missions/' + m + '/plan', headers=self.R, json={'objective': 'earliest_delivery', 'apply': True}).json(); self.assertEqual(pl['incumbent']['choice'][m + ':link'], early['id'])
+        s = self.step(m); self.assertEqual((s['performed']['action'], s['performed']['offer_id']), ('reserve', early['id'])); first = s['result']['reservation_id']; self.assertEqual(self.bal('requester', 'reserved'), 5)
+        time.sleep(2.2)
+        s = self.step(m); self.assertEqual(s['performed']['action'], 'release_missed_reservation', s); self.assertEqual(s['result']['released_amount'], 5); self.assertEqual(self.bal('requester', 'reserved'), 0)
+        self.assertEqual(self.c.get('/api/v1/resources/reservations/' + first, headers=self.R).json()['state'], 'cancelled')
+        pl2 = self.c.post('/api/v1/missions/' + m + '/plan', headers=self.R, json={'objective': 'earliest_delivery', 'apply': True}).json(); self.assertEqual(pl2['incumbent']['choice'][m + ':link'], late['id'])
+        s = self.step(m); self.assertEqual((s['performed']['action'], s['performed']['offer_id'], s['result']['attempt']), ('reserve', late['id'], 2)); second = s['result']['reservation_id']; self.assertNotEqual(first, second)
+        ms = self.ms(m, 'link'); self.assertEqual(len(ms['binding']['previous_reservations']), 1)
+        # the provider activates and delivers the second reservation; settlement pays exactly once
+        self.c.post('/api/v1/resources/reservations/' + second + '/activate', headers=self.S, json={}); r = self.c.post('/api/v1/resources/reservations/' + second + '/deliver', headers=self.S, json={'bytes': 5 * 1024}); self.assertEqual(r.status_code, 200, r.text)
+        s = self.step(m); self.assertEqual(s['performed']['action'], 'settle_reservation')
+        obls = self.c.get('/api/v1/missions/' + m + '/ledger', headers=self.R).json(); self.assertEqual((obls['totals']['spent'], obls['totals']['released']), (10, 5))
+        self.assertEqual(self.bal('supplier'), 10); self.assertEqual(self.bal('requester'), 190)
+        self.assertTrue(any(e['kind'] == 'window_missed' for e in self.view(m)['events']))
+
+    def test_reserve_deadline_conflict_returns_witness(self):
+        t = int(time.time()); self.offer('contact', 10, 3, t + 600, t + 3600)
+        m = self.mission(graph=self.graph(qty=5), template=None, policy={'min_cash_reserve': 190})['id']
+        pl = self.c.post('/api/v1/missions/' + m + '/plan', headers=self.R, json={'objective': 'lowest_cost'}).json()
+        self.assertEqual((pl['status'], pl['witness']['constraint'], pl['witness']['minimum_cost'], pl['problem']['budgets'][m]), ('infeasible', 'budget', 15, 10))
+        m2 = self.mission(graph=self.graph(qty=5), template=None)['id']
+        pl2 = self.c.post('/api/v1/missions/' + m2 + '/plan', headers=self.R, json={'objective': 'lowest_cost', 'deadline_at': t + 300}).json()
+        self.assertEqual((pl2['status'], pl2['witness']['constraint']), ('infeasible', 'deadline'))
+        self.assertTrue(any(e['kind'] == 'plan' and e['detail']['status'] == 'infeasible' for e in self.view(m2)['events']))
+        pl3 = self.c.post('/api/v1/missions/' + m2 + '/plan', headers=self.R, json={'objective': 'lowest_cost', 'planner': 'oracle'}).json(); self.assertEqual(pl3['status'], 'optimal')
 
 
 if __name__ == '__main__':
