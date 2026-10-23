@@ -860,7 +860,7 @@ def mount(app, svc):
     async def native_account_page(request: Request, aid: str):
         def fn(db, p):
             a = N.account_view(db, p, aid, None)
-            return render(request, 'native_account.html', principal=p, a=a, mine=(a.get('principal_id') == p.id) or p.can('native:admin'), intents=N.intents(db, p, aid), obligations=N.obligations(db, p, aid), now=now(), sim=None)
+            return render(request, 'native_account.html', principal=p, a=a, mine=(a.get('principal_id') == p.id) or p.can('native:admin'), intents=N.intents(db, p, aid), obligations=N.obligations(db, p, aid), now=now(), sim=None, keys=N.keys_view(db, p, aid))
         return await page(request, fn)
 
     @app.post('/console/native/accounts/{aid}/transfer', response_class=HTMLResponse)

@@ -476,16 +476,74 @@ WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-fre
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
                  'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
-NATIVE_COMMANDS = ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
+SIGNER_COMMANDS = ('signer-health', 'signer-enroll', 'signer-rotate', 'signer-revoke', 'signer-delegate', 'signer-keys', 'native-keys', 'native-key-revoke', 'native-transfer-signed')
+NATIVE_COMMANDS = SIGNER_COMMANDS + ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
                    'native-allocation', 'native-allocation-return', 'native-recover', 'native-peer-pin', 'native-peer', 'native-outbox', 'native-inbox', 'native-bundle-write', 'native-bundle-import', 'native-courier', 'native-observation', 'native-rotate', 'native-connectivity',
                    'native-recovery', 'native-reconcile', 'native-audit', 'native-export-record', 'native-check', 'native-vectors', 'native-model', 'native-spec', 'native-disputes', 'native-dispute-open', 'native-dispute-resolve',
                    'procurement-plan', 'procurement-benchmark', 'lunar-sources', 'lunar-products', 'lunar-product', 'lunar-download', 'lunar-example')
+
+
+def _signer(args):
+    from .native.signer import SignerClient
+    return SignerClient(args.signer, args.signer_token_file)
+
+
+def signer_commands(args, go):
+    """Operator-controlled signing (order 2026-10-23 group A): the signer is a separate process; the service stores public identities
+    and signatures. Enrollment registers the public key with the service; rotation/delegation proofs are produced by the signer."""
+    c = args.command; key = getattr(args, 'idempotency_key', None)
+    if c == 'signer-health':
+        return _signer(args).health()
+    if c == 'signer-enroll':
+        st, e = _signer(args).call('POST', '/enroll', {'name': args.name, 'ceiling': args.ceiling})
+        if st != 200:
+            return st, e
+        st2, acct = go('POST', '/api/v1/native/actors/enroll', {'name': args.name, 'public_hex': e['public_hex'], 'key_id': e['key_id'], 'signer_id': e['signer_id']}, idempotency_key=key)
+        if st2 < 400:
+            _signer(args).call('POST', '/bind', {'actor': args.name, 'account': acct['account_id']})
+            if args.out:
+                fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'w') as f:
+                    json.dump({'token': acct['credential']['token']}, f)
+                acct = {k: v for k, v in acct.items() if k != 'credential'}; acct['credential_file'] = args.out
+        return st2, acct
+    if c in ('signer-rotate', 'signer-delegate'):
+        body = {'actor': args.actor, 'grace_seconds': args.grace_seconds} if c == 'signer-rotate' else {'actor': args.actor, 'name': args.name, 'recipients': args.recipients.split(','), 'ceiling': args.ceiling}
+        st, r = _signer(args).call('POST', '/rotate' if c == 'signer-rotate' else '/delegate', body)
+        if st != 200 or not r.get('registration'):
+            return st, r
+        st2, reg = go('POST', '/api/v1/native/accounts/%s/keys' % args.account, r['registration'], idempotency_key=key)
+        return st2, {'signer': {k: r[k] for k in r if k != 'registration'}, 'service_registration': reg}
+    if c == 'signer-revoke':
+        st, r = _signer(args).call('POST', '/revoke', {'actor': args.actor, 'key_id': args.key_id})
+        st2, s2 = go('POST', '/api/v1/native/accounts/%s/keys/%s/revoke' % (args.account, args.key_id), {}, idempotency_key=key) if st == 200 else (st, r)
+        return st2, {'signer': r, 'service': s2}
+    if c == 'signer-keys':
+        return _signer(args).call('GET', '/keys/' + args.actor)
+    if c == 'native-keys':
+        return go('GET', '/api/v1/native/accounts/%s/keys' % args.account)
+    if c == 'native-key-revoke':
+        return go('POST', '/api/v1/native/accounts/%s/keys/%s/revoke' % (args.account, args.key_id), {}, idempotency_key=key)
+    if c == 'native-transfer-signed':
+        body = {'to_account': args.to_account, 'amount': args.amount, 'request_id': args.request_id}
+        for k in ('asset', 'from_account', 'obligation_id'):
+            if getattr(args, k, None): body[k] = getattr(args, k)
+        st, prep = go('POST', '/api/v1/native/transfers/prepare', body)
+        if st >= 400:
+            return st, prep
+        st2, sig = _signer(args).sign(args.actor, prep['message'], getattr(args, 'delegate', None))
+        if st2 != 200:
+            return st2, {'prepared': prep['message_digest'], 'signer_refusal': sig}
+        return go('POST', '/api/v1/native/transfers/submit', {'message': prep['message'], 'signature_hex': sig['signature_hex'], 'key_id': sig['key_id']}, idempotency_key=key)
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
 
 
 def native(args, go):
     """Native protocol commands (order 2026-10-22): one authenticated HTTP request each unless marked offline. Reading never
     spends; native-transfer / native-export / native-fund are the consequential ones and are idempotent by request id."""
     c = args.command
+    if c in SIGNER_COMMANDS:
+        return signer_commands(args, go)
     jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
     key = getattr(args, 'idempotency_key', None)
     if c == 'native-domain':
@@ -1050,6 +1108,17 @@ def main(argv=None):
     w = sub.add_parser('work-challenge-package'); w.add_argument('challenge_id'); w.add_argument('--out')
     w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
     w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
+    # ---- external signer ----
+    def sg(p):
+        p.add_argument('--signer', required=True, help='signer base URL (loopback or an authorized host)'); p.add_argument('--signer-token-file', required=True); return p
+    sg(sub.add_parser('signer-health'))
+    n = sg(sub.add_parser('signer-enroll', help='create the actor key in the signer and register the public identity with the service; credential to --out (0600)')); n.add_argument('name'); n.add_argument('--ceiling', type=int, required=True); n.add_argument('--out'); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('signer-rotate')); n.add_argument('actor'); n.add_argument('--account', required=True); n.add_argument('--grace-seconds', type=int, default=3600); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('signer-revoke')); n.add_argument('actor'); n.add_argument('--account', required=True); n.add_argument('--key-id', required=True); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('signer-delegate', help='bounded delegate key: recipient scope and aggregate ceiling never widen the actor\'s authority')); n.add_argument('actor'); n.add_argument('--account', required=True); n.add_argument('--name', required=True); n.add_argument('--recipients', required=True); n.add_argument('--ceiling', type=int, required=True); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('signer-keys')); n.add_argument('actor')
+    n = sub.add_parser('native-keys'); n.add_argument('account'); n = sub.add_parser('native-key-revoke'); n.add_argument('account'); n.add_argument('key_id'); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('native-transfer-signed', help='prepare -> sign outside the service -> submit')); n.add_argument('actor'); n.add_argument('to_account'); n.add_argument('amount', type=int); n.add_argument('--request-id', required=True); n.add_argument('--asset'); n.add_argument('--from-account'); n.add_argument('--obligation-id'); n.add_argument('--delegate'); n.add_argument('--idempotency-key')
     # ---- native protocol ----
     sub.add_parser('native-domain'); n = sub.add_parser('native-domain-init'); n.add_argument('domain_id'); n.add_argument('--operator', default='same operator (local development)'); n.add_argument('--host', default='this host'); n.add_argument('--idempotency-key')
     sub.add_parser('native-accounts'); n = sub.add_parser('native-account'); n.add_argument('account_id', nargs='?', default='me')

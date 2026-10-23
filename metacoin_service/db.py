@@ -497,6 +497,10 @@ MIGRATIONS = [
     CREATE INDEX native_envelopes_dir_state ON native_envelopes(workspace, direction, state, receiver);
     CREATE INDEX native_allocations_state ON native_allocations(workspace, direction, state);
     """),
+    ('044_native_account_keys', """
+    CREATE TABLE native_account_keys (key_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL REFERENCES native_accounts(id), epoch INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('primary','delegate')), public_hex TEXT NOT NULL, scope_json TEXT, state TEXT NOT NULL, registered_by TEXT, proof_key_id TEXT, valid_from INTEGER NOT NULL, retired_at INTEGER, grace_until INTEGER, created_at INTEGER NOT NULL);
+    CREATE INDEX native_account_keys_acct ON native_account_keys(account_id, state);
+    """),
 ]
 
 

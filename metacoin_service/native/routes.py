@@ -199,3 +199,33 @@ def mount(app, svc, run, read_body, API):
         from . import procurement
         q = request.query_params
         return await run(request, False, lambda db, p: procurement.benchmark(int(q.get('seed', '1')), min(int(q.get('missions', '200')), 2000)))
+
+    # ---- external signer custody (order 2026-10-23 group A) ------------------------------------------------------------------
+    @app.post(API + '/native/actors/enroll', status_code=201)
+    async def native_enroll_external(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (N.enroll_external(db, p, body), 201), 'native.actor.enroll', raw)
+
+    @app.get(API + '/native/accounts/{aid}/keys')
+    async def native_keys(request: Request, aid: str):
+        return await run(request, False, lambda db, p: N.keys_view(db, p, aid))
+
+    @app.post(API + '/native/accounts/{aid}/keys', status_code=201)
+    async def native_register_key(request: Request, aid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (N.register_key(db, p, aid, body), 201), 'native.key.register', raw)
+
+    @app.post(API + '/native/accounts/{aid}/keys/{kid}/revoke')
+    async def native_revoke_key(request: Request, aid: str, kid: str):
+        raw = await request.body(); read_body(request, raw)
+        return await run(request, True, lambda db, p: N.revoke_key(db, p, aid, kid), 'native.key.revoke', raw)
+
+    @app.post(API + '/native/transfers/prepare')
+    async def native_transfer_prepare(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, False, lambda db, p: N.transfer_prepare(db, p, body))
+
+    @app.post(API + '/native/transfers/submit', status_code=201)
+    async def native_transfer_submit(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (N.transfer_submit(db, p, body), 201), 'native.transfer.submit', raw)

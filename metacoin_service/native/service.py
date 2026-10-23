@@ -258,10 +258,17 @@ class Native:
             if amt < outstanding and not json.loads(obligation['policy_json']).get('partial_payments', False):
                 raise ServiceError('CONFLICT', {'code': 'partial_payment_unsupported', 'outstanding': outstanding, 'note': 'this obligation\'s policy does not allow partial payments'})
         self._check_grant(db, principal, amt, dst['id'])
+        if (src['custody'] or '').startswith('external-signer'):
+            raise ServiceError('CONFLICT', {'code': 'signature_required', 'note': 'this account is held by an external signer: POST /native/transfers/prepare, sign the canonical message outside the service, then POST /native/transfers/submit', 'custody': src['custody']})
         nonce = '%s-%d' % (src['id'], src['nonce_counter'] + 1)
         msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': src['id'], 'authority': d['id'], 'asset': asset, 'amount_ceiling': amt, 'recipient': dst['id'], 'obligation_id': body.get('obligation_id'),
                'grant_id': (getattr(principal, 'scope', None) or {}).get('grant_id'), 'nonce': nonce, 'policy_version': P.POLICY_VERSION, 'request_id': rid, 'purpose': (body.get('purpose') or '')[:MAX_PURPOSE]}
         P.validate_intent(msg, self.environment, d['id'])
+        return self._execute_intent(db, principal, d, src, dst, obligation, msg, None, src['key_id'])
+
+    def _execute_intent(self, db, principal, d, src, dst, obligation, msg, sig, key_id):
+        """reserve -> authorize (service key, or the supplied external signature) -> commit -> settle, with fault points."""
+        asset, amt, rid = msg['asset'], msg['amount_ceiling'], msg['request_id']
         iid = 'ni_' + secrets.token_hex(8); hist = []
         from ..economy.ops import fault
         # reserve
@@ -269,11 +276,14 @@ class Native:
         ledger.move(db, principal.workspace, 'reserve:' + iid, 'native_reservation', asset, d['id'], self.environment, amt, ledger.account_name(src['id'], 'available'), ledger.account_name(src['id'], 'reserved'), 'native_intent', iid, 'reserved for a signed intent')
         hist.append({'state': 'reserved', 'at': now()})
         db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (src['id'],))
-        db.execute('INSERT INTO native_intents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (iid, principal.workspace, d['id'], src['id'], principal.id, 'transfer', asset, amt, None, dst['id'], body.get('obligation_id'), msg['grant_id'], nonce, rid, json.dumps(msg), P.digest(msg), None, 'reserved', None, None, json.dumps(hist), now(), now()))
+        db.execute('INSERT INTO native_intents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (iid, principal.workspace, d['id'], src['id'], principal.id, 'transfer', asset, amt, None, dst['id'], msg.get('obligation_id'), msg['grant_id'], msg['nonce'], rid, json.dumps(msg), P.digest(msg), None, 'reserved', None, None, json.dumps(hist), now(), now()))
         fault(db, self.settings, 'native_reserve')
-        # authorize (signature by the account's own key)
-        sig = self._sign_account(db, src, 'intent', msg)
-        hist.append({'state': 'authorized', 'at': now(), 'key_id': src['key_id']})
+        # authorize: the account's development key held here, or the signature produced outside the service by its signer
+        if sig is None:
+            sig = self._sign_account(db, src, 'intent', msg)
+            hist.append({'state': 'authorized', 'at': now(), 'key_id': src['key_id'], 'custody': 'development'})
+        else:
+            hist.append({'state': 'authorized', 'at': now(), 'key_id': key_id, 'custody': 'external-signer'})
         db.execute("UPDATE native_intents SET signature_hex=?, state='authorized', history_json=?, updated_at=? WHERE id=?", (sig, json.dumps(hist), now(), iid))
         # commit + settle (domain-local)
         seq = self.next_sequence(db, principal.workspace)
@@ -287,10 +297,165 @@ class Native:
             db.execute("UPDATE native_obligations SET settled_amount=?, state=?, updated_at=? WHERE id=?", (new_settled, 'settled' if new_settled == obligation['amount'] else 'partial', now(), obligation['id']))
         hist.append({'state': 'settled', 'at': now(), 'sequence': seq})
         db.execute("UPDATE native_intents SET state='settled', amount_final=?, history_json=?, updated_at=? WHERE id=?", (amt, json.dumps(hist), now(), iid))
-        self._receipt(db, principal.workspace, 'settlement', 'native_intent', iid, {'intent_id': iid, 'from': src['id'], 'to': dst['id'], 'asset': asset, 'amount': amt, 'obligation_id': body.get('obligation_id'), 'commit_sequence': seq, 'domain': d['id'], 'epoch': d['epoch'], 'finality': 'domain_local_settlement', 'message_digest': P.digest(msg)})
-        history.record(db, principal.workspace, principal.id, 'native.settlement', 'native_intent', iid, {'from': src['id'], 'to': dst['id'], 'amount': amt, 'asset': asset, 'sequence': seq, 'obligation': body.get('obligation_id')})
+        self._receipt(db, principal.workspace, 'settlement', 'native_intent', iid, {'intent_id': iid, 'from': src['id'], 'to': dst['id'], 'asset': asset, 'amount': amt, 'obligation_id': msg.get('obligation_id'), 'commit_sequence': seq, 'domain': d['id'], 'epoch': d['epoch'], 'finality': 'domain_local_settlement', 'message_digest': P.digest(msg), 'signer_key_id': key_id})
+        history.record(db, principal.workspace, principal.id, 'native.settlement', 'native_intent', iid, {'from': src['id'], 'to': dst['id'], 'amount': amt, 'asset': asset, 'sequence': seq, 'obligation': msg.get('obligation_id')})
         fault(db, self.settings, 'native_response')
         return self.intent_view(db, principal, iid)
+
+    # ---- external signer custody (order 2026-10-23 group A) -------------------------------------------------------------------------
+    def enroll_external(self, db, principal, body):
+        """An actor whose key lives in an external signer: the service stores the public identity only (no key file is created)."""
+        principal.require('native:admin'); principal.require('admin:credentials')
+        if type(body) is not dict or set(body) - {'name', 'public_hex', 'key_id', 'signer_id', 'credential_seconds'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['name', 'public_hex', 'key_id', 'signer_id', 'credential_seconds']})
+        name, pub, kid, sid = body.get('name'), body.get('public_hex'), body.get('key_id'), body.get('signer_id')
+        if type(name) is not str or not 1 <= len(name) <= 64 or type(pub) is not str or len(pub) != 64 or crypto.key_id_for(pub) != kid or type(sid) is not str or not 1 <= len(sid) <= 64:
+            raise ServiceError('VALIDATION', {'code': 'identity', 'note': '32-byte Ed25519 public key (hex), its derived key id and the signer id are required'})
+        if db.execute('SELECT 1 FROM native_accounts WHERE public_hex=?', (pub,)).fetchone():
+            raise ServiceError('CONFLICT', {'code': 'key_already_enrolled'})
+        pid = auth.create_principal(db, name, 'actor', principal.workspace)
+        cid, token = auth.issue_credential(db, pid, body.get('credential_seconds', 30 * 86400))
+        aid = 'na_' + secrets.token_hex(6); custody = 'external-signer:' + sid
+        db.execute('INSERT INTO native_accounts VALUES (?,?,?,?,?,?,?,?,?,?,?)', (aid, principal.workspace, pid, 'actor', name[:64], kid, pub, custody, 0, 'active', now()))
+        db.execute('INSERT INTO native_account_keys VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,?)', (kid, principal.workspace, aid, 1, 'primary', pub, None, 'active', principal.id, None, now(), now()))
+        history.record(db, principal.workspace, principal.id, 'native.account', 'native_account', aid, {'principal_id': pid, 'key_id': kid, 'custody': custody, 'private_key_held_by_service': False})
+        return {'principal_id': pid, 'account_id': aid, 'role': 'actor', 'credential': {'id': cid, 'token': token, 'shown_once': True}, 'key_id': kid, 'custody': custody, 'private_key_held_by_service': False}
+
+    def _active_keys(self, db, acct):
+        rows = db.execute("SELECT * FROM native_account_keys WHERE account_id=? ORDER BY epoch, created_at", (acct['id'],)).fetchall()
+        if not rows:                                                                   # development custody: the service key is the only key
+            return [{'key_id': acct['key_id'], 'public_hex': acct['public_hex'], 'kind': 'primary', 'state': 'active', 'scope_json': None, 'epoch': 1, 'grace_until': None}]
+        return [dict(r) for r in rows]
+
+    def keys_view(self, db, principal, aid):
+        principal.require('native:read')
+        acct = self.account_row(db, principal.workspace, aid)
+        keys = [{k: r.get(k) for k in ('key_id', 'epoch', 'kind', 'state', 'valid_from', 'retired_at', 'grace_until', 'proof_key_id')} | {'scope': json.loads(r['scope_json']) if r.get('scope_json') else None, 'public_hex': r['public_hex']} for r in self._active_keys(db, acct)]
+        return {'account_id': aid, 'custody': acct['custody'], 'private_key_held_by_service': not (acct['custody'] or '').startswith('external-signer'), 'keys': keys,
+                'policy': 'historical signatures verify against the key history; a retired key authorizes nothing new after its grace; a delegate signs only for its recipients and ceiling'}
+
+    def register_key(self, db, principal, aid, body):
+        """A rotated primary or a scoped delegate key, proven by the current primary key (the proof is produced by the external signer)."""
+        principal.require('native:transfer')
+        acct = self.account_row(db, principal.workspace, aid)
+        if acct['principal_id'] != principal.id and not principal.can('native:admin'):
+            raise ServiceError('FORBIDDEN', 'only the holder or an administrator registers keys')
+        if type(body) is not dict or set(body) != {'registration', 'proof_signature', 'proof_key_id'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['registration', 'proof_signature', 'proof_key_id']})
+        reg = body['registration']
+        if type(reg) is not dict or set(reg) != {'type', 'account', 'actor', 'key_id', 'public_hex', 'kind', 'epoch', 'scope', 'issued_at', 'grace_seconds'} or reg['type'] != 'key_registration' or reg['account'] != aid or reg['kind'] not in ('rotation', 'delegate') or type(reg['grace_seconds']) is not int or not 0 <= reg['grace_seconds'] <= 30 * 86400:
+            raise ServiceError('VALIDATION', {'code': 'registration', 'note': 'canonical key_registration for this account'})
+        if type(reg['public_hex']) is not str or len(reg['public_hex']) != 64 or crypto.key_id_for(reg['public_hex']) != reg['key_id']:
+            raise ServiceError('VALIDATION', {'code': 'key_identity'})
+        proof_key = next((k for k in self._active_keys(db, acct) if k['key_id'] == body['proof_key_id'] and k['kind'] == 'primary' and k['state'] == 'active'), None)
+        if proof_key is None or not crypto.verify(proof_key['public_hex'], P.signing_bytes('rotation', reg), body['proof_signature']):
+            raise ServiceError('FORBIDDEN', {'code': 'registration_proof', 'note': 'the registration must be signed by the account\'s current active primary key'})
+        if db.execute('SELECT 1 FROM native_account_keys WHERE key_id=?', (reg['key_id'],)).fetchone():
+            return dict(self.keys_view(db, principal, aid), replayed=True)
+        t = now(); grace = reg['grace_seconds']                                      # the signed registration carries the retiring key's grace
+        if reg['kind'] == 'rotation':
+            if not reg['epoch'] > proof_key['epoch']:
+                raise ServiceError('CONFLICT', {'code': 'epoch_not_increasing'})
+            db.execute("UPDATE native_account_keys SET state='retired', retired_at=?, grace_until=? WHERE account_id=? AND kind='primary' AND state='active'", (t, t + grace, aid))
+            db.execute('INSERT INTO native_account_keys VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,?)', (reg['key_id'], principal.workspace, aid, reg['epoch'], 'primary', reg['public_hex'], None, 'active', principal.id, body['proof_key_id'], t, t))
+            db.execute('UPDATE native_accounts SET key_id=?, public_hex=? WHERE id=?', (reg['key_id'], reg['public_hex'], aid))
+        else:
+            scope = reg['scope']
+            if type(scope) is not dict or set(scope) != {'name', 'recipients', 'ceiling'} or type(scope['recipients']) is not list or type(scope['ceiling']) is not int or scope['ceiling'] <= 0:
+                raise ServiceError('VALIDATION', {'code': 'delegate_scope'})
+            db.execute('INSERT INTO native_account_keys VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,?)', (reg['key_id'], principal.workspace, aid, reg['epoch'], 'delegate', reg['public_hex'], json.dumps(scope), 'active', principal.id, body['proof_key_id'], t, t))
+        history.record(db, principal.workspace, principal.id, 'native.account', 'native_account', aid, {'key_registered': reg['key_id'], 'kind': reg['kind'], 'proof_key_id': body['proof_key_id']})
+        return self.keys_view(db, principal, aid)
+
+    def revoke_key(self, db, principal, aid, key_id):
+        principal.require('native:transfer')
+        acct = self.account_row(db, principal.workspace, aid)
+        if acct['principal_id'] != principal.id and not principal.can('native:admin'):
+            raise ServiceError('FORBIDDEN', 'only the holder or an administrator revokes keys')
+        n = db.execute("UPDATE native_account_keys SET state='revoked', retired_at=COALESCE(retired_at, ?), grace_until=? WHERE account_id=? AND key_id=? AND state<>'revoked'", (now(), now(), aid, key_id)).rowcount
+        if not n:
+            raise ServiceError('NOT_FOUND', 'registered key')
+        history.record(db, principal.workspace, principal.id, 'native.account', 'native_account', aid, {'key_revoked': key_id})
+        return self.keys_view(db, principal, aid)
+
+    def transfer_prepare(self, db, principal, body):
+        """The canonical intent a holder signs outside the service: nothing is reserved; the nonce is the account's next sequence and
+        the expiry is short. Submitting a different message, or the same request id with different content, is refused."""
+        principal.require('native:transfer')
+        if type(body) is not dict or set(body) - {'from_account', 'to_account', 'amount', 'asset', 'obligation_id', 'request_id', 'purpose', 'expires_in_seconds'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['from_account?', 'to_account', 'amount', 'asset?', 'obligation_id?', 'request_id', 'purpose?', 'expires_in_seconds?']})
+        d = self.domain(db, principal.workspace)
+        src = self.account_row(db, principal.workspace, body['from_account']) if body.get('from_account') else self.account_of(db, principal)
+        if src['principal_id'] != principal.id and not principal.can('native:admin'):
+            raise ServiceError('FORBIDDEN', 'only the account holder prepares its intents')
+        dst = self.account_row(db, principal.workspace, body.get('to_account')); asset = body.get('asset') or self.default_asset(db, principal.workspace)
+        try:
+            P.asset_id(asset); amt = P.amount(body.get('amount'))
+        except P.ProtocolError as exc:
+            raise ServiceError('VALIDATION', {'code': exc.code, **exc.detail})
+        rid = body.get('request_id')
+        if type(rid) is not str or not 1 <= len(rid) <= 128:
+            raise ServiceError('VALIDATION', 'request_id')
+        ttl = body.get('expires_in_seconds', 600)
+        if type(ttl) is not int or not 30 <= ttl <= 86400:
+            raise ServiceError('VALIDATION', {'code': 'expires_in_seconds', 'allowed': '30..86400'})
+        msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': src['id'], 'authority': d['id'], 'asset': asset, 'amount_ceiling': amt, 'recipient': dst['id'], 'obligation_id': body.get('obligation_id'),
+               'grant_id': (getattr(principal, 'scope', None) or {}).get('grant_id'), 'nonce': '%s-%d' % (src['id'], src['nonce_counter'] + 1), 'policy_version': P.POLICY_VERSION, 'request_id': rid, 'purpose': (body.get('purpose') or '')[:MAX_PURPOSE], 'expires_at': now() + ttl}
+        P.validate_intent(msg, self.environment, d['id'])
+        return {'message': msg, 'signing': 'Ed25519 over %s || sha256(canonical(message))' % P.MESSAGE_TYPES['intent'].decode().rstrip('\0'), 'message_digest': P.digest(msg), 'custody': src['custody'], 'note': 'nothing reserved; submit the signed message to POST /native/transfers/submit'}
+
+    def transfer_submit(self, db, principal, body):
+        """A canonical intent signed outside the service. Every field is re-validated against the service's own view; the signature
+        is checked against the account's registered keys (primary or an in-scope delegate); then the usual durable steps run."""
+        principal.require('native:transfer')
+        if type(body) is not dict or set(body) != {'message', 'signature_hex', 'key_id'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['message', 'signature_hex', 'key_id']})
+        msg = body['message']; d = self.domain(db, principal.workspace); self.require_normal(d, 'transfer')
+        try:
+            P.validate_intent(msg, self.environment, d['id'])
+        except P.ProtocolError as exc:
+            raise ServiceError('VALIDATION', {'code': exc.code, **exc.detail})
+        if 'expires_at' not in msg or msg['expires_at'] <= now():
+            raise ServiceError('EXPIRED', {'code': 'intent_expired'})
+        if msg['policy_version'] != P.POLICY_VERSION:
+            raise ServiceError('VALIDATION', {'code': 'policy_version', 'expected': P.POLICY_VERSION})
+        src = self.account_row(db, principal.workspace, msg['actor_account'])
+        if src['principal_id'] != principal.id and not principal.can('native:admin'):
+            raise ServiceError('FORBIDDEN', 'only the account holder submits its intents')
+        dst = self.account_row(db, principal.workspace, msg['recipient']); asset = msg['asset']; amt = msg['amount_ceiling']; rid = msg['request_id']
+        if not self.is_native_asset(db, principal.workspace, asset):
+            raise ServiceError('VALIDATION', {'code': 'asset_unknown_here', 'asset': asset})
+        if src['id'] == dst['id']:
+            raise ServiceError('VALIDATION', {'code': 'self_transfer'})
+        ex = db.execute('SELECT * FROM native_intents WHERE actor_account=? AND request_id=?', (src['id'], rid)).fetchone()
+        if ex is not None:
+            if ex['message_digest'] != P.digest(msg):
+                raise ServiceError('IDEMPOTENCY_CONFLICT', {'code': 'request_id_reused_with_different_content'})
+            return dict(self.intent_view(db, principal, ex['id']), replayed=True)
+        if msg['nonce'] != '%s-%d' % (src['id'], src['nonce_counter'] + 1):
+            raise ServiceError('CONFLICT', {'code': 'nonce_stale', 'expected': '%s-%d' % (src['id'], src['nonce_counter'] + 1), 'note': 'prepare again: another intent of this account was settled first'})
+        keys = {k['key_id']: k for k in self._active_keys(db, src)}; key = keys.get(body['key_id'])
+        if key is None or key['state'] == 'revoked' or (key['state'] == 'retired' and (key.get('grace_until') is None or now() >= key['grace_until'])):
+            raise ServiceError('FORBIDDEN', {'code': 'key_not_authorized', 'key_id': body['key_id'], 'state': key['state'] if key else 'unknown', 'note': 'retired keys authorize nothing new after their grace; revoked keys never'})
+        if key['kind'] == 'delegate':
+            scope = json.loads(key['scope_json']) if isinstance(key.get('scope_json'), str) else (key.get('scope') or {})
+            if dst['id'] not in scope.get('recipients', []):
+                raise ServiceError('FORBIDDEN', {'code': 'delegate_recipient_out_of_scope', 'permitted': scope.get('recipients')})
+            used = db.execute("SELECT COALESCE(SUM(amount_ceiling),0) FROM native_intents WHERE actor_account=? AND json_extract(history_json, '$[1].key_id')=?", (src['id'], key['key_id'])).fetchone()[0]
+            if used + amt > scope.get('ceiling', 0):
+                raise ServiceError('BUDGET_EXHAUSTED', {'code': 'delegate_ceiling', 'used': used, 'ceiling': scope.get('ceiling')})
+        if not crypto.verify(key['public_hex'], P.signing_bytes('intent', msg), body['signature_hex']):
+            raise ServiceError('FORBIDDEN', {'code': 'signature_invalid', 'note': 'the signed content does not match the submitted message: a substituted recipient, amount, domain or obligation is refused before any value moves'})
+        obligation = None
+        if msg.get('obligation_id'):
+            obligation = db.execute('SELECT * FROM native_obligations WHERE id=? AND workspace=?', (msg['obligation_id'], principal.workspace)).fetchone()
+            if obligation is None or obligation['payer_account'] != src['id'] or obligation['payee_account'] != dst['id'] or obligation['asset'] != asset:
+                raise ServiceError('CONFLICT', {'code': 'obligation_binding'})
+            outstanding = obligation['amount'] - obligation['settled_amount']
+            if obligation['state'] in ('settled', 'cancelled') or amt > outstanding or (amt < outstanding and not json.loads(obligation['policy_json']).get('partial_payments', False)):
+                raise ServiceError('CONFLICT', {'code': 'obligation_state', 'outstanding': outstanding})
+        self._check_grant(db, principal, amt, dst['id'])
+        return self._execute_intent(db, principal, d, src, dst, obligation, msg, body['signature_hex'], body['key_id'])
 
     def transfer_simulate(self, db, principal, body):
         """Dry run of transfer(): the same checks, nothing recorded (SAVEPOINT rolled back). Distinguishes the simulate tier from spend."""
@@ -436,7 +601,7 @@ def _hooks(cls):
             raise ServiceError('CONFLICT', {'code': 'verifier_account_unknown', 'note': 'verifier_pay_to must name a native account of this domain'})
         self.obligation_create(db, award['workspace'], 'verifier', payer, payee, terms['payment']['asset'], amount, 'work_entitlement', entitlement_id, {'partial_payments': False, 'source': 'award_reservation', 'award_id': award['id'], 'milestone_id': ms['id'], 'note': 'verifier compensation is independent of the verdict'})
 
-    def settle_entitlement(self, db, principal, intent_row, e, award, terms, final):
+    def settle_entitlement(self, db, principal, intent_row, e, award, terms, final, native_signature=None):
         """Settle one economy entitlement natively from the award reservation: reserved -> committed_outgoing -> payee available,
         the payer account's signed intent recorded, one commit sequence, a signed receipt. Idempotent by the entitlement."""
         d = self.domain(db, principal.workspace); asset = e['asset']
@@ -469,9 +634,20 @@ def _hooks(cls):
         msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': payer, 'authority': d['id'], 'asset': asset, 'amount_ceiling': final, 'recipient': payee, 'obligation_id': ob['id'], 'grant_id': None, 'nonce': nonce, 'policy_version': P.POLICY_VERSION, 'request_id': rid, 'purpose': 'settlement of %s obligation %s' % (kind, ob['id'])}
         P.validate_intent(msg, self.environment, d['id'])
         iid = 'ni_' + secrets.token_hex(8)
-        sig = self._sign_account(db, src, 'intent', msg) if src['kind'] == 'actor' else None
+        if (src['custody'] or '').startswith('external-signer'):
+            ns = native_signature or {}
+            if not ns or ns.get('message') != msg and {k: v for k, v in (ns.get('message') or {}).items() if k != 'expires_at'} != msg:
+                raise ServiceError('CONFLICT', {'code': 'native_signature_required', 'message': msg, 'note': 'the payer account is held by an external signer: sign this settlement message (expires_at may be added) and resubmit with native_signature {message, signature_hex, key_id}'})
+            msg = ns['message']; keys = {k['key_id']: k for k in self._active_keys(db, src)}; key = keys.get(ns.get('key_id'))
+            if 'expires_at' in msg and msg['expires_at'] <= now():
+                raise ServiceError('EXPIRED', {'code': 'intent_expired'})
+            if key is None or key['state'] != 'active' or not crypto.verify(key['public_hex'], P.signing_bytes('intent', msg), ns.get('signature_hex', '')):
+                raise ServiceError('FORBIDDEN', {'code': 'signature_invalid'})
+            sig = ns['signature_hex']
+        else:
+            sig = self._sign_account(db, src, 'intent', msg) if src['kind'] == 'actor' else None
         seq = self.next_sequence(db, principal.workspace)
-        hist = [{'state': 'reserved', 'at': now(), 'from': 'award_reservation'}, {'state': 'authorized', 'at': now(), 'key_id': src['key_id'], 'note': 'treasury account: authority-ordered, no actor signature' if sig is None else None}, {'state': 'committed', 'at': now(), 'sequence': seq}, {'state': 'settled', 'at': now(), 'sequence': seq}]
+        hist = [{'state': 'reserved', 'at': now(), 'from': 'award_reservation'}, {'state': 'authorized', 'at': now(), 'key_id': (native_signature or {}).get('key_id') or src['key_id'], 'note': 'treasury account: authority-ordered, no actor signature' if sig is None else None}, {'state': 'committed', 'at': now(), 'sequence': seq}, {'state': 'settled', 'at': now(), 'sequence': seq}]
         db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (src['id'],))
         db.execute('INSERT INTO native_intents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (iid, principal.workspace, d['id'], payer, principal.id, 'settlement', asset, final, final, payee, ob['id'], None, nonce, rid, json.dumps(msg), P.digest(msg), sig, 'settled', seq, None, json.dumps(hist), now(), now()))
         ledger.move(db, principal.workspace, 'commit:' + iid, 'native_commit', asset, d['id'], self.environment, final, ledger.account_name(payer, 'reserved'), ledger.account_name(payer, 'committed_outgoing'), 'native_intent', iid, 'committed from the award reservation (sequence %d)' % seq)

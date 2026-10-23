@@ -2459,6 +2459,21 @@ def _revision():
     return _REVISION_AT_START
 
 
+def _signer_capability(settings, db):
+    """Custody facts and signer reachability (a health probe only; the service never asks the signer to sign on its own behalf)."""
+    ext = db.execute("SELECT COUNT(*) FROM native_accounts WHERE custody LIKE 'external-signer:%'").fetchone()[0]
+    dev = db.execute("SELECT COUNT(*) FROM native_accounts WHERE kind='actor' AND custody NOT LIKE 'external-signer:%'").fetchone()[0]
+    out = {'custody': {'external_signer_accounts': ext, 'development_custody_accounts': dev, 'service_holds_private_keys_for': 'development-custody actors and the domain authority only'}, 'signer_url_configured': bool(settings.signer_url), 'reachable': None, 'signer': None}
+    if settings.signer_url and settings.signer_token_file:
+        try:
+            from .native.signer import SignerClient
+            st, h = SignerClient(settings.signer_url, settings.signer_token_file).health()
+            out['reachable'] = st == 200; out['signer'] = {k: h.get(k) for k in ('signer_id', 'environment', 'domains', 'custody', 'actors_active', 'os_isolation')} if st == 200 else {'code': h.get('code')}
+        except Exception as exc:
+            out['reachable'] = False; out['signer'] = {'error': type(exc).__name__}
+    return out
+
+
 def capability_table(svc, db):
     settings = svc.settings
     if settings.x402_disabled:
@@ -2470,6 +2485,7 @@ def capability_table(svc, db):
     return {
         'native': {'installed': True, 'available': native_dom is not None, 'protocol': 'metacoin-native/v0', 'domain': native_dom['id'] if native_dom else None,
                    'state': dict(native_dom) if native_dom else None, 'note': 'MetaCoin-native signed intents, obligations and domain-local settlement; the payment core; x402 is never imported by it'},
+        'signer': _signer_capability(settings, db),
         'x402': {'disabled': settings.x402_disabled, 'installed': installed_x402, 'required_by_native_core': False, 'role': 'optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement'},
         'service': {'version': '0.1.0', 'revision': _revision(), 'bind': settings.host + ':' + str(settings.port),
                     'dev_http_loopback': settings.dev_http_loopback},
