@@ -75,9 +75,10 @@ write lock is not obtained within the busy timeout (15 s by default, `METACOIN_D
 `503 JOURNAL_BUSY`, header `Retry-After: 1` and `detail: {retryable: true, begun: false}`: the transaction never began, nothing was
 written, and the identical request (same request id / `Idempotency-Key`) is safe to repeat. Lock-wait timeouts are counted in the
 private operator log `logs/busy.log` (route and time only); they are not defects and never appear in `logs/defects.log`. Within one
-process, requests queue on a fair write gate ahead of SQLite's busy handler (`METACOIN_DB_WRITE_GATE=0` disables it). The worker
-treats a busy database the same way: it logs, pauses and continues (exiting only after 120 consecutive timeouts) and never drops a
-computed result to a single timeout.
+process, requests queue on a FIFO hand-off write gate (`METACOIN_DB_WRITE_GATE=0` disables it); across processes (API, workers)
+`BEGIN IMMEDIATE` is retried at a fixed 1 ms interval until the busy deadline and a hand-off yields 0.5 ms, so no process is
+systematically overtaken. The worker treats a busy database the same way: it logs, pauses and continues (exiting only after 120
+consecutive timeouts) and never drops a computed result to a single timeout.
 
 ### CLI
 `python -m metacoin_service.client_cli ... native-signing-requests native-sign-pending` (the actor's agent loop), the provider CLI

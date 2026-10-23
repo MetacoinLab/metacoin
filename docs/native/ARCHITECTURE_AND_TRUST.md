@@ -72,9 +72,10 @@ wait. The 2026-10-23 endurance runs showed what that looks like at ~40 API threa
 flowing every second, yet a few long waiters were overtaken repeatedly by fresh arrivals (SQLite's busy handler polls with
 back-off; it is not a queue) until the 15 s busy timeout fired — and one such timeout inside the worker loop ended the worker.
 The contract is now explicit: a lock-wait timeout is `503 JOURNAL_BUSY` with `Retry-After` and `begun: false` (nothing was
-written; repeat the identical request), transactions of one process queue strictly FIFO before touching SQLite, and the worker
-logs, pauses and continues. What this does not change: the throughput ceiling of one writer on one file, and the fact that the
-API and the workers are separate processes whose mutual contention still goes through SQLite's busy handler.
+written; repeat the identical request), transactions of one process queue strictly FIFO before touching SQLite, every process
+polls `BEGIN IMMEDIATE` at the same fixed cadence (a seamless hand-off chain inside the API had otherwise starved the worker
+processes: endurance run 5), and the worker logs, pauses and continues. What this does not change: the throughput ceiling of
+one writer on one file.
 
 ### Sub-contracts, products, relay: who bears what
 A sub-contract never transfers the primary's obligation; the parent milestone stays the primary's duty. Product purchases buy a
