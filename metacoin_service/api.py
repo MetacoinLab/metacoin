@@ -4,6 +4,7 @@ and calls the narrow services; state machines live in the services, not here."""
 import asyncio
 import hashlib
 import json
+import os
 import time
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -28,7 +29,7 @@ from .documents.service import Documents
 from .disagreements import Disagreements
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
-from .errors import ServiceError, from_exception
+from .errors import BUSY_RETRY_AFTER_SECONDS, ServiceError, from_exception
 
 API = '/api/v1'
 SENSITIVE_HEADERS = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
@@ -199,7 +200,7 @@ def create_app(settings):
 
     @app.exception_handler(ServiceError)
     async def handle_service_error(request, exc):
-        return JSONResponse(exc.body(), status_code=exc.status, headers=SENSITIVE_HEADERS)
+        return JSONResponse(exc.body(), status_code=exc.status, headers=dict(SENSITIVE_HEADERS, **({'Retry-After': str(BUSY_RETRY_AFTER_SECONDS)} if exc.status == 503 else {})))
 
     @app.middleware('http')
     async def headers(request, call_next):
@@ -212,11 +213,27 @@ def create_app(settings):
             response = JSONResponse(exc.body(), status_code=exc.status)
         except Exception as exc:
             err = from_exception(exc)
-            _log_defect(request, exc, err.code)
+            if err.code == 'JOURNAL_BUSY':
+                _log_busy(request)                                        # a classified, retryable refusal: counted, not a defect
+            else:
+                _log_defect(request, exc, err.code)
             response = JSONResponse(err.body(), status_code=err.status)
+        if response.status_code == 503:
+            response.headers.setdefault('Retry-After', str(BUSY_RETRY_AFTER_SECONDS))
         for key, value in SENSITIVE_HEADERS.items():
             response.headers.setdefault(key, value)
         return response
+
+    def _log_busy(request):
+        """One line per lock-wait timeout (private operator log): when and which route; no bodies, no headers."""
+        try:
+            svc.settings.logs_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            path = svc.settings.logs_dir / 'busy.log'
+            with open(path, 'a') as fh:
+                fh.write('%s JOURNAL_BUSY %s %s\n' % (now(), request.method, request.url.path))
+            os.chmod(path, 0o600)
+        except Exception:
+            pass
 
     def _log_defect(request, exc, code):
         """Unexpected exceptions never reach the client; their trace goes to a private operator log (no bodies, no headers)."""
@@ -225,7 +242,10 @@ def create_app(settings):
             svc.settings.logs_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
             path = svc.settings.logs_dir / 'defects.log'
             with open(path, 'a') as fh:
-                fh.write('%s %s %s %s\n%s\n' % (now(), code, request.method, request.url.path, ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-4000:]))
+                cause = exc.__cause__ or exc.__context__
+                fh.write('%s %s %s %s %s%s\n%s\n' % (now(), code, request.method, request.url.path, type(exc).__name__,
+                                                   (' (while handling %s: %s)' % (type(cause).__name__, str(cause)[:120])) if cause is not None else '',
+                                                   ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-4000:]))
             os.chmod(path, 0o600)
         except Exception:
             pass

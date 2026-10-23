@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import os
 import sqlite3
 import stat
+import threading
 import time
 
 MIGRATIONS = [
@@ -560,8 +561,17 @@ MIGRATIONS = [
 ]
 
 
-def open_db(path, create=False):
-    path = os.fspath(path)
+DEFAULT_BUSY_TIMEOUT_MS = int(os.environ.get('METACOIN_DB_BUSY_TIMEOUT_MS', '15000'))
+
+
+def is_busy(exc):
+    """True for SQLite's lock-wait timeout ('database is locked' / 'database table is locked'): a retryable refusal in which
+    nothing was begun or written by the failing statement."""
+    return isinstance(exc, sqlite3.OperationalError) and 'locked' in str(exc)
+
+
+def open_db(path, create=False, busy_timeout_ms=None):
+    path = os.fspath(path); busy_timeout_ms = DEFAULT_BUSY_TIMEOUT_MS if busy_timeout_ms is None else int(busy_timeout_ms)
     if not create and not os.path.exists(path):
         raise FileNotFoundError('database missing')
     if create:
@@ -570,12 +580,12 @@ def open_db(path, create=False):
     info = os.stat(path)
     if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077:
         raise PermissionError('database must be a private regular file')
-    db = sqlite3.connect(path, timeout=15, isolation_level=None)
+    db = sqlite3.connect(path, timeout=busy_timeout_ms / 1000.0, isolation_level=None)
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA foreign_keys=ON')
     db.execute('PRAGMA journal_mode=WAL')
     db.execute('PRAGMA synchronous=FULL')
-    db.execute('PRAGMA busy_timeout=15000')
+    db.execute('PRAGMA busy_timeout=%d' % busy_timeout_ms)
     return db
 
 
@@ -654,26 +664,94 @@ def check_schema(path, allow_older=False):
     return actual
 
 
+class FairGate:
+    """Strict FIFO (ticket) mutex. Threads of one process queue here before BEGIN IMMEDIATE instead of all polling SQLite's busy
+    handler, whose back-off (1…100 ms sleeps) lets fresh arrivals overtake a long waiter under saturation — the starvation that
+    produced 15 s lock-wait timeouts in the 2026-10-23 endurance runs while commits kept flowing every second. A plain
+    threading.Lock would not do: a releasing thread's successor can be barged by a new arrival. Cross-process contention (API vs
+    workers) still goes through SQLite's busy handler, with far fewer contenders."""
+    def __init__(self):
+        self._cv = threading.Condition(); self._next = 0; self._serving = 0; self._held = False; self.waiters_max = 0
+
+    def acquire(self, timeout):
+        deadline = time.monotonic() + timeout
+        with self._cv:
+            ticket = self._next; self._next += 1; self.waiters_max = max(self.waiters_max, self._next - self._serving)
+            while self._held or self._serving != ticket:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    self._abandon(ticket); return False
+                self._cv.wait(remaining)
+            self._held = True; self._serving += 1; return True
+
+    def _abandon(self, ticket):
+        # a waiter that gave up must not block those behind it: if it was next in line, advance; otherwise mark the ticket void
+        if self._serving == ticket:
+            self._serving += 1; self._cv.notify_all()
+        else:
+            self._void = getattr(self, '_void', set()); self._void.add(ticket)
+
+    def release(self):
+        with self._cv:
+            self._held = False
+            void = getattr(self, '_void', None)
+            while void and self._serving in void:
+                void.discard(self._serving); self._serving += 1
+            self._cv.notify_all()
+
+
+_GATES = {}
+_GATES_LOCK = threading.Lock()
+
+
+def _gate_for(path):
+    key = os.path.realpath(path)
+    with _GATES_LOCK:
+        g = _GATES.get(key)
+        if g is None:
+            g = _GATES[key] = FairGate()
+        return g
+
+
 class Database:
-    def __init__(self, path):
+    def __init__(self, path, busy_timeout_ms=None):
         self.path = os.fspath(path)
+        self.busy_timeout_ms = DEFAULT_BUSY_TIMEOUT_MS if busy_timeout_ms is None else int(busy_timeout_ms)
+        self.gate_enabled = os.environ.get('METACOIN_DB_WRITE_GATE', '1') != '0'
+        self.busy_count = 0
 
     @contextmanager
     def tx(self):
-        db = open_db(self.path)
+        """BEGIN IMMEDIATE … COMMIT on a fresh connection. A failure of BEGIN itself (lock-wait timeout) is re-raised unchanged —
+        ROLLBACK is issued only over an open transaction, so the original error is never replaced by 'cannot rollback'."""
+        gate = _gate_for(self.path) if self.gate_enabled else None
+        if gate is not None and not gate.acquire(timeout=self.busy_timeout_ms / 1000.0):
+            self.busy_count += 1
+            raise sqlite3.OperationalError('database is locked')                      # same refusal as SQLite's own timeout: nothing begun
         try:
-            db.execute('BEGIN IMMEDIATE')
-            yield db
-            db.execute('COMMIT')
-        except BaseException:
-            db.execute('ROLLBACK')
-            raise
+            db = open_db(self.path, busy_timeout_ms=self.busy_timeout_ms)
+            try:
+                try:
+                    db.execute('BEGIN IMMEDIATE')
+                except sqlite3.OperationalError:
+                    self.busy_count += 1
+                    raise
+                try:
+                    yield db
+                    db.execute('COMMIT')
+                except BaseException:
+                    if db.in_transaction:
+                        db.execute('ROLLBACK')
+                    raise
+            finally:
+                db.close()
         finally:
-            db.close()
+            if gate is not None:
+                gate.release()
 
     @contextmanager
     def read(self):
-        db = open_db(self.path)
+        db = open_db(self.path, busy_timeout_ms=self.busy_timeout_ms)
         try:
             yield db
         finally:

@@ -20,6 +20,10 @@ from .tests.journeys_mission import MDom, SignerProcess, WitnessProcess
 from .tests.test_work_terms import energy_inputs
 
 EXPECTED = {'pool_capacity_exceeded', 'capacity_exhausted', 'provider_draining', 'stale_quote', 'domain_quarantined', 'connectivity_cut', 'signature_required', 'native_signature_required', 'insufficient_available', 'BUDGET_EXHAUSTED', 'window_closed', 'retire_exceeds_owned', 'missing_lineage', 'state', 'nonce_stale', 'signer_exposure_ceiling'}
+# JOURNAL_BUSY (503, Retry-After): the write lock was not obtained within the busy timeout; BEGIN never ran, nothing was written.
+# The contract makes it retryable with the same request id; safe() below repeats the identical call and the outcome of the
+# retry is what gets counted (ok / expected refusal / unexpected). Only an exhausted retry budget is unexpected.
+BUSY = 'JOURNAL_BUSY'; BUSY_RETRIES = 4
 
 
 def rss_kb(pid):
@@ -56,13 +60,26 @@ def main(argv=None):
                     samples.append({'at_s': round(time.time() - t_begin, 1), 'loop': k, 'code': code, 'body': (json.dumps(body, default=str)[:400] if body is not None else None)})
             if dt is not None:
                 s['latency'].append(dt)
+    busy = {'refusals': 0, 'retried_ok': 0, 'retried_refused_expected': 0, 'exhausted': 0, 'by_loop': {}}
     def safe(fn, k):
         t0 = time.perf_counter()
         try:
-            st, r = fn(); ok = st in (200, 201); code = None
-            if not ok:
-                d = r.get('detail') if isinstance(r, dict) else None; code = (d.get('code') if isinstance(d, dict) else None) or (r.get('code') if isinstance(r, dict) else None) or 'HTTP_%s' % st
-            count(k, ok, code, time.perf_counter() - t0, None if ok else r); return st, r
+            for attempt in range(BUSY_RETRIES + 1):
+                st, r = fn(); ok = st in (200, 201); code = None
+                if not ok:
+                    d = r.get('detail') if isinstance(r, dict) else None; code = (d.get('code') if isinstance(d, dict) else None) or (r.get('code') if isinstance(r, dict) else None) or 'HTTP_%s' % st
+                if st == 503 and (code == BUSY or (isinstance(r, dict) and r.get('code') == BUSY)):
+                    with lock:
+                        busy['refusals'] += 1; busy['by_loop'][k] = busy['by_loop'].get(k, 0) + 1
+                    if attempt < BUSY_RETRIES:
+                        time.sleep(0.25 * (attempt + 1)); continue                      # identical call, same request id: nothing was begun
+                    code = BUSY + ' (retries exhausted)'
+                    with lock:
+                        busy['exhausted'] += 1
+                elif attempt:
+                    with lock:
+                        busy['retried_ok' if ok else 'retried_refused_expected'] += 1
+                count(k, ok, code, time.perf_counter() - t0, None if ok else r); return st, r
         except Exception as exc:
             count(k, False, 'transport:' + type(exc).__name__, time.perf_counter() - t0); time.sleep(0.3); return 0, {}
     def mark(ev, **kw):
@@ -167,19 +184,39 @@ def main(argv=None):
         dup_intents = db.execute("SELECT actor_account, request_id, COUNT(*) c FROM native_intents WHERE state='settled' GROUP BY actor_account, request_id HAVING c > 1").fetchall()
         dup_res = db.execute("SELECT buyer_account, request_id, COUNT(*) c FROM resource_reservations GROUP BY buyer_account, request_id HAVING c > 1").fetchall()
         res_states = {r[0]: r[1] for r in db.execute('SELECT state, COUNT(*) FROM resource_reservations GROUP BY state').fetchall()}; jobs = {r[0]: r[1] for r in db.execute('SELECT state, COUNT(*) FROM jobs GROUP BY state').fetchall()}
-        oldest_queued = db.execute("SELECT MIN(created_at) FROM jobs WHERE state IN ('queued','leased','running')").fetchone()[0]; db.close()
+        oldest_queued = db.execute("SELECT MIN(created_at) FROM jobs WHERE state IN ('queued','leased','running')").fetchone()[0]
+        workers = [{'name': r[0], 'state': r[1], 'heartbeat_age_s': int(time.time()) - r[2]} for r in db.execute('SELECT name, state, last_heartbeat FROM workers').fetchall()]; db.close()
+        workers_alive = bool(workers) and all(w['state'] in ('active', 'draining') and w['heartbeat_age_s'] <= 60 for w in workers)
+        busy_log = {}
+        for D in (A, B):
+            try:
+                pth = D.inst.settings.logs_dir / 'busy.log'; txt = pth.read_text() if pth.exists() else ''
+                lines = [l for l in txt.splitlines() if l.strip()]; busy_log[D.id] = {'count': len(lines), 'api': sum(' worker ' not in l for l in lines), 'worker': sum(' worker ' in l for l in lines)}
+            except Exception as exc:
+                busy_log[D.id] = {'error': repr(exc)[:120]}
         held_total = auA['total_held'] + auA['backing_locked_for_exports']; conserved = auA['conserved'] and held_total == auA['fixture_funding'] and auB['claims_backed_elsewhere'] == auB['total_held'] and all(acc['checks'].values()) and all(accB['checks'].values()) and accB['lots']['partition_ok']
         pct = lambda xs, q: (sorted(xs)[min(len(xs) - 1, int(q * len(xs)))] if xs else None); unexpected = sum(sum(s['unexpected'].values()) for s in stats.values()); all_lat = [x for s in stats.values() for x in s['latency']]
         try:
             A.api_log.flush(); api_tail = open(A.api_log.name, 'rb').read()[-6000:].decode('utf-8', 'replace')
         except Exception:
             api_tail = None
-        out = {'schema': 'metacoin-endurance-network/v1', 'seconds': elapsed, 'seed': a.seed, 'restarts': restarts, 'partitions': partitions, 'events': events, 'ticks': progress['ticks'], 'unexpected_samples': samples, 'api_stderr_tail': api_tail,
+        defects = {}
+        for D in (A, B):
+            try:
+                pth = D.inst.settings.logs_dir / 'defects.log'; txt = pth.read_text() if pth.exists() else ''
+                entries = [e for e in txt.split('\n\n') if e.strip()]; defects[D.id] = {'count': len(entries), 'first_lines': [e.splitlines()[0] for e in entries][:12], 'last_traces': [e[-900:] for e in entries[-3:]]}
+                if a.out and txt:
+                    open(a.out + '.defects-%s.log' % D.id, 'w').write(txt)
+            except Exception as exc:
+                defects[D.id] = {'error': repr(exc)[:120]}
+        out = {'schema': 'metacoin-endurance-network/v1', 'seconds': elapsed, 'seed': a.seed, 'restarts': restarts, 'partitions': partitions, 'events': events, 'ticks': progress['ticks'], 'unexpected_samples': samples, 'api_stderr_tail': api_tail, 'defects_log': defects,
                'loops': {k: {'ok': v['ok'], 'expected_refusals': v['expected'], 'unexpected_failures': v['unexpected'], 'per_s': round(v['ok'] / elapsed, 2), 'p50_s': round(pct(v['latency'], 0.5), 4) if v['latency'] else None, 'p95_s': round(pct(v['latency'], 0.95), 4) if v['latency'] else None, 'p99_s': round(pct(v['latency'], 0.99), 4) if v['latency'] else None} for k, v in stats.items()},
-               'summary': {'completed': sum(s['ok'] for s in stats.values()), 'refused_expected': sum(sum(s['expected'].values()) for s in stats.values()), 'unexpected_failures': unexpected, 'duplicate_settlements': len(dup_intents) + len(dup_res), 'conserved': conserved, 'latency_p99_s': round(pct(all_lat, 0.99), 4) if all_lat else None, 'recovery_seconds': recovery, 'backlog_age_s': (int(time.time()) - oldest_queued) if oldest_queued else 0, 'api_rss_kb_last': rss_kb(A.api.pid)},
+               'summary': {'completed': sum(s['ok'] for s in stats.values()), 'refused_expected': sum(sum(s['expected'].values()) for s in stats.values()), 'unexpected_failures': unexpected, 'duplicate_settlements': len(dup_intents) + len(dup_res), 'conserved': conserved, 'latency_p99_s': round(pct(all_lat, 0.99), 4) if all_lat else None, 'recovery_seconds': recovery, 'backlog_age_s': (int(time.time()) - oldest_queued) if oldest_queued else 0, 'api_rss_kb_last': rss_kb(A.api.pid), 'busy_refusals': busy['refusals'], 'busy_retries_exhausted': busy['exhausted'], 'workers_alive': workers_alive},
                'final': {'audit_a': {k: auA[k] for k in ('total_held', 'fixture_funding', 'backing_locked_for_exports', 'claims_backed_elsewhere', 'conserved')}, 'audit_b_asset_a': {k: auB[k] for k in ('total_held', 'claims_backed_elsewhere', 'conserved')}, 'accounting_checks_a': acc['checks'], 'accounting_b': {'checks': accB['checks'], 'lots': accB['lots']}, 'pool': {'peak_slots_used': pv['peak_slots_used'], 'all_within_capacity': pv['all_within_capacity'], 'commitments': len(pv['commitments'])}, 'reservation_states': res_states, 'jobs': jobs, 'duplicate_settled_intents': dup_intents, 'duplicate_reservations': dup_res},
                'time_accounting': {'wall_clock_s': elapsed, 'planned_contact_time': 'contact reservations are half-open intervals on the shared pool (seconds); no emulator delay is injected', 'transport_emulator_delay_s': 0, 'compute_time': 'energy_audit jobs executed by the background worker (see jobs)'},
-               'ok': conserved and unexpected == 0 and not dup_intents and not dup_res and all(stats[k]['ok'] > 0 for k in keys) and elapsed >= min(a.seconds, 1800) - 5, 'note': 'same host, loopback, SQLite; restarts interrupt in-flight requests whose retries reuse request ids (transport errors are expected refusals); partitions refuse cross-domain delivery (expected) while local work continues'}
+               'busy': dict(busy, note='JOURNAL_BUSY = write lock not obtained within the busy timeout (503, Retry-After); nothing begun; the identical request was repeated and its outcome counted', service_busy_log=busy_log),
+               'workers': workers,
+               'ok': conserved and unexpected == 0 and not dup_intents and not dup_res and all(stats[k]['ok'] > 0 for k in keys) and elapsed >= min(a.seconds, 1800) - 5 and workers_alive and ((int(time.time()) - oldest_queued) if oldest_queued else 0) <= 300 and busy['exhausted'] == 0, 'note': 'same host, loopback, SQLite; restarts interrupt in-flight requests whose retries reuse request ids (transport errors are expected refusals); partitions refuse cross-domain delivery (expected) while local work continues'}
         if a.out:
             with open(a.out, 'w') as f:
                 json.dump(out, f, indent=1)

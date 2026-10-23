@@ -70,6 +70,15 @@ READ: `operator_screen`, `resource_market`, `mission_status`, `mission_explain`,
 | Portfolio: plan (reference / oracle / improved, non-binding), validate (independent), compare rolling vs fixed | `POST /portfolio/{plan|validate|compare}` | work:read |
 | Continuity and fenced takeover; generation in `step`/`run`/`propose` (`generation` or header `X-Controller-Generation`) | `GET /missions/{id}/continuity`, `POST /missions/{id}/takeover` | parties |
 
+**Busy refusals (write-lock contention).** Every mutating request runs in one `BEGIN IMMEDIATE` transaction over SQLite. When the
+write lock is not obtained within the busy timeout (15 s by default, `METACOIN_DB_BUSY_TIMEOUT_MS`), the request is refused with
+`503 JOURNAL_BUSY`, header `Retry-After: 1` and `detail: {retryable: true, begun: false}`: the transaction never began, nothing was
+written, and the identical request (same request id / `Idempotency-Key`) is safe to repeat. Lock-wait timeouts are counted in the
+private operator log `logs/busy.log` (route and time only); they are not defects and never appear in `logs/defects.log`. Within one
+process, requests queue on a fair write gate ahead of SQLite's busy handler (`METACOIN_DB_WRITE_GATE=0` disables it). The worker
+treats a busy database the same way: it logs, pauses and continues (exiting only after 120 consecutive timeouts) and never drops a
+computed result to a single timeout.
+
 ### CLI
 `python -m metacoin_service.client_cli ... native-signing-requests native-sign-pending` (the actor's agent loop), the provider CLI
 `metacoin-provider {init, handshake, capabilities, drain, withdraw, earnings, signing-pending, sign-pending, signer-policy}` with
