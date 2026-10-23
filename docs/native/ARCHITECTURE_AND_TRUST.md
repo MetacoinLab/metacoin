@@ -65,6 +65,17 @@ Capacity admission happens inside the reservation transaction under the single f
 can never oversell their shared interval, regardless of request interleaving (race journeys 12 and the endurance run). Pools do
 not model physical contention beyond the declared slot unit; a provider's `units_per_slot_second` is a declaration.
 
+### One writer under saturation
+Every mutating request and every worker step is one `BEGIN IMMEDIATE` transaction on one SQLite file: the single fenced writer is
+what makes pool admission, lot partition and settlement idempotency exact. Its price is that under saturation bursts a writer can
+wait. The 2026-10-23 endurance runs showed what that looks like at ~40 API threads plus two workers on one host: commits kept
+flowing every second, yet a few long waiters were overtaken repeatedly by fresh arrivals (SQLite's busy handler polls with
+back-off; it is not a queue) until the 15 s busy timeout fired — and one such timeout inside the worker loop ended the worker.
+The contract is now explicit: a lock-wait timeout is `503 JOURNAL_BUSY` with `Retry-After` and `begun: false` (nothing was
+written; repeat the identical request), transactions of one process queue strictly FIFO before touching SQLite, and the worker
+logs, pauses and continues. What this does not change: the throughput ceiling of one writer on one file, and the fact that the
+API and the workers are separate processes whose mutual contention still goes through SQLite's busy handler.
+
 ### Sub-contracts, products, relay: who bears what
 A sub-contract never transfers the primary's obligation; the parent milestone stays the primary's duty. Product purchases buy a
 processing or verification service, never rights over public data. Relay fees are bounded by the sender's ceiling and paid per
