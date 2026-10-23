@@ -476,8 +476,9 @@ WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-fre
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
                  'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
+MARKET_COMMANDS = ('resources', 'resource-offer-publish', 'resource-offers', 'resource-quote', 'resource-reserve', 'resource-reservations', 'resource-reservation', 'resource-action', 'resource-storage-put')
 SIGNER_COMMANDS = ('signer-health', 'signer-enroll', 'signer-rotate', 'signer-revoke', 'signer-delegate', 'signer-keys', 'native-keys', 'native-key-revoke', 'native-transfer-signed')
-NATIVE_COMMANDS = SIGNER_COMMANDS + ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
+NATIVE_COMMANDS = SIGNER_COMMANDS + MARKET_COMMANDS + ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
                    'native-allocation', 'native-allocation-return', 'native-recover', 'native-peer-pin', 'native-peer', 'native-outbox', 'native-inbox', 'native-bundle-write', 'native-bundle-import', 'native-courier', 'native-observation', 'native-rotate', 'native-connectivity',
                    'native-recovery', 'native-reconcile', 'native-audit', 'native-export-record', 'native-check', 'native-vectors', 'native-model', 'native-spec', 'native-disputes', 'native-dispute-open', 'native-dispute-resolve',
                    'procurement-plan', 'procurement-benchmark', 'lunar-sources', 'lunar-products', 'lunar-product', 'lunar-download', 'lunar-example')
@@ -538,12 +539,39 @@ def signer_commands(args, go):
     return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
 
 
+def market_commands(args, go):
+    c = args.command; key = getattr(args, 'idempotency_key', None); jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    if c == 'resources':
+        return go('GET', '/api/v1/resources')
+    if c == 'resource-offer-publish':
+        return go('POST', '/api/v1/resources/offers', jf(), idempotency_key=key)
+    if c == 'resource-offers':
+        return go('GET', '/api/v1/resources/offers' + ('?kind=' + args.kind if args.kind else ''))
+    if c == 'resource-quote':
+        return go('POST', '/api/v1/resources/quote', {'offer_id': args.offer_id, 'quantity': args.quantity})
+    if c == 'resource-reserve':
+        return go('POST', '/api/v1/resources/reservations', {'offer_id': args.offer_id, 'offer_version': args.offer_version, 'quantity': args.quantity, 'request_id': args.request_id}, idempotency_key=key)
+    if c == 'resource-reservations':
+        return go('GET', '/api/v1/resources/reservations' + ('?account=' + args.account if args.account else ''))
+    if c == 'resource-reservation':
+        return go('GET', '/api/v1/resources/reservations/' + args.reservation_id)
+    if c == 'resource-action':
+        return go('POST', '/api/v1/resources/reservations/%s/%s' % (args.reservation_id, args.action), jf(), idempotency_key=key)
+    if c == 'resource-storage-put':
+        with open(args.path, 'rb') as f:
+            data = f.read()
+        return go('POST', '/api/v1/resources/reservations/%s/storage' % args.reservation_id, data, idempotency_key=key)
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
+
+
 def native(args, go):
     """Native protocol commands (order 2026-10-22): one authenticated HTTP request each unless marked offline. Reading never
     spends; native-transfer / native-export / native-fund are the consequential ones and are idempotent by request id."""
     c = args.command
     if c in SIGNER_COMMANDS:
         return signer_commands(args, go)
+    if c in MARKET_COMMANDS:
+        return market_commands(args, go)
     jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
     key = getattr(args, 'idempotency_key', None)
     if c == 'native-domain':
@@ -1108,6 +1136,13 @@ def main(argv=None):
     w = sub.add_parser('work-challenge-package'); w.add_argument('challenge_id'); w.add_argument('--out')
     w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
     w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
+    # ---- resource market ----
+    sub.add_parser('resources'); n = sub.add_parser('resource-offer-publish', help='publish a fixed-price resource offer (JSON file: kind, resource_id, capacity, price_per_unit, window_start, window_end, ...)'); n.add_argument('--file', required=True); n.add_argument('--idempotency-key')
+    n = sub.add_parser('resource-offers'); n.add_argument('--kind'); n = sub.add_parser('resource-quote'); n.add_argument('offer_id'); n.add_argument('quantity', type=int)
+    n = sub.add_parser('resource-reserve', help='binding: checks the exact offer version, funds and capacity in one transaction'); n.add_argument('offer_id'); n.add_argument('offer_version', type=int); n.add_argument('quantity', type=int); n.add_argument('--request-id', required=True); n.add_argument('--idempotency-key')
+    n = sub.add_parser('resource-reservations'); n.add_argument('--account'); n = sub.add_parser('resource-reservation'); n.add_argument('reservation_id')
+    n = sub.add_parser('resource-action'); n.add_argument('reservation_id'); n.add_argument('action', choices=('activate', 'deliver', 'settle', 'cancel')); n.add_argument('--file'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('resource-storage-put'); n.add_argument('reservation_id'); n.add_argument('path'); n.add_argument('--idempotency-key')
     # ---- external signer ----
     def sg(p):
         p.add_argument('--signer', required=True, help='signer base URL (loopback or an authorized host)'); p.add_argument('--signer-token-file', required=True); return p

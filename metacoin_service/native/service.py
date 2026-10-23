@@ -271,8 +271,9 @@ class Native:
         asset, amt, rid = msg['asset'], msg['amount_ceiling'], msg['request_id']
         iid = 'ni_' + secrets.token_hex(8); hist = []
         from ..economy.ops import fault
-        # reserve
+        # reserve (claims with allocation lineage are consumed here: a transferred unit loses its lineage)
         ledger.require_available(db, principal.workspace, asset, d['id'], src['id'], amt)
+        self._consume_claims(db, principal.workspace, src['id'], asset, amt, 'native_intent', iid)
         ledger.move(db, principal.workspace, 'reserve:' + iid, 'native_reservation', asset, d['id'], self.environment, amt, ledger.account_name(src['id'], 'available'), ledger.account_name(src['id'], 'reserved'), 'native_intent', iid, 'reserved for a signed intent')
         hist.append({'state': 'reserved', 'at': now()})
         db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (src['id'],))
@@ -571,6 +572,7 @@ def _hooks(cls):
             pass                                                   # the treasury allocation already moved available -> reserved for these terms (treasury.allocate)
         else:
             ledger.require_available(db, principal.workspace, asset, d['id'], payer, ceiling)
+            self._consume_claims(db, principal.workspace, payer, asset, ceiling, 'work_award', aid)
             ledger.move(db, principal.workspace, 'award-reserve:' + aid, 'native_award_reservation', asset, d['id'], self.environment, ceiling, ledger.account_name(payer, 'available'), ledger.account_name(payer, 'reserved'), 'work_award', aid, 'reserved for an award (ceiling incl. fee and verifier legs)')
         history.record(db, principal.workspace, principal.id, 'native.intent', 'work_award', aid, {'reserved': ceiling, 'payer_account': payer, 'funding': funding})
         return payer

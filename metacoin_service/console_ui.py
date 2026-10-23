@@ -962,6 +962,63 @@ def mount(app, svc):
             rep = N.recovery_reconcile(db, p, {}); return render(request, 'native_recovery.html', principal=p, r=N.recovery_view(db, p), report=rep)
         return await page(request, fn, mutating=True)
 
+    # ---- resource market (order 2026-10-23 group B) -------------------------------------------------------------------------------
+    MK = svc.market
+
+    @app.get('/console/resources', response_class=HTMLResponse)
+    async def resources_page(request: Request):
+        def fn(db, p):
+            return render(request, 'native_market.html', principal=p, m=MK.market_view(db, p), now=now(), quote=None, refusal=None)
+        return await page(request, fn)
+
+    @app.post('/console/resources/reserve', response_class=HTMLResponse)
+    async def resources_reserve_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            oid, ver = (f.get('offer_id') or ':').split(':'); q = int(f.get('quantity') or 0)
+            if f.get('preview'):
+                return render(request, 'native_market.html', principal=p, m=MK.market_view(db, p), now=now(), quote=MK.quote(db, p, {'offer_id': oid, 'quantity': q}), refusal=None)
+            try:
+                r = MK.reserve(db, p, {'offer_id': oid, 'offer_version': int(ver or 0), 'quantity': q, 'request_id': f.get('request_id') or ('console-' + str(now()))})
+            except ServiceError as exc:
+                db.execute('ROLLBACK'); db.execute('BEGIN IMMEDIATE')
+                return render(request, 'native_market.html', principal=p, m=MK.market_view(db, p), now=now(), quote=None, refusal={'code': exc.code, 'detail': exc.detail})
+            return RedirectResponse('/console/resources/reservations/' + r['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/resources/offers', response_class=HTMLResponse)
+    async def resources_offer_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            t = now(); MK.publish(db, p, {'kind': f.get('kind'), 'resource_id': f.get('resource_id') or 'unit-1', 'capacity': int(f.get('capacity') or 1), 'price_per_unit': int(f.get('price_per_unit') or 0), 'window_start': t, 'window_end': t + 3600 * int(f.get('hours') or 24)})
+            return RedirectResponse('/console/resources', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/resources/reservations/{rid}', response_class=HTMLResponse)
+    async def resources_reservation_page(request: Request, rid: str):
+        def fn(db, p):
+            r = MK.reservation_view(db, p, rid); acct = N.account_of(db, p, create=False); mine = acct['id'] if acct else None
+            is_buyer, is_prov = mine == r['buyer_account'], mine == r['provider_account']; actions = []; disabled = {}
+            if r['state'] == 'reserved':
+                (actions if is_prov else disabled).__setitem__('activate', 'provider only') if not is_prov else actions.append('activate')
+                (actions.append('cancel') if (is_buyer or is_prov) else disabled.__setitem__('cancel', 'parties only'))
+            elif r['state'] == 'active':
+                (actions.append('deliver') if is_prov else disabled.__setitem__('deliver', 'provider only')); (actions.append('cancel') if (is_buyer or is_prov) else None)
+            elif r['state'] == 'delivered':
+                (actions.append('settle') if (is_buyer or is_prov) else disabled.__setitem__('settle', 'parties only'))
+            else:
+                disabled['any'] = 'terminal state %s' % r['state']
+            return render(request, 'native_reservation.html', principal=p, r=r, actions=actions, disabled=disabled)
+        return await page(request, fn)
+
+    @app.post('/console/resources/reservations/{rid}/action', response_class=HTMLResponse)
+    async def resources_reservation_action_form(request: Request, rid: str):
+        f = await form(request)
+        def fn(db, p):
+            a = f.get('action'); {'activate': lambda: MK.activate(db, p, rid), 'deliver': lambda: MK.deliver(db, p, rid, {'bytes': 8192}), 'settle': lambda: MK.settle(db, p, rid), 'cancel': lambda: MK.cancel(db, p, rid, {'reason': 'console'})}[a]()
+            return RedirectResponse('/console/resources/reservations/' + rid, status_code=303)
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/work/reconciliation', response_class=HTMLResponse)
     async def work_reconciliation_page(request: Request):
         return await page(request, lambda db, p: render(request, 'work_reconciliation.html', principal=p, v=E.money.pending_observations(db, p), exposure=E.money.exposure(db, p)))

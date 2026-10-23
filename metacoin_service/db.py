@@ -501,6 +501,19 @@ MIGRATIONS = [
     CREATE TABLE native_account_keys (key_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL REFERENCES native_accounts(id), epoch INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('primary','delegate')), public_hex TEXT NOT NULL, scope_json TEXT, state TEXT NOT NULL, registered_by TEXT, proof_key_id TEXT, valid_from INTEGER NOT NULL, retired_at INTEGER, grace_until INTEGER, created_at INTEGER NOT NULL);
     CREATE INDEX native_account_keys_acct ON native_account_keys(account_id, state);
     """),
+    ('045_claim_lineage_checkpoints_fragments', """
+    CREATE TABLE native_claim_lineage (allocation_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL, asset TEXT NOT NULL, amount INTEGER NOT NULL, consumed INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL, imported_sequence INTEGER NOT NULL, retired_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX native_claim_lineage_acct ON native_claim_lineage(account_id, asset, state);
+    CREATE TABLE native_claim_consumption (id INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, allocation_id TEXT NOT NULL, amount INTEGER NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE native_checkpoints (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, domain_id TEXT NOT NULL, epoch INTEGER NOT NULL, sequence INTEGER NOT NULL, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, witness_id TEXT, witness_ack_json TEXT, witness_signature TEXT, acknowledged_at INTEGER, created_at INTEGER NOT NULL);
+    CREATE TABLE native_fragments (message_id TEXT NOT NULL, workspace TEXT NOT NULL, sender TEXT NOT NULL, idx INTEGER NOT NULL, count INTEGER NOT NULL, data TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (message_id, idx));
+    """),
+    ('046_resource_market', """
+    CREATE TABLE resource_offers (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, provider_account TEXT NOT NULL, provider_principal TEXT NOT NULL, kind TEXT NOT NULL, resource_id TEXT NOT NULL, unit TEXT NOT NULL, capacity INTEGER NOT NULL, price_per_unit INTEGER NOT NULL, asset TEXT NOT NULL, window_start INTEGER NOT NULL, window_end INTEGER NOT NULL, version INTEGER NOT NULL, reservation_policy TEXT NOT NULL, cancellation TEXT NOT NULL, meta_json TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE resource_reservations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, offer_id TEXT NOT NULL REFERENCES resource_offers(id), offer_version INTEGER NOT NULL, buyer_account TEXT NOT NULL, provider_account TEXT NOT NULL, quantity INTEGER NOT NULL, delivered_quantity INTEGER NOT NULL DEFAULT 0, price INTEGER NOT NULL, asset TEXT NOT NULL, obligation_id TEXT, state TEXT NOT NULL, request_id TEXT NOT NULL, evidence_json TEXT NOT NULL, measurement_json TEXT, settlement_intent TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, activated_at INTEGER);
+    CREATE INDEX resource_reservations_offer ON resource_reservations(offer_id, state);
+    CREATE UNIQUE INDEX resource_reservations_req ON resource_reservations(buyer_account, request_id);
+    """),
 ]
 
 

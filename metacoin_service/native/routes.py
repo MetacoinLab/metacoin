@@ -229,3 +229,75 @@ def mount(app, svc, run, read_body, API):
     async def native_transfer_submit(request: Request):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, True, lambda db, p: (N.transfer_submit(db, p, body), 201), 'native.transfer.submit', raw)
+
+    # ---- claim lineage and accounting (group F) --------------------------------------------------------------------------------
+    @app.get(API + '/native/accounts/{aid}/lineage')
+    async def native_lineage(request: Request, aid: str):
+        return await run(request, False, lambda db, p: N.lineage_view(db, p, aid))
+
+    @app.get(API + '/native/accounting')
+    async def native_accounting(request: Request):
+        return await run(request, False, lambda db, p: N.accounting_view(db, p, request.query_params.get('asset')))
+
+    @app.post(API + '/native/checkpoint')
+    async def native_checkpoint(request: Request):
+        raw = await request.body(); read_body(request, raw)
+        def fn(db, p):
+            p.require('native:admin'); return N.checkpoint(db, p.workspace)
+        return await run(request, True, fn, 'native.checkpoint', raw)
+
+    # ---- resource reservation market (order 2026-10-23 group B) -----------------------------------------------------------------
+    M = svc.market
+
+    @app.get(API + '/resources')
+    async def resources_market(request: Request):
+        return await run(request, False, lambda db, p: M.market_view(db, p))
+
+    @app.post(API + '/resources/offers', status_code=201)
+    async def resources_publish(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (M.publish(db, p, body), 201), 'resources.offer', raw)
+
+    @app.get(API + '/resources/offers')
+    async def resources_offers(request: Request):
+        return await run(request, False, lambda db, p: {'items': M.offers(db, p, request.query_params.get('kind'))})
+
+    @app.get(API + '/resources/offers/{oid}')
+    async def resources_offer(request: Request, oid: str):
+        return await run(request, False, lambda db, p: M.offer_view(db, p, oid))
+
+    @app.post(API + '/resources/offers/{oid}/amend')
+    async def resources_amend(request: Request, oid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: M.amend_offer(db, p, oid, body), 'resources.offer.amend', raw)
+
+    @app.post(API + '/resources/quote')
+    async def resources_quote(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, False, lambda db, p: M.quote(db, p, body))
+
+    @app.post(API + '/resources/reservations', status_code=201)
+    async def resources_reserve(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (M.reserve(db, p, body), 201), 'resources.reserve', raw)
+
+    @app.get(API + '/resources/reservations')
+    async def resources_reservations(request: Request):
+        return await run(request, False, lambda db, p: {'items': M.reservations(db, p, request.query_params.get('account'))})
+
+    @app.get(API + '/resources/reservations/{rid}')
+    async def resources_reservation(request: Request, rid: str):
+        return await run(request, False, lambda db, p: M.reservation_view(db, p, rid))
+
+    @app.post(API + '/resources/reservations/{rid}/{action}')
+    async def resources_reservation_action(request: Request, rid: str, action: str):
+        raw = await request.body()
+        if action == 'storage':
+            data = raw
+            return await run(request, True, lambda db, p: M.storage_put(db, p, rid, data), 'resources.storage', raw)
+        body = read_body(request, raw)
+        fn = {'activate': lambda db, p: M.activate(db, p, rid), 'deliver': lambda db, p: M.deliver(db, p, rid, body), 'settle': lambda db, p: M.settle(db, p, rid), 'cancel': lambda db, p: M.cancel(db, p, rid, body)}.get(action)
+        if fn is None:
+            from ..errors import ServiceError
+            raise ServiceError('NOT_FOUND', 'reservation action')
+        return await run(request, True, fn, 'resources.' + action, raw)

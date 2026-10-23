@@ -39,12 +39,12 @@ def push(src, dst, receiver, transport='online'):
     st, res = dst.call('POST', '/api/v1/native/transport/inbox?transport=' + transport, ob)
     if st != 200:
         return {'ok': False, 'stage': 'inbox', 'status': st, 'error': res}
-    src.call('POST', '/api/v1/native/transport/outbox/mark', {'results': [{'id': r['id'], 'state': r['state'], 'reason': r.get('reason')} for r in res['results'] if r.get('id')]})
+    src.call('POST', '/api/v1/native/transport/outbox/mark', {'results': [{'id': r['id'], 'state': r['state'], 'reason': r.get('reason')} for r in res['results'] if r.get('id') and r['state'] in ('accepted', 'duplicate', 'rejected')]})
     back = None
     if res['replies']:
         st2, back = src.call('POST', '/api/v1/native/transport/inbox?transport=' + transport, {'schema': 'metacoin-native-bundle/v0', 'items': res['replies']})
         if st2 == 200:
-            dst.call('POST', '/api/v1/native/transport/outbox/mark', {'results': [{'id': r['id'], 'state': r['state'], 'reason': r.get('reason')} for r in back['results'] if r.get('id')]})
+            dst.call('POST', '/api/v1/native/transport/outbox/mark', {'results': [{'id': r['id'], 'state': r['state'], 'reason': r.get('reason')} for r in back['results'] if r.get('id') and r['state'] in ('accepted', 'duplicate', 'rejected')]})
     return {'ok': True, 'delivered': len(ob['items']), 'results': res['results'], 'replies': len(res['replies']), 'reply_results': (back or {}).get('results')}
 
 
@@ -75,7 +75,7 @@ def import_bundle(dst, path, reply_path=None):
 
 
 def mark_from_results(src, results):
-    return src.call('POST', '/api/v1/native/transport/outbox/mark', {'results': [{'id': r['id'], 'state': r['state'], 'reason': r.get('reason')} for r in results if r.get('id')]})[1]
+    return src.call('POST', '/api/v1/native/transport/outbox/mark', {'results': [{'id': r['id'], 'state': r['state'], 'reason': r.get('reason')} for r in results if r.get('id') and r['state'] in ('accepted', 'duplicate', 'rejected')]})[1]
 
 
 def main(argv=None):
