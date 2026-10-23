@@ -97,6 +97,24 @@ class CustodyTests(MissionBase):
     def offer_as_machine_h(self, mid, key, price, h):
         rid = self.ms(mid, key)['binding']['request_id']; r = self.c.post('/api/v1/work/requests/' + rid + '/offers', headers=h, json={'price_amount': price, 'asset': self.asset, 'scheme': 'exact', 'window_seconds': 3600, 'verification': {'class': 'analytical'}}); self.assertEqual(r.status_code, 201, r.text)
 
+    def test_sequence_numbers_allocate_at_prepare_and_authorize_once(self):
+        # a signed-but-never-submitted intent (a lost race, a voided request) must not block the account's next intent at the signer
+        self.enroll('xseq', 1000); self.fund('xseq', 50); h = self.actors['xseq']['h']; to = self.actors['supplier']['account']
+        m1 = self.c.post('/api/v1/native/transfers/prepare', headers=h, json={'to_account': to, 'amount': 5, 'request_id': 'q1'}).json()['message']; m2 = self.c.post('/api/v1/native/transfers/prepare', headers=h, json={'to_account': to, 'amount': 6, 'request_id': 'q2'}).json()['message']
+        self.assertNotEqual(m1['nonce'], m2['nonce'])                                                 # distinct sequences allocated at preparation
+        s1 = self.sg.client.sign('xseq', m1)[1]; st2, s2 = self.sg.client.sign('xseq', m2); self.assertEqual(st2, 200, s2)
+        r2 = self.c.post('/api/v1/native/transfers/submit', headers=h, json={'message': m2, 'signature_hex': s2['signature_hex'], 'key_id': s2['key_id']}); self.assertEqual(r2.status_code, 201, r2.text)   # the later sequence settles first
+        r1 = self.c.post('/api/v1/native/transfers/submit', headers=h, json={'message': m1, 'signature_hex': s1['signature_hex'], 'key_id': s1['key_id']}); self.assertEqual(r1.status_code, 201, r1.text)   # the earlier one still authorizes exactly once
+        m3 = self.c.post('/api/v1/native/transfers/prepare', headers=h, json={'to_account': to, 'amount': 1, 'request_id': 'q3'}).json()['message']; st3, s3 = self.sg.client.sign('xseq', m3); self.assertEqual(st3, 200, s3)
+        forged = dict(m3, nonce=m1['nonce'], request_id='q4'); st, sf = self.sg.client.sign('xseq', forged); self.assertEqual(sf.get('code'), 'sequence')          # the signer refuses a reused sequence
+        from metacoin_service import crypto
+        from metacoin_service.native import protocol as P
+        kf = next(f for f in (self.sg.home / 'keys').iterdir() if 'xseq' in f.name and '-e1-' in f.name); sig = crypto.sign(crypto.load_signing_key(kf), P.signing_bytes('intent', forged))
+        r = self.c.post('/api/v1/native/transfers/submit', headers=h, json={'message': forged, 'signature_hex': sig, 'key_id': s1['key_id']}); self.assertEqual((r.status_code, r.json()['detail']['code']), (409, 'nonce_replayed'))   # and so does the service
+        ahead = dict(m3, nonce=m3['nonce'].rsplit('-', 1)[0] + '-999', request_id='q5'); sig = crypto.sign(crypto.load_signing_key(kf), P.signing_bytes('intent', ahead))
+        r = self.c.post('/api/v1/native/transfers/submit', headers=h, json={'message': ahead, 'signature_hex': sig, 'key_id': s1['key_id']}); self.assertEqual(r.json()['detail']['code'], 'nonce_stale')                                 # never allocated
+        self.assertEqual(self.bal('xseq'), 39); self.assertTrue(self.c.get('/api/v1/native/audit', headers=self.H).json()['conserved'])
+
     def test_development_custody_can_be_disabled_for_a_scenario(self):
         self.inst.settings.require_external_custody = True
         r = self.c.post('/api/v1/native/actors', headers=self.H, json={'name': 'dev-x'}); self.assertEqual(r.status_code, 501, r.text); self.assertEqual(r.json()['detail']['code'], 'development_custody_disabled')

@@ -176,12 +176,11 @@ class Market:
                 raise ServiceError('FORBIDDEN', {'code': 'reservation_binding', 'note': 'the signed intent must bind this buyer, provider, price, asset, request id and the exact reservation context (policy_hash)'})
             if 'expires_at' not in msg or msg['expires_at'] <= now():
                 raise ServiceError('EXPIRED', {'code': 'intent_expired'})
-            if msg.get('nonce') != '%s-%d' % (buyer['id'], buyer['nonce_counter'] + 1):
-                raise ServiceError('CONFLICT', {'code': 'nonce_stale', 'expected': '%s-%d' % (buyer['id'], buyer['nonce_counter'] + 1)})
+            self.native.check_nonce(db, buyer, msg.get('nonce'))
             keys = {k['key_id']: k for k in self.native._active_keys(db, buyer)}; key = keys.get(ns.get('key_id'))
             if key is None or key['state'] != 'active' or not crypto.verify(key['public_hex'], P.signing_bytes('intent', msg), ns.get('signature_hex', '')):
                 raise ServiceError('FORBIDDEN', {'code': 'signature_invalid'})
-            db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (buyer['id'],)); sig_key = {'key_id': ns['key_id'], 'signature_hex': ns['signature_hex'], 'message_digest': P.digest(msg)}
+            sig_key = {'key_id': ns['key_id'], 'signature_hex': ns['signature_hex'], 'message_digest': P.digest(msg)}
         from ..agents import grant_of, guard
         if grant_of(principal):
             guard(db, principal, 'native:transfer', amount=price)
@@ -213,7 +212,7 @@ class Market:
             raise ServiceError('CONFLICT', {'code': 'stale_quote', 'current_version': o['version']})
         istart = body.get('interval_start', max(now(), o['window_start'])); iend = body.get('interval_end', o['window_end']); price = q * o['price_per_unit']; ctx = self._reservation_context(o, q, istart, iend, price)
         msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.native.environment, 'actor_account': buyer['id'], 'authority': d['id'], 'asset': o['asset'], 'amount_ceiling': price, 'recipient': o['provider_account'], 'obligation_id': None, 'grant_id': (getattr(principal, 'scope', None) or {}).get('grant_id'),
-               'nonce': '%s-%d' % (buyer['id'], buyer['nonce_counter'] + 1), 'policy_version': P.POLICY_VERSION, 'request_id': body.get('request_id'), 'purpose': 'reservation of %d %s on %s v%d' % (q, o['unit'], o['id'], o['version']), 'expires_at': now() + 900, 'policy_hash': P.digest(ctx)}
+               'nonce': self.native.allocate_nonce(db, buyer['id']), 'policy_version': P.POLICY_VERSION, 'request_id': body.get('request_id'), 'purpose': 'reservation of %d %s on %s v%d' % (q, o['unit'], o['id'], o['version']), 'expires_at': now() + 900, 'policy_hash': P.digest(ctx)}
         P.validate_intent(msg, self.native.environment, d['id'])
         return {'message': msg, 'context': ctx, 'reserve_body': dict({k: body[k] for k in ('offer_id', 'offer_version', 'quantity', 'request_id', 'buyer_account', 'purpose') if k in body}, interval_start=istart, interval_end=iend), 'custody': buyer['custody'], 'note': 'sign the message with the context at the signer; submit the reservation with native_signature {message, signature_hex, key_id}'}
 

@@ -23,6 +23,8 @@ class Signing:
     def create(self, db, workspace, account_id, kind, message, context, ref_type=None, ref_id=None, extra=None):
         """Record a pending request for `account_id` (idempotent by request_id of the message). `context` is exactly what the signer
         is shown and hashes (policy_hash); `extra` is service-side continuation data that is not part of the binding."""
+        if kind == 'settlement':
+            message = dict(message, nonce=self.svc.native.allocate_nonce(db, account_id))        # one allocated sequence per request: several settlements of one milestone never collide
         if kind not in KINDS:
             raise ServiceError('INTERNAL_DEFECT', 'signing kind')
         ex = db.execute("SELECT * FROM native_signing_requests WHERE workspace=? AND account_id=? AND json_extract(message_json, '$.request_id')=? AND state IN ('pending','signed')", (workspace, account_id, message['request_id'])).fetchone()

@@ -52,3 +52,36 @@ Separate executables: `python -m metacoin_service.native.signer {init|serve|heal
 
 ### MCP tools (analysis vs spending)
 READ: `operator_screen`, `resource_market`, `mission_status`, `mission_explain`, `mission_plan` (analysis; locks nothing). SIMULATE: `resource_quote`. SPEND (grant + idempotency): `resource_reserve`, `mission_step`, `mission_propose` (one validated action or a recorded rejection).
+
+## Order 2026-10-23 (independent machine network) additions
+
+### HTTP API
+| Operation | Route | Permission |
+|---|---|---|
+| Signing requests (external custody): pending, view, submit signature, cancel | `GET /native/signing/pending`, `GET /native/signing/requests/{id}`, `POST /native/signing/requests/{id}/submit`, `POST .../cancel` | holder |
+| Signed reservation: prepare (message + context + reserve body) → sign at the signer → reserve with `native_signature` | `POST /resources/reservations/prepare`, `POST /resources/reservations` | native:transfer (holder) |
+| Resource pools: create, list, view (offers, commitments, peak, within-capacity), amend / drain / close | `POST GET /resources/pools`, `GET /resources/pools/{id}`, `POST /resources/pools/{id}/{amend|drain|close}` | work:offer (owner) / native:read |
+| Provider identity and independence disclosure | `GET /work/providers/{id}/identity` | work:read |
+| Sub-contracts: propose, list, view, `prefund-prepare` / `prefund` (requester), `step`, `return-unused` (primary) | `POST GET /subcontracts`, `GET /subcontracts/{id}`, `POST /subcontracts/{id}/{action}` | primary / requester / parties |
+| Mission products: publish, list, view, purchase (idempotent), `check-reuse`, entitlements, download | `POST GET /products`, `GET /products/{id}`, `POST /products/{id}/{purchase|check-reuse}`, `GET /products/entitlements[/{id}[/download]]` | owner / buyer |
+| Relay routes: create (bounded fees), submit bytes, forward per hop, message (recipient), acknowledge, settle, cancel-unused | `POST GET /relay/routes`, `GET /relay/routes/{id}`, `POST /relay/routes/{id}/submit` (octet-stream), `POST /relay/routes/{id}/{forward|acknowledge|settle|cancel-unused}`, `GET /relay/routes/{id}/message` | sender / relay / recipient |
+| Claim lots: per-account lots and retirable total; consolidate; partial return (`amount`) | `GET /native/accounts/{id}/lots`, `POST /native/accounts/{id}/lots/consolidate`, `POST /native/allocations/{id}/return {amount}` | holder |
+| Liquidity split | `GET /native/accounts/{id}/liquidity[?asset=]` | native:read |
+| Portfolio: plan (reference / oracle / improved, non-binding), validate (independent), compare rolling vs fixed | `POST /portfolio/{plan|validate|compare}` | work:read |
+| Continuity and fenced takeover; generation in `step`/`run`/`propose` (`generation` or header `X-Controller-Generation`) | `GET /missions/{id}/continuity`, `POST /missions/{id}/takeover` | parties |
+
+### CLI
+`python -m metacoin_service.client_cli ... native-signing-requests native-sign-pending` (the actor's agent loop), the provider CLI
+`metacoin-provider {init, handshake, capabilities, drain, withdraw, earnings, signing-pending, sign-pending, signer-policy}` with
+`--home` (pinned identity and versions, 0600 config) and `--ca`; `python -m metacoin_service.native.controller_runner` (restart-safe
+fenced controller), `python -m metacoin_service.native.hostconfig {generate|check}` (second-host configuration generator).
+
+### Console
+`/console/providers` (identity separation, custody, outcomes), `/console/pools` (create a pool + offer as a provider), `/console/subcontracts/{id}`,
+`/console/products` (purchase form; an expired session preserves the unsent form and pays nothing), `/console/relay`,
+`/console/missions/{id}/continuity` (+ takeover), `/console/portfolio?missions=` (liquidity split, non-binding comparison). Every
+page shows environment, asset, custody and domain.
+
+### MCP tools
+READ (lock nothing, spend nothing): `pools`, `portfolio_plan`, `plan_validate`, `mission_continuity`, `subcontract_status`, `products`,
+`product_check_reuse`, `relay_routes`. SPEND (idempotency key, grant envelope): `subcontract_propose`, `product_purchase`.

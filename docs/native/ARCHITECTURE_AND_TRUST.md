@@ -48,3 +48,40 @@ The mission controller is deterministic: it enumerates explicit actions from rec
 
 ### Two hosts
 Documented in `docs/native/TWO_HOST.md`; exercised on one host only. BPv7 (RFC 9171) transport: no installable daemon was available in this environment; the envelope/bundle layer is transport-agnostic and a BPv7 adapter remains unverified.
+
+## Order 2026-10-23 (independent machine network) additions
+
+### Custody separation (group A)
+Development custody can be disabled per instance (`METACOIN_REQUIRE_EXTERNAL_CUSTODY=1`: `POST /native/actors` → 501
+`development_custody_disabled`). In that configuration every spend of every actor passes through a context-bound signing request
+answered by that actor's own signer process (one per economic party in the demonstration: `sig-requester`, `sig-machine`,
+`sig-supplier`, `sig-others`); the API and worker processes hold no actor key (`keys_dir/native/actor-*` is empty) and have no
+fallback path. The signer is **process-separated on the same host**, which is weaker than operator-separated hosts: it protects
+against the service signing on its own, not against a host-level compromise; the signer's health reports `isolation_mode` and the
+authority note ("not consensus"). The domain authority key stays with the service (it signs certificates, not spends).
+
+### What the shared pool guarantees
+Capacity admission happens inside the reservation transaction under the single fenced writer: two overlapping offers of one pool
+can never oversell their shared interval, regardless of request interleaving (race journeys 12 and the endurance run). Pools do
+not model physical contention beyond the declared slot unit; a provider's `units_per_slot_second` is a declaration.
+
+### Sub-contracts, products, relay: who bears what
+A sub-contract never transfers the primary's obligation; the parent milestone stays the primary's duty. Product purchases buy a
+processing or verification service, never rights over public data. Relay fees are bounded by the sender's ceiling and paid per
+hop for bytes actually forwarded; the relay's custody evidence is a relay statement, the recipient's acknowledgment is the only
+proof of final delivery. None of this is BPv7 interoperability.
+
+### Claim lots
+Lineage is explicit: every imported unit is a lot with an origin and an owner; splitting, transfer, re-export and retirement are
+ledger hooks on every money move, so the partition invariant (`lots of one origin = allocation amount`) is maintained by
+construction and recomputed independently by the checker and the provider client from the export. Historical mixed claims get no
+invented provenance.
+
+### Fenced generations
+Controller continuity is a property of the authoritative domain, not of the controller process: a generation is granted by the
+domain, superseded by the next grant, and a stale holder's mutations are refused and recorded. A quarantined domain grants nothing.
+
+### Independence disclosure
+Providers declare `identity {operator_id, machine_id, worker_instance, signer_id, domain}`; the service discloses shared
+operators (`shared_operator: true`, `independent_party: false`) and never computes a universal trust score; outcome history is
+per provider and descriptive. Two (or three) local domains under one operator remain one party.

@@ -58,3 +58,13 @@ Receipts and bundles verify on host B without host A (`metacoin-provider verify`
 
 No Byzantine fault tolerance and no independent validators: host A remains the single ordering authority of `dom-a`. A
 provider on host B detects equivocation only where two signed histories meet (see `docs/native/ARCHITECTURE_AND_TRUST.md`).
+
+## Order 2026-10-23 (independent machine network): configuration generator
+
+`python -m metacoin_service.native.hostconfig generate --role provider --service-url https://host-a:8443 --ca ca.pem --domain dom-a --out ./host-b`
+writes `provider.env`, `run-signer.sh` (operator B's signer, loopback only), `enroll.sh` (one-time, administrator credential handed
+over out of band), `selfcheck.sh` (`metacoin-provider --home ... handshake` + conformance) and `identity.json` (declared identity
+separation). `--role domain` writes the files for a second settlement domain (`deploy_local up`, `METACOIN_REQUIRE_EXTERNAL_CUSTODY=1`,
+peer pinned from a value read out of band). `hostconfig check DIR` is a static check: distinct ports, TLS beyond loopback, no key
+material in the files. **Generating a configuration is not a deployment.** No second host was authorized or reachable in the
+2026-10-23 session; real second-host and separate-operator behaviour remain unverified and are listed as blocked, not passed.

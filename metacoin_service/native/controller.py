@@ -398,7 +398,6 @@ class Controller:
                     if d_.get('code') != 'native_signature_required':
                         raise
                     msg = dict(d_['message'], expires_at=now() + 900); aw = db.execute('SELECT * FROM work_awards WHERE id=?', (c['award_id'],)).fetchone()
-                    base_seq = int(msg['nonce'].rsplit('-', 1)[1]); msg['nonce'] = '%s-%d' % (msg['actor_account'], base_seq + len(requests))     # several settlements of one milestone: consecutive sequence numbers, signed and submitted in order
                     ctx_ = {'kind': 'settlement', 'award_id': aw['id'], 'terms_digest': aw['terms_digest'], 'entitlement': eid, 'payment_intent': i['id'], 'obligation_id': msg.get('obligation_id'), 'recipient': msg['recipient'], 'amount': msg['amount_ceiling'], 'asset': msg['asset'], 'mission': m['id'], 'milestone': ms['key']}
                     sr = self.svc.signing.create(db, principal.workspace, msg['actor_account'], 'settlement', msg, ctx_, 'mission_milestone', '%s:%s:pay' % (m['id'], ms['key'])); requests.append(sr['id'])
             if requests:

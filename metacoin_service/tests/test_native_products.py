@@ -50,6 +50,9 @@ class ProductTests(CustodyTests):
     def test_development_custody_can_be_disabled_for_a_scenario(self):
         pass
 
+    def test_sequence_numbers_allocate_at_prepare_and_authorize_once(self):
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()

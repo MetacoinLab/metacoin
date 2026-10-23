@@ -267,7 +267,7 @@ class Native:
         self._check_grant(db, principal, amt, dst['id'])
         if (src['custody'] or '').startswith('external-signer'):
             raise ServiceError('CONFLICT', {'code': 'signature_required', 'note': 'this account is held by an external signer: POST /native/transfers/prepare, sign the canonical message outside the service, then POST /native/transfers/submit', 'custody': src['custody']})
-        nonce = '%s-%d' % (src['id'], src['nonce_counter'] + 1)
+        nonce = self.allocate_nonce(db, src['id'])
         msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': src['id'], 'authority': d['id'], 'asset': asset, 'amount_ceiling': amt, 'recipient': dst['id'], 'obligation_id': body.get('obligation_id'),
                'grant_id': (getattr(principal, 'scope', None) or {}).get('grant_id'), 'nonce': nonce, 'policy_version': P.POLICY_VERSION, 'request_id': rid, 'purpose': (body.get('purpose') or '')[:MAX_PURPOSE]}
         P.validate_intent(msg, self.environment, d['id'])
@@ -283,7 +283,6 @@ class Native:
         self._consume_claims(db, principal.workspace, src['id'], asset, amt, 'native_intent', iid)
         ledger.move(db, principal.workspace, 'reserve:' + iid, 'native_reservation', asset, d['id'], self.environment, amt, ledger.account_name(src['id'], 'available'), ledger.account_name(src['id'], 'reserved'), 'native_intent', iid, 'reserved for a signed intent')
         hist.append({'state': 'reserved', 'at': now()})
-        db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (src['id'],))
         db.execute('INSERT INTO native_intents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (iid, principal.workspace, d['id'], src['id'], principal.id, 'transfer', asset, amt, None, dst['id'], msg.get('obligation_id'), msg['grant_id'], msg['nonce'], rid, json.dumps(msg), P.digest(msg), None, 'reserved', None, None, json.dumps(hist), now(), now()))
         fault(db, self.settings, 'native_reserve')
         # authorize: the account's development key held here, or the signature produced outside the service by its signer
@@ -408,9 +407,34 @@ class Native:
         if type(ttl) is not int or not 30 <= ttl <= 86400:
             raise ServiceError('VALIDATION', {'code': 'expires_in_seconds', 'allowed': '30..86400'})
         msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': src['id'], 'authority': d['id'], 'asset': asset, 'amount_ceiling': amt, 'recipient': dst['id'], 'obligation_id': body.get('obligation_id'),
-               'grant_id': (getattr(principal, 'scope', None) or {}).get('grant_id'), 'nonce': '%s-%d' % (src['id'], src['nonce_counter'] + 1), 'policy_version': P.POLICY_VERSION, 'request_id': rid, 'purpose': (body.get('purpose') or '')[:MAX_PURPOSE], 'expires_at': now() + ttl}
+               'grant_id': (getattr(principal, 'scope', None) or {}).get('grant_id'), 'nonce': self.allocate_nonce(db, src['id']), 'policy_version': P.POLICY_VERSION, 'request_id': rid, 'purpose': (body.get('purpose') or '')[:MAX_PURPOSE], 'expires_at': now() + ttl}
         P.validate_intent(msg, self.environment, d['id'])
         return {'message': msg, 'signing': 'Ed25519 over %s || sha256(canonical(message))' % P.MESSAGE_TYPES['intent'].decode().rstrip('\0'), 'message_digest': P.digest(msg), 'custody': src['custody'], 'note': 'nothing reserved; submit the signed message to POST /native/transfers/submit'}
+
+    # ---- intent sequence numbers (order 2026-10-23 §12.1) -------------------------------------------------------------------------
+    # A prepared intent CONSUMES a sequence number at preparation time, so a message that was signed but never submitted (a lost
+    # race, a voided request) can never collide with a later one at the signer, whose rule is strictly increasing sequences.
+    # Submission accepts any sequence this account allocated (or the very next one, for messages built from a preview) that no
+    # recorded intent has used; the counter never moves backwards.
+    def allocate_nonce(self, db, account_id):
+        db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (account_id,))
+        return '%s-%d' % (account_id, db.execute('SELECT nonce_counter FROM native_accounts WHERE id=?', (account_id,)).fetchone()[0])
+
+    def peek_nonce(self, db, src):
+        return '%s-%d' % (src['id'], db.execute('SELECT nonce_counter FROM native_accounts WHERE id=?', (src['id'],)).fetchone()[0] + 1)
+
+    def check_nonce(self, db, src, nonce):
+        cur = db.execute('SELECT nonce_counter FROM native_accounts WHERE id=?', (src['id'],)).fetchone()[0]
+        try:
+            seq = int(str(nonce).rsplit('-', 1)[1]); prefix = str(nonce).rsplit('-', 1)[0]
+        except (ValueError, IndexError):
+            raise ServiceError('VALIDATION', {'code': 'nonce_format'})
+        if prefix != src['id'] or seq > cur + 1 or seq < 1:
+            raise ServiceError('CONFLICT', {'code': 'nonce_stale', 'expected_at_most': '%s-%d' % (src['id'], cur + 1), 'note': 'prepare again: the sequence was never allocated to this account'})
+        if db.execute('SELECT 1 FROM native_intents WHERE actor_account=? AND nonce=?', (src['id'], nonce)).fetchone():
+            raise ServiceError('CONFLICT', {'code': 'nonce_replayed', 'nonce': nonce, 'note': 'this sequence number already authorized an intent; a signed message authorizes exactly once'})
+        if seq > cur:
+            db.execute('UPDATE native_accounts SET nonce_counter=? WHERE id=?', (seq, src['id']))
 
     def transfer_submit(self, db, principal, body):
         """A canonical intent signed outside the service. Every field is re-validated against the service's own view; the signature
@@ -440,8 +464,7 @@ class Native:
             if ex['message_digest'] != P.digest(msg):
                 raise ServiceError('IDEMPOTENCY_CONFLICT', {'code': 'request_id_reused_with_different_content'})
             return dict(self.intent_view(db, principal, ex['id']), replayed=True)
-        if msg['nonce'] != '%s-%d' % (src['id'], src['nonce_counter'] + 1):
-            raise ServiceError('CONFLICT', {'code': 'nonce_stale', 'expected': '%s-%d' % (src['id'], src['nonce_counter'] + 1), 'note': 'prepare again: another intent of this account was settled first'})
+        self.check_nonce(db, src, msg['nonce'])
         keys = {k['key_id']: k for k in self._active_keys(db, src)}; key = keys.get(body['key_id'])
         if key is None or key['state'] == 'revoked' or (key['state'] == 'retired' and (key.get('grace_until') is None or now() >= key['grace_until'])):
             raise ServiceError('FORBIDDEN', {'code': 'key_not_authorized', 'key_id': body['key_id'], 'state': key['state'] if key else 'unknown', 'note': 'retired keys authorize nothing new after their grace; revoked keys never'})
@@ -655,26 +678,25 @@ def _hooks(cls):
         if reserved < final:
             raise ServiceError('BUDGET_EXHAUSTED', {'code': 'reservation_short', 'reserved': reserved, 'requested': final, 'note': 'the award reservation must cover every settlement leg'})
         src = self.account_row(db, principal.workspace, payer)
-        nonce = '%s-%d' % (src['id'], src['nonce_counter'] + 1); rid = 'settle-' + e['id']
+        nonce = self.peek_nonce(db, src); rid = 'settle-' + e['id']
         msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': payer, 'authority': d['id'], 'asset': asset, 'amount_ceiling': final, 'recipient': payee, 'obligation_id': ob['id'], 'grant_id': None, 'nonce': nonce, 'policy_version': P.POLICY_VERSION, 'request_id': rid, 'purpose': 'settlement of %s obligation %s' % (kind, ob['id'])}
         P.validate_intent(msg, self.environment, d['id'])
         iid = 'ni_' + secrets.token_hex(8)
         if (src['custody'] or '').startswith('external-signer'):
             ns = native_signature or {}
-            core = {k: v for k, v in (ns.get('message') or {}).items() if k not in ('expires_at', 'policy_hash')}
-            if not ns or core != msg:                                                     # includes the nonce: the signed sequence must be exactly the account's next one now
+            core = {k: v for k, v in (ns.get('message') or {}).items() if k not in ('expires_at', 'policy_hash', 'nonce')}
+            if not ns or core != {k: v for k, v in msg.items() if k != 'nonce'}:         # the nonce is checked separately: it must be one this account allocated (or the next one) and never used
                 raise ServiceError('CONFLICT', {'code': 'native_signature_required', 'message': msg, 'note': 'the payer account is held by an external signer: sign this settlement message (expires_at may be added) and resubmit with native_signature {message, signature_hex, key_id}'})
             msg = ns['message']; keys = {k['key_id']: k for k in self._active_keys(db, src)}; key = keys.get(ns.get('key_id'))
             if 'expires_at' in msg and msg['expires_at'] <= now():
                 raise ServiceError('EXPIRED', {'code': 'intent_expired'})
             if key is None or key['state'] != 'active' or not crypto.verify(key['public_hex'], P.signing_bytes('intent', msg), ns.get('signature_hex', '')):
                 raise ServiceError('FORBIDDEN', {'code': 'signature_invalid'})
-            sig = ns['signature_hex']
+            self.check_nonce(db, src, msg['nonce']); nonce = msg['nonce']; sig = ns['signature_hex']
         else:
-            sig = self._sign_account(db, src, 'intent', msg) if src['kind'] == 'actor' else None
+            nonce = self.allocate_nonce(db, src['id']); msg['nonce'] = nonce; sig = self._sign_account(db, src, 'intent', msg) if src['kind'] == 'actor' else None
         seq = self.next_sequence(db, principal.workspace)
         hist = [{'state': 'reserved', 'at': now(), 'from': 'award_reservation'}, {'state': 'authorized', 'at': now(), 'key_id': (native_signature or {}).get('key_id') or src['key_id'], 'note': 'treasury account: authority-ordered, no actor signature' if sig is None else None}, {'state': 'committed', 'at': now(), 'sequence': seq}, {'state': 'settled', 'at': now(), 'sequence': seq}]
-        db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (src['id'],))
         db.execute('INSERT INTO native_intents VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (iid, principal.workspace, d['id'], payer, principal.id, 'settlement', asset, final, final, payee, ob['id'], None, nonce, rid, json.dumps(msg), P.digest(msg), sig, 'settled', seq, None, json.dumps(hist), now(), now()))
         ledger.move(db, principal.workspace, 'commit:' + iid, 'native_commit', asset, d['id'], self.environment, final, ledger.account_name(payer, 'reserved'), ledger.account_name(payer, 'committed_outgoing'), 'native_intent', iid, 'committed from the award reservation (sequence %d)' % seq)
         from ..economy.ops import fault

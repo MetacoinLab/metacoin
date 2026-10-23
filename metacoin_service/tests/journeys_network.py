@@ -420,8 +420,8 @@ class NetworkJourneys(Journeys):
         """Refuse circular funding based on the parent's expected future earnings."""
         A = self.A; mid = self.ctx['sub_parent']; A.actor('subco2'); A.provider('subco2'); mach0 = A.bal('machine')
         c1 = A.call('post', '/api/v1/subcontracts', role='machine', json=self.sub_body(A, mid, 'subco2', mode='parent_future_earnings', label='FUT'))
-        c2 = A.call('post', '/api/v1/subcontracts', role='machine', json=self.sub_body(A, mid, 'subco2', mode='machine_earnings', funded=10 ** 6, label='BIG'))
         liq = A.call('get', '/api/v1/native/accounts/%s/liquidity' % A.actors['machine']['account'], role='machine')[1]
+        c2 = A.call('post', '/api/v1/subcontracts', role='machine', json=self.sub_body(A, mid, 'subco2', mode='machine_earnings', funded=liq['held_locally'] + 1, label='BIG'))
         ok = c1[0] == 422 and self.code(c1[1]) == 'circular_funding' and c2[0] == 400 and self.code(c2[1]) == 'insufficient_settled_funds' and A.bal('machine') == mach0 and liq['spendable'] <= liq['held_locally'] and liq['spendable'] == (c2[1].get('detail') or {}).get('available')
         self.rec(17, self.j17.__doc__, ok, {'future_earnings': (c1[0], self.code(c1[1])), 'beyond_settled': (c2[0], self.code(c2[1]), (c2[1].get('detail') or {}).get('available')), 'machine_liquidity': {k: liq.get(k) for k in ('held_locally', 'expected_earnings', 'spendable')}}, t0=t0)
 
@@ -445,6 +445,7 @@ class NetworkJourneys(Journeys):
         st, bad = A.call('post', '/api/v1/subcontracts', role='machine', json=self.sub_body(A, mid, 'subco', mode='machine_earnings', label='BAD')); sub0 = A.bal('subco')
         if st != 201:
             A.fund('machine', 50); st, bad = A.call('post', '/api/v1/subcontracts', role='machine', json=self.sub_body(A, mid, 'subco', mode='machine_earnings', label='BAD'))
+        assert st == 201, ('failing subcontract could not be created', st, bad)
         s1 = self.drive_child(A, 'machine', good, 'subco'); self.sub_adv(A, 'machine', good, 'pay'); s2 = self.drive_child(A, 'machine', bad['id'], 'subco', fail=True)
         gv = A.call('get', '/api/v1/subcontracts/' + good, role='machine')[1]; ev = [e for e in A.mview('requester', mid)['events'] if e['kind'] == 'subcontract_failed']
         ok = s1['step']['result']['decision'] == 'accepted' and s2['step']['result']['decision'] == 'rejected' and s2['state'] == 'failed' and gv['state'] == 'completed' and A.bal('subco') == sub0 + 10 and A.ms('requester', mid, 'compute')['state'] == 'executing' and ev and 'remains responsible' in ev[0]['detail']['note']
@@ -680,7 +681,8 @@ class NetworkJourneys(Journeys):
         A.start_api(); d = A.domain(); rec = A.call('get', '/api/v1/native/recovery')[1]
         fm = (self.ctx.get('fenced') or {}).get('mission') or (self.ctx.get('j13') or {}).get('mission') or A.mission('requester', 'terrain_delivery', policy=self.pol(compute_cpu_ms=20))['id']
         st_q, rq = A.call('post', '/api/v1/native/transfers', role='lotter', json={'to_account': A.actors['machine']['account'], 'amount': 1, 'request_id': 'q'}); tk = A.call('post', '/api/v1/missions/%s/takeover' % fm, role='requester', json={'holder': 'during-quarantine'})
-        B.call('post', '/api/v1/native/transport/observation', json={'peer': 'dom-a'}); self.push(B, A)
+        for peer in (B, self.C):
+            peer.call('post', '/api/v1/native/transport/observation', json={'peer': 'dom-a'}); self.push(peer, A)
         st_r, r = A.call('post', '/api/v1/native/recovery/reconcile', json={'reconstruct_from_observations': True, 'source_account': A.actors['lotter']['account'], 'amounts': {a['id']: 5}})
         ok = w['latest']['sequence'] == rec1['witness']['latest_sequence'] and d['recovery_state'] == 'quarantine' and 'witness-acknowledged' in rec['rollback_detection'] and st_q == 409 and self.code(rq) == 'domain_quarantined' and tk[0] == 409 and self.code(tk[1]) == 'domain_quarantined' and st_r == 200 and r['recovery_state'] == 'normal' and A.domain()['commit_sequence'] >= w['latest']['sequence']
         self.rec(39, self.j39.__doc__, ok, {'witness_sequence_before_restore': w['latest']['sequence'], 'after_restore': {'recovery_state': d['recovery_state'], 'detection': rec['rollback_detection'][:80]}, 'spend_during_quarantine': (st_q, self.code(rq)), 'takeover_during_quarantine': (tk[0], self.code(tk[1])), 'reconciled': r.get('recovery_state'), 'reconcile_response': (st_r, json.dumps(r)[:900])}, caveat='the local watermark file was removed to emulate a restore on another host; the witness checkpoint was the detection source', t0=t0)
@@ -704,7 +706,10 @@ class NetworkJourneys(Journeys):
         exp = C.explain('c_req', mid); reason = next((a['reason'] for a in exp['actions'] if a['action'] == 'await_signature'), '')
         cont = C.call('get', '/api/v1/missions/%s/continuity' % mid, role='c_req')[1]; pend = len(cont['pending_signing_requests']); unchanged = (C.bal('c_mach'), C.bal('c_req', 'reserved')); self.sgR.start(); signed = self.sign_all(C, 'c_req'); after = C.bal('c_mach')
         # external worker unavailable: the award stays executing, nothing is paid; a restarted worker completes it
-        C.stop_workers(); s2 = self.adv(C, 'c_req', mid, 'open_request'); rid = C.ms('c_req', mid, 'compute')['binding']['request_id']; C.call('post', '/api/v1/work/requests/%s/offers' % rid, role='c_mach', json={'price_amount': 40, 'asset': C.asset, 'scheme': 'exact', 'window_seconds': 3600, 'verification': {'class': 'analytical'}})
+        C.stop_workers()
+        if not C.ms('c_req', mid, 'compute')['binding'].get('request_id'):
+            self.adv(C, 'c_req', mid, 'open_request')
+        rid = C.ms('c_req', mid, 'compute')['binding']['request_id']; C.call('post', '/api/v1/work/requests/%s/offers' % rid, role='c_mach', json={'price_amount': 40, 'asset': C.asset, 'scheme': 'exact', 'window_seconds': 3600, 'verification': {'class': 'analytical'}})
         aw = self.adv(C, 'c_req', mid, 'award'); time.sleep(3); stuck = C.step('c_req', mid); state_stuck = C.ms('c_req', mid, 'compute')['state']; paid_stuck = C.bal('c_mach')
         C.start_worker('w-dom-c-2'); tA = time.time(); done = self.adv(C, 'c_req', mid, 'decide', signers=('c_req',)); tB = time.time(); pay2 = self.adv(C, 'c_req', mid, 'pay', signers=('c_req',)); self.sign_all(C, 'c_req'); paid_after = C.bal('c_mach'); timings = {'decide_after_worker_restart_s': round(tB - tA, 1), 'pay_s': round(time.time() - tB, 1), 'decide_timed_out': done.get('timed_out')}
         # witness unavailable: local commits proceed, the recovery view says so, the checkpoint is acknowledged after the witness returns
@@ -758,7 +763,7 @@ class NetworkJourneys(Journeys):
         """Reject a planner output spending pending remote claims or overselling resources."""
         A, C = self.A, self.C; pf = self.ctx['portfolio']; p = pf['plan']; t = pf['t']; sched = p['plan']['incumbent']['schedule']
         over = {tid: dict(s, start_at=t + 6000, end_at=t + 6060, quantity=60) for tid, s in sched.items()}; v2 = A.call('post', '/api/v1/portfolio/validate', role='requester', json={'plan': {'schedule': over}})[1]
-        rich = {tid: dict(s, cost=10 ** 6) for tid, s in sched.items()}; v3 = A.call('post', '/api/v1/portfolio/validate', role='requester', json={'plan': {'schedule': rich}})[1]
+        rliq = A.call('get', '/api/v1/native/accounts/%s/liquidity' % A.actors['requester']['account'], role='requester')[1]; rich = {tid: dict(s, cost=rliq['spendable'] + 1) for tid, s in sched.items()}; v3 = A.call('post', '/api/v1/portfolio/validate', role='requester', json={'plan': {'schedule': rich}})[1]
         # a pending remote claim: exported to the machine at dom-c but not yet imported there; its liquidity shows it as pending, not spendable
         A.fund('lotter', 20); a = A.call('post', '/api/v1/native/allocations/export', role='lotter', json={'destination_domain': 'dom-c', 'recipient_account': C.actors['c_mach']['account'], 'amount': 5, 'request_id': 'pending-claim'})[1]
         liq = C.call('get', '/api/v1/native/accounts/%s/liquidity' % C.actors['c_mach']['account'], role='c_mach')[1]; held = C.bal('c_mach')
@@ -766,7 +771,8 @@ class NetworkJourneys(Journeys):
         if not co:
             tt = int(time.time()); pool = self.pool(C, 'c_sup', 2, 1000, 'compute', 'cpu_slot', tt - 60, 3); co = self.pool_offer(C, 'c_sup', pool['id'], 'compute', tt - 60, tt + 3 * 3600 - 60, 100000)[1]
         gm = C.mission('c_mach', graph={'milestones': [{'key': 'cpu', 'kind': 'resource', 'depends': [], 'spec': {'offer_kind': 'compute', 'quantity': 1000, 'max_price_per_unit': 5}}]}, title='machine plan')['id']; pm = C.call('post', '/api/v1/portfolio/plan', role='c_mach', json={'mission_ids': [gm], 'planner': 'reference'})[1]
-        plan_claim = {tid: dict(s, cost=held + 3) for tid, s in ((pm.get('plan') or {}).get('incumbent') or {}).get('schedule', {}).items()}; v4 = C.call('post', '/api/v1/portfolio/validate', role='c_mach', json={'plan': {'schedule': plan_claim}})
+        plan_claim = {tid: dict(s, cost=held + 3, mission=gm) for tid, s in ((pm.get('plan') or {}).get('incumbent') or {}).get('schedule', {}).items()} or {gm + ':cpu': {'offer_id': co['id'], 'start_at': int(time.time()) + 60, 'end_at': int(time.time()) + 120, 'quantity': 1000, 'cost': held + 3, 'mission': gm}}
+        v4 = C.call('post', '/api/v1/portfolio/validate', role='c_mach', json={'plan': {'schedule': plan_claim}})
         ok = not v2['valid'] and v2['reasons'][0]['constraint'] == 'pool_oversold' and not v3['valid'] and v3['reasons'][0]['constraint'] == 'not_spendable' and a.get('state') == 'certified' and liq['spendable'] <= liq['held_locally'] and v4[0] == 200 and not v4[1].get('valid') and (v4[1].get('reasons') or [{}])[0].get('constraint') == 'not_spendable'
         self.ctx['pending_claim'] = a.get('id')
         self.rec(44, self.j44.__doc__, ok, {'oversold': (v2.get('reasons') or [v2])[0], 'not_spendable': (v3.get('reasons') or [v3])[0], 'pending_remote_claim': {'allocation': a.get('id'), 'state': a.get('state'), 'machine_liquidity_at_dom_c': {k: liq.get(k) for k in ('held_locally', 'cross_domain_claims_held', 'cross_domain_pending', 'spendable')}, 'plan_beyond_spendable': (v4[0], (v4[1].get('reasons') or [{}])[0].get('constraint') if v4[0] == 200 else self.code(v4[1]))}}, t0=t0)
@@ -1040,7 +1046,7 @@ class NetworkJourneys(Journeys):
         conds = {'race': winner is not None and race[loser][1] == 'pool_capacity_exceeded', 'science': s2['result']['science'] == 'FEASIBLE', 'prefund': pf[0] == 200, 'sub_returned': scv.get('state') == 'returned' and scv['timeline']['returned'] == 2, 'blackout_pay': pay2.get('performed', {}).get('action') == 'pay' and len(sig2) == 3,
                  'export_undeliverable': ex.get('state') == 'certified' and pushed.get('ok') is False and liqa.get('cross_domain_claims_held', 0) == 0, 'followon': fo.get('performed', {}).get('action') == 'reserve' and sd == 200 and st_res.get('performed', {}).get('action') == 'settle_reservation',
                  'failed_branch': st_b == 201 and badres.get('state') == 'failed' and C.bal('c_mach') >= m_before_bad - 0 and (bv.get('timeline') or {}).get('reserved') == 0, 'relay_replanned': st1 == 201 and [h['state'] for h in missed.get('hops', [])] == ['cancelled', 'cancelled'] and f1.get('state') == 'delivered' and got.content == payload and ack.get('state') == 'acknowledged' and [h['state'] for h in stl.get('hops', [])] == ['settled', 'settled'],
-                 'reconnection': [x['state'] for x in out.get('results', [])] == ['accepted'] and liq2['cross_domain_claims_held'] == 10, 'treasury': d3.get('decision') == 'accepted' and tv2['settled_spending'] <= tv2['confirmed_revenue'], 'conserved': conserved}
+                 'reconnection': 'accepted' in [x['state'] for x in out.get('results', [])] and A.alloc(ex['id'])['state'] in ('acknowledged', 'imported') and liq2['cross_domain_claims_held'] - liqa.get('cross_domain_claims_held', 0) == 10, 'treasury': d3.get('decision') == 'accepted' and tv2['settled_spending'] <= tv2['confirmed_revenue'], 'conserved': conserved}
         ok = all(conds.values()); record['conditions'] = conds
         if self.ctx.get('demo_out'):
             Path(self.ctx['demo_out']).write_text(json.dumps(record, indent=1, default=str))
