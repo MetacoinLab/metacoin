@@ -1,5 +1,6 @@
 """SQLite persistence with explicit migrations, WAL, foreign keys, busy handling and
 BEGIN IMMEDIATE transactions. One connection per transaction; never shared across threads."""
+import collections
 from contextlib import contextmanager
 import os
 import sqlite3
@@ -665,39 +666,34 @@ def check_schema(path, allow_older=False):
 
 
 class FairGate:
-    """Strict FIFO (ticket) mutex. Threads of one process queue here before BEGIN IMMEDIATE instead of all polling SQLite's busy
+    """Strict FIFO hand-off mutex. Threads of one process queue here before BEGIN IMMEDIATE instead of all polling SQLite's busy
     handler, whose back-off (1…100 ms sleeps) lets fresh arrivals overtake a long waiter under saturation — the starvation that
     produced 15 s lock-wait timeouts in the 2026-10-23 endurance runs while commits kept flowing every second. A plain
-    threading.Lock would not do: a releasing thread's successor can be barged by a new arrival. Cross-process contention (API vs
-    workers) still goes through SQLite's busy handler, with far fewer contenders."""
+    threading.Lock would not do (a releasing thread's successor can be barged by a new arrival), and a notify_all ticket lock
+    cost a third of the transfer throughput (every release woke every waiter): here release() hands ownership directly to the
+    oldest waiter and wakes only that thread. Cross-process contention (API vs workers) still goes through SQLite's busy handler,
+    with far fewer contenders."""
     def __init__(self):
-        self._cv = threading.Condition(); self._next = 0; self._serving = 0; self._held = False; self.waiters_max = 0
+        self._mu = threading.Lock(); self._held = False; self._q = collections.deque(); self.waiters_max = 0
 
     def acquire(self, timeout):
-        deadline = time.monotonic() + timeout
-        with self._cv:
-            ticket = self._next; self._next += 1; self.waiters_max = max(self.waiters_max, self._next - self._serving)
-            while self._held or self._serving != ticket:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    self._abandon(ticket); return False
-                self._cv.wait(remaining)
-            self._held = True; self._serving += 1; return True
-
-    def _abandon(self, ticket):
-        # a waiter that gave up must not block those behind it: if it was next in line, advance; otherwise mark the ticket void
-        if self._serving == ticket:
-            self._serving += 1; self._cv.notify_all()
-        else:
-            self._void = getattr(self, '_void', set()); self._void.add(ticket)
+        with self._mu:
+            if not self._held and not self._q:
+                self._held = True; return True
+            ev = threading.Event(); self._q.append(ev); self.waiters_max = max(self.waiters_max, len(self._q))
+        if ev.wait(timeout):
+            return True                                      # ownership was handed to this thread by release()
+        with self._mu:
+            if ev.is_set():                                  # handed off in the instant between the timeout and this check
+                return True
+            self._q.remove(ev); return False                 # gave up: the threads behind are unaffected
 
     def release(self):
-        with self._cv:
-            self._held = False
-            void = getattr(self, '_void', None)
-            while void and self._serving in void:
-                void.discard(self._serving); self._serving += 1
-            self._cv.notify_all()
+        with self._mu:
+            if self._q:
+                self._q.popleft().set()                      # hand-off: _held stays True for the successor; nobody can barge
+            else:
+                self._held = False
 
 
 _GATES = {}
@@ -724,12 +720,12 @@ class Database:
     def tx(self):
         """BEGIN IMMEDIATE … COMMIT on a fresh connection. A failure of BEGIN itself (lock-wait timeout) is re-raised unchanged —
         ROLLBACK is issued only over an open transaction, so the original error is never replaced by 'cannot rollback'."""
-        gate = _gate_for(self.path) if self.gate_enabled else None
-        if gate is not None and not gate.acquire(timeout=self.busy_timeout_ms / 1000.0):
-            self.busy_count += 1
-            raise sqlite3.OperationalError('database is locked')                      # same refusal as SQLite's own timeout: nothing begun
+        db = open_db(self.path, busy_timeout_ms=self.busy_timeout_ms)                 # connection set-up and tear-down stay outside the gate
         try:
-            db = open_db(self.path, busy_timeout_ms=self.busy_timeout_ms)
+            gate = _gate_for(self.path) if self.gate_enabled else None
+            if gate is not None and not gate.acquire(timeout=self.busy_timeout_ms / 1000.0):
+                self.busy_count += 1
+                raise sqlite3.OperationalError('database is locked')                  # same refusal as SQLite's own timeout: nothing begun
             try:
                 try:
                     db.execute('BEGIN IMMEDIATE')
@@ -744,10 +740,10 @@ class Database:
                         db.execute('ROLLBACK')
                     raise
             finally:
-                db.close()
+                if gate is not None:
+                    gate.release()
         finally:
-            if gate is not None:
-                gate.release()
+            db.close()
 
     @contextmanager
     def read(self):
