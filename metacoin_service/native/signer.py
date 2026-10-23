@@ -42,6 +42,11 @@ SIGNER_PROTOCOL = 'metacoin-signer/v1'
 DEFAULT_GRACE = 3600
 MAX_BODY = 64 * 1024
 CUSTODY = 'external signer process (separate executable and key directory; the service holds public keys and signatures only)'
+AUTHORITY_NOTE = ('an actor signature authorizes exactly one bounded client intent; the settlement authority (the domain) enforces it and may still censor, delay or, '
+                  'under the trusted-authority model, equivocate: isolated actor keys are not consensus and not immunity to a malicious domain authority. Revocation reaches a '
+                  'partitioned peer only when the signed revocation/rotation message arrives: until then previously funded authority bounds the exposure. Recovery: re-run '
+                  '`init` with the same home to reopen the store; a lost key directory is unrecoverable by design (no administrator bypass can spend actor funds) — rotate or '
+                  're-enroll and re-register the public identity.')
 
 
 def now():
@@ -64,7 +69,8 @@ class SignerStore:
             db.executescript('''CREATE TABLE IF NOT EXISTS actors (name TEXT PRIMARY KEY, account TEXT, epoch INTEGER NOT NULL, ceiling INTEGER NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS keys (key_id TEXT PRIMARY KEY, actor TEXT NOT NULL, epoch INTEGER NOT NULL, kind TEXT NOT NULL, public_hex TEXT NOT NULL, key_file TEXT NOT NULL, scope_json TEXT, state TEXT NOT NULL, created_at INTEGER NOT NULL, retired_at INTEGER, grace_until INTEGER);
             CREATE TABLE IF NOT EXISTS signed (request_id TEXT PRIMARY KEY, actor TEXT NOT NULL, key_id TEXT NOT NULL, account TEXT NOT NULL, nonce TEXT NOT NULL, digest TEXT NOT NULL, signature TEXT NOT NULL, amount INTEGER NOT NULL, recipient TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, released_at INTEGER, UNIQUE(account, nonce));
-            CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, kind TEXT NOT NULL, detail TEXT NOT NULL);''')
+            CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, kind TEXT NOT NULL, detail TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS policies (actor TEXT PRIMARY KEY, policy_json TEXT NOT NULL, version INTEGER NOT NULL, updated_at INTEGER NOT NULL);''')
         return cfg
 
     def config(self):
@@ -130,9 +136,9 @@ class SignerStore:
             body = P.parse_strict(raw)
         except P.ProtocolError as exc:
             raise Refusal('encoding', exc.code)
-        if type(body) is not dict or set(body) - {'actor', 'intent', 'delegate'}:
-            raise Refusal('fields', 'actor, intent, delegate?')
-        cfg = self.config(); intent = body.get('intent'); actor = body.get('actor')
+        if type(body) is not dict or set(body) - {'actor', 'intent', 'delegate', 'context'}:
+            raise Refusal('fields', 'actor, intent, delegate?, context?')
+        cfg = self.config(); intent = body.get('intent'); actor = body.get('actor'); context = body.get('context')
         try:
             P.validate_intent(intent, cfg['environment'], intent.get('authority') if isinstance(intent, dict) else None)
         except P.ProtocolError as exc:
@@ -146,11 +152,38 @@ class SignerStore:
         if intent['expires_at'] <= now():
             raise Refusal('expired', {'expires_at': intent['expires_at']})
         amount = intent['amount_ceiling']; digest = P.digest(intent); msg = P.signing_bytes('intent', intent)
+        # policy-hash binding: the intent names the sha256 of the canonical context (obligation / offer / terms) the signer is shown;
+        # the signer recomputes it from the context it received and refuses altered terms before signing. It never consults an
+        # API-supplied balance or quote as authorization: the context is a binding, the durable policy and exposure state authorize.
+        if intent.get('policy_hash') is not None:
+            if context is None:
+                raise Refusal('context_required', 'the intent carries a policy_hash: present the context it was computed from')
+            try:
+                ch = P.digest(context)
+            except P.ProtocolError as exc:
+                raise Refusal('context_encoding', exc.code)
+            if ch != intent['policy_hash']:
+                raise Refusal('policy_hash_mismatch', {'intent': intent['policy_hash'], 'context': ch, 'note': 'the terms presented differ from the terms the intent binds: refused before signing'})
+            if isinstance(context, dict) and context.get('recipient') not in (None, intent.get('recipient')):
+                raise Refusal('context_recipient_mismatch')
+            if isinstance(context, dict) and context.get('amount') not in (None, amount):
+                raise Refusal('context_amount_mismatch', {'context': context.get('amount'), 'intent': amount})
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             a = db.execute('SELECT * FROM actors WHERE name=?', (actor,)).fetchone()
             if a is None or a['state'] != 'active':
                 raise Refusal('unknown_or_revoked_actor')
+            pol = db.execute('SELECT policy_json FROM policies WHERE actor=?', (actor,)).fetchone(); pol = json.loads(pol['policy_json']) if pol else {}
+            if pol.get('require_context') and intent.get('policy_hash') is None:
+                raise Refusal('context_required', 'this actor\'s durable policy requires every intent to bind a context (policy_hash)')
+            if pol.get('permitted_recipients') is not None and intent.get('recipient') not in pol['permitted_recipients']:
+                raise Refusal('policy_recipient', {'recipient': intent.get('recipient'), 'permitted': pol['permitted_recipients']})
+            if pol.get('per_intent_ceiling') is not None and amount > pol['per_intent_ceiling']:
+                raise Refusal('policy_per_intent_ceiling', {'requested': amount, 'ceiling': pol['per_intent_ceiling']})
+            if pol.get('assets') is not None and intent['asset'] not in pol['assets']:
+                raise Refusal('policy_asset', {'asset': intent['asset'], 'permitted': pol['assets']})
+            if pol.get('kinds') is not None and isinstance(context, dict) and context.get('kind') not in pol['kinds']:
+                raise Refusal('policy_kind', {'kind': context.get('kind'), 'permitted': pol['kinds']})
             if a['account'] and intent['actor_account'] != a['account']:
                 raise Refusal('account_mismatch', {'bound': a['account'], 'intent': intent['actor_account']})
             ex = db.execute('SELECT * FROM signed WHERE request_id=?', (intent['request_id'],)).fetchone()
@@ -192,6 +225,38 @@ class SignerStore:
             if os.environ.get('METACOIN_SIGNER_FAULT') == 'after_record':
                 raise RuntimeError('FAULT INJECTED (signer test hook): crash after the durable record, before returning')
         return {'signature_hex': sig, 'key_id': k['key_id'], 'digest': digest, 'replayed': False, 'exposure_outstanding_after': outstanding + amount}
+
+    def set_policy(self, body):
+        """Durable per-actor policy: permitted recipients, per-intent ceiling, assets, context kinds, require_context. Versioned."""
+        actor = body.get('actor'); pol = body.get('policy')
+        if type(actor) is not str or type(pol) is not dict or set(pol) - {'permitted_recipients', 'per_intent_ceiling', 'assets', 'kinds', 'require_context', 'note'}:
+            raise Refusal('fields', 'actor, policy {permitted_recipients?, per_intent_ceiling?, assets?, kinds?, require_context?, note?}')
+        if pol.get('per_intent_ceiling') is not None and (type(pol['per_intent_ceiling']) is not int or pol['per_intent_ceiling'] <= 0):
+            raise Refusal('per_intent_ceiling')
+        for k in ('permitted_recipients', 'assets', 'kinds'):
+            if pol.get(k) is not None and (type(pol[k]) is not list or not all(type(x) is str for x in pol[k])):
+                raise Refusal(k, 'list of strings')
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if db.execute('SELECT 1 FROM actors WHERE name=?', (actor,)).fetchone() is None:
+                raise Refusal('unknown_actor')
+            cur = db.execute('SELECT version FROM policies WHERE actor=?', (actor,)).fetchone(); v = (cur['version'] + 1) if cur else 1
+            db.execute('INSERT OR REPLACE INTO policies VALUES (?,?,?,?)', (actor, json.dumps(pol), v, now())); self._event(db, 'policy', {'actor': actor, 'version': v, 'policy': pol}); db.execute('COMMIT')
+        return self.policy_of(actor)
+
+    def policy_of(self, actor):
+        """Policy preview: what this signer would and would not sign for the actor, from durable state only."""
+        with self.db() as db:
+            a = db.execute('SELECT * FROM actors WHERE name=?', (actor,)).fetchone(); pol = db.execute('SELECT * FROM policies WHERE actor=?', (actor,)).fetchone()
+            if a is None:
+                raise Refusal('unknown_actor')
+            outstanding = db.execute("SELECT COALESCE(SUM(amount),0) FROM signed WHERE actor=? AND state='signed'", (actor,)).fetchone()[0]
+            delegates = [{'key_id': k['key_id'], 'scope': json.loads(k['scope_json'])} for k in db.execute("SELECT key_id, scope_json FROM keys WHERE actor=? AND kind='delegate' AND state='active'", (actor,)).fetchall()]
+        p = json.loads(pol['policy_json']) if pol else {}
+        return {'actor': actor, 'account': a['account'], 'state': a['state'], 'policy': p, 'policy_version': pol['version'] if pol else 0, 'exposure_ceiling': a['ceiling'], 'exposure_outstanding': outstanding, 'remaining_authority': a['ceiling'] - outstanding, 'delegates': delegates,
+                'signs': 'intents for the pinned domains (%s) and policy version %s, bound account, increasing sequence, unexpired, within the exposure ceiling%s%s%s' % (', '.join(self.config()['domains']), self.config()['policy_version'], ', recipients %s' % p['permitted_recipients'] if p.get('permitted_recipients') is not None else '', ', per-intent ceiling %s' % p['per_intent_ceiling'] if p.get('per_intent_ceiling') is not None else '', ', context required' if p.get('require_context') else ''),
+                'refuses': ['altered recipient, amount, asset, domain, obligation or context (policy_hash)', 'unknown fields, floats, other policy versions', 'replayed or reordered sequence numbers', 'anything above the exposure ceiling or a delegate scope', 'anything after revocation or key retirement grace'],
+                'authority_note': AUTHORITY_NOTE}
 
     def release(self, body):
         with self.db() as db:
@@ -261,7 +326,8 @@ class SignerStore:
         st = os.stat(self.keys)
         return {'protocol': SIGNER_PROTOCOL, 'signer_id': cfg['signer_id'], 'environment': cfg['environment'], 'domains': cfg['domains'], 'policy_version': cfg['policy_version'], 'custody': CUSTODY, 'actors_active': n, 'authorizations_recorded': signed,
                 'key_dir_mode': oct(st.st_mode & 0o777), 'key_dir_owner_uid': st.st_uid, 'process_uid': os.getuid(), 'os_isolation': 'keys are readable only by uid %d (mode %s); the service process %s this uid' % (st.st_uid, oct(st.st_mode & 0o777), 'shares' if os.getuid() == st.st_uid else 'does not share'),
-                'pid': os.getpid(), 'fault_hook': os.environ.get('METACOIN_SIGNER_FAULT') or None}
+                'pid': os.getpid(), 'fault_hook': os.environ.get('METACOIN_SIGNER_FAULT') or None, 'authority_note': AUTHORITY_NOTE,
+                'isolation_mode': 'process-separated (same host): the signer runs as its own process with its own token and 0700 key directory; a common OS user or a host administrator can still read the key files — independent custody verification is pending until separate OS identities or hosts are authorized'}
 
 
 class Refusal(Exception):
@@ -288,6 +354,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, self.store.health())
             if self.path.startswith('/keys/'):
                 return self._send(200, self.store.keys_of(self.path.split('/', 2)[2]))
+            if self.path.startswith('/policy/'):
+                return self._send(200, self.store.policy_of(self.path.split('/', 2)[2]))
             return self._send(404, {'error': 'not found'})
         except Refusal as exc:
             return self._send(400, {'error': True, 'code': exc.code, 'detail': exc.detail})
@@ -303,7 +371,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == '/sign':
                 return self._send(200, self.store.sign(raw))
             body = json.loads(raw or b'{}')
-            fn = {'/enroll': self.store.enroll, '/release': self.store.release, '/rotate': self.store.rotate, '/revoke': self.store.revoke, '/delegate': self.store.delegate, '/bind': self.store.bind_account}.get(self.path)
+            fn = {'/enroll': self.store.enroll, '/release': self.store.release, '/rotate': self.store.rotate, '/revoke': self.store.revoke, '/delegate': self.store.delegate, '/bind': self.store.bind_account, '/policy': self.store.set_policy}.get(self.path)
             if fn is None:
                 return self._send(404, {'error': 'not found'})
             return self._send(200, fn(body))
@@ -334,11 +402,19 @@ class SignerClient:
         except urllib.error.URLError:
             return 0, {'error': True, 'code': 'SIGNER_UNREACHABLE'}
 
-    def sign(self, actor, intent, delegate=None):
+    def sign(self, actor, intent, delegate=None, context=None):
         body = {'actor': actor, 'intent': intent}
         if delegate:
             body['delegate'] = delegate
+        if context is not None:
+            body['context'] = context
         return self.call('POST', '/sign', raw=P.canonical(body))
+
+    def policy(self, actor):
+        return self.call('GET', '/policy/' + actor)
+
+    def set_policy(self, actor, policy):
+        return self.call('POST', '/policy', {'actor': actor, 'policy': policy})
 
     def health(self):
         return self.call('GET', '/health')

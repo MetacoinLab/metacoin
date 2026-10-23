@@ -15,7 +15,7 @@ from ..errors import ServiceError
 from . import ledger
 from . import mission_contracts as MC
 
-ACTIONS = ('open_request', 'award', 'await_execution', 'verify', 'decide', 'pay', 'reserve', 'release_missed_reservation', 'activate_reservation', 'record_delivery', 'settle_reservation', 'analyze', 'buy_evidence', 'await_delivery', 'skip_gate', 'relay', 'wait', 'stop')
+ACTIONS = ('open_request', 'award', 'await_execution', 'verify', 'decide', 'pay', 'reserve', 'await_signature', 'release_missed_reservation', 'activate_reservation', 'record_delivery', 'settle_reservation', 'analyze', 'buy_evidence', 'await_delivery', 'skip_gate', 'relay', 'wait', 'stop')
 
 
 class Rejected(Exception):
@@ -120,7 +120,7 @@ class Controller:
         spent = self.M.budget_ledger(db, principal, m['id'])['totals'] if principal.can('native:read') else {'reserved': 0, 'spent': 0}
         energy_used = sum(json.loads(x['spec_json']).get('quantity', 0) * (json.loads(x['result_json'] or '{}').get('energy_mwh_per_unit') or 0) for x in db.execute("SELECT spec_json, result_json FROM mission_milestones WHERE mission_id=? AND kind='resource' AND state NOT IN ('pending','ready','cancelled','skipped','failed')", (m['id'],)).fetchall())
         pub = {'role': role, 'acting_account': acting['id'], 'spendable_settled': spendable, 'available': cats['available'], 'reserved_exposure': cats['reserved'], 'earned_unsettled_not_spendable': earned, 'min_cash_reserve': pol.get('min_cash_reserve', 0), 'per_action_ceiling': pol.get('per_action_ceiling'), 'mission_ceiling': pol.get('mission_ceiling'),
-               'mission_reserved': spent['reserved'], 'mission_spent': spent['spent'], 'grant': grant, 'connectivity': d['connectivity'], 'recovery_state': d['recovery_state'], 'energy': {'budget_mwh': pol.get('energy_budget_mwh'), 'reserve_mwh': pol.get('energy_reserve_mwh', 0), 'committed_mwh': energy_used}, 'now': now()}
+               'mission_reserved': spent['reserved'], 'mission_spent': spent['spent'], 'grant': grant, 'custody': acting['custody'], 'connectivity': d['connectivity'], 'recovery_state': d['recovery_state'], 'energy': {'budget_mwh': pol.get('energy_budget_mwh'), 'reserve_mwh': pol.get('energy_reserve_mwh', 0), 'committed_mwh': energy_used}, 'now': now()}
         return {'domain': d, 'policy': pol, 'acting': acting, 'owner': owner_acct, 'role': role, 'cats': cats, 'spendable': spendable, 'grant': grant, 'stop_reason': stop, 'public': pub, 'energy_used': energy_used}
 
     def _wait_reason(self, rejected, ctx):
@@ -131,7 +131,7 @@ class Controller:
         return 'nothing to do: waiting for providers, execution or dependencies'
 
     # ---- candidates -----------------------------------------------------------------------------------------------------------------
-    PRIORITY = {'pay': 0, 'settle_reservation': 0, 'release_missed_reservation': 0, 'decide': 1, 'verify': 1, 'award': 2, 'skip_gate': 4, 'await_execution': 5, 'await_delivery': 5, 'wait': 6}
+    PRIORITY = {'pay': 0, 'settle_reservation': 0, 'release_missed_reservation': 0, 'decide': 1, 'verify': 1, 'award': 2, 'skip_gate': 4, 'await_execution': 5, 'await_delivery': 5, 'await_signature': 5, 'wait': 6}
 
     def _candidates(self, db, principal, m, ctx):
         """Enumerated in graph order, then stably sorted so incurred obligations settle and decisions resolve before new spending."""
@@ -143,6 +143,9 @@ class Controller:
             if ms['actor'] != ctx['role']:
                 continue
             sp = json.loads(ms['spec_json']); b = json.loads(ms['binding_json']); k = ms['kind']
+            pend = self._pending_signatures(db, b)
+            if pend is not None:
+                out.append({'action': 'await_signature', 'milestone': ms['key'], 'signing_requests': pend, 'reason': 'awaiting the account holder\'s signer: %d request(s) pending; no fallback custody' % len(pend)}); continue
             if k == 'work':
                 if ms['state'] in ('ready', 'waiting') and not b.get('request_id'):
                     out.append({'action': 'open_request', 'milestone': ms['key'], 'amount': MC.ceiling_of(sp, 'work'), 'spec': sp})
@@ -221,6 +224,8 @@ class Controller:
             return False, ctx['stop_reason']
         if ctx['stop_reason'] and a == 'pay' and ctx['stop_reason'].startswith('domain_quarantined'):
             return False, ctx['stop_reason']
+        if a == 'await_signature':
+            return True, c['reason']
         amt = c.get('amount') or 0
         if a in ('open_request', 'award', 'reserve', 'buy_evidence') and amt:
             if ctx['role'] == 'provider' and ctx['acting']['id'] == ctx['owner']['id']:
@@ -311,13 +316,36 @@ class Controller:
                 self.M.set_milestone(db, m['id'], ms['key'], 'failed', {'decision_id': d.get('id'), 'job_id': jid}, {'science': ev.get('science'), 'reason': ev.get('reason')}, reason='rejected: ' + str(ev.get('reason'))[:200])
             return {'decision': d['decision'], 'science': ev.get('science'), 'payable_amount': d.get('payable_amount')}
         if a == 'pay':
-            paid = []
+            paid = list(b.get('paid') or []); requests = []
             for eid in c['entitlements']:
-                i = E.money.prepare(db, principal, eid, {}); E.money.authorize(db, principal, i['id']); s = E.money.submit(db, principal, i['id'], {}); paid.append({'entitlement': eid, 'intent': i['id'], 'state': s['state'], 'rail': s.get('rail'), 'final': s.get('final_amount')})
+                i = E.money.prepare(db, principal, eid, {})
+                if i['state'] == 'authorized' or i['state'] == 'reserved':
+                    pass
+                if i['state'] not in ('authorized', 'submitted', 'settled'):
+                    E.money.authorize(db, principal, i['id'])
+                try:
+                    s_ = E.money.submit(db, principal, i['id'], {}); paid.append({'entitlement': eid, 'intent': i['id'], 'state': s_['state'], 'rail': s_.get('rail'), 'final': s_.get('final_amount')})
+                except ServiceError as exc:
+                    d_ = exc.detail if isinstance(exc.detail, dict) else {}
+                    if d_.get('code') != 'native_signature_required':
+                        raise
+                    msg = dict(d_['message'], expires_at=now() + 900); aw = db.execute('SELECT * FROM work_awards WHERE id=?', (c['award_id'],)).fetchone()
+                    base_seq = int(msg['nonce'].rsplit('-', 1)[1]); msg['nonce'] = '%s-%d' % (msg['actor_account'], base_seq + len(requests))     # several settlements of one milestone: consecutive sequence numbers, signed and submitted in order
+                    ctx_ = {'kind': 'settlement', 'award_id': aw['id'], 'terms_digest': aw['terms_digest'], 'entitlement': eid, 'payment_intent': i['id'], 'obligation_id': msg.get('obligation_id'), 'recipient': msg['recipient'], 'amount': msg['amount_ceiling'], 'asset': msg['asset'], 'mission': m['id'], 'milestone': ms['key']}
+                    sr = self.svc.signing.create(db, principal.workspace, msg['actor_account'], 'settlement', msg, ctx_, 'mission_milestone', '%s:%s:pay' % (m['id'], ms['key'])); requests.append(sr['id'])
+            if requests:
+                self.M.set_milestone(db, m['id'], ms['key'], ms['state'] if ms['state'] != 'pending' else 'ready', {'paid': paid, 'signing_requests': requests, 'custody': 'external-signer'})
+                return {'awaiting_signature': requests, 'paid': paid, 'note': 'the payer account is held by an external signer: its agent must sign the settlement intents; nothing settles until then'}
             self.M.set_milestone(db, m['id'], ms['key'], 'settled', {'paid': paid}, {'paid': paid}); return {'paid': paid}
         if a == 'reserve':
             buyer = ctx['acting']['id']; attempt = len(b.get('previous_reservations') or []) + 1
-            r = self.svc.market.reserve(db, principal, {'offer_id': c['offer_id'], 'offer_version': c['offer_version'], 'quantity': c['quantity'], 'request_id': 'mission-%s-%s-%d' % (m['id'], ms['key'], attempt), 'buyer_account': buyer, 'purpose': 'mission %s milestone %s attempt %d' % (m['id'], ms['key'], attempt)})
+            rbody = {'offer_id': c['offer_id'], 'offer_version': c['offer_version'], 'quantity': c['quantity'], 'request_id': 'mission-%s-%s-%d' % (m['id'], ms['key'], attempt), 'buyer_account': buyer, 'purpose': 'mission %s milestone %s attempt %d' % (m['id'], ms['key'], attempt)}
+            if (ctx['acting']['custody'] or '').startswith('external-signer'):
+                prep = self.svc.market.reserve_prepare(db, principal, rbody)
+                sr = self.svc.signing.create(db, principal.workspace, buyer, 'reservation', prep['message'], prep['context'], 'mission_milestone', '%s:%s:reserve' % (m['id'], ms['key']), extra={'mission': m['id'], 'milestone': ms['key'], 'reserve_body': prep['reserve_body']})
+                self.M.set_milestone(db, m['id'], ms['key'], ms['state'], {'signing_requests': [sr['id']], 'custody': 'external-signer', 'attempt': attempt, 'offer_id': c['offer_id'], 'offer_version': c['offer_version']})
+                return {'awaiting_signature': [sr['id']], 'note': 'the buyer account is held by an external signer: its agent must sign the reservation intent; nothing reserved until then'}
+            r = self.svc.market.reserve(db, principal, rbody)
             self.M.set_milestone(db, m['id'], ms['key'], 'executing', {'reservation_id': r['id'], 'offer_id': c['offer_id'], 'offer_version': c['offer_version'], 'price': r['price'], 'buyer_account': buyer, 'attempt': attempt}, {'energy_mwh_per_unit': c['offer'].get('energy_mwh_per_unit', 0)})
             return {'reservation_id': r['id'], 'price': r['price'], 'quantity': c['quantity'], 'attempt': attempt, 'planned': c.get('planned', False)}
         if a == 'release_missed_reservation':
@@ -355,7 +383,32 @@ class Controller:
             if r['state'] != 'delivered' and r['state'] != 'settled':
                 return {'pending': 'contact delivery not recorded by the provider', 'reservation': r['state']}
             self.M.set_milestone(db, m['id'], ms['key'], 'accepted', {'relayed_via': r['id']}, {'received_kib': r['delivered_quantity'], 'evidence': r.get('measurement')}); return {'relayed': r['delivered_quantity']}
+        if a == 'await_signature':
+            return {'pending_signing_requests': c['signing_requests'], 'note': 'waiting for the account holder\'s signer; the service holds no key for this account'}
         raise ServiceError('INTERNAL_DEFECT', 'unknown action')
+
+    def _pending_signatures(self, db, b):
+        ids = b.get('signing_requests') or []
+        if not ids:
+            return None
+        rows = db.execute('SELECT id, state FROM native_signing_requests WHERE id IN (%s)' % ','.join('?' * len(ids)), tuple(ids)).fetchall()
+        pend = [r['id'] for r in rows if r['state'] == 'pending']
+        return pend or None
+
+    def on_signed(self, db, principal, req, result):
+        """A signing request bound to a mission milestone was executed: continue the milestone from durable records."""
+        mid, key, what = req['ref_id'].split(':'); ms = db.execute('SELECT * FROM mission_milestones WHERE mission_id=? AND key=?', (mid, key)).fetchone(); b = json.loads(ms['binding_json'])
+        if what == 'reserve':
+            r = result; b.pop('signing_requests', None)
+            self.M.set_milestone(db, mid, key, 'executing', dict(b, reservation_id=r['id'], price=r['price'], buyer_account=r['buyer_account']), {'energy_mwh_per_unit': 0})
+        elif what == 'pay':
+            paid = list(b.get('paid') or []); paid.append({'entitlement': ((json.loads(req['context_json']) or {}).get('bound') or {}).get('entitlement'), 'intent': result.get('id'), 'state': result.get('state'), 'rail': result.get('rail'), 'final': result.get('final_amount')})
+            remaining = self._pending_signatures(db, b)
+            if remaining:
+                self.M.set_milestone(db, mid, key, ms['state'], dict(b, paid=paid))
+            else:
+                b.pop('signing_requests', None); self.M.set_milestone(db, mid, key, 'settled', dict(b, paid=paid), {'paid': paid}); self._finish_if_done(db, mid)
+        self.M._event(db, mid, principal.id, 'signed', {'milestone': key, 'request': req['id'], 'kind': req['kind']})
 
     def _finish_if_done(self, db, mid):
         rows = db.execute('SELECT state, optional FROM mission_milestones WHERE mission_id=?', (mid,)).fetchall()

@@ -147,6 +147,8 @@ class Native:
     def create_actor(self, db, principal, body):
         """An operator creates a native actor: a principal with the actor role, one credential (shown once), its own account and key."""
         principal.require('native:admin'); principal.require('admin:credentials')
+        if getattr(self.settings, 'require_external_custody', False):
+            raise ServiceError('CAPABILITY_UNAVAILABLE', {'code': 'development_custody_disabled', 'note': 'this instance requires external signer custody: enroll actors through POST /native/actors/enroll with a public key from their signer'})
         if type(body) is not dict or set(body) - {'name', 'credential_seconds'}:
             raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['name', 'credential_seconds']})
         name = body.get('name')
@@ -603,6 +605,22 @@ def _hooks(cls):
             raise ServiceError('CONFLICT', {'code': 'verifier_account_unknown', 'note': 'verifier_pay_to must name a native account of this domain'})
         self.obligation_create(db, award['workspace'], 'verifier', payer, payee, terms['payment']['asset'], amount, 'work_entitlement', entitlement_id, {'partial_payments': False, 'source': 'award_reservation', 'award_id': award['id'], 'milestone_id': ms['id'], 'note': 'verifier compensation is independent of the verdict'})
 
+    def settlement_preview(self, db, principal, e, award, terms, final):
+        """The exact settlement intent an external-custody payer would sign (no writes): used before an intent is marked submitted
+        so that a missing signature leaves the payment intent authorized, never exposed."""
+        d = self.domain(db, principal.workspace); asset = e['asset']; kind = e['kind']; payer = self._award_payer(db, award, terms)
+        if kind == 'provider':
+            payee = self._provider_account(db, award); ref = ('work_milestone', e['milestone_id'])
+        elif kind == 'fee':
+            payee = self.system_account(db, principal.workspace, 'treasury'); ref = ('work_milestone', e['milestone_id'])
+        else:
+            payee = e['recipient']; ref = ('work_entitlement', e['id'])
+        ob = db.execute('SELECT * FROM native_obligations WHERE ref_type=? AND ref_id=? AND kind=?', (ref[0], ref[1], kind)).fetchone()
+        src = self.account_row(db, principal.workspace, payer); outstanding = (ob['amount'] - ob['settled_amount']) if ob else final
+        amt = min(final, outstanding) if kind == 'provider' else final
+        msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.environment, 'actor_account': payer, 'authority': d['id'], 'asset': asset, 'amount_ceiling': amt, 'recipient': payee, 'obligation_id': ob['id'] if ob else None, 'grant_id': None, 'nonce': '%s-%d' % (src['id'], src['nonce_counter'] + 1), 'policy_version': P.POLICY_VERSION, 'request_id': 'settle-' + e['id'], 'purpose': 'settlement of %s obligation %s' % (kind, ob['id'] if ob else '?')}
+        return {'message': msg, 'external': (src['custody'] or '').startswith('external-signer'), 'custody': src['custody'], 'payer': payer, 'payee': payee}
+
     def settle_entitlement(self, db, principal, intent_row, e, award, terms, final, native_signature=None):
         """Settle one economy entitlement natively from the award reservation: reserved -> committed_outgoing -> payee available,
         the payer account's signed intent recorded, one commit sequence, a signed receipt. Idempotent by the entitlement."""
@@ -638,7 +656,8 @@ def _hooks(cls):
         iid = 'ni_' + secrets.token_hex(8)
         if (src['custody'] or '').startswith('external-signer'):
             ns = native_signature or {}
-            if not ns or ns.get('message') != msg and {k: v for k, v in (ns.get('message') or {}).items() if k != 'expires_at'} != msg:
+            core = {k: v for k, v in (ns.get('message') or {}).items() if k not in ('expires_at', 'policy_hash')}
+            if not ns or core != msg:                                                     # includes the nonce: the signed sequence must be exactly the account's next one now
                 raise ServiceError('CONFLICT', {'code': 'native_signature_required', 'message': msg, 'note': 'the payer account is held by an external signer: sign this settlement message (expires_at may be added) and resubmit with native_signature {message, signature_hex, key_id}'})
             msg = ns['message']; keys = {k['key_id']: k for k in self._active_keys(db, src)}; key = keys.get(ns.get('key_id'))
             if 'expires_at' in msg and msg['expires_at'] <= now():
@@ -682,7 +701,7 @@ def _hooks(cls):
         ledger.require_available(db, workspace, asset, d['id'], acct, amount)
         ledger.move(db, workspace, 'treasury-native-reserve:' + allocation_id, 'native_treasury_reservation', asset, d['id'], self.environment, amount, ledger.account_name(acct, 'available'), ledger.account_name(acct, 'reserved'), 'treasury_allocation', allocation_id, 'treasury award reserved from settled fee revenue')
 
-    for f in (reserve_for_award, _award_payer, _provider_account, on_accepted, on_verifier_obligation, settle_entitlement, release_award, treasury_reserve):
+    for f in (reserve_for_award, _award_payer, _provider_account, on_accepted, on_verifier_obligation, settlement_preview, settle_entitlement, release_award, treasury_reserve):
         setattr(cls, f.__name__, f)
     return cls
 

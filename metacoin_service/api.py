@@ -92,6 +92,7 @@ class Services:
         self.controller = Controller(settings, self)
         from .native.mission_planning import MissionPlanning; self.planning = MissionPlanning(self)
         from .native.operator import OperatorScreen; self.operator = OperatorScreen(self)
+        from .native.signing import Signing; self.signing = Signing(settings, self)
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
@@ -2472,7 +2473,7 @@ def _signer_capability(settings, db):
     """Custody facts and signer reachability (a health probe only; the service never asks the signer to sign on its own behalf)."""
     ext = db.execute("SELECT COUNT(*) FROM native_accounts WHERE custody LIKE 'external-signer:%'").fetchone()[0]
     dev = db.execute("SELECT COUNT(*) FROM native_accounts WHERE kind='actor' AND custody NOT LIKE 'external-signer:%'").fetchone()[0]
-    out = {'custody': {'external_signer_accounts': ext, 'development_custody_accounts': dev, 'service_holds_private_keys_for': 'development-custody actors and the domain authority only'}, 'signer_url_configured': bool(settings.signer_url), 'reachable': None, 'signer': None}
+    out = {'custody': {'external_signer_accounts': ext, 'development_custody_accounts': dev, 'service_holds_private_keys_for': 'development-custody actors and the domain authority only', 'development_custody_creation': 'disabled' if getattr(settings, 'require_external_custody', False) else 'enabled', 'fallback': 'none: an external-custody account can only spend with a signature from its signer; the service has no path to those keys'}, 'signer_url_configured': bool(settings.signer_url), 'reachable': None, 'signer': None}
     if settings.signer_url and settings.signer_token_file:
         try:
             from .native.signer import SignerClient

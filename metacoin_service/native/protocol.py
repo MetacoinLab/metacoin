@@ -162,7 +162,7 @@ def digest(body):
 
 
 # ---- message schemas (explicit field sets; unknown fields are refused) ------------------------------------------------------------
-INTENT_FIELDS = {'protocol', 'type', 'environment', 'actor_account', 'authority', 'asset', 'amount_ceiling', 'recipient', 'permitted_recipients', 'obligation_id', 'grant_id', 'nonce', 'policy_version', 'request_id', 'purpose', 'expires_at'}
+INTENT_FIELDS = {'protocol', 'type', 'environment', 'actor_account', 'authority', 'asset', 'amount_ceiling', 'recipient', 'permitted_recipients', 'obligation_id', 'grant_id', 'nonce', 'policy_version', 'request_id', 'purpose', 'expires_at', 'policy_hash'}
 INTENT_REQUIRED = {'protocol', 'type', 'environment', 'actor_account', 'authority', 'asset', 'amount_ceiling', 'nonce', 'policy_version', 'request_id'}
 ENVELOPE_FIELDS = {'protocol', 'type', 'id', 'environment', 'sender', 'receiver', 'message_type', 'causality', 'payload_digest', 'expires_at', 'created_at'}
 ACK_FIELDS = {'protocol', 'type', 'allocation_id', 'environment', 'source_authority', 'destination_authority', 'import_sequence', 'imported_at'}
@@ -202,6 +202,8 @@ def validate_intent(body, environment, authority):
         raise ProtocolError('policy_version_unknown', {'expected': POLICY_VERSION})
     if 'expires_at' in body and (type(body['expires_at']) is not int or isinstance(body['expires_at'], bool) or body['expires_at'] <= 0):
         raise ProtocolError('expires_at', {'note': 'integer unix seconds; a signer refuses to sign after it and a domain refuses to settle after it; expiry never moves value'})
+    if 'policy_hash' in body and (not isinstance(body['policy_hash'], str) or len(body['policy_hash']) != 64):
+        raise ProtocolError('policy_hash', {'note': 'sha256 hex of the canonical context (obligation / offer / terms) the signer is shown; an altered context is refused before signing'})
     return body
 
 

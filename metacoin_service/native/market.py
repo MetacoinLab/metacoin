@@ -16,7 +16,7 @@ import subprocess
 import sys
 import time
 
-from .. import history
+from .. import crypto, history
 from ..db import now
 from ..errors import ServiceError
 from . import ledger
@@ -160,6 +160,28 @@ class Market:
             raise ServiceError('VALIDATION', {'code': 'interval_outside_offer_window', 'window': [o['window_start'], o['window_end']], 'interval': [istart, iend]})
         price = q * o['price_per_unit']
         ledger.require_available(db, principal.workspace, o['asset'], d['id'], buyer['id'], price)
+        sig_key = None
+        if (buyer['custody'] or '').startswith('external-signer'):
+            # custody separation: an external-custody buyer funds a reservation only with a signed intent that binds the exact offer
+            # version, quantity, interval and price (policy_hash over the context); the service has no path to the key
+            ctx = self._reservation_context(o, q, istart, iend, price); ns = body.get('native_signature')
+            if not ns:
+                raise ServiceError('CONFLICT', {'code': 'native_signature_required', 'context': ctx, 'note': 'the buyer account is held by an external signer: POST /resources/reservations/prepare, sign the message with its context, resubmit with native_signature'})
+            msg = ns.get('message') or {}
+            try:
+                P.validate_intent(msg, self.native.environment, d['id'])
+            except P.ProtocolError as exc:
+                raise ServiceError('VALIDATION', {'code': exc.code, **exc.detail})
+            if msg.get('actor_account') != buyer['id'] or msg.get('recipient') != o['provider_account'] or msg.get('amount_ceiling') != price or msg.get('asset') != o['asset'] or msg.get('policy_hash') != P.digest(ctx) or msg.get('request_id') != rid:
+                raise ServiceError('FORBIDDEN', {'code': 'reservation_binding', 'note': 'the signed intent must bind this buyer, provider, price, asset, request id and the exact reservation context (policy_hash)'})
+            if 'expires_at' not in msg or msg['expires_at'] <= now():
+                raise ServiceError('EXPIRED', {'code': 'intent_expired'})
+            if msg.get('nonce') != '%s-%d' % (buyer['id'], buyer['nonce_counter'] + 1):
+                raise ServiceError('CONFLICT', {'code': 'nonce_stale', 'expected': '%s-%d' % (buyer['id'], buyer['nonce_counter'] + 1)})
+            keys = {k['key_id']: k for k in self.native._active_keys(db, buyer)}; key = keys.get(ns.get('key_id'))
+            if key is None or key['state'] != 'active' or not crypto.verify(key['public_hex'], P.signing_bytes('intent', msg), ns.get('signature_hex', '')):
+                raise ServiceError('FORBIDDEN', {'code': 'signature_invalid'})
+            db.execute('UPDATE native_accounts SET nonce_counter=nonce_counter+1 WHERE id=?', (buyer['id'],)); sig_key = {'key_id': ns['key_id'], 'signature_hex': ns['signature_hex'], 'message_digest': P.digest(msg)}
         from ..agents import grant_of, guard
         if grant_of(principal):
             guard(db, principal, 'native:transfer', amount=price)
@@ -170,9 +192,29 @@ class Market:
         self.native._consume_claims(db, principal.workspace, buyer['id'], o['asset'], price, 'resource_reservation', resid)
         if price:
             ledger.move(db, principal.workspace, 'rr-reserve:' + resid, 'native_resource_reservation', o['asset'], d['id'], self.native.environment, price, ledger.account_name(buyer['id'], 'available'), ledger.account_name(buyer['id'], 'reserved'), 'resource_reservation', resid, 'funded reservation of %d %s on %s' % (q, o['unit'], o['id']))
-        db.execute('INSERT INTO resource_reservations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (resid, principal.workspace, o['id'], o['version'], buyer['id'], o['provider_account'], q, 0, price, o['asset'], obid, 'reserved', rid, json.dumps({'purpose': (body.get('purpose') or '')[:200], 'steps': [{'state': 'reserved', 'at': now(), 'pool_commitment': commit}]}), None, None, now(), now(), None, (commit or {}).get('interval', [istart, iend])[0], (commit or {}).get('interval', [istart, iend])[1], (commit or {}).get('slots'), (commit or {}).get('commitment_id')))
+        db.execute('INSERT INTO resource_reservations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (resid, principal.workspace, o['id'], o['version'], buyer['id'], o['provider_account'], q, 0, price, o['asset'], obid, 'reserved', rid, json.dumps({'purpose': (body.get('purpose') or '')[:200], 'steps': [{'state': 'reserved', 'at': now(), 'pool_commitment': commit, 'authorization': sig_key or {'custody': 'development'}}]}), None, None, now(), now(), None, (commit or {}).get('interval', [istart, iend])[0], (commit or {}).get('interval', [istart, iend])[1], (commit or {}).get('slots'), (commit or {}).get('commitment_id')))
         history.record(db, principal.workspace, principal.id, 'native.obligation', 'resource_reservation', resid, {'offer': o['id'], 'version': o['version'], 'quantity': q, 'price': price, 'buyer': buyer['id']})
         return self.reservation_view(db, principal, resid)
+
+    def _reservation_context(self, o, q, istart, iend, price):
+        return {'kind': 'reservation', 'offer_id': o['id'], 'offer_version': o['version'], 'quantity': q, 'unit': o['unit'], 'interval': [istart, iend], 'price': price, 'amount': price, 'asset': o['asset'], 'recipient': o['provider_account'], 'pool_id': o['pool_id']}
+
+    def reserve_prepare(self, db, principal, body):
+        """The canonical intent and context an external-custody buyer signs for a reservation; nothing reserved."""
+        principal.require('native:transfer')
+        if type(body) is not dict or set(body) - {'offer_id', 'offer_version', 'quantity', 'request_id', 'buyer_account', 'interval_start', 'interval_end', 'purpose'}:
+            raise ServiceError('VALIDATION', {'code': 'fields'})
+        d = self.native.domain(db, principal.workspace); o = self._offer(db, principal.workspace, body.get('offer_id')); q = _int(body.get('quantity'), 1, MAX_CAPACITY, 'quantity')
+        buyer = self.native.account_row(db, principal.workspace, body['buyer_account']) if body.get('buyer_account') else self.native.account_of(db, principal)
+        if buyer['principal_id'] != principal.id and not principal.can('native:admin'):
+            raise ServiceError('FORBIDDEN', 'only the account holder prepares its intents')
+        if body.get('offer_version') != o['version']:
+            raise ServiceError('CONFLICT', {'code': 'stale_quote', 'current_version': o['version']})
+        istart = body.get('interval_start', max(now(), o['window_start'])); iend = body.get('interval_end', o['window_end']); price = q * o['price_per_unit']; ctx = self._reservation_context(o, q, istart, iend, price)
+        msg = {'protocol': P.PROTOCOL, 'type': 'intent', 'environment': self.native.environment, 'actor_account': buyer['id'], 'authority': d['id'], 'asset': o['asset'], 'amount_ceiling': price, 'recipient': o['provider_account'], 'obligation_id': None, 'grant_id': (getattr(principal, 'scope', None) or {}).get('grant_id'),
+               'nonce': '%s-%d' % (buyer['id'], buyer['nonce_counter'] + 1), 'policy_version': P.POLICY_VERSION, 'request_id': body.get('request_id'), 'purpose': 'reservation of %d %s on %s v%d' % (q, o['unit'], o['id'], o['version']), 'expires_at': now() + 900, 'policy_hash': P.digest(ctx)}
+        P.validate_intent(msg, self.native.environment, d['id'])
+        return {'message': msg, 'context': ctx, 'reserve_body': dict({k: body[k] for k in ('offer_id', 'offer_version', 'quantity', 'request_id', 'buyer_account', 'purpose') if k in body}, interval_start=istart, interval_end=iend), 'custody': buyer['custody'], 'note': 'sign the message with the context at the signer; submit the reservation with native_signature {message, signature_hex, key_id}'}
 
     def _res(self, db, workspace, resid):
         r = db.execute('SELECT * FROM resource_reservations WHERE id=? AND workspace=?', (resid, workspace)).fetchone()

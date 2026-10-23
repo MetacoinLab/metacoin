@@ -531,6 +531,10 @@ MIGRATIONS = [
     ALTER TABLE resource_reservations ADD COLUMN slots INTEGER;
     ALTER TABLE resource_reservations ADD COLUMN commitment_id TEXT;
     """),
+    ('049_signing_requests', """
+    CREATE TABLE native_signing_requests (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL, kind TEXT NOT NULL, message_json TEXT NOT NULL, context_json TEXT NOT NULL, policy_hash TEXT NOT NULL, ref_type TEXT, ref_id TEXT, state TEXT NOT NULL, signature_hex TEXT, key_id TEXT, result_json TEXT, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX native_signing_requests_acct ON native_signing_requests(workspace, account_id, state);
+    """),
 ]
 
 

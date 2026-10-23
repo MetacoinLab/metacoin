@@ -295,6 +295,10 @@ class Money:
             db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')                                  # the expiry is a durable fact even though this request is refused
             raise ServiceError('EXPIRED', {'code': 'authorization_expired', 'note': 'expiry alone does not prove nothing was paid; reconcile, then reauthorize only after the old state is resolved'})
         env = ENV[self.settings.provider_mode]
+        if i['rail'] == 'native':
+            prev = self.svc.native.settlement_preview(db, principal, e, award, terms, final)
+            if prev['external'] and not body.get('native_signature'):
+                raise ServiceError('CONFLICT', {'code': 'native_signature_required', 'message': prev['message'], 'custody': prev['custody'], 'note': 'the payer account is held by an external signer: sign this settlement message (expires_at and policy_hash may be added) and resubmit with native_signature {message, signature_hex, key_id}; the intent stays authorized, nothing is exposed'})
         journal.post(db, principal.workspace, 'submit:%s:%d' % (iid, i['submissions'] + 1), 'submission', i['asset'], i['network'], env, [('liability:payable', final, 0), ('exposure:pending', 0, final)], 'payment_intent', iid, 'settlement submitted (attempt %d); exposure until observed' % (i['submissions'] + 1))
         db.execute("UPDATE payment_intents SET state='submitted', final_amount=?, submissions=submissions+1, updated_at=? WHERE id=?", (final, now(), iid))
         db.execute("UPDATE work_entitlements SET state='submitted', updated_at=? WHERE id=?", (now(), e['id']))

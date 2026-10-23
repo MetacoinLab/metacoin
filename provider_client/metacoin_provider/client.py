@@ -132,6 +132,23 @@ class Provider:
             raise ApiError(st, sig)
         return self.api.post('/api/v1/native/transfers/submit', {'message': msg, 'signature_hex': sig['signature_hex'], 'key_id': sig['key_id']}, key=key or request_id, expect=(201,))
 
+    # ---- actor-side signing agent (the service never signs for this account) ------------------------------------------------------
+    def signing_pending(self):
+        return self.api.get('/api/v1/native/signing/pending')
+
+    def sign_pending(self):
+        """Fetch pending signing requests of this account, let the signer check context and intent, submit each signature."""
+        if self.signer is None or not self.actor:
+            raise RuntimeError('a signer and an actor name are required')
+        pend = self.signing_pending(); out = []
+        for req in pend['items']:
+            st, sig = self.signer.sign(self.actor, req['message'], context=req['context'])
+            if st != 200:
+                out.append({'request': req['id'], 'kind': req['kind'], 'signer_refusal': sig}); continue
+            r = self.api.post('/api/v1/native/signing/requests/%s/submit' % req['id'], {'signature_hex': sig['signature_hex'], 'key_id': sig['key_id']}, key=req['id'], expect=(200, 201, 409, 410))
+            out.append({'request': req['id'], 'kind': req['kind'], 'state': r.get('state'), 'result_state': (r.get('result') or {}).get('state')})
+        return {'account': pend.get('account'), 'processed': out}
+
     # ---- receipts and offline verification ---------------------------------------------------------------------------------------
     def export(self):
         return self.api.get('/api/v1/native/export')

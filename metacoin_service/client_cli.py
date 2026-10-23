@@ -476,7 +476,7 @@ WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-fre
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
                  'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
-MISSION_COMMANDS = ('native-operator', 'mission-plan', 'mission-bundle', 'missions', 'mission-templates', 'mission-create', 'mission', 'mission-ledger', 'mission-explain', 'mission-action', 'mission-authorize')
+MISSION_COMMANDS = ('native-sign-pending', 'native-signing-requests', 'native-operator', 'mission-plan', 'mission-bundle', 'missions', 'mission-templates', 'mission-create', 'mission', 'mission-ledger', 'mission-explain', 'mission-action', 'mission-authorize')
 MARKET_COMMANDS = ('resources', 'resource-offer-publish', 'resource-offers', 'resource-quote', 'resource-reserve', 'resource-reservations', 'resource-reservation', 'resource-action', 'resource-storage-put')
 SIGNER_COMMANDS = ('signer-health', 'signer-enroll', 'signer-rotate', 'signer-revoke', 'signer-delegate', 'signer-keys', 'native-keys', 'native-key-revoke', 'native-transfer-signed')
 NATIVE_COMMANDS = SIGNER_COMMANDS + MARKET_COMMANDS + MISSION_COMMANDS + ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
@@ -542,6 +542,21 @@ def signer_commands(args, go):
 
 def mission_commands(args, go):
     c = args.command; key = getattr(args, 'idempotency_key', None); jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    if c == 'native-signing-requests':
+        return go('GET', '/api/v1/native/signing/pending' + ('?account=' + args.account if args.account else ''))
+    if c == 'native-sign-pending':
+        from .native.signer import SignerClient
+        sg = SignerClient(args.signer, args.signer_token); st, pend = go('GET', '/api/v1/native/signing/pending' + ('?account=' + args.account if args.account else ''))
+        if st != 200:
+            return st, pend
+        out = []
+        for req in pend['items']:
+            ss, sig = sg.sign(args.actor, req['message'], context=req['context'])
+            if ss != 200:
+                out.append({'request': req['id'], 'kind': req['kind'], 'signer_refusal': sig}); continue
+            st2, r = go('POST', '/api/v1/native/signing/requests/%s/submit' % req['id'], {'signature_hex': sig['signature_hex'], 'key_id': sig['key_id']}, idempotency_key=req['id'])
+            out.append({'request': req['id'], 'kind': req['kind'], 'submitted': st2, 'state': r.get('state'), 'result': {k: (r.get('result') or {}).get(k) for k in ('id', 'state', 'final_amount')}})
+        return 200, {'account': pend.get('account'), 'processed': out, 'custody': pend.get('custody')}
     if c == 'native-operator':
         return go('GET', '/api/v1/native/operator')
     if c == 'mission-plan':
@@ -1174,6 +1189,8 @@ def main(argv=None):
     w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
     w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
     # ---- missions ----
+    n = sub.add_parser('native-signing-requests', help='pending signing requests of my account (external custody)'); n.add_argument('--account')
+    n = sub.add_parser('native-sign-pending', help='actor-side signing agent: fetch pending requests, have MY signer check and sign them, submit'); n.add_argument('--actor', required=True); n.add_argument('--signer', required=True); n.add_argument('--signer-token', required=True); n.add_argument('--account')
     sub.add_parser('native-operator', help='operator screen: owns/owes, committed resources, missing evidence, blackout possibilities, pending cross-domain')
     n = sub.add_parser('mission-plan'); n.add_argument('mission_id'); n.add_argument('--objective', default='earliest_delivery', choices=('earliest_delivery', 'lowest_cost')); n.add_argument('--planner', default='improved', choices=('baseline', 'improved', 'oracle')); n.add_argument('--apply', action='store_true'); n.add_argument('--idempotency-key')
     n = sub.add_parser('mission-bundle', help='portable, sealed mission bundle for offline verification'); n.add_argument('mission_id'); n.add_argument('--out')

@@ -36,7 +36,8 @@ def main(argv=None):
     ex = sub.add_parser('export'); ex.add_argument('--out'); rc = sub.add_parser('receipts'); rc.add_argument('--roots'); sub.add_parser('roots')
     v = sub.add_parser('verify'); v.add_argument('record'); v.add_argument('--roots', required=True)
     b = sub.add_parser('mission-bundle'); b.add_argument('mid'); b.add_argument('--out')
-    sub.add_parser('conformance')
+    sub.add_parser('conformance'); sub.add_parser('signing-pending'); sub.add_parser('sign-pending', help='actor-side signing agent: sign and submit my pending economic authorizations through my signer')
+    pp = sub.add_parser('signer-policy'); pp.add_argument('--set', help='JSON policy to install at the signer for --actor')
     args = ap.parse_args(argv)
     try:
         out = run(args)
@@ -97,6 +98,12 @@ def run(a):
         return P.pay(a.to, a.amount, a.request_id, a.obligation_id, a.asset)
     if c == 'roots':
         return P.roots_from_domain()
+    if c == 'signing-pending':
+        return P.signing_pending()
+    if c == 'sign-pending':
+        return P.sign_pending()
+    if c == 'signer-policy':
+        st, r = (P.signer.set_policy(a.actor, json.loads(a.set)) if a.set else P.signer.policy(a.actor)); return r
     if c == 'export':
         ex = P.export()
         if a.out:

@@ -38,8 +38,16 @@ class Signer:
     def bind(self, actor, account):
         return self.call('POST', '/bind', {'actor': actor, 'account': account})
 
-    def sign(self, actor, intent, delegate=None):
+    def sign(self, actor, intent, delegate=None, context=None):
         body = {'actor': actor, 'intent': intent}
         if delegate:
             body['delegate'] = delegate
+        if context is not None:
+            body['context'] = context
         return self.call('POST', '/sign', raw=wire.canonical(body))
+
+    def policy(self, actor):
+        return self.call('GET', '/policy/' + actor)
+
+    def set_policy(self, actor, policy):
+        return self.call('POST', '/policy', {'actor': actor, 'policy': policy})

@@ -50,6 +50,7 @@ class Settings:
     witness_token_file: str = ''
     witness_key_id: str = ''              # pinned witness identity; acknowledgments from another key are ignored
     witness_max_age_seconds: int = 86400  # freshness policy for the latest acknowledged checkpoint
+    require_external_custody: bool = False   # METACOIN_REQUIRE_EXTERNAL_CUSTODY=1: no development-custody actors can be created on this instance (custody-separated scenario)
     signer_url: str = ''                  # optional: an external actor signer whose reachability capabilities report (the service never signs with it)
     signer_token_file: str = ''           # the native protocol never needs x402; this switch proves it (no x402 import on the request path)
     x402_network: str = ''
@@ -80,7 +81,7 @@ class Settings:
                 facilitator_url=env.get('METACOIN_FACILITATOR_URL', ''),
                 x402_disabled=env.get('METACOIN_X402_DISABLED', '0') == '1',
                 witness_url=env.get('METACOIN_WITNESS_URL', ''), witness_token_file=env.get('METACOIN_WITNESS_TOKEN_FILE', ''), witness_key_id=env.get('METACOIN_WITNESS_KEY_ID', ''), witness_max_age_seconds=int(env.get('METACOIN_WITNESS_MAX_AGE_SECONDS', '86400')),
-                signer_url=env.get('METACOIN_SIGNER_URL', ''), signer_token_file=env.get('METACOIN_SIGNER_TOKEN_FILE', ''),
+                require_external_custody=env.get('METACOIN_REQUIRE_EXTERNAL_CUSTODY', '') == '1', signer_url=env.get('METACOIN_SIGNER_URL', ''), signer_token_file=env.get('METACOIN_SIGNER_TOKEN_FILE', ''),
                 x402_network=env.get('METACOIN_X402_NETWORK', ''),
                 x402_asset=env.get('METACOIN_X402_ASSET', ''),
                 x402_pay_to=env.get('METACOIN_X402_PAY_TO', ''),

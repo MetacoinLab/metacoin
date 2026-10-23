@@ -356,6 +356,29 @@ def mount(app, svc, run, read_body, API):
     async def mission_view(request: Request, mid: str):
         return await run(request, False, lambda db, p: MS.view(db, p, mid))
 
+    @app.get(API + '/native/signing/pending')
+    async def signing_pending(request: Request):
+        return await run(request, False, lambda db, p: svc.signing.pending(db, p, request.query_params.get('account')))
+
+    @app.get(API + '/native/signing/requests/{rid}')
+    async def signing_view(request: Request, rid: str):
+        return await run(request, False, lambda db, p: svc.signing.view(db, p, rid))
+
+    @app.post(API + '/native/signing/requests/{rid}/submit')
+    async def signing_submit(request: Request, rid: str):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.signing.submit(db, p, rid, body), 'native.signing.submit', raw)
+
+    @app.post(API + '/native/signing/requests/{rid}/cancel')
+    async def signing_cancel(request: Request, rid: str):
+        raw = await request.body(); read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.signing.cancel(db, p, rid), 'native.signing.cancel', raw)
+
+    @app.post(API + '/resources/reservations/prepare')
+    async def reservation_prepare(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, False, lambda db, p: M.reserve_prepare(db, p, body))
+
     @app.get(API + '/native/operator')
     async def native_operator(request: Request):
         return await run(request, False, lambda db, p: svc.operator.view(db, p, request.query_params.get('asset')))
