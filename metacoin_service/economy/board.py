@@ -70,12 +70,17 @@ class Providers:
             return {'type': 'node', 'node_id': node['id'], 'node_kinds': json.loads(node['capabilities_json']), 'transport': 'signed HTTPS node protocol, separate process and state directory'}
         return {'type': 'local_worker', 'transport': 'in-process worker of this instance (same host, same operator fixture)'}
 
+    IDENTITY_FIELDS = ('operator_id', 'machine_id', 'worker_instance', 'signer_id', 'domain')
+
     def _validate_relationship(self, rel):
-        if type(rel) is not dict or set(rel) - {'operator_affiliation', 'same_host', 'shared_custody', 'relationship', 'note'}:
-            raise ServiceError('VALIDATION', {'code': 'relationship', 'allowed': ['operator_affiliation', 'same_host', 'shared_custody', 'relationship', 'note']})
+        if type(rel) is not dict or set(rel) - {'operator_affiliation', 'same_host', 'shared_custody', 'relationship', 'note', 'identity'}:
+            raise ServiceError('VALIDATION', {'code': 'relationship', 'allowed': ['operator_affiliation', 'same_host', 'shared_custody', 'relationship', 'note', 'identity {operator_id, machine_id, worker_instance, signer_id, domain}']})
+        ident = rel.get('identity')
+        if ident is not None and (type(ident) is not dict or set(ident) - set(self.IDENTITY_FIELDS) or not all(type(v) is str and 1 <= len(v) <= 128 for v in ident.values())):
+            raise ServiceError('VALIDATION', {'code': 'identity', 'allowed': list(self.IDENTITY_FIELDS)})
         if rel.get('relationship', 'unknown') not in RELATIONSHIPS:
             raise ServiceError('VALIDATION', {'code': 'relationship', 'allowed': list(RELATIONSHIPS)})
-        out = {'operator_affiliation': str(rel.get('operator_affiliation', 'unknown'))[:64], 'same_host': rel.get('same_host'), 'shared_custody': rel.get('shared_custody'), 'relationship': rel.get('relationship', 'unknown'), 'note': str(rel.get('note', ''))[:256]}
+        out = {'operator_affiliation': str(rel.get('operator_affiliation', 'unknown'))[:64], 'same_host': rel.get('same_host'), 'shared_custody': rel.get('shared_custody'), 'relationship': rel.get('relationship', 'unknown'), 'note': str(rel.get('note', ''))[:256], 'identity': rel.get('identity')}
         if out['same_host'] not in (True, False, None) or out['shared_custody'] not in (True, False, None):
             raise ServiceError('VALIDATION', 'relationship booleans')
         return out
@@ -143,6 +148,28 @@ class Providers:
         db.execute('INSERT INTO provider_revisions VALUES (?,?,?,?,?,?,?,?,?,?,?)', ('pr_' + secrets.token_hex(6), prid, rev, json.dumps(ex), json.dumps(caps), json.dumps(rel), pay_to, msg, sig, kid, now()))
         history.record(db, principal.workspace, principal.id, 'work.provider_revised', 'provider', prid, {'revision': rev, 'pay_to_changed': pay_to != r['pay_to'], 'execution': ex['type']})
         return self.view(db, principal, self.row(db, principal, prid))
+
+    def identity_view(self, db, principal, prid):
+        """Identity separation and concrete outcome history: operator, machine, worker instance, signer and domain are declared
+        separately; several workers under one operator are one party; the history shows counts and sample sizes, no trust score."""
+        r = self.row(db, principal, prid) if prid != 'me' else self.for_principal(db, principal); rel = json.loads(r['relationship_json']); ident = rel.get('identity') or {}
+        acct = db.execute('SELECT id, custody FROM native_accounts WHERE principal_id=?', (r['principal_id'],)).fetchone()
+        peers = []
+        if ident.get('operator_id'):
+            for o in db.execute("SELECT id, name, relationship_json FROM providers WHERE workspace=? AND id<>?", (principal.workspace, r['id'])).fetchall():
+                oi = (json.loads(o['relationship_json']).get('identity') or {})
+                if oi.get('operator_id') == ident['operator_id']:
+                    peers.append({'provider_id': o['id'], 'name': o['name'], 'machine_id': oi.get('machine_id'), 'worker_instance': oi.get('worker_instance')})
+        awards = db.execute("SELECT m.state, COUNT(*) FROM work_awards a JOIN work_milestones m ON m.award_id=a.id WHERE a.provider_id=? GROUP BY m.state", (r['id'],)).fetchall()
+        ver = db.execute("SELECT v.state, COUNT(*) FROM verifications v JOIN jobs j ON j.id=v.job_id JOIN work_milestones m ON m.job_id=j.id JOIN work_awards a ON a.id=m.award_id WHERE a.provider_id=? GROUP BY v.state", (r['id'],)).fetchall() if db.execute("SELECT 1 FROM sqlite_master WHERE name='verifications'").fetchone() else []
+        res = db.execute("SELECT state, COUNT(*) FROM resource_reservations WHERE provider_account=? GROUP BY state", (acct['id'],)).fetchall() if acct else []
+        offers = db.execute("SELECT kind, COUNT(*), SUM(capacity) FROM resource_offers WHERE provider_account=? GROUP BY kind", (acct['id'],)).fetchall() if acct else []
+        shared = bool(peers) or rel.get('relationship') == 'same_operator'
+        return {'schema': 'metacoin-provider-identity/v1', 'provider_id': r['id'], 'name': r['name'], 'principal_id': r['principal_id'], 'account': acct['id'] if acct else None, 'custody': acct['custody'] if acct else None,
+                'identity': {k: ident.get(k) for k in self.IDENTITY_FIELDS}, 'relationship': {k: rel.get(k) for k in ('relationship', 'operator_affiliation', 'same_host', 'shared_custody')},
+                'independence': {'independent_party': not shared and rel.get('relationship') == 'independent_declared', 'shared_operator': shared, 'same_operator_providers': peers, 'disclosure': 'providers declaring the same operator_id are one economic party: several workers under one operator are never counted as independent; independence is declared and disclosed, never inferred from keys'},
+                'outcomes': {'milestones_by_state': {s_: n for s_, n in awards}, 'verifications_by_state': {s_: n for s_, n in ver}, 'reservations_by_state': {s_: n for s_, n in res}, 'offers': [{'kind': k, 'count': n, 'capacity_sum': c} for k, n, c in offers], 'sample_sizes': {'milestones': sum(n for _, n in awards), 'verifications': sum(n for _, n in ver), 'reservations': sum(n for _, n in res)}, 'verification_policy': json.loads(r['capabilities_json']).get('verification_classes'), 'note': 'concrete outcomes with sample sizes on this instance; no universal trust score is computed'},
+                'revision': r['revision'], 'state': r['state']}
 
     def row(self, db, principal, prid):
         r = db.execute('SELECT * FROM providers WHERE id=? AND workspace=?', (prid, principal.workspace)).fetchone()

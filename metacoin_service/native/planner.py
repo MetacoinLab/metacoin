@@ -66,8 +66,13 @@ def normalize(problem):
             raise ServiceError('VALIDATION', {'code': 'offer', 'index': i})
         ws, we = _int(o.get('window_start', start), 0, 10 ** 12, 'offer.window_start'), _int(o.get('window_end', end), 0, 10 ** 12, 'offer.window_end')
         s0, s1 = max(0, (ws - start) // slot if ws >= start else 0), min(n, -(-(we - start) // slot)) if we > start else 0
+        pool = o.get('pool')
+        if pool is not None:
+            if type(pool) is not dict or type(pool.get('id')) is not str:
+                raise ServiceError('VALIDATION', {'code': 'offer_pool'})
+            pool = {'id': pool['id'], 'capacity': _int(pool.get('capacity', 1), 0, 10 ** 9, 'pool.capacity'), 'units_per_slot_second': _int(pool.get('units_per_slot_second', 1), 1, 10 ** 9, 'pool.units_per_slot_second')}
         offers.append({'id': o['id'], 'kind': str(o.get('kind', 'compute')), 'available': _int(o.get('available', 0), 0, 10 ** 12, 'offer.available'), 'price': _int(o.get('price_per_unit', 0), 0, 10 ** 9, 'offer.price_per_unit'),
-                       'energy': _int(o.get('energy_mwh_per_unit', 0), 0, 10 ** 9, 'offer.energy_mwh_per_unit'), 'slot_start': s0, 'slot_end': s1, 'window': [ws, we], 'provider': o.get('provider')})
+                       'energy': _int(o.get('energy_mwh_per_unit', 0), 0, 10 ** 9, 'offer.energy_mwh_per_unit'), 'slot_start': s0, 'slot_end': s1, 'window': [ws, we], 'provider': o.get('provider'), 'pool': pool})
     budgets = dict(problem.get('budgets') or {})
     if problem.get('budget') is not None:
         for t in tasks:
@@ -84,7 +89,7 @@ def normalize(problem):
     obj = problem.get('objective', 'earliest_delivery')
     if obj not in OBJECTIVES:
         raise ServiceError('VALIDATION', {'code': 'objective', 'allowed': list(OBJECTIVES)})
-    return {'horizon': {'start': start, 'end': end, 'slot_seconds': slot, 'slots': n}, 'tasks': tasks, 'order': order, 'offers': offers, 'budgets': budgets, 'energy_budget': eb, 'energy_reserve': er, 'deadline': dl, 'objective': obj, 'label': problem.get('label')}
+    return {'horizon': {'start': start, 'end': end, 'slot_seconds': slot, 'slots': n}, 'tasks': tasks, 'order': order, 'offers': offers, '_offers': {o['id']: o for o in offers}, 'budgets': budgets, 'energy_budget': eb, 'energy_reserve': er, 'deadline': dl, 'objective': obj, 'label': problem.get('label')}
 
 
 def _topological(tasks):
@@ -112,10 +117,56 @@ def _options(P, t):
     for o in P['offers']:
         if o['kind'] != t['kind'] or o['available'] < t['quantity'] or o['slot_end'] - o['slot_start'] < t['duration']:
             continue
+        if o.get('pool') and _pool_slots(P, t, o) > o['pool']['capacity']:
+            continue
         if t['deadline'] is not None and o['slot_start'] + t['duration'] > t['deadline']:
             continue
         out.append(o)
     return out
+
+
+def _pool_slots(P, t, o):
+    """Concurrent pool slots a task needs on a pool-backed offer: ceil(quantity / (units_per_slot_second × seconds of the task))."""
+    pool = o.get('pool')
+    if not pool:
+        return 0
+    seconds = t['duration'] * P['horizon']['slot_seconds']; per_slot = pool['units_per_slot_second'] * seconds
+    return -(-t['quantity'] // per_slot) if per_slot else 0
+
+
+def _pool_ok(P, by_task, choice, sched):
+    """Interval sweep per pool over the planner slots: concurrent slot demand never exceeds the pool capacity."""
+    pools = {}
+    for tid, oid in choice.items():
+        if oid is None or tid not in sched:
+            continue
+        o = P['_offers'].get(oid)
+        if o and o.get('pool'):
+            pools.setdefault(o['pool']['id'], []).append((sched[tid]['start_slot'], sched[tid]['end_slot'], _pool_slots(P, by_task[tid], o), o['pool']['capacity']))
+    for pid, items in pools.items():
+        cap = items[0][3]
+        for a, b, n, _ in items:
+            for t in range(a, b):
+                used = sum(n2 for a2, b2, n2, _ in items if a2 <= t < b2)
+                if used > cap:
+                    return False, {'constraint': 'pool_capacity', 'pool': pid, 'slot': t, 'used': used, 'capacity': cap}
+    return True, None
+
+
+def _pool_start(P, by_task, choice, sched, t, o, s0):
+    """Earliest start >= s0 at which the task fits its offer's pool given the tasks already scheduled (deterministic rule shared by
+    the oracle, the baseline and the improved planner: 'left-shift, then delay only as far as the pool forces')."""
+    if not o.get('pool'):
+        return s0
+    last = min(o['slot_end'], P['horizon']['slots']) - t['duration']
+    s = s0
+    while s <= last:
+        partial = dict(sched); partial[t['id']] = {'start_slot': s, 'end_slot': s + t['duration']}
+        ok, _ = _pool_ok(P, by_task, dict(choice, **{t['id']: o['id']}), partial)
+        if ok:
+            return s
+        s += 1
+    return None
 
 
 def _start_for(P, t, o, ends):
@@ -143,12 +194,18 @@ def evaluate(P, choice):
         s = _start_for(P, t, o, ends)
         if s is None:
             return False, {'constraint': 'window_or_deadline', 'task': tid, 'offer': choice[tid]}
+        s = _pool_start(P, by_task, {k: v for k, v in choice.items() if k in sched}, sched, t, o, s)
+        if s is None or (t['deadline'] is not None and s + t['duration'] > t['deadline']) or (P['deadline'] is not None and s + t['duration'] > P['deadline']):
+            return False, {'constraint': 'pool_capacity', 'task': tid, 'offer': choice[tid], 'note': 'no pool-feasible start inside the window/deadline'}
         ends[tid] = s + t['duration']; sched[tid] = {'offer_id': choice[tid], 'start_slot': s, 'end_slot': s + t['duration'], 'quantity': t['quantity'], 'cost': t['quantity'] * o['price'] + t['fixed_cost'], 'energy_mwh': t['quantity'] * o['energy'], 'mission': t['mission'], 'label': t['label']}
         if not t['local']:
             used[o['id']] = used.get(o['id'], 0) + t['quantity']
             if used[o['id']] > o['available']:
                 return False, {'constraint': 'capacity', 'offer': o['id'], 'demand': used[o['id']], 'available': o['available']}
         cost[t['mission']] = cost.get(t['mission'], 0) + sched[tid]['cost']; energy += sched[tid]['energy_mwh']
+    ok_pool, why = _pool_ok(P, by_task, choice, sched)
+    if not ok_pool:
+        return False, why
     for mname, c in cost.items():
         b = P['budgets'].get(mname)
         if b is not None and c > b:
@@ -175,6 +232,8 @@ def witness(P):
                 return {'constraint': 'no_offer_of_kind', 'task': tid, 'kind': t['kind']}
             if all(o['available'] < t['quantity'] for o in cands):
                 return {'constraint': 'capacity', 'task': tid, 'quantity': t['quantity'], 'max_available': max(o['available'] for o in cands)}
+            if all(o.get('pool') and _pool_slots(P, t, o) > o['pool']['capacity'] for o in cands):
+                return {'constraint': 'pool_capacity', 'task': tid, 'note': 'the task needs more concurrent pool slots over its duration than any pool offers'}
             if t['deadline'] is not None and all(o['slot_start'] + t['duration'] > t['deadline'] for o in cands):
                 return {'constraint': 'deadline', 'task': tid, 'deadline_slot': t['deadline'], 'earliest_finish_slot': min(o['slot_start'] + t['duration'] for o in cands)}
             return {'constraint': 'window', 'task': tid, 'note': 'no offer window inside the horizon holds the task duration', 'windows': [o['window'] for o in cands]}
@@ -218,13 +277,21 @@ def baseline(P, timeout_ms=None):
             c = t['quantity'] * o['price'] + t['fixed_cost']; b = P['budgets'].get(t['mission'])
             if b is not None and spent.get(t['mission'], 0) + c > b:
                 continue
+            if o.get('pool'):
+                partial = {k: {'start_slot': ends[k] - by_task[k]['duration'], 'end_slot': ends[k]} for k in choice}
+                s = _pool_start(P, by_task, choice, partial, t, o, s)
+                if s is None or (t['deadline'] is not None and s + t['duration'] > t['deadline']) or (P['deadline'] is not None and s + t['duration'] > P['deadline']):
+                    continue
             k = (s + t['duration'], c) if P['objective'] == 'earliest_delivery' else (c, s + t['duration'])
             if bk is None or k < bk:
                 best, bk = o, k
         if best is None:
             w = witness(P) or {'constraint': 'greedy_dead_end', 'task': tid, 'note': 'the baseline planner does not backtrack; the improved planner may still find a schedule'}
             return {'planner': 'baseline', 'status': 'infeasible' if w.get('constraint') != 'greedy_dead_end' else 'unknown', 'witness': w, 'incumbent': None, 'bound': None, 'runtime_ms': int((time.monotonic() - t0) * 1000)}
-        choice[tid] = best['id']; ends[tid] = _start_for(P, t, best, ends) + t['duration']
+        s_best = _start_for(P, t, best, ends)
+        if best.get('pool'):
+            s_best = _pool_start(P, by_task, choice, {k: {'start_slot': ends[k] - by_task[k]['duration'], 'end_slot': ends[k]} for k in choice}, t, best, s_best)
+        choice[tid] = best['id']; ends[tid] = s_best + t['duration']
         if not t['local']:
             used[best['id']] = used.get(best['id'], 0) + t['quantity']
         spent[t['mission']] = spent.get(t['mission'], 0) + t['quantity'] * best['price'] + t['fixed_cost']
@@ -298,6 +365,11 @@ def improved(P, timeout_ms=2000):
         for _, o, s, c, e in cands:
             if state['timed_out']:
                 return
+            if o.get('pool'):
+                partial = {k: {'start_slot': ends[k] - by_task[k]['duration'], 'end_slot': ends[k]} for k in choice}
+                s = _pool_start(P, by_task, choice, partial, t, o, s)
+                if s is None or (t['deadline'] is not None and s + t['duration'] > t['deadline']) or (P['deadline'] is not None and s + t['duration'] > P['deadline']):
+                    continue
             choice[tid] = o['id']; ends[tid] = s + t['duration']
             if not t['local']:
                 used[o['id']] = used.get(o['id'], 0) + t['quantity']
@@ -318,7 +390,7 @@ def improved(P, timeout_ms=2000):
         return {'planner': 'improved', 'status': 'infeasible', 'witness': witness(P) or {'constraint': 'capacity_or_precedence_conflict', 'note': 'every relaxation passes individually; the exhaustive search found no joint assignment (shared capacity with precedence/windows)', 'offers': [{'id': o['id'], 'available': o['available'], 'demand_of_kind': sum(t['quantity'] for t in P['tasks'] if t['kind'] == o['kind'])} for o in P['offers']]}, 'incumbent': None, 'bound': root_bound, 'nodes': state['nodes'], 'runtime_ms': rt}
     if state['timed_out']:
         return {'planner': 'improved', 'status': 'feasible_timeout', 'incumbent': state['best'], 'bound': state['open_bound'] or root_bound, 'nodes': state['nodes'], 'runtime_ms': rt, 'timeout_ms': timeout_ms, 'note': 'incumbent is feasible; optimality not established (search stopped by the timeout)'}
-    return {'planner': 'improved', 'status': 'optimal', 'incumbent': state['best'], 'bound': list(state['best_key']), 'nodes': state['nodes'], 'runtime_ms': rt, 'note': 'search exhausted under the stated discretisation and left-shift dominance'}
+    return {'planner': 'improved', 'status': 'optimal', 'incumbent': state['best'], 'bound': list(state['best_key']), 'nodes': state['nodes'], 'runtime_ms': rt, 'note': 'search exhausted over offer choices under the stated discretisation and the shared scheduling rule (left-shift, delayed only as far as a pool forces); the rule itself is a heuristic for pool-timed tasks'}
 
 
 def oracle(P, timeout_ms=None):

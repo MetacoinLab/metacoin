@@ -10,6 +10,7 @@
 """
 import argparse
 import json
+import os
 import shlex
 import sys
 import time
@@ -19,7 +20,7 @@ from .api import ApiError
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog='metacoin-provider'); ap.add_argument('--base'); ap.add_argument('--cred'); ap.add_argument('--signer'); ap.add_argument('--signer-token'); ap.add_argument('--actor')
+    ap = argparse.ArgumentParser(prog='metacoin-provider'); ap.add_argument('--base'); ap.add_argument('--cred'); ap.add_argument('--signer'); ap.add_argument('--signer-token'); ap.add_argument('--actor'); ap.add_argument('--home', help='provider configuration directory (from `init`)'); ap.add_argument('--ca', help='pinned CA file for https')
     sub = ap.add_subparsers(dest='command', required=True)
     e = sub.add_parser('enroll'); e.add_argument('--admin-cred', required=True); e.add_argument('--name', required=True); e.add_argument('--ceiling', type=int, default=1000); e.add_argument('--out', required=True)
     r = sub.add_parser('register-work-provider'); r.add_argument('--admin-cred', required=True); r.add_argument('--principal-id', required=True); r.add_argument('--name', required=True); r.add_argument('--kinds', default='terrain_tile,route_feasibility')
@@ -36,6 +37,8 @@ def main(argv=None):
     ex = sub.add_parser('export'); ex.add_argument('--out'); rc = sub.add_parser('receipts'); rc.add_argument('--roots'); sub.add_parser('roots')
     v = sub.add_parser('verify'); v.add_argument('record'); v.add_argument('--roots', required=True)
     b = sub.add_parser('mission-bundle'); b.add_argument('mid'); b.add_argument('--out')
+    ini = sub.add_parser('init', help='enrollment wizard: write a configuration directory from a fresh directory and pin the remote identity'); ini.add_argument('--name', required=True)
+    sub.add_parser('handshake', help='verify the pinned identity and protocol compatibility'); sub.add_parser('drain'); sub.add_parser('withdraw'); sub.add_parser('earnings'); cp = sub.add_parser('capabilities'); cp.add_argument('--provider')
     sub.add_parser('conformance'); sub.add_parser('signing-pending'); sub.add_parser('sign-pending', help='actor-side signing agent: sign and submit my pending economic authorizations through my signer')
     pp = sub.add_parser('signer-policy'); pp.add_argument('--set', help='JSON policy to install at the signer for --actor')
     args = ap.parse_args(argv)
@@ -58,7 +61,19 @@ def run(a):
     if c == 'conformance':
         from .conformance import run_fixtures
         return run_fixtures()
-    P = Provider(a.base, a.cred, signer=a.signer, signer_token_file=a.signer_token, actor=a.actor)
+    if c == 'init':
+        return Provider.init(a.home or os.path.join(os.getcwd(), 'provider-home'), a.base, a.cred, a.name, ca_file=a.ca, signer=a.signer, signer_token_file=a.signer_token, actor=a.actor)
+    P = Provider.load(a.home) if a.home and not a.base else Provider(a.base, a.cred, signer=a.signer, signer_token_file=a.signer_token, actor=a.actor, ca_file=a.ca)
+    if c == 'handshake':
+        return P.handshake()
+    if c == 'drain':
+        return P.drain()
+    if c == 'withdraw':
+        return P.withdraw()
+    if c == 'earnings':
+        return P.earnings()
+    if c == 'capabilities':
+        return P.capabilities(a.provider)
     if c == 'account':
         return P.account()
     if c == 'market':

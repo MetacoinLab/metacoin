@@ -124,7 +124,7 @@ class Portfolio:
         MP = self.svc.planning; probs, prios, liq = {}, {}, {}
         for mid in ids:
             m = self.svc.missions._row(db, principal.workspace, mid); pol = json.loads(m['policy_json'])
-            p = MP.problem(db, principal, [mid], {k: v for k, v in body.items() if k in ('objective', 'horizon', 'deadline_at')})
+            p = MP.problem(db, principal, [mid], {k: v for k, v in body.items() if k in ('objective', 'horizon', 'deadline_at')}, observe=principal.can('native:admin'))
             d = self.svc.native.domain(db, principal.workspace); liq[mid] = liquidity(db, principal.workspace, m['asset'], d['id'], m['owner_account'], pol.get('min_cash_reserve', 0))
             probs[mid] = {'horizon': p['horizon'], 'tasks': p['tasks'], 'offers': p['offers'], 'budget': min(p['budgets'].get(mid, 0), liq[mid]['spendable']), 'objective': p['objective'], 'deadline_slot': p.get('deadline_slot')}
             prios[mid] = int(pol.get('priority', 0)); probs[mid]['priority'] = prios[mid]

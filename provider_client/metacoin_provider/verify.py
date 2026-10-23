@@ -106,3 +106,61 @@ def verify_export(export, roots):
     C = verify_receipts(export.get('receipts'), roots, export.get('domain')) + verify_intents(export.get('intents'), export.get('accounts'), export.get('account_keys'))
     bk, _ = bookkeeping(export.get('journal_entries')); C += bk
     return {'schema': 'metacoin-export-verification/v1', 'domain': export.get('domain'), 'checks': C, 'ok': all(c['ok'] for c in C)}
+
+
+# ---- v2 (order 2026-10-23 §17): resource overlap, claim-lot lineage, outstanding obligations, stale epochs, revoked keys --------------------
+def pool_sweep(schedule, commitments):
+    """Independent interval sweep over half-open commitments: every point within capacity."""
+    pts = sorted({e['start'] for e in schedule} | {e['end'] for e in schedule} | {c['start'] for c in commitments} | {c['end'] for c in commitments}); bad = []
+    for a, b in zip(pts, pts[1:]):
+        used = sum(c['slots'] for c in commitments if c['start'] < b and c['end'] > a and c.get('state', 'reserved') in ('reserved', 'active', 'delivered'))
+        cap = next((e['capacity'] for e in schedule if e['start'] <= a < e['end']), 0)
+        if used > cap:
+            bad.append({'start': a, 'end': b, 'used': used, 'capacity': cap})
+    return bad
+
+
+def check_pool(pool, commitments):
+    if type(pool.get('units_per_slot_second')) is not int or pool['units_per_slot_second'] <= 0 or type(pool.get('resolution_seconds')) is not int or pool['resolution_seconds'] <= 0:
+        return [_ok('pool:' + str(pool.get('id')), False, {'error': 'units_per_slot_second', 'note': 'resource units must be positive bounded integers'})]
+    bad = pool_sweep(pool['schedule'], commitments)
+    return [_ok('pool:' + str(pool.get('id')), not bad, {'error': 'pool_overlap' if bad else None, 'segments': bad[:3]})]
+
+
+def check_lots(allocation, lots):
+    """Lots of one origin partition its amount; children never exceed their spent parent; retired lots never exceed the return."""
+    mine = [l for l in lots if l['origin_allocation'] == allocation['id'] and l['status'] != 'merged']
+    by_parent = {}
+    for l in mine:
+        if l.get('parent_lot'):
+            by_parent.setdefault(l['parent_lot'], 0); by_parent[l['parent_lot']] += l['amount']
+    parents = {l['lot_id']: l for l in mine}
+    for pid, child_sum in by_parent.items():
+        par = parents.get(pid)
+        if par is not None and par['status'] == 'spent' and child_sum > par['amount']:
+            return [_ok('lots:' + allocation['id'], False, {'error': 'lot_partition', 'parent': pid, 'parent_amount': par['amount'], 'children_sum': child_sum, 'note': 'a split consumed an already spent parent'})]
+    live = sum(l['amount'] for l in mine if l['status'] in ('active', 'committed', 'retired') and not (l.get('parent_lot') in parents and parents[l['parent_lot']]['status'] != 'spent'))
+    ok = live == allocation['amount'] if mine else True
+    return [_ok('lots:' + allocation['id'], ok, {'error': None if ok else 'lot_partition', 'live_sum': live, 'amount': allocation['amount'], 'returned': allocation.get('returned_amount', 0)})]
+
+
+def check_export_v2(export, roots):
+    """Reconstruct resource overlap, allocation lineage and outstanding obligations from an export (no database, no network)."""
+    C = []
+    by_pool = {}
+    for c in export.get('pool_commitments') or []:
+        by_pool.setdefault(c['pool_id'], []).append(c)
+    for p in export.get('resource_pools') or []:
+        C += check_pool(p, by_pool.get(p['id'], []))
+    lots = export.get('claim_lots') or []
+    for a in export.get('allocations') or []:
+        if a.get('direction') == 'import':
+            C += check_lots({'id': a['id'], 'amount': a['amount'], 'returned_amount': a.get('returned_amount', 0)}, lots)
+    outstanding = [o for o in export.get('obligations') or [] if o.get('state') in ('open', 'partial')]
+    C.append(_ok('obligations_consistent', all(o['settled_amount'] <= o['amount'] and o['amount'] - o['settled_amount'] == o.get('outstanding', o['amount'] - o['settled_amount']) for o in outstanding), {'outstanding': len(outstanding), 'sum_outstanding': sum(o['amount'] - o['settled_amount'] for o in outstanding)}))
+    keys = {k['key_id']: k for ks in (roots or {}).values() for k in ks}
+    for r in export.get('receipts') or []:
+        k = keys.get(r.get('key_id'))
+        if k and (k.get('state') == 'revoked' or (k.get('retired_at') and (k.get('grace_until') is None or (r.get('statement') or {}).get('issued_at', 0) > k['grace_until']))):
+            C.append(_ok('receipt_key_valid:' + str(r.get('id')), False, {'error': 'key_not_valid', 'key_id': r.get('key_id')}))
+    return {'schema': 'metacoin-export-verification/v2', 'checks': C, 'ok': all(c['ok'] for c in C)}

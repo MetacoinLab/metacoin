@@ -1800,5 +1800,309 @@
    "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c"
   }
  ],
- "version": "metacoin-provider-conformance/v1"
+ "v2": [
+  {
+   "body": {
+    "actor_account": "na_actor",
+    "amount_ceiling": 9223372036854775813,
+    "asset": "dev:dom-fx:native:MU:0",
+    "authority": "dom-fx",
+    "environment": "dev",
+    "expires_at": 1700000600,
+    "nonce": "1",
+    "obligation_id": "ob_1",
+    "policy_version": "native-policy/v0",
+    "protocol": "metacoin-native/v0",
+    "recipient": "na_b",
+    "request_id": "r-big",
+    "type": "intent"
+   },
+   "error": "integer_out_of_bounds",
+   "expect": "invalid",
+   "id": "monetary_overflow",
+   "kind": "intent"
+  },
+  {
+   "error": "duplicate_key",
+   "expect": "invalid",
+   "id": "duplicate_keys",
+   "kind": "raw",
+   "raw": "{\"protocol\": \"metacoin-native/v0\", \"protocol\": \"x\"}"
+  },
+  {
+   "body": {
+    "actor_account": "na_actor",
+    "amount_ceiling": 7,
+    "asset": "dev:dom-fx:native:MU:0",
+    "authority": "dom-fx",
+    "environment": "dev",
+    "expires_at": 1700000600,
+    "nonce": "1",
+    "obligation_id": "ob_1",
+    "policy_version": "native-policy/v0",
+    "protocol": "metacoin-native/v0",
+    "recipient": "na_b",
+    "request_id": "r1",
+    "settlement_hint": "pay-anyway",
+    "type": "intent"
+   },
+   "error": "unknown_critical_field",
+   "expect": "invalid",
+   "id": "unknown_critical_field",
+   "kind": "intent"
+  },
+  {
+   "body": {
+    "allocation_id": "nal_fx1",
+    "amount": 20,
+    "asset": "dev:dom-fx:native:MU:0",
+    "commit_digest": "abababababababababababababababababababababababababababababababab",
+    "commit_sequence": 7,
+    "destination_authority": "dom-fy",
+    "environment": "dev",
+    "issued_at": 1700000000,
+    "policy_version": "native-policy/v0",
+    "protocol": "metacoin-native/v0",
+    "recipient_account": "na_b",
+    "source_authority": "dom-fx",
+    "source_epoch": 0,
+    "type": "allocation_certificate"
+   },
+   "error": "epoch_key_mismatch",
+   "expect": "invalid",
+   "id": "stale_authority_epoch",
+   "key_epoch": 1,
+   "kind": "certificate_epoch"
+  },
+  {
+   "body": {
+    "claims": {
+     "amount": 7,
+     "from": "na_a",
+     "to": "na_b"
+    },
+    "issued_at": 1700000000,
+    "kind": "settlement",
+    "nonce": "abcd",
+    "protocol": "metacoin-native/v0",
+    "ref_id": "pi_fixture",
+    "ref_type": "native_intent",
+    "schema": "metacoin-native-receipt/v0"
+   },
+   "error": "key_not_valid",
+   "expect": "invalid",
+   "id": "revoked_signer",
+   "key": {
+    "epoch": 1,
+    "grace_until": 1600000001,
+    "key_id": "k_9d608cf1a9e629dd5a2de070",
+    "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317",
+    "retired_at": 1600000000,
+    "state": "revoked"
+   },
+   "kind": "receipt_key",
+   "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317",
+   "signature_hex": "6453e67e4c4f35e06a39cc7328d436f9420bdf4b63436d7a5cb14880c9eb301147ea4b4f7268a651be1f3cc489399e561ee02afa19701e254d19737278bb4d0f"
+  },
+  {
+   "allocation": {
+    "amount": 20,
+    "id": "nal_fx1",
+    "returned_amount": 0
+   },
+   "error": "lot_partition",
+   "expect": "invalid",
+   "id": "consumed_claim_parent",
+   "kind": "lots",
+   "lots": [
+    {
+     "amount": 20,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 1,
+     "lot_id": "lot_p",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_b",
+     "parent_lot": null,
+     "status": "spent",
+     "transferred": 0
+    },
+    {
+     "amount": 13,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 2,
+     "lot_id": "lot_c1",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_b",
+     "parent_lot": "lot_p",
+     "status": "active",
+     "transferred": 0
+    },
+    {
+     "amount": 7,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 2,
+     "lot_id": "lot_c2",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_c",
+     "parent_lot": "lot_p",
+     "status": "active",
+     "transferred": 1
+    },
+    {
+     "amount": 5,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 3,
+     "lot_id": "lot_bad",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_d",
+     "parent_lot": "lot_p",
+     "status": "active",
+     "transferred": 1
+    }
+   ],
+   "note": "children of a spent parent exceed its amount (20 vs 25): a split consumed an already spent parent"
+  },
+  {
+   "allocation": {
+    "amount": 20,
+    "id": "nal_fx1",
+    "returned_amount": 0
+   },
+   "expect": "valid",
+   "id": "valid_lot_partition",
+   "kind": "lots",
+   "lots": [
+    {
+     "amount": 20,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 1,
+     "lot_id": "lot_p",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_b",
+     "parent_lot": null,
+     "status": "spent",
+     "transferred": 0
+    },
+    {
+     "amount": 13,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 2,
+     "lot_id": "lot_c1",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_b",
+     "parent_lot": "lot_p",
+     "status": "active",
+     "transferred": 0
+    },
+    {
+     "amount": 7,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 2,
+     "lot_id": "lot_c2",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_c",
+     "parent_lot": "lot_p",
+     "status": "active",
+     "transferred": 1
+    }
+   ]
+  },
+  {
+   "commitments": [],
+   "error": "units_per_slot_second",
+   "expect": "invalid",
+   "id": "malformed_resource_units",
+   "kind": "pool",
+   "pool": {
+    "id": "rp_x",
+    "kind": "compute",
+    "resolution_seconds": 1,
+    "schedule": [
+     {
+      "capacity": 1,
+      "end": 60,
+      "start": 0
+     }
+    ],
+    "slot_unit": "cpu_slot",
+    "units_per_slot_second": 0
+   }
+  },
+  {
+   "commitments": [
+    {
+     "end": 30,
+     "id": "pc1",
+     "reservation_id": "rr1",
+     "slots": 1,
+     "start": 0,
+     "state": "reserved"
+    },
+    {
+     "end": 40,
+     "id": "pc2",
+     "reservation_id": "rr2",
+     "slots": 1,
+     "start": 20,
+     "state": "active"
+    }
+   ],
+   "error": "pool_overlap",
+   "expect": "invalid",
+   "id": "pool_oversold",
+   "kind": "pool",
+   "pool": {
+    "id": "rp_y",
+    "kind": "contact",
+    "resolution_seconds": 1,
+    "schedule": [
+     {
+      "capacity": 1,
+      "end": 60,
+      "start": 0
+     }
+    ],
+    "slot_unit": "channel",
+    "units_per_slot_second": 1
+   }
+  },
+  {
+   "commitments": [
+    {
+     "end": 30,
+     "id": "pc1",
+     "reservation_id": "rr1",
+     "slots": 1,
+     "start": 0,
+     "state": "reserved"
+    },
+    {
+     "end": 60,
+     "id": "pc2",
+     "reservation_id": "rr2",
+     "slots": 1,
+     "start": 30,
+     "state": "reserved"
+    }
+   ],
+   "expect": "valid",
+   "id": "pool_touching_ok",
+   "kind": "pool",
+   "pool": {
+    "id": "rp_z",
+    "kind": "contact",
+    "resolution_seconds": 1,
+    "schedule": [
+     {
+      "capacity": 1,
+      "end": 60,
+      "start": 0
+     }
+    ],
+    "slot_unit": "channel",
+    "units_per_slot_second": 1
+   }
+  }
+ ],
+ "version": "metacoin-provider-conformance/v2"
 }

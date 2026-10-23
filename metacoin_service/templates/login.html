@@ -2,6 +2,7 @@
 <h1>Sign in</h1>
 {% if expired %}<p class="err">Your session expired or was signed out. Sign in again.</p>{% endif %}
 {% if error %}<p class="err">{{ error }}</p>{% endif %}
+{% if draft %}<div class="card"><h2>Unsent form preserved</h2><p class="note">{{ draft.note }}</p><p>action: <code>{{ draft.action }}</code></p><table>{% for k, v in draft.fields.items() %}<tr><th>{{ k }}</th><td><code>{{ v }}</code></td></tr>{% endfor %}</table><p class="note">Nothing was submitted and nothing was paid.</p></div>{% endif %}
 <form method="post" action="/console/login"><label for="token">Bearer credential</label>
 <input id="token" name="token" type="password" autocomplete="off" required>
 <p class="note">Credentials were written once to the private bootstrap file (<code>metacoin_service credentials path</code>). This development console runs over plain HTTP on loopback only.</p>

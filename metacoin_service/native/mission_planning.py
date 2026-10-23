@@ -22,7 +22,7 @@ class MissionPlanning:
     def __init__(self, svc):
         self.svc = svc
 
-    def problem(self, db, principal, mission_ids, body):
+    def problem(self, db, principal, mission_ids, body, observe=False):
         body = body or {}
         if set(body) - {'objective', 'planner', 'timeout_ms', 'horizon', 'deadline_at', 'apply', 'budget_override', 'mission_ids', 'label'}:
             raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['objective', 'planner', 'timeout_ms', 'horizon{start,end,slot_seconds}', 'deadline_at', 'apply', 'mission_ids (joint)']})
@@ -34,7 +34,7 @@ class MissionPlanning:
             slot = -(-(end - start) // PL.MAX_SLOTS)
         tasks, budgets, energy_budget, energy_reserve, labels = [], {}, None, 0, {}
         for mid in mission_ids:
-            m = MS._row(db, principal.workspace, mid); ctx = CT._context(db, principal, m); pol = ctx['policy']
+            m = MS._row(db, principal.workspace, mid); ctx = CT._context(db, principal, m, observe=observe or (principal.can('native:admin') and principal.id != m['owner_principal'])); pol = ctx['policy']
             labels[mid] = m['title']
             budget = ctx['spendable'] if ctx['role'] == 'requester' else ctx['spendable']
             if pol.get('mission_ceiling') is not None:
@@ -60,11 +60,21 @@ class MissionPlanning:
                 else:
                     tasks.append(dict(base, kind=r['kind'], quantity=0, local=True))
         problem = {'horizon': {'start': start, 'end': end, 'slot_seconds': slot}, 'tasks': tasks, 'budgets': budgets, 'objective': body.get('objective', 'earliest_delivery'),
-                   'offers': [{'id': o['id'], 'kind': o['kind'], 'available': o['available'], 'price_per_unit': o['price_per_unit'], 'energy_mwh_per_unit': o['energy_mwh_per_unit'] or 0, 'window_start': o['window']['start'], 'window_end': o['window']['end'], 'provider': o['provider_account']} for o in offers],
+                   'offers': [{'id': o['id'], 'kind': o['kind'], 'available': o['available'], 'price_per_unit': o['price_per_unit'], 'energy_mwh_per_unit': o['energy_mwh_per_unit'] or 0, 'window_start': o['window']['start'], 'window_end': o['window']['end'], 'provider': o['provider_account'], 'pool': self._pool_info(db, o)} for o in offers],
                    'energy_budget_mwh': energy_budget, 'energy_reserve_mwh': energy_reserve, 'label': labels}
         if body.get('deadline_at') is not None:
             problem['deadline_slot'] = max(1, min(-(-(int(body['deadline_at']) - start) // slot), PL.MAX_SLOTS))
         return problem
+
+    def _pool_info(self, db, o):
+        if not o.get('pool_id'):
+            return None
+        p = db.execute('SELECT * FROM resource_pools WHERE id=?', (o['pool_id'],)).fetchone()
+        if p is None:
+            return None
+        sched = json.loads(p['schedule_json']); cap = max((e['capacity'] for e in sched if e['start'] < o['window']['end'] and e['end'] > o['window']['start']), default=0)
+        live = self.svc.pools.commitments(db, p['id']); busy = max((seg['used'] for seg in __import__('metacoin_service.native.pools', fromlist=['sweep']).sweep(sched, live, o['window']['start'], o['window']['end'])), default=0)
+        return {'id': p['id'], 'capacity': max(cap - busy, 0), 'units_per_slot_second': p['units_per_slot_second'], 'note': 'capacity net of the peak of live commitments over the offer window (conservative)'}
 
     def plan(self, db, principal, mission_ids, body):
         body = body or {}; problem = self.problem(db, principal, mission_ids, body)

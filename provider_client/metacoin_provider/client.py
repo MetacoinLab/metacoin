@@ -22,8 +22,8 @@ def write_private(path, obj):
 
 
 class Provider:
-    def __init__(self, base, cred_file=None, token=None, signer=None, signer_token_file=None, actor=None):
-        self.api = Api(base, cred_file, token) if (cred_file or token) else None
+    def __init__(self, base, cred_file=None, token=None, signer=None, signer_token_file=None, actor=None, ca_file=None):
+        self.api = Api(base, cred_file, token, ca_file=ca_file) if (cred_file or token) else None
         self.signer = Signer(signer, signer_token_file) if signer else None
         self.actor = actor
 
@@ -43,6 +43,72 @@ class Provider:
     @staticmethod
     def register_work_provider(base, admin_cred, principal_id, name, kinds, classes=('analytical', 'full_exact')):
         return Api(base, admin_cred).post('/api/v1/work/providers', {'name': name, 'principal_id': principal_id, 'capabilities': {'kinds': list(kinds), 'verification_classes': list(classes), 'payment_schemes': ['exact']}}, expect=(201,))
+
+    # ---- onboarding: configuration, pinned identity, handshake, capabilities, drain, earnings ------------------------------------------
+    @staticmethod
+    def init(home, base, cred_file, name, ca_file=None, signer=None, signer_token_file=None, actor=None):
+        """Initialise a provider configuration directory from a fresh directory: pin the remote domain identity and protocol versions
+        now (over the authenticated channel) and refuse later if they change. No server module, no copied service home."""
+        os.makedirs(home, mode=0o700, exist_ok=True); api = Api(base, cred_file, ca_file=ca_file)
+        d = api.get('/api/v1/native/domain'); spec = api.get('/api/v1/native/spec'); me = api.get('/api/v1/native/accounts/me'); custody = me.get('custody') or (api.get('/api/v1/native/signing/pending').get('custody'))
+        cfg = {'schema': 'metacoin-provider-config/v1', 'name': name, 'base': base, 'credential_file': os.path.abspath(cred_file), 'ca_file': os.path.abspath(ca_file) if ca_file else None, 'signer': signer, 'signer_token_file': os.path.abspath(signer_token_file) if signer_token_file else None, 'actor': actor,
+               'pinned': {'domain': d['id'], 'environment': d['environment'], 'authority_key_id': d['authority']['key_id'], 'authority_public_hex': d['authority']['public_hex'], 'epoch': d['authority']['epoch'], 'protocol': spec.get('protocol'), 'policy_version': spec.get('policy_version'), 'pinned_at': int(time.time())},
+               'identity': {'account': me['id'], 'custody': custody}, 'compatible_protocols': ['metacoin-native/v0'], 'compatible_policy_versions': ['native-policy/v0']}
+        write_private(os.path.join(home, 'config.json'), cfg); return {'home': home, 'pinned': cfg['pinned'], 'identity': cfg['identity']}
+
+    @staticmethod
+    def load(home):
+        with open(os.path.join(home, 'config.json')) as f:
+            cfg = json.load(f)
+        p = Provider(cfg['base'], cfg['credential_file'], signer=cfg.get('signer'), signer_token_file=cfg.get('signer_token_file'), actor=cfg.get('actor'), ca_file=cfg.get('ca_file')); p.cfg = cfg; return p
+
+    def handshake(self):
+        """Explicit enrollment handshake every start: the live domain identity must equal the pin and the critical protocol versions
+        must be compatible; otherwise refuse (an unpinned peer is a candidate service, never a trusted authority)."""
+        cfg = getattr(self, 'cfg', None)
+        if not cfg:
+            raise RuntimeError('no configuration loaded (init first)')
+        d = self.api.get('/api/v1/native/domain'); spec = self.api.get('/api/v1/native/spec'); pin = cfg['pinned']; problems = []
+        if d['id'] != pin['domain'] or d['authority']['key_id'] != pin['authority_key_id'] or d['authority']['public_hex'] != pin['authority_public_hex']:
+            problems.append({'code': 'identity_changed', 'pinned': {k: pin[k] for k in ('domain', 'authority_key_id')}, 'live': {'domain': d['id'], 'authority_key_id': d['authority']['key_id']}, 'note': 'a rotation must arrive as a signed rotation notice through the pinned key; re-pin only after verifying it out of band'})
+        if spec.get('protocol') not in cfg['compatible_protocols']:
+            problems.append({'code': 'protocol_incompatible', 'live': spec.get('protocol'), 'compatible': cfg['compatible_protocols']})
+        if spec.get('policy_version') not in cfg['compatible_policy_versions']:
+            problems.append({'code': 'policy_version_incompatible', 'live': spec.get('policy_version'), 'compatible': cfg['compatible_policy_versions']})
+        if problems:
+            raise ApiError(409, {'code': 'handshake_refused', 'problems': problems})
+        return {'ok': True, 'domain': d['id'], 'epoch': d['authority']['epoch'], 'protocol': spec.get('protocol'), 'policy_version': spec.get('policy_version'), 'custody': cfg['identity'].get('custody'), 'negotiated': {'envelope_versions': spec.get('envelope_versions') or ['v0', 'v1']}}
+
+    def capabilities(self, identity=None):
+        """The provider's declared identity separation (operator, machine, worker instance, signer, domain) and declared kinds."""
+        return self.api.get('/api/v1/work/providers/me/identity' if identity is None else '/api/v1/work/providers/%s/identity' % identity)
+
+    def drain(self):
+        """Safe draining: every pool of this provider stops admitting new reservations; delivered work and accepted obligations stay."""
+        acct = self.account(); out = []
+        for p in self.api.get('/api/v1/resources/pools?account=' + acct['id'])['items']:
+            if p['state'] == 'open':
+                out.append(self.api.post('/api/v1/resources/pools/%s/drain' % p['id'], {}))
+        return {'drained_pools': [p['id'] for p in out], 'note': 'reserved and active commitments continue to delivery and settlement; nothing delivered is erased'}
+
+    def withdraw(self):
+        """Capability withdrawal after draining: close pools that hold no live commitment."""
+        acct = self.account(); out = []
+        for p in self.api.get('/api/v1/resources/pools?account=' + acct['id'])['items']:
+            if p['state'] in ('open', 'draining'):
+                if p['state'] == 'open':
+                    self.api.post('/api/v1/resources/pools/%s/drain' % p['id'], {})
+                try:
+                    out.append(self.api.post('/api/v1/resources/pools/%s/close' % p['id'], {}, expect=(200,)))
+                except ApiError as exc:
+                    out.append({'id': p['id'], 'still_live': True, 'detail': exc.body.get('detail')})
+        return {'pools': out}
+
+    def earnings(self):
+        acct = self.account(); obls = self.api.get('/api/v1/native/obligations?account=' + acct['id'])
+        items = obls.get('items', obls) if isinstance(obls, dict) else obls
+        owed_to_me = [o for o in items if o.get('payee_account') == acct['id']]
+        return {'account': acct['id'], 'available': acct.get('available'), 'reserved': acct.get('reserved'), 'earned_unsettled': acct.get('earned_unsettled'), 'settled_in': acct.get('settled_in'), 'obligations_owed_to_me': [{'id': o['id'], 'kind': o['kind'], 'amount': o['amount'], 'settled': o['settled_amount'], 'state': o['state']} for o in owed_to_me][:50]}
 
     # ---- views ------------------------------------------------------------------------------------------------------------------------
     def account(self):

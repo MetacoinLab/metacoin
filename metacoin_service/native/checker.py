@@ -134,6 +134,27 @@ def check(export, roots, environment='dev'):
     # 5 backing
     eb, pending = economic_backing(export.get('allocations', []), export.get('domain'))
     report['properties']['economic_backing'] = {'ok': all(c['ok'] for c in eb), 'checks': eb, 'pending': pending, 'backing_locked': {a: t['backing_exported'] for a, t in totals.items()}, 'claims_held': {a: t['claims'] for a, t in totals.items()}, 'reconciliation': 'pending' if pending else 'complete for the exported sequence'}
+    # 6 resource overlap, claim-lot lineage and outstanding obligations (v2, standard-library sweep independent of the service)
+    rc = []
+    by_pool = {}
+    for c in export.get('pool_commitments', []):
+        by_pool.setdefault(c['pool_id'], []).append(c)
+    for p in export.get('resource_pools', []):
+        pts = sorted({e['start'] for e in p['schedule']} | {e['end'] for e in p['schedule']} | {c['start'] for c in by_pool.get(p['id'], [])} | {c['end'] for c in by_pool.get(p['id'], [])}); bad = []
+        for a, b in zip(pts, pts[1:]):
+            used = sum(c['slots'] for c in by_pool.get(p['id'], []) if c['start'] < b and c['end'] > a and c['state'] in ('reserved', 'active', 'delivered')); cap = next((e['capacity'] for e in p['schedule'] if e['start'] <= a < e['end']), 0)
+            if used > cap:
+                bad.append({'start': a, 'end': b, 'used': used, 'capacity': cap})
+        rc.append(_ok('pool_no_overlap:' + p['id'], not bad, {'segments': bad[:3]}))
+    lots = export.get('claim_lots', [])
+    for a in export.get('allocations', []):
+        if a.get('direction') == 'import':
+            mine = [l for l in lots if l['origin_allocation'] == a['id']]
+            if mine:
+                live = sum(l['amount'] for l in mine if l['status'] in ('active', 'committed', 'retired', 'spent')); rc.append(_ok('lots_partition:' + a['id'], live == a['amount'], {'live_sum': live, 'amount': a['amount'], 'returned': a.get('returned_amount', 0)}))
+    outstanding = [o for o in export.get('obligations', []) if o.get('state') in ('open', 'partial')]
+    rc.append(_ok('obligations_consistent', all(o['settled_amount'] <= o['amount'] for o in outstanding), {'outstanding': len(outstanding), 'sum_outstanding': sum(o['amount'] - o['settled_amount'] for o in outstanding)}))
+    report['properties']['resource_and_lineage'] = {'ok': all(c['ok'] for c in rc), 'checks': rc, 'scope': 'pools, commitments, claim lots and obligations as exported; recomputed with an independent interval sweep and lot partition rule'}
     report['summary'] = {k: v['ok'] for k, v in report['properties'].items()}
     report['note'] = 'per-property results; the checker never collapses them into one score'
     return report

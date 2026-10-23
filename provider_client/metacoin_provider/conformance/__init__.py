@@ -31,4 +31,24 @@ def run_fixtures(version='v1'):
         ok = rep['ok'] == b['expect_ok'] and all(f in failed for f in b['expect_failed_checks'])
         results.append({'case': 'bundle:' + b['id'], 'ok': ok, 'detail': {'failed_checks': failed, 'expected': b['expect_failed_checks']}})
     k = fx['keys']['authority']; results.append({'case': 'key_id_rule', 'ok': wire.key_id_for(k['public_hex']) == k['key_id']})
+    for c in fx.get('v2', []):
+        got = None
+        try:
+            if c['kind'] == 'intent':
+                wire.canonical(c['body']); fields = {'protocol', 'type', 'environment', 'actor_account', 'authority', 'asset', 'amount_ceiling', 'recipient', 'permitted_recipients', 'obligation_id', 'grant_id', 'nonce', 'policy_version', 'request_id', 'purpose', 'expires_at', 'policy_hash'}
+                got = 'unknown_critical_field' if set(c['body']) - fields else 'valid'
+            elif c['kind'] == 'raw':
+                wire.parse_strict(c['raw']); got = 'valid'
+            elif c['kind'] == 'certificate_epoch':
+                got = 'epoch_key_mismatch' if c['body']['source_epoch'] != c['key_epoch'] else 'valid'
+            elif c['kind'] == 'receipt_key':
+                kk = c['key']; got = 'key_not_valid' if (kk.get('state') == 'revoked' or (kk.get('retired_at') and c['body']['issued_at'] > kk.get('grace_until', 0))) else 'valid'
+            elif c['kind'] == 'lots':
+                r = V.check_lots(c['allocation'], c['lots'])[0]; got = 'valid' if r['ok'] else r['detail']['error']
+            elif c['kind'] == 'pool':
+                r = V.check_pool(c['pool'], c['commitments'])[0]; got = 'valid' if r['ok'] else r['detail']['error']
+        except wire.WireError as exc:
+            got = exc.code
+        ok = (got == 'valid') if c['expect'] == 'valid' else (got == c['error'])
+        results.append({'case': 'v2:' + c['id'], 'ok': ok, 'detail': {'got': got, 'expect': c.get('error', 'valid')}})
     return {'version': fx['version'], 'cases': len(results), 'passed': sum(r['ok'] for r in results), 'ok': all(r['ok'] for r in results), 'results': results}

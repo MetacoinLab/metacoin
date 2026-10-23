@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block body %}
+<h1>Portfolio: compare eligible plans</h1><p class="note">environment <code>{{ domain.environment }}</code> · domain <code>{{ domain.id }}</code> · asset <code>{{ domain.default_asset }}</code>{% if principal %} · you: {{ principal.name }} ({{ principal.role }}){% endif %}</p>
+<div class="card"><form method="get" action="/console/portfolio"><label>missions (comma separated)</label><input name="missions" value="{{ selected|join(',') }}" size="60"> <label>planner</label><select name="planner"><option>improved</option><option>reference</option><option>oracle</option></select> <button type="submit">Compare (read only)</button></form>
+<p class="note">A recommendation is not spending authorization: reservations go through the controller and the independent validator.</p>
+<ul>{% for m in missions %}<li><code>{{ m.id }}</code> {{ m.title }} ({{ m.state }})</li>{% endfor %}</ul></div>
+{% if plan %}<div class="card"><h2>Result: {{ plan.status or plan.policy }}</h2><p>admitted: {% for m in plan.admitted %}<code>{{ m }}</code> {% endfor %} · priorities {{ plan.priorities|tojson }} · score {{ plan.score }}{% if plan.bound %} · bound {{ plan.bound }}{% endif %}</p>
+<div class="tablewrap"><table><tr><th>mission</th><th>held locally</th><th>reserved</th><th>claims held</th><th>pending cross-domain</th><th>expected earnings</th><th>spendable</th></tr>{% for m, l in plan.liquidity.items() %}<tr><td><code>{{ m }}</code></td><td>{{ l.held_locally }}</td><td>{{ l.reserved }}</td><td>{{ l.cross_domain_claims_held }}</td><td>{{ l.cross_domain_pending }}</td><td>{{ l.expected_earnings }}</td><td><strong>{{ l.spendable }}</strong></td></tr>{% endfor %}</table></div>
+{% if plan.deferred %}<p>deferred: {{ plan.deferred|tojson }}</p>{% endif %}</div>{% endif %}
+{% endblock %}

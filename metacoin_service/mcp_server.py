@@ -492,6 +492,46 @@ def build(api=None):
     def mission_plan(mission_id: str, objective: str = 'earliest_delivery', planner: str = 'improved') -> dict:
         s, b = api.call('POST', '/api/v1/missions/' + mission_id + '/plan', {'objective': objective, 'planner': planner}); return ok_or_refused(s, b)
 
+    @mcp.tool(name='pools', description='READ: shared resource pools with interval utilization (who committed what, when) across offers.', annotations=READ)
+    def pools() -> dict:
+        s, b = api.call('GET', '/api/v1/resources/pools'); return ok_or_refused(s, b)
+
+    @mcp.tool(name='portfolio_plan', description='ANALYSIS (read only): compare funded missions against shared pools and liquidity under declared priorities; returns admitted/deferred and status; authorizes nothing.', annotations=READ)
+    def portfolio_plan(mission_ids: list[str], planner: str = 'improved') -> dict:
+        s, b = api.call('POST', '/api/v1/portfolio/plan', {'mission_ids': mission_ids, 'planner': planner}); return ok_or_refused(s, b)
+
+    @mcp.tool(name='plan_validate', description='ANALYSIS: independent validator of a plan (oversold pools, non-spendable money) before any reservation.', annotations=READ)
+    def plan_validate(plan: dict) -> dict:
+        s, b = api.call('POST', '/api/v1/portfolio/validate', {'plan': plan}); return ok_or_refused(s, b)
+
+    @mcp.tool(name='mission_continuity', description='READ: active controller generation, pending operations, safe/blocked actions, recovery evidence.', annotations=READ)
+    def mission_continuity(mission_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/missions/' + mission_id + '/continuity'); return ok_or_refused(s, b)
+
+    @mcp.tool(name='subcontract_status', description='READ: a sub-contract timeline (reserved, earned, disputed, returned) bound to its parent revision.', annotations=READ)
+    def subcontract_status(subcontract_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/subcontracts/' + subcontract_id); return ok_or_refused(s, b)
+
+    @mcp.tool(name='subcontract_propose', description='SPEND (incurs an obligation when funded): propose a funded sub-contract of a parent milestone to another provider under a bounded amount; requires the primary\'s credential and grant; idempotency key recommended.', annotations=SPEND)
+    def subcontract_propose(parent_mission: str, parent_milestone: str, provider_id: str, deliverable: dict, funded_amount: int, funding_mode: str, idempotency_key: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/subcontracts', {'parent_mission': parent_mission, 'parent_milestone': parent_milestone, 'provider_id': provider_id, 'deliverable': deliverable, 'funded_amount': funded_amount, 'funding_mode': funding_mode}, idempotency_key=idempotency_key); return ok_or_refused(s, b, (201,))
+
+    @mcp.tool(name='products', description='READ: reusable mission products with provenance, conventions, license and price.', annotations=READ)
+    def products() -> dict:
+        s, b = api.call('GET', '/api/v1/products'); return ok_or_refused(s, b)
+
+    @mcp.tool(name='product_check_reuse', description='ANALYSIS: compatibility of a product with a mission requirement (resolution, units, source, assumptions).', annotations=READ)
+    def product_check_reuse(product_id: str, requirement: dict) -> dict:
+        s, b = api.call('POST', '/api/v1/products/' + product_id + '/check-reuse', requirement); return ok_or_refused(s, b)
+
+    @mcp.tool(name='product_purchase', description='SPEND: buy a product entitlement with native settlement (external-custody buyers get a signing request). Idempotent by request_id.', annotations=SPEND)
+    def product_purchase(product_id: str, request_id: str) -> dict:
+        s, b = api.call('POST', '/api/v1/products/' + product_id + '/purchase', {'request_id': request_id}, idempotency_key=request_id); return ok_or_refused(s, b)
+
+    @mcp.tool(name='relay_routes', description='READ: relay routes with per-hop custody, forwarding, delivery and settlement evidence kept apart.', annotations=READ)
+    def relay_routes() -> dict:
+        s, b = api.call('GET', '/api/v1/relay/routes'); return ok_or_refused(s, b)
+
     @mcp.tool(name='mission_status', description='READ: a mission contract: frozen revision, milestones with bindings and evidence, budget ledger projection.', annotations=READ)
     def mission_status(mission_id: str) -> dict:
         s, b = api.call('GET', '/api/v1/missions/' + mission_id)

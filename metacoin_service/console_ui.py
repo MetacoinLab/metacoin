@@ -68,10 +68,14 @@ def mount(app, svc):
         return await run_in_threadpool(page_sync, request, fn, mutating)
 
     def page_sync(request, fn, mutating=False):
-        """Run fn(db, principal) inside one transaction; render errors as pages."""
+        """Run fn(db, principal) inside one transaction; render errors as pages. A mutating request after the session expired is
+        never performed: the login page shows the unsent form as a draft so nothing is lost and nothing (paid or not) is resubmitted."""
         with svc.db.tx() as db:
             principal = session_principal(request, db)
             if principal is None:
+                if mutating:
+                    draft = {k: v for k, v in (getattr(request.state, 'form', None) or {}).items() if k != 'csrf' and not k.lower().startswith('token')}
+                    return render(request, 'login.html', status=401, expired='1', principal=None, error=None, draft={'action': request.url.path, 'fields': draft, 'note': 'your session expired before this form was sent; nothing was submitted or paid; sign in and re-enter the values below if you still want to perform the action'})
                 return RedirectResponse('/console/login?expired=1', status_code=303)
             try:
                 if mutating:
@@ -99,7 +103,7 @@ def mount(app, svc):
 
     @app.get('/console/login', response_class=HTMLResponse)
     async def login_page(request: Request):
-        return render(request, 'login.html', expired=request.query_params.get('expired'), principal=None, error=None)
+        return render(request, 'login.html', expired=request.query_params.get('expired'), principal=None, error=None, draft=None)
 
     @app.post('/console/login', response_class=HTMLResponse)
     async def login(request: Request):
@@ -113,7 +117,7 @@ def mount(app, svc):
                 return auth.create_session(db, principal.id, settings.limits['session_seconds'])[0]
         sid = await run_in_threadpool(do)
         if sid is None:
-            return render(request, 'login.html', status=401, expired=None, principal=None, error='credential not accepted')
+            return render(request, 'login.html', status=401, expired=None, principal=None, error='credential not accepted', draft=None)
         response = RedirectResponse('/console/', status_code=303)
         response.set_cookie('metacoin_session', sid, httponly=True, samesite='strict', secure=not settings.dev_http_loopback,
                             max_age=settings.limits['session_seconds'], path='/')
@@ -1027,6 +1031,101 @@ def mount(app, svc):
         def fn(db, p):
             return render(request, 'native_operator.html', principal=p, o=svc.operator.view(db, p, None))
         return await page(request, fn)
+
+    # ---- independent machine network pages (order 2026-10-23 group J) ----------------------------------------------------------------
+    @app.get('/console/providers', response_class=HTMLResponse)
+    async def providers_page(request: Request):
+        def fn(db, p):
+            B = svc.economy.providers; rows = db.execute('SELECT id FROM providers WHERE workspace=? ORDER BY created_at', (p.workspace,)).fetchall()
+            items = []
+            for r in rows:
+                try:
+                    items.append(B.identity_view(db, p, r['id']))
+                except Exception:
+                    pass
+            cap = svc_capabilities(db, p)
+            return render(request, 'network_providers.html', principal=p, items=items, signer=cap.get('signer'), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.get('/console/pools', response_class=HTMLResponse)
+    async def pools_page(request: Request):
+        def fn(db, p):
+            return render(request, 'network_pools.html', principal=p, pools=svc.pools.list(db, p), domain=svc.native.domain_view(db, p), now=now())
+        return await page(request, fn)
+
+    @app.post('/console/pools', response_class=HTMLResponse)
+    async def pools_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            t = now(); sched = [{'start': t, 'end': t + int(f.get('hours') or 2) * 3600, 'capacity': int(f.get('capacity') or 1)}]
+            pool = svc.pools.create(db, p, {'kind': f.get('kind'), 'label': f.get('label') or 'pool', 'slot_unit': f.get('slot_unit') or 'slot', 'units_per_slot_second': int(f.get('units_per_slot_second') or 1), 'schedule': sched})
+            if f.get('publish_offer'):
+                svc.market.publish(db, p, {'kind': f.get('kind'), 'resource_id': f.get('label') or 'pool', 'capacity': int(f.get('offer_capacity') or 1000), 'price_per_unit': int(f.get('price') or 1), 'window_start': t, 'window_end': sched[0]['end'], 'pool_id': pool['id']})
+            return RedirectResponse('/console/pools', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/subcontracts/{sid}', response_class=HTMLResponse)
+    async def subcontract_page(request: Request, sid: str):
+        def fn(db, p):
+            return render(request, 'network_subcontract.html', principal=p, s=svc.subcontracts.view(db, p, sid), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.post('/console/subcontracts/{sid}/action', response_class=HTMLResponse)
+    async def subcontract_action_form(request: Request, sid: str):
+        f = await form(request)
+        def fn(db, p):
+            a = f.get('action')
+            {'step': lambda: svc.subcontracts.step(db, p, sid), 'prefund': lambda: svc.subcontracts.prefund_submit(db, p, sid, {}), 'return-unused': lambda: svc.subcontracts.return_unused(db, p, sid), 'cancel': lambda: svc.subcontracts.cancel(db, p, sid)}[a]()
+            return RedirectResponse('/console/subcontracts/' + sid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/products', response_class=HTMLResponse)
+    async def products_page(request: Request):
+        def fn(db, p):
+            return render(request, 'network_products.html', principal=p, items=svc.products.list(db, p, 'all'), mine=svc.products.my_entitlements(db, p), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.post('/console/products/{pid}/purchase', response_class=HTMLResponse)
+    async def product_purchase_form(request: Request, pid: str):
+        f = await form(request)
+        def fn(db, p):
+            svc.products.purchase(db, p, pid, {'request_id': f.get('request_id') or ('console-' + str(now()))}); return RedirectResponse('/console/products', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/relay', response_class=HTMLResponse)
+    async def relay_page(request: Request):
+        def fn(db, p):
+            return render(request, 'network_relay.html', principal=p, routes=svc.relay.list(db, p), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.get('/console/missions/{mid}/continuity', response_class=HTMLResponse)
+    async def continuity_page(request: Request, mid: str):
+        def fn(db, p):
+            return render(request, 'network_continuity.html', principal=p, c=svc.controller.continuity(db, p, mid), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.post('/console/missions/{mid}/takeover', response_class=HTMLResponse)
+    async def takeover_form(request: Request, mid: str):
+        f = await form(request)
+        def fn(db, p):
+            svc.controller.takeover(db, p, mid, {'holder': f.get('holder') or ('console-' + p.name), 'reason': f.get('reason') or 'console takeover'}); return RedirectResponse('/console/missions/%s/continuity' % mid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/portfolio', response_class=HTMLResponse)
+    async def portfolio_page(request: Request):
+        def fn(db, p):
+            ids = [x for x in (request.query_params.get('missions') or '').split(',') if x]; plan = None
+            if ids:
+                plan = svc.portfolio.plan(db, p, {'mission_ids': ids, 'planner': request.query_params.get('planner', 'improved')})
+            return render(request, 'network_portfolio.html', principal=p, missions=svc.missions.list(db, p), plan=plan, selected=ids, domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    def svc_capabilities(db, p):
+        from .api import capability_table
+        try:
+            return capability_table(svc, db)
+        except Exception:
+            return {}
 
     @app.get('/console/missions', response_class=HTMLResponse)
     async def missions_page(request: Request):

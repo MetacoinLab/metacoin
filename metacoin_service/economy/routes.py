@@ -82,6 +82,10 @@ def mount(app, svc, run, read_body, API):
     async def work_provider(request: Request, prid: str):
         return await run(request, False, lambda db, p: P.view(db, p, P.row(db, p, prid)))
 
+    @app.get(API + '/work/providers/{prid}/identity')
+    async def work_provider_identity(request: Request, prid: str):
+        return await run(request, False, lambda db, p: P.identity_view(db, p, prid))
+
     @app.get(API + '/work/providers/{prid}/history')
     async def work_provider_history(request: Request, prid: str):
         return await run(request, False, lambda db, p: provider_history.build(db, p, P, prid, disclosed_only=request.query_params.get('scope') == 'disclosed'))
