@@ -499,6 +499,26 @@ def mount(app, svc, run, read_body, API):
             raise ServiceError('NOT_FOUND', 'relay action')
         return await run(request, True, fn, 'relay.' + action, raw)
 
+    @app.post(API + '/portfolio/plan')
+    async def portfolio_plan(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: svc.portfolio.plan(db, p, body), 'portfolio.plan', raw)
+
+    @app.post(API + '/portfolio/validate')
+    async def portfolio_validate(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, False, lambda db, p: svc.portfolio.validate_plan(db, p, body))
+
+    @app.post(API + '/portfolio/compare')
+    async def portfolio_compare(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, False, lambda db, p: (p.require('work:read'), svc.portfolio.rolling_vs_fixed(body))[1])
+
+    @app.get(API + '/native/accounts/{aid}/liquidity')
+    async def native_liquidity(request: Request, aid: str):
+        from .portfolio import liquidity
+        return await run(request, False, lambda db, p: (p.require('native:read'), liquidity(db, p.workspace, request.query_params.get('asset') or N.default_asset(db, p.workspace), N.domain(db, p.workspace)['id'], aid, int(request.query_params.get('min_reserve', 0))))[1])
+
     @app.get(API + '/native/operator')
     async def native_operator(request: Request):
         return await run(request, False, lambda db, p: svc.operator.view(db, p, request.query_params.get('asset')))
