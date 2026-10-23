@@ -931,8 +931,8 @@ class NetworkJourneys(Journeys):
         res = os.environ.get('METACOIN_NETWORK_CLEAN_EXPORT_JSON')
         if not res or not Path(res).exists():
             self.rec(49, self.j49.__doc__, False, {}, blocked='clean-export result not supplied (METACOIN_NETWORK_CLEAN_EXPORT_JSON); executed from the fresh archive extraction at packaging time', t0=t0); return
-        r = json.loads(Path(res).read_text()); ok = r.get('failed') == 0 and r.get('passed', 0) >= 6 and r.get('archive_sha256')
-        self.rec(49, self.j49.__doc__, bool(ok), {k: r.get(k) for k in ('passed', 'failed', 'blocked', 'total', 'revision', 'archive_sha256', 'steps')}, t0=t0)
+        r = json.loads(Path(res).read_text()); ok = r.get('failed') == 0 and r.get('passed', 0) >= 6 and r.get('archive_sha256') and r.get('all_steps_ok') is True   # every step from the extraction (clean start, unit suites, model, conformance, vectors, hostconfig, journeys) must have exited 0
+        self.rec(49, self.j49.__doc__, bool(ok), dict({k: r.get(k) for k in ('passed', 'failed', 'blocked', 'total', 'revision', 'archive_sha256', 'steps', 'all_steps_ok')}, failed_steps=[x for x in (r.get('step_results') or []) if x.get('rc')]), t0=t0)
 
     def j50(self, t0):
         """Verify the complete final money/resource accounting and all required feature statuses at the packaged source revision."""
