@@ -20,4 +20,8 @@ One authoritative monetary state: the journal. The planner, controller and marke
 A signer (separate executable, `native/signer.py`; service stores public keys only) · B resource market (044) · C missions (045) · D controller · E planner · F allocation subdivision/lineage (046) · G envelope v1 + witness checkpoints (046) · H provider client + fixtures + deploy.
 
 ## Progress
-- [ ] A · [ ] B · [ ] C · [ ] D · [ ] E · [ ] F · [ ] G · [ ] H · [ ] 36 journeys · [ ] docs/bench/migration/packaging
+- [x] A (7c79273) · [x] B, F, G (22da130) · [x] C, D (12f2df0) · [x] E (3338009) · [x] H (f00ca39) · [ ] operator screen · [ ] 36 journeys + §12 demo · [ ] browser · [ ] migration rehearsal · [ ] benchmarks/endurance · [ ] docs/ledger/packaging
+Migrations added: 044_native_account_keys, 045_claim_lineage_checkpoints_fragments, 046_resource_market, 047_mission_contracts (next free: 048).
+Unit suites green at f00ca39: native_signer 4, native_lineage 20, native_witness 22, native_market 5, native_missions 7, native_planner 4, native_provider_client 2, client conformance 22 cases, decision_service 10, agent_paid 1, native_protocol 2, native_domains 9.
+Owned processes: none left running (deploy_local test torn down). Live service untouched.
+Next action: operator screen (native/operator.py + console + CLI + MCP), then metacoin_service/tests/journeys_mission.py (36 journeys + demonstration), browser script, migration rehearsal on a live-DB copy, benchmarks, docs, packaging.
