@@ -35,6 +35,6 @@
  "live_upgraded": false,
  "unit_suites": true,
  "endurance_ok": true,
- "records_commit": null,
- "git_head_at_build": "1fc3bda1fb69bbee196b83a552a86d904990ebd2"
+ "records_commit": "be1c111e3311cf86194c836b58f74d2ed68f279f",
+ "git_head_at_build": "be1c111e3311cf86194c836b58f74d2ed68f279f"
 }

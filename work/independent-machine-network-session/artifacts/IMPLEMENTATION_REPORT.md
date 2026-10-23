@@ -18,9 +18,9 @@ Final table: {"c_req": 7248, "c_mach": 86, "c_sub": 210, "c_sup": 41, "c_ver": 7
 
 ## Revisions and time
 - Base: `a6d672d2d1d95c66fd021f43dccccf9e453c540a` (trailing log commit of the autonomous mission economy order; its source candidate 809b95e, records 1a3f683, pointer 810aaaa).
-- Source candidate: `1fc3bda1fb69bbee196b83a552a86d904990ebd2` on `feature/independent-machine-network-v1`; journeys loaded `1fc3bda1fb69bbee196b83a552a86d904990ebd2`; records commit `see RECORDS_COMMIT.txt`; packaged revision in SOURCE_REVISION.txt (source identical to the candidate; `work/` excluded).
+- Source candidate: `1fc3bda1fb69bbee196b83a552a86d904990ebd2` on `feature/independent-machine-network-v1`; journeys loaded `1fc3bda1fb69bbee196b83a552a86d904990ebd2`; records commit `be1c111e3311cf86194c836b58f74d2ed68f279f`; packaged revision in SOURCE_REVISION.txt (source identical to the candidate; `work/` excluded).
 - Live service: 3e34126 / schema 040 at 127.0.0.1:8402, untouched (`live-untouched.json`). Not pushed, not merged, nothing published.
-- Session START 2026-10-23T04:52:20Z; this report built 2026-10-23T11:58:54Z.
+- Session START 2026-10-23T04:52:20Z; this report built 2026-10-23T12:00:02Z.
 
 ## Verification
 - Journeys (`journeys/journeys-network.json`, three domain process sets, dom-c custody separated): **57 passed, 0 failed, 0 blocked, 0 skipped of 57** (50 required journeys + the demonstration as journey 0). Blocked items are external tracks only if any (see EXTERNAL_TRACKS.md); journey 49 (clean export) passed; journey 50 (final accounting + feature statuses at the packaged revision) passed.
