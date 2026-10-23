@@ -25,7 +25,7 @@ from . import protocol as P
 KINDS = {'compute': {'unit': 'cpu_ms', 'time_basis': 'cpu milliseconds of a bounded child execution (rlimited); wall time recorded alongside', 'evidence': 'metered_fact: rusage of the child; provider_assertion: the task output; verified: independent reference check of the output'},
          'storage': {'unit': 'kib_seconds', 'time_basis': 'KiB held x seconds between durable store and release (service timestamps)', 'evidence': 'metered_fact: stored bytes and timestamps; verified: digest of the stored bytes on read-back'},
          'contact': {'unit': 'kib', 'time_basis': 'KiB received inside the window over the labelled loopback link emulator', 'evidence': 'metered_fact: received bytes + digest (emulator); provider_assertion: declared bandwidth; verified: digest equality with the sender'}}
-OFFER_FIELDS = {'kind', 'resource_id', 'capacity', 'price_per_unit', 'asset', 'window_start', 'window_end', 'reservation_policy', 'cancellation', 'energy_mwh_per_unit', 'bandwidth_bytes_per_s', 'note'}
+OFFER_FIELDS = {'kind', 'resource_id', 'capacity', 'price_per_unit', 'asset', 'window_start', 'window_end', 'reservation_policy', 'cancellation', 'energy_mwh_per_unit', 'bandwidth_bytes_per_s', 'note', 'pool_id'}
 RESERVATION_STATES = ('reserved', 'active', 'delivered', 'settled', 'cancelled', 'prepared', 'unknown')
 MAX_CAPACITY = 10 ** 12
 
@@ -66,9 +66,22 @@ class Market:
         policy = body.get('reservation_policy', 'exact_capacity'); canc = body.get('cancellation', 'free_before_activation; after activation the delivered portion is owed')
         if policy != 'exact_capacity' or type(canc) is not str or len(canc) > 256:
             raise ServiceError('VALIDATION', {'code': 'policy', 'allowed': ['exact_capacity']})
-        oid = 'ro_' + secrets.token_hex(6)
-        db.execute('INSERT INTO resource_offers VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (oid, principal.workspace, acct['id'], principal.id, body['kind'], rid, KINDS[body['kind']]['unit'], cap, price, asset, ws, we, 1, policy, canc, json.dumps({'energy_mwh_per_unit': energy, 'bandwidth_bytes_per_s': bw, 'note': (body.get('note') or '')[:256], 'delivery_evidence': KINDS[body['kind']]['evidence'], 'time_basis': KINDS[body['kind']]['time_basis']}), 'open', now()))
-        history.record(db, principal.workspace, principal.id, 'native.obligation', 'resource_offer', oid, {'kind': body['kind'], 'capacity': cap, 'price_per_unit': price, 'window': [ws, we]})
+        oid = 'ro_' + secrets.token_hex(6); P_ = self.svc.pools
+        if body.get('pool_id'):
+            pool = P_._row(db, principal.workspace, body['pool_id'])
+            if pool['provider_account'] != acct['id'] or pool['kind'] != body['kind']:
+                raise ServiceError('VALIDATION', {'code': 'pool_binding', 'note': 'an offer references a pool of the same provider and kind'})
+            if pool['state'] != 'open':
+                raise ServiceError('CONFLICT', {'code': 'provider_draining' if pool['state'] == 'draining' else 'pool_closed'})
+            from . import pools as PL
+            sched = json.loads(pool['schedule_json']); max_slots = max((e['capacity'] for e in sched if e['start'] < we and e['end'] > ws), default=0)
+            if cap > max_slots * pool['units_per_slot_second'] * (we - ws):
+                raise ServiceError('VALIDATION', {'code': 'offer_exceeds_pool', 'max_units_over_window': max_slots * pool['units_per_slot_second'] * (we - ws), 'note': 'the offer cannot promise more units than its pool can yield over the window'})
+            pid = pool['id']
+        else:
+            pid = P_.implicit_for_offer(db, principal, acct, body['kind'], cap, ws, we, KINDS[body['kind']]['unit'])
+        db.execute('INSERT INTO resource_offers VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (oid, principal.workspace, acct['id'], principal.id, body['kind'], rid, KINDS[body['kind']]['unit'], cap, price, asset, ws, we, 1, policy, canc, json.dumps({'energy_mwh_per_unit': energy, 'bandwidth_bytes_per_s': bw, 'note': (body.get('note') or '')[:256], 'delivery_evidence': KINDS[body['kind']]['evidence'], 'time_basis': KINDS[body['kind']]['time_basis']}), 'open', now(), pid))
+        history.record(db, principal.workspace, principal.id, 'native.obligation', 'resource_offer', oid, {'kind': body['kind'], 'capacity': cap, 'price_per_unit': price, 'window': [ws, we], 'pool': pid})
         return self.offer_view(db, principal, oid)
 
     def amend_offer(self, db, principal, oid, body):
@@ -98,7 +111,7 @@ class Market:
     def offer_view(self, db, principal, oid):
         principal.require('work:read'); o = self._offer(db, principal.workspace, oid); meta = json.loads(o['meta_json'])
         reserved = self._reserved_quantity(db, oid); delivered = self._delivered_quantity(db, oid)
-        return {'schema': 'metacoin-resource-offer/v1', 'id': oid, 'version': o['version'], 'provider_account': o['provider_account'], 'kind': o['kind'], 'resource_id': o['resource_id'], 'unit': o['unit'], 'time_basis': meta['time_basis'], 'capacity': o['capacity'], 'reserved': reserved, 'delivered': delivered, 'available': o['capacity'] - reserved - delivered,
+        return {'schema': 'metacoin-resource-offer/v1', 'id': oid, 'version': o['version'], 'provider_account': o['provider_account'], 'pool_id': o['pool_id'], 'kind': o['kind'], 'resource_id': o['resource_id'], 'unit': o['unit'], 'time_basis': meta['time_basis'], 'capacity': o['capacity'], 'reserved': reserved, 'delivered': delivered, 'available': o['capacity'] - reserved - delivered,
                 'price_per_unit': o['price_per_unit'], 'asset': o['asset'], 'window': {'start': o['window_start'], 'end': o['window_end'], 'upcoming': o['window_start'] > now()}, 'reservation_policy': o['reservation_policy'], 'cancellation': o['cancellation'], 'delivery_evidence': meta['delivery_evidence'],
                 'energy_mwh_per_unit': meta['energy_mwh_per_unit'], 'bandwidth_bytes_per_s': meta.get('bandwidth_bytes_per_s'), 'note': meta.get('note'), 'state': o['state'], 'created_at': o['created_at'],
                 'refusal_reasons_when_reserving': ['stale_quote (offer version changed)', 'capacity_exhausted', 'insufficient_available (buyer funds)', 'window_closed', 'offer_closed', 'self_dealing (provider cannot buy its own capacity)', 'domain_quarantined']}
@@ -118,8 +131,8 @@ class Market:
 
     def reserve(self, db, principal, body):
         principal.require('native:transfer')
-        if type(body) is not dict or set(body) - {'offer_id', 'offer_version', 'quantity', 'request_id', 'buyer_account', 'purpose'}:
-            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['offer_id', 'offer_version', 'quantity', 'request_id', 'buyer_account?', 'purpose?']})
+        if type(body) is not dict or set(body) - {'offer_id', 'offer_version', 'quantity', 'request_id', 'buyer_account', 'purpose', 'interval_start', 'interval_end', 'native_signature'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['offer_id', 'offer_version', 'quantity', 'request_id', 'buyer_account?', 'purpose?', 'interval_start?', 'interval_end?', 'native_signature?']})
         d = self.native.domain(db, principal.workspace); self.native.require_normal(d, 'reservation')
         o = self._offer(db, principal.workspace, body.get('offer_id')); q = _int(body.get('quantity'), 1, MAX_CAPACITY, 'quantity'); rid = body.get('request_id')
         if type(rid) is not str or not 1 <= len(rid) <= 128:
@@ -141,18 +154,23 @@ class Market:
         reserved = self._reserved_quantity(db, o['id']); delivered = self._delivered_quantity(db, o['id'])
         if reserved + delivered + q > o['capacity']:
             raise ServiceError('CONFLICT', {'code': 'capacity_exhausted', 'available': o['capacity'] - reserved - delivered, 'requested': q, 'note': 'concurrent buyers cannot reserve the same capacity twice: the check runs inside the single-writer transaction'})
+        istart = body.get('interval_start', max(now(), o['window_start'])); iend = body.get('interval_end', o['window_end'])
+        _int(istart, 0, 10 ** 12, 'interval_start'); _int(iend, 0, 10 ** 12, 'interval_end')
+        if istart < o['window_start'] or iend > o['window_end'] or iend <= istart:
+            raise ServiceError('VALIDATION', {'code': 'interval_outside_offer_window', 'window': [o['window_start'], o['window_end']], 'interval': [istart, iend]})
         price = q * o['price_per_unit']
         ledger.require_available(db, principal.workspace, o['asset'], d['id'], buyer['id'], price)
         from ..agents import grant_of, guard
         if grant_of(principal):
             guard(db, principal, 'native:transfer', amount=price)
         resid = 'rr_' + secrets.token_hex(6)
+        commit = self.svc.pools.commit(db, principal.workspace, o['pool_id'], resid, istart, iend, q) if o['pool_id'] else None   # same transaction as the money: no reservation without pool admission
         ob = self.native.obligation_create(db, principal.workspace, 'resource', buyer['id'], o['provider_account'], o['asset'], price, 'resource_reservation', resid, {'partial_payments': True, 'offer_id': o['id'], 'offer_version': o['version'], 'unit': o['unit'], 'quantity': q, 'price_per_unit': o['price_per_unit'], 'note': 'the delivered portion is owed; the undelivered portion is released at settlement or cancellation'})
         obid = ob['id'] if isinstance(ob, dict) else ob
         self.native._consume_claims(db, principal.workspace, buyer['id'], o['asset'], price, 'resource_reservation', resid)
         if price:
             ledger.move(db, principal.workspace, 'rr-reserve:' + resid, 'native_resource_reservation', o['asset'], d['id'], self.native.environment, price, ledger.account_name(buyer['id'], 'available'), ledger.account_name(buyer['id'], 'reserved'), 'resource_reservation', resid, 'funded reservation of %d %s on %s' % (q, o['unit'], o['id']))
-        db.execute('INSERT INTO resource_reservations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (resid, principal.workspace, o['id'], o['version'], buyer['id'], o['provider_account'], q, 0, price, o['asset'], obid, 'reserved', rid, json.dumps({'purpose': (body.get('purpose') or '')[:200], 'steps': [{'state': 'reserved', 'at': now()}]}), None, None, now(), now(), None))
+        db.execute('INSERT INTO resource_reservations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', (resid, principal.workspace, o['id'], o['version'], buyer['id'], o['provider_account'], q, 0, price, o['asset'], obid, 'reserved', rid, json.dumps({'purpose': (body.get('purpose') or '')[:200], 'steps': [{'state': 'reserved', 'at': now(), 'pool_commitment': commit}]}), None, None, now(), now(), None, (commit or {}).get('interval', [istart, iend])[0], (commit or {}).get('interval', [istart, iend])[1], (commit or {}).get('slots'), (commit or {}).get('commitment_id')))
         history.record(db, principal.workspace, principal.id, 'native.obligation', 'resource_reservation', resid, {'offer': o['id'], 'version': o['version'], 'quantity': q, 'price': price, 'buyer': buyer['id']})
         return self.reservation_view(db, principal, resid)
 
@@ -166,7 +184,7 @@ class Market:
         principal.require('work:read'); r = self._res(db, principal.workspace, resid); o = self._offer(db, principal.workspace, r['offer_id']); ev = json.loads(r['evidence_json'])
         ob = db.execute('SELECT * FROM native_obligations WHERE id=?', (r['obligation_id'],)).fetchone()
         return {'schema': 'metacoin-resource-reservation/v1', 'id': resid, 'offer_id': r['offer_id'], 'offer_version': r['offer_version'], 'kind': o['kind'], 'resource_id': o['resource_id'], 'unit': o['unit'], 'buyer_account': r['buyer_account'], 'provider_account': r['provider_account'], 'quantity': r['quantity'], 'delivered_quantity': r['delivered_quantity'],
-                'price': r['price'], 'asset': r['asset'], 'obligation': {'id': ob['id'], 'amount': ob['amount'], 'settled_amount': ob['settled_amount'], 'state': ob['state']} if ob else None, 'state': r['state'], 'evidence': ev, 'measurement': json.loads(r['measurement_json']) if r['measurement_json'] else None,
+                'price': r['price'], 'asset': r['asset'], 'obligation': {'id': ob['id'], 'amount': ob['amount'], 'settled_amount': ob['settled_amount'], 'state': ob['state']} if ob else None, 'state': r['state'], 'evidence': ev, 'interval': [r['interval_start'], r['interval_end']], 'slots': r['slots'], 'pool_id': o['pool_id'], 'commitment_id': r['commitment_id'], 'measurement': json.loads(r['measurement_json']) if r['measurement_json'] else None,
                 'window': {'start': o['window_start'], 'end': o['window_end']}, 'cancellation': o['cancellation'], 'activated_at': r['activated_at'], 'created_at': r['created_at'], 'updated_at': r['updated_at'],
                 'labels': {'metered_fact': 'the measurement block (service-recorded)', 'provider_assertion': 'what the provider claims it delivered (assertion block)', 'verified': 'independent verification of the delivered thing (verification block)'},
                 'atomicity': 'money and capacity changed in one domain transaction; cross-domain buyers export an allocation first (prepare) and reserve locally (commit): no global atomic reservation is claimed'}
@@ -183,7 +201,7 @@ class Market:
         if r['state'] != 'reserved':
             raise ServiceError('CONFLICT', {'code': 'state', 'state': r['state']})
         ev = json.loads(r['evidence_json']); ev['steps'].append({'state': 'active', 'at': now()})
-        db.execute("UPDATE resource_reservations SET state='active', activated_at=?, evidence_json=?, updated_at=? WHERE id=?", (now(), json.dumps(ev), now(), resid))
+        db.execute("UPDATE resource_reservations SET state='active', activated_at=?, evidence_json=?, updated_at=? WHERE id=?", (now(), json.dumps(ev), now(), resid)); self.svc.pools.set_commitment(db, resid, 'active')
         return self.reservation_view(db, principal, resid)
 
     def cancel(self, db, principal, resid, body=None):
@@ -199,8 +217,8 @@ class Market:
                 ledger.move(db, principal.workspace, 'rr-cancel:' + resid, 'native_resource_release', r['asset'], d['id'], self.native.environment, r['price'], ledger.account_name(buyer['id'], 'reserved'), ledger.account_name(buyer['id'], 'available'), 'resource_reservation', resid, 'cancelled before activation: funds and capacity released in full')
             db.execute("UPDATE native_obligations SET state='cancelled', updated_at=? WHERE id=?", (now(), r['obligation_id']))
             ev = json.loads(r['evidence_json']); ev['steps'].append({'state': 'cancelled', 'at': now(), 'by': principal.id, 'reason': (body or {}).get('reason')})
-            db.execute("UPDATE resource_reservations SET state='cancelled', evidence_json=?, updated_at=? WHERE id=?", (json.dumps(ev), now(), resid))
-            history.record(db, principal.workspace, principal.id, 'native.obligation', 'resource_reservation', resid, {'cancelled': 'before_activation', 'released': r['price']})
+            db.execute("UPDATE resource_reservations SET state='cancelled', evidence_json=?, updated_at=? WHERE id=?", (json.dumps(ev), now(), resid)); self.svc.pools.set_commitment(db, resid, 'released')
+            history.record(db, principal.workspace, principal.id, 'native.obligation', 'resource_reservation', resid, {'cancelled': 'before_activation', 'released': r['price'], 'pool_capacity': 'released in full'})
             return self.reservation_view(db, principal, resid)
         return self.settle(db, principal, resid, cancelled=True)                       # active or delivered: the delivered portion is owed
 
@@ -239,7 +257,7 @@ class Market:
         verified = self._verify_delivery(o['kind'], m)
         meas = json.loads(r['measurement_json'] or '{}'); meas.update({'measurement': m, 'assertion': assertion, 'verification': verified, 'recorded_at': now()})
         ev = json.loads(r['evidence_json']); ev['steps'].append({'state': 'delivered', 'at': now(), 'delivered_quantity': quantity})
-        db.execute("UPDATE resource_reservations SET state='delivered', delivered_quantity=?, measurement_json=?, evidence_json=?, updated_at=? WHERE id=?", (quantity, json.dumps(meas), json.dumps(ev), now(), resid))
+        db.execute("UPDATE resource_reservations SET state='delivered', delivered_quantity=?, measurement_json=?, evidence_json=?, updated_at=? WHERE id=?", (quantity, json.dumps(meas), json.dumps(ev), now(), resid)); self.svc.pools.set_commitment(db, resid, 'delivered')
         history.record(db, principal.workspace, principal.id, 'native.obligation', 'resource_reservation', resid, {'delivered_quantity': quantity, 'unit': o['unit'], 'measured': True, 'verified': verified.get('ok')})
         return self.reservation_view(db, principal, resid)
 
@@ -327,6 +345,7 @@ class Market:
         if release:
             ledger.move(db, principal.workspace, 'rr-release:' + resid, 'native_resource_release', r['asset'], d['id'], self.native.environment, release, ledger.account_name(buyer['id'], 'reserved'), ledger.account_name(buyer['id'], 'available'), 'resource_reservation', resid, 'undelivered portion released')
         db.execute("UPDATE native_obligations SET settled_amount=?, state=?, updated_at=? WHERE id=?", (owed, 'settled' if owed == ob['amount'] else ('partial' if owed else 'cancelled'), now(), ob['id']))
+        self.svc.pools.set_commitment(db, resid, 'released' if cancelled else 'delivered', truncate_at=now() if cancelled else None)     # delivered capacity stays committed; only the future unused tail is freed
         ev = json.loads(r['evidence_json']); ev['steps'].append({'state': 'settled', 'at': now(), 'owed': owed, 'released': release, 'cancelled_after_activation': cancelled})
         db.execute("UPDATE resource_reservations SET state='settled', evidence_json=?, settlement_intent=?, updated_at=? WHERE id=?", (json.dumps(ev), iid, now(), resid))
         history.record(db, principal.workspace, principal.id, 'native.settlement', 'resource_reservation', resid, {'owed': owed, 'released': release, 'intent': iid})

@@ -799,11 +799,15 @@ def _mixin(cls):
         obligations = [self.obligation_view(db, principal, r['id']) for r in db.execute('SELECT id FROM native_obligations WHERE workspace=? ORDER BY created_at', (ws,)).fetchall()]
         keys = [dict(k) for k in db.execute('SELECT domain_id, epoch, key_id, public_hex, local, state, valid_from, retired_at, grace_until FROM native_authority_keys ORDER BY domain_id, epoch').fetchall()]
         account_keys = [dict(k) for k in db.execute('SELECT account_id, key_id, public_hex, kind, epoch, state, retired_at, grace_until FROM native_account_keys WHERE workspace=? ORDER BY account_id, epoch', (ws,)).fetchall()]
+        pools = [dict(r, schedule=json.loads(r['schedule_json'])) for r in db.execute('SELECT id, provider_account, kind, slot_unit, units_per_slot_second, resolution_seconds, schedule_json, version, state FROM resource_pools WHERE workspace=?', (ws,)).fetchall()]
+        for pr in pools:
+            pr.pop('schedule_json', None)
+        commitments = [dict(r) for r in db.execute('SELECT id, pool_id, reservation_id, start, end, slots, state FROM pool_commitments WHERE workspace=?', (ws,)).fetchall()]
         for i in intents:
             hist = json.loads(db.execute('SELECT history_json FROM native_intents WHERE id=?', (i['id'],)).fetchone()['history_json'] or '[]')
             i['signer_key_id'] = next((h.get('key_id') for h in reversed(hist) if isinstance(h, dict) and h.get('key_id')), None)
         return {'schema': 'metacoin-native-export/v0', 'domain': d['id'], 'environment': d['environment'], 'operator': d['operator'], 'host': d['host'], 'epoch': d['epoch'], 'commit_sequence': d['commit_sequence'], 'recovery_state': d['recovery_state'],
-                'self_description_keys': keys, 'account_keys': account_keys, 'accounts': accts, 'intents': intents, 'receipts': receipts, 'obligations': obligations, 'allocations': allocs, 'envelopes_in': envs['in'], 'envelopes_out': envs['out'],
+                'self_description_keys': keys, 'account_keys': account_keys, 'resource_pools': pools, 'pool_commitments': commitments, 'accounts': accts, 'intents': intents, 'receipts': receipts, 'obligations': obligations, 'allocations': allocs, 'envelopes_in': envs['in'], 'envelopes_out': envs['out'],
                 'journal_entries': entries, 'audits': {a: self.audit(db, principal, a) for a in [r['asset_id'] for r in db.execute('SELECT asset_id FROM native_assets WHERE workspace=?', (ws,)).fetchall()]}, 'exported_at': now(),
                 'note': 'keys listed here are data; a verifier pins roots from an out-of-band source (the domain view read over an authenticated channel, or the operator)'}
 

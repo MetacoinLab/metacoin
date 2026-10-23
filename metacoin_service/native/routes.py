@@ -258,6 +258,28 @@ def mount(app, svc, run, read_body, API):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, True, lambda db, p: (M.publish(db, p, body), 201), 'resources.offer', raw)
 
+    @app.post(API + '/resources/pools', status_code=201)
+    async def pools_create(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.pools.create(db, p, body), 201), 'resources.pool', raw)
+
+    @app.get(API + '/resources/pools')
+    async def pools_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.pools.list(db, p, request.query_params.get('account'))})
+
+    @app.get(API + '/resources/pools/{pid}')
+    async def pool_view(request: Request, pid: str):
+        return await run(request, False, lambda db, p: svc.pools.view(db, p, pid))
+
+    @app.post(API + '/resources/pools/{pid}/{action}')
+    async def pool_action(request: Request, pid: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        fn = {'amend': lambda db, p: svc.pools.amend_schedule(db, p, pid, body), 'drain': lambda db, p: svc.pools.set_state(db, p, pid, 'draining'), 'close': lambda db, p: svc.pools.set_state(db, p, pid, 'closed'), 'reopen': lambda db, p: svc.pools.set_state(db, p, pid, 'open')}.get(action)
+        if fn is None:
+            from ..errors import ServiceError
+            raise ServiceError('NOT_FOUND', 'pool action')
+        return await run(request, True, fn, 'resources.pool.' + action, raw)
+
     @app.get(API + '/resources/offers')
     async def resources_offers(request: Request):
         return await run(request, False, lambda db, p: {'items': M.offers(db, p, request.query_params.get('kind'))})

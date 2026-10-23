@@ -521,6 +521,16 @@ MIGRATIONS = [
     CREATE TABLE mission_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, mission_id TEXT NOT NULL, at INTEGER NOT NULL, actor TEXT NOT NULL, kind TEXT NOT NULL, detail_json TEXT NOT NULL);
     CREATE INDEX mission_events_mission ON mission_events(mission_id, seq);
     """),
+    ('048_resource_pools', """
+    CREATE TABLE resource_pools (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, provider_account TEXT NOT NULL, provider_principal TEXT NOT NULL, kind TEXT NOT NULL, label TEXT NOT NULL, slot_unit TEXT NOT NULL, units_per_slot_second INTEGER NOT NULL, resolution_seconds INTEGER NOT NULL, schedule_json TEXT NOT NULL, version INTEGER NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE pool_commitments (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, pool_id TEXT NOT NULL REFERENCES resource_pools(id), reservation_id TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, slots INTEGER NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX pool_commitments_pool ON pool_commitments(pool_id, state);
+    ALTER TABLE resource_offers ADD COLUMN pool_id TEXT;
+    ALTER TABLE resource_reservations ADD COLUMN interval_start INTEGER;
+    ALTER TABLE resource_reservations ADD COLUMN interval_end INTEGER;
+    ALTER TABLE resource_reservations ADD COLUMN slots INTEGER;
+    ALTER TABLE resource_reservations ADD COLUMN commitment_id TEXT;
+    """),
 ]
 
 

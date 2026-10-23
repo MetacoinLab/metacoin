@@ -84,6 +84,7 @@ class Services:
         from .lunar.service import Lunar
         self.lunar = Lunar(settings, self)
         from .native.market import Market
+        from .native.pools import Pools; self.pools = Pools(settings, self)
         self.market = Market(settings, self)
         from .native.mission_contracts import Missions
         from .native.controller import Controller
