@@ -7,7 +7,7 @@ mkdir -p "$DELIVER/test-logs" "$DELIVER/clean-export-logs" "$DELIVER/journeys" "
 git diff "$BASE" "$HEAD" -- . ':!work' > "$DELIVER/$NAME-session-vs-${BASE:0:7}.patch"
 git log --format='%H %s' "$BASE..$HEAD" > "$DELIVER/commits.txt"
 echo "$HEAD" > "$DELIVER/SOURCE_REVISION.txt"; echo "$BASE" > "$DELIVER/BASE_REVISION.txt"
-TMPX="$(mktemp -d)"; git archive --format=tar --prefix=$NAME/ "$HEAD" | tar -x -C "$TMPX" && rm -rf "$TMPX/$NAME/work" && (cd "$TMPX" && zip -qr "$DELIVER/$NAME-source.zip" $NAME) && rm -rf "$TMPX"
+[ -f "$DELIVER/$NAME-source.zip" ] || { TMPX="$(mktemp -d)"; git archive --format=tar --prefix=$NAME/ "$HEAD" | tar -x -C "$TMPX" && rm -rf "$TMPX/$NAME/work" && (cd "$TMPX" && zip -qr "$DELIVER/$NAME-source.zip" $NAME) && rm -rf "$TMPX"; }
 git ls-files | grep -v '^work/' > "$DELIVER/SOURCE_ALLOWLIST.txt"
 cp metacoin_service/requirements.lock "$DELIVER/requirements-service.lock"; cp metacoin_service/requirements-compute.txt "$DELIVER/requirements-compute.txt"; cp metacoin_service/README.md "$DELIVER/SERVICE_README.md"
 cp metacoin_service/native/checker.py "$DELIVER/native_checker.py"; cp metacoin_service/native/vectors.py "$DELIVER/native_vectors.py"; cp metacoin_service/native/protocol.py "$DELIVER/native_protocol.py"; cp metacoin_service/native/planner.py "$DELIVER/native_planner.py"
@@ -25,7 +25,7 @@ for f in FEATURE_LEDGER.json MIGRATIONS.json TRUST_MODEL.md HANDOFF.md MIGRATION
 echo "== scans ($(date -u +%Y-%m-%dT%H:%M:%SZ)) archive $HEAD base $BASE" > "$DELIVER/DELIVERY_SCANS.txt"
 { unzip -Z1 "$DELIVER/$NAME-source.zip" | grep -iE "\.age$|\.ed25519|bootstrap\.json|sqlite|\.venv|\.env$|/work/|node-.*\.json$|\.safetensors|\.npy$|\.onnx$|artifacts/[0-9a-f]{32}" && echo "PRIVATE/UNWANTED MATERIAL IN ARCHIVE"; } || echo "archive allowlist ok: no keys, credentials, databases, weights, vectors, node identities, venv or work dir" >> "$DELIVER/DELIVERY_SCANS.txt"
 { grep -rlE "mck_[A-Za-z0-9_-]{20}|mcn_[A-Za-z0-9_-]{20}" "$DELIVER" --include='*.json' --include='*.log' --include='*.txt' --include='*.patch' --include='*.md' | grep -v -E "openapi|capabilities" && echo "TOKEN-LIKE STRING FOUND"; } || echo "no bearer/node-credential-shaped strings in logs/results" >> "$DELIVER/DELIVERY_SCANS.txt"
-{ grep -rl "AGE-SECRET-KEY\|BEGIN PRIVATE KEY\|private_key_hex" "$DELIVER" | grep -v -E "\.patch$|SERVICE_README|openapi|source\.zip" && echo "SECRET MATERIAL FOUND"; } || echo "no secret key material outside source text" >> "$DELIVER/DELIVERY_SCANS.txt"
+{ grep -rl "AGE-SECRET-KEY\|BEGIN PRIVATE KEY\|private_key_hex" "$DELIVER" | grep -v -E "\.patch$|SERVICE_README|openapi|source\.zip|package\.sh$|DELIVERY_SCANS" && echo "SECRET MATERIAL FOUND"; } || echo "no secret key material outside source text" >> "$DELIVER/DELIVERY_SCANS.txt"
 unzip -tq "$DELIVER/$NAME-source.zip" >> "$DELIVER/DELIVERY_SCANS.txt" 2>&1
 (cd "$DELIVER" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c --quiet SHA256SUMS && echo "manifest ok: $(wc -l < SHA256SUMS) files")
 cat "$DELIVER/DELIVERY_SCANS.txt"; du -sh "$DELIVER"

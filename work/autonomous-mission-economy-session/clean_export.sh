@@ -18,7 +18,7 @@ run .venv/bin/python -m metacoin_service.deploy_local down --home ./local-home
 run .venv/bin/python -m unittest metacoin_service.tests.test_native_protocol metacoin_service.tests.test_native_signer metacoin_service.tests.test_native_market metacoin_service.tests.test_native_missions metacoin_service.tests.test_native_planner metacoin_service.tests.test_native_lineage metacoin_service.tests.test_native_conformance
 python3 -m venv .venv-client && (cd provider_client && PYTHONPATH="$PWD" ../.venv-client/bin/python -m metacoin_provider conformance > "$OUT/provider-conformance.json" 2>&1); echo "provider conformance rc=$? ($(python3 -c "import json; d=json.load(open('$OUT/provider-conformance.json')); print(d['passed'], 'of', d['cases'])" 2>/dev/null))"
 run .venv/bin/python -m metacoin_service.native.vectors
-run .venv/bin/python -m metacoin_service.tests.journeys_mission --only 1,2,3,8,9,10,13,15,17,20,22,24,26,27,29,33,34 --out "$OUT/journeys-mission-from-clean-export.json"
+run .venv/bin/python -m metacoin_service.tests.journeys_mission --only 1,2,3,8,9,10,13,15,17,18,19,20,22,24,26,27,29,33,34 --out "$OUT/journeys-mission-from-clean-export.json"
 python3 - "$OUT/journeys-mission-from-clean-export.json" "$ZIP" <<'PY'
 import json, sys, hashlib
 p, z = sys.argv[1:3]; d = json.load(open(p)); d['archive_sha256'] = hashlib.sha256(open(z, 'rb').read()).hexdigest(); json.dump(d, open(p, 'w'), indent=1)

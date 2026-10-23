@@ -68,9 +68,9 @@
   }
  ],
  "journeys": {
-  "passed": 36,
+  "passed": 37,
   "failed": 0,
-  "blocked": 1,
+  "blocked": 0,
   "skipped": 0,
   "total": 37,
   "revision": "809b95eb974337c934dd78c7e736678a3bf1c83c"
@@ -112,8 +112,9 @@
   "33": "passed",
   "34": "passed",
   "35": "passed",
-  "36": "blocked"
+  "36": "passed"
  },
  "client_conformance": "provider_client conformance v1: 22/22 (system python3, standard library only)",
- "generated_at": 1792728563
+ "generated_at": 1792729054,
+ "clean_export": "19/19 journeys from the fresh extraction (journeys-mission-from-clean-export.json); clean start up/status/down rc=0; 7 unit suites rc=0; client conformance 22/22; vectors rc=0"
 }

@@ -1,0 +1,12 @@
+runtime data placed from protocol-data/
+files: 676
+sha256 of archive: 74d41dd05e4963bfca53d37f0427c9dd745e32554b8abc8d734678b1d1876012
+venv rc=0
+rc=0 1s :: .venv/bin/python -m metacoin_service.deploy_local up --home ./local-home --domain-id dom-clean
+rc=0 0s :: .venv/bin/python -m metacoin_service.deploy_local status --home ./local-home
+rc=0 1s :: .venv/bin/python -m metacoin_service.deploy_local down --home ./local-home
+rc=0 42s :: .venv/bin/python -m unittest metacoin_service.tests.test_native_protocol metacoin_service.tests.test_native_signer metacoin_service.tests.test_native_market metacoin_service.tests.test_native_missions metacoin_service.tests.test_native_planner metacoin_service.tests.test_native_lineage metacoin_service.tests.test_native_conformance
+provider conformance rc=0 (22 of 22)
+rc=0 0s :: .venv/bin/python -m metacoin_service.native.vectors
+(journeys subset rerun with 18,19 included; see the journeys log and JSON)
+CLEAN_EXPORT rc=0 (after the subset correction; every other step rc=0 above)

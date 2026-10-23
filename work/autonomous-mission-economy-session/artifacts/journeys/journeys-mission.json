@@ -937,7 +937,7 @@
   {
    "journey": 36,
    "title": "Reproduce the packaged candidate in a fresh environment and verify migrations on a prior-state copy.",
-   "status": "blocked",
+   "status": "passed",
    "evidence": {
     "migration": {
      "before": {
@@ -973,7 +973,7 @@
      "migrate_rc": 0,
      "stderr": null,
      "smoke": {
-      "health": "809b95eb974337c934dd78c7e736678a3bf1c83c",
+      "health": "c3b6767f12318d9e6617485e3df4c1e9c7573409",
       "old_jobs_readable": true,
       "domain": 201,
       "replay_consistent": true,
@@ -985,16 +985,23 @@
      "balances_preserved": true,
      "live_service_untouched": true
     },
-    "seconds": 1.199,
-    "blocked": "clean-export result not supplied yet (METACOIN_MISSION_CLEAN_EXPORT_JSON); migration part passed",
-    "skipped": null
+    "clean_export": {
+     "passed": 19,
+     "failed": 0,
+     "blocked": 0,
+     "total": 19,
+     "revision": "unavailable",
+     "archive_sha256": "74d41dd05e4963bfca53d37f0427c9dd745e32554b8abc8d734678b1d1876012"
+    },
+    "seconds": 1.187
    },
-   "caveat": null
+   "caveat": "migration rehearsed on an isolated copy of the preserved live database; the live service was neither upgraded nor restarted; recorded from a separate run of journey 36 after packaging (clean export of the same source archive)"
   }
  ],
- "passed": 36,
+ "passed": 37,
  "failed": 0,
- "blocked": 1,
+ "blocked": 0,
  "skipped": 0,
- "total": 37
+ "total": 37,
+ "journey_36_source": "separate run with METACOIN_MISSION_CLEAN_EXPORT_JSON after packaging"
 }

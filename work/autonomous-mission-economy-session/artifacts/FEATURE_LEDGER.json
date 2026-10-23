@@ -2,9 +2,9 @@
  "schema": "metacoin-feature-ledger/v3",
  "source": "809b95eb974337c934dd78c7e736678a3bf1c83c",
  "journeys": {
-  "passed": 36,
+  "passed": 37,
   "failed": 0,
-  "blocked": 1,
+  "blocked": 0,
   "skipped": 0,
   "total": 37
  },
@@ -184,9 +184,9 @@
     "statuses": [
      "passed",
      "passed",
-     "blocked"
+     "passed"
     ],
-    "exercised": false
+    "exercised": true
    },
    "environment_assumptions": "fresh virtual environment on the same host; pip could not build offline (no setuptools), the package ran from its directory; executor = the repository's public lunar module",
    "unresolved_limitations": "two-host configuration documented, exercised on one host only; pip install verified only where setuptools is available"
@@ -218,9 +218,9 @@
      36
     ],
     "statuses": [
-     "blocked"
+     "passed"
     ],
-    "exercised": false
+    "exercised": true
    },
    "environment_assumptions": "read-only backup of the live database",
    "unresolved_limitations": "live upgrade not performed (not authorized by this order)"
