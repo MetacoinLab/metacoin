@@ -1053,7 +1053,7 @@ def mount(app, svc):
         def fn(db, p):
             m = MS.view(db, p, mid)
             try:
-                ex = CT.explain(db, p, mid)
+                ex = CT.explain(db, p, mid, observe=p.can('native:admin'))
             except ServiceError as exc:
                 ex = {'context': {}, 'actions': [], 'stop_reason': exc.code}
             return render(request, 'native_mission_detail.html', principal=p, m=m, ledger=MS.budget_ledger(db, p, mid), ex=ex)

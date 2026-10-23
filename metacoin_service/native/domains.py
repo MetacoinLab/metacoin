@@ -8,6 +8,7 @@ Nothing here imports x402, performs hidden network calls, or executes imported c
 strictly, bounded, verified under an explicitly pinned root, deduplicated, then applied inside a savepoint."""
 import hashlib
 import json
+import os
 import secrets
 
 from .. import crypto, history
@@ -17,12 +18,12 @@ from . import ledger
 from . import protocol as P
 
 MAX_BUNDLE_BYTES = 1 << 20          # one file bundle
-FRAGMENT_BYTES = 16 * 1024          # link fragmentation threshold for the transport layer (signed content is untouched)
+FRAGMENT_BYTES = int(os.environ.get('METACOIN_FRAGMENT_BYTES', 16 * 1024))   # link fragmentation threshold for the transport layer (signed content is untouched)
 ENVELOPE_VERSIONS = ('v0', 'v1')    # supported envelope versions; a bundle announces the sender's set and the receiver applies the highest common
 MAX_BUNDLE_ITEMS = 200
 MAX_PAYLOAD_BYTES = 64 * 1024       # one control message (artifact chunks never travel in envelopes)
 MAX_OUTBOX_QUEUED = 5000            # bounded queue: exports are refused, never silently dropped, when it is full
-ENVELOPE_TTL = 30 * 86400           # transport expiry; expiry never moves value
+ENVELOPE_TTL = int(os.environ.get('METACOIN_ENVELOPE_TTL', 30 * 86400))      # transport expiry; expiry never moves value
 DEFAULT_ROTATION_GRACE = 7 * 86400  # messages signed by a retired key are accepted while created_at <= retired_at + grace
 GC_DELIVERED_AFTER = 30 * 86400     # delivered envelopes may be garbage-collected; tombstones are never deleted
 

@@ -29,3 +29,26 @@ Offline tools (no service): `python -m metacoin_service.native.checker EXPORT --
 
 ## MCP (`python -m metacoin_service.mcp_server`, stdio)
 Read: `native_domain_status native_account native_audit native_allocation_status native_treasury lunar_product lunar_sources`. Simulate: `native_simulate_transfer procurement_plan`. Commit: `native_export_allocation`. Spend: `native_transfer native_pay_entitlement`. Bounded authorize: `native_open_dispute`. No tool funds an account; annotations are metadata, the server enforces.
+
+## Order 2026-10-23 additions
+
+### HTTP API
+| Operation | Route | Permission |
+|---|---|---|
+| External actor enrolment; key registration / revocation; keys view | `POST /native/actors/enroll`, `POST /native/accounts/{id}/keys`, `POST /native/accounts/{id}/keys/{kid}/revoke`, `GET /native/accounts/{id}/keys` | native:admin + admin:credentials / holder / native:read |
+| Signed transfer (prepare → sign outside → submit) | `POST /native/transfers/prepare`, `POST /native/transfers/submit` | native:transfer (holder) |
+| Claim lineage; accounting over backing/claims/returns; checkpoint | `GET /native/accounts/{id}/lineage`, `GET /native/accounting`, `POST /native/checkpoint` | native:read / native:admin |
+| Subdivided export | `POST /native/allocations/export` with `portions` | native:export |
+| Resource market | `GET /resources`, `POST GET /resources/offers`, `GET /resources/offers/{id}`, `POST /resources/offers/{id}/amend`, `POST /resources/quote`, `POST GET /resources/reservations`, `GET /resources/reservations/{id}`, `POST /resources/reservations/{id}/{activate|deliver|settle|cancel}`, `POST /resources/reservations/{id}/storage` (raw bytes) | work:read / native:transfer (buyer) / provider |
+| Missions | `POST GET /missions`, `GET /missions/templates`, `GET /missions/{id}`, `/ledger`, `/explain`, `/bundle`, `POST /missions/{id}/{freeze|amend|pause|resume|step|run|propose|gate|plan}`, `POST /missions/{id}/revisions/{n}/authorize`, `POST /missions/plan` (joint), `POST /plans/solve` (raw problem) | work:read / owner / affected party |
+| Operator screen | `GET /native/operator` | native:read + work:read |
+
+### CLI (`python -m metacoin_service.client_cli --credential-file F --base URL ...`)
+`native-actor-enroll native-keys native-key-revoke native-transfer-signed (prepare → sign → submit through the signer) native-lineage native-accounting native-checkpoint resources resource-offers resource-offer resource-publish resource-amend resource-quote resource-reserve resource-reservations resource-reservation resource-activate resource-deliver resource-storage-put resource-settle resource-cancel missions mission-templates mission-create [--freeze] mission mission-ledger mission-explain mission-action {freeze,amend,pause,resume,step,run,propose,gate} mission-authorize mission-plan mission-bundle native-operator`.
+Separate executables: `python -m metacoin_service.native.signer {init|serve|health}`, `python -m metacoin_service.native.witness {init|serve}`, `python -m metacoin_service.deploy_local {up|status|down}`, `metacoin-provider` (provider_client/).
+
+### Console
+`/console/resources` (market, quote, reserve, offers), `/console/resources/reservations/{id}` (activate / deliver / settle / cancel with labelled evidence), `/console/missions` (builder from the three templates, list), `/console/missions/{id}` (graph/timeline, budget ledger projection, controller explanation with disabled actions and reasons, step/run/pause/resume/replan, revisions, milestone evidence, events), `/console/operator` (owns/owes, committed resources, missing evidence, blackout possibilities, pending cross-domain, recovery; link cut/restore).
+
+### MCP tools (analysis vs spending)
+READ: `operator_screen`, `resource_market`, `mission_status`, `mission_explain`, `mission_plan` (analysis; locks nothing). SIMULATE: `resource_quote`. SPEND (grant + idempotency): `resource_reserve`, `mission_step`, `mission_propose` (one validated action or a recorded rejection).

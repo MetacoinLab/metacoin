@@ -7,7 +7,7 @@ from ..lunar.__main__ import example
 
 
 def build(name, policy):
-    p = dict({'price': 40, 'bps': 500, 'verifier': 3, 'verifier_pay_to': None, 'source': 'apollo11_32', 'storage_kib_seconds': 2048, 'contact_kib': 32, 'compute_cpu_ms': 2000, 'max_unit_price': 1, 'followon_price': 12, 'gate_budget': 10, 'permitted_providers': None}, **{k: v for k, v in policy.items() if k in ('price', 'bps', 'verifier', 'verifier_pay_to', 'source', 'storage_kib_seconds', 'contact_kib', 'compute_cpu_ms', 'max_unit_price', 'followon_price', 'gate_budget', 'permitted_providers')})
+    p = dict({'price': 40, 'bps': 500, 'verifier': 3, 'verifier_pay_to': None, 'source': 'apollo11_32', 'storage_kib_seconds': 2048, 'contact_kib': 32, 'compute_cpu_ms': 2000, 'max_unit_price': 1, 'followon_price': 12, 'gate_budget': 10, 'permitted_providers': None, 'followon_provider_account': None}, **{k: v for k, v in policy.items() if k in ('price', 'bps', 'verifier', 'verifier_pay_to', 'source', 'storage_kib_seconds', 'contact_kib', 'compute_cpu_ms', 'max_unit_price', 'followon_price', 'gate_budget', 'permitted_providers', 'followon_provider_account')})
     route = example('route', p['source']); route['private_label'] = 'MISSION_' + name.upper()
     work = {'template': 'lunar_route_feasibility', 'inputs': route, 'price': p['price'], 'bps': p['bps'], 'verifier': p['verifier'], 'verifier_pay_to': p['verifier_pay_to'], 'permitted_providers': p['permitted_providers'], 'verification_class': 'analytical'}
     if name == 'terrain_delivery':
@@ -16,7 +16,7 @@ def build(name, policy):
                                {'key': 'compute', 'kind': 'work', 'spec': work, 'depends': ['acquire']},
                                {'key': 'settle', 'kind': 'settle', 'spec': {'of': 'compute'}, 'depends': ['compute']},
                                {'key': 'store', 'kind': 'resource', 'optional': True, 'spec': {'offer_kind': 'storage', 'quantity': p['storage_kib_seconds'], 'max_price_per_unit': p['max_unit_price']}, 'depends': ['compute']},
-                               {'key': 'followon', 'kind': 'resource', 'actor': 'provider', 'spec': {'offer_kind': 'compute', 'quantity': p['compute_cpu_ms'], 'max_price_per_unit': p['max_unit_price'], 'buyer': 'provider_of:compute'}, 'depends': ['compute']}],
+                               {'key': 'followon', 'kind': 'resource', 'actor': 'provider', 'spec': dict({'offer_kind': 'compute', 'quantity': p['compute_cpu_ms'], 'max_price_per_unit': p['max_unit_price'], 'buyer': 'provider_of:compute'}, **({'provider_account': p['followon_provider_account']} if p['followon_provider_account'] else {})), 'depends': ['compute']}],
                 'notes': 'terrain-analysis delivery: the provider earns on acceptance and buys its follow-on compute from settled earnings'}
     if name == 'compute_and_relay':
         return {'milestones': [{'key': 'reserve_compute', 'kind': 'resource', 'spec': {'offer_kind': 'compute', 'quantity': p['compute_cpu_ms'], 'max_price_per_unit': p['max_unit_price']}, 'depends': []},

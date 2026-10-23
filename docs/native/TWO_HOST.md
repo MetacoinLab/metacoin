@@ -30,8 +30,8 @@ install the service package on host B without starting a service. The signer nev
 
 Enrolment is an operator-A step (administrator credential on host A), using the public key that operator B's signer generated:
 
-    metacoin-provider enroll --base https://host-a:8443 --admin-cred admin-a.json \
-        --signer http://127.0.0.1:9440 --signer-token ~/signer-b/token --name prov-b --ceiling 1000 --out prov-b.json
+    metacoin-provider --base https://host-a:8443 --signer http://127.0.0.1:9440 --signer-token ~/signer-b/token \
+        enroll --admin-cred admin-a.json --name prov-b --ceiling 1000 --out prov-b.json
 
 In a real two-operator setting the `enroll` call runs on host A with the public key handed over out of band; the provider
 credential file (0600) is handed back to operator B. The service stores the public identity only (`custody:

@@ -90,3 +90,33 @@ A party (payer, payee or administrator) may dispute a settled native obligation 
 - decentralized consensus
 - public-network adoption
 - space-qualified deployment
+
+## 11. Extension v1 (order 2026-10-23): signers, witnesses, envelope v1, lineage, reservations, missions
+Everything below keeps the v0 monetary rules: no minting of base META by any path, objective issuance separate from mission
+payments, mission payments from requester funds, MetaStar awards from collected fees, zero-value development assets, bounded
+integers, explicit units. The protocol id stays `metacoin-native/v0` for all signed messages; new message bodies are versioned
+by their own `schema` fields.
+
+### 11.1 Operator-controlled signing (`metacoin-signer/v1`)
+- A separate executable (`python -m metacoin_service.native.signer`) holds actor keys; the service stores public identities only (`native_account_keys`, custody `external-signer:<id>`, `private_key_held_by_service: false`).
+- Intents gain an optional `expires_at` (seconds); the signer refuses unknown fields, floats, other domains, other policy versions and expired intents, and records the consumed authorization durably **before** returning the signature (idempotent by `request_id`; a crash before the record leaves no exposure, a crash after it replays the same signature).
+- Key registrations are signed by the current primary key with tag `rotation` over `{type: key_registration, account, actor, key_id, public_hex, kind: primary|delegate, epoch, scope, issued_at, grace_seconds}`. A retired key stops authorizing new intents at `retired_at + grace`; historical receipts keep verifying against the key history.
+- Delegates carry a recipient set and a ceiling never wider than the principal's; both the signer and the service enforce them.
+
+### 11.2 Commit-checkpoint witnesses (`metacoin-witness/v1`)
+Checkpoints `{sequence, journal_root, ...}` are signed by the domain authority with tag `commit_checkpoint` and acknowledged by a pinned witness key. The witness refuses a lower sequence (`sequence_regression`) and a different statement for an acknowledged sequence (`conflicting_checkpoint`). A restored database whose sequence is below the last acknowledged checkpoint enters quarantine even when the local watermark file is missing. Where no witness and no watermark exist, recovery reports detection as **unavailable** rather than inferring a clean start.
+
+### 11.3 Envelope bundle v1
+Bundles announce `envelope_versions` (`['v0','v1']`), carry `economic_ids` (the allocation ids whose certificates are inside) and may fragment large items (`{fragment_of, index, count, data, digest}`, 16 KiB default). Fragmentation never alters signed content: receivers reassemble, verify the digest and only then apply the envelope rules (duplicate, reordered and expired items settle nothing twice and refund nothing). An unsupported version set is refused.
+
+### 11.4 Claim lineage and subdivision
+An export may be subdivided into portions with distinct allocation ids whose amounts sum exactly to the export. Imported units carry lineage; spending consumes unlineaged units first, then claims oldest-first; any consumption makes a claim nonreturnable; transferred units lose lineage. A return retires the claim irrevocably at the destination **before** the return certificate is issued; the accounting view exposes backing locked, active, consumed and retired claims, pending retirements and completed returns, cross-checked with the journal audit.
+
+### 11.5 Resource reservation market
+Offers (compute `cpu_ms`, storage `kib_seconds`, contact `kib`) are fixed-price, versioned records naming provider, resource, unit, time basis, capacity, price, asset, window, reservation policy, delivery evidence and cancellation terms, with energy per unit as a declared planning constraint. A quote is nonbinding; a reservation is atomic (version, capacity and buyer funds checked in one transaction) and refuses a stale quote without repricing. Delivery is measured (`metered_fact`), asserted (`provider_assertion`) and verified (`verified`) with the three labels kept apart; settlement pays the delivered portion once and releases the rest.
+
+### 11.6 Mission contracts and the bounded controller
+A mission is a versioned dependency graph of milestones (work, resource, evidence gate, settle, deliver). Freezing records a revision digest; awarded, executing and completed milestones are immutable; amendments create a new revision authorized by every affected party and may touch only unstarted work. The controller performs one validated action per step from an explicit enumeration over immutable offers; a model proposal is checked by the same deterministic validator (liquidity after the minimum cash reserve, per-action and mission ceilings, grant envelope, permitted recipients, offer price bounds, capacity, windows, energy, link state, revocation, quarantine) and every chosen and rejected action is published with its reason. Receivables are never spendable; a cut link leaves only local actions; a revoked grant stops new work but incurred obligations stay payable.
+
+### 11.7 Planning
+A plan is a schedule or an explicit unsatisfied-constraint witness over a finite discretised horizon; it never locks capacity or spends. Reservation acceptance revalidates the selected offers.

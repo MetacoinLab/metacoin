@@ -92,7 +92,7 @@ def up(a):
         state['domain'] = {k: dom.get(k) for k in ('id', 'default_asset', 'accounts')} if 'authority' in dom else dom
         state_path.write_text(json.dumps(state, indent=1))
     state['next'] = ['console: %s/console (log in with the administrator credential file; the token is never printed)' % base,
-                     'provider client: pip install ./provider_client; metacoin-provider enroll --base %s --admin-cred <admin file> --signer %s --signer-token %s --name prov-1 --ceiling 1000 --out prov.json' % (base, state['signer']['url'], state['signer']['token_file']),
+                     'provider client: pip install ./provider_client; metacoin-provider --base %s --signer %s --signer-token %s enroll --admin-cred <admin file> --name prov-1 --ceiling 1000 --out prov.json' % (base, state['signer']['url'], state['signer']['token_file']),
                      'stop: python -m metacoin_service.deploy_local down --home %s' % home]
     return state
 

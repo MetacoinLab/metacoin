@@ -31,3 +31,20 @@ The MetaStar treasury is a native account funded only by protocol fees settled i
 
 ## Lunar products
 `lunar/terrain.py`, `route.py`, `scenario.py` are pure Python; `reference.py` is the independent CPU reference used by the `analytical` verification class and by the portable verifier; `full_exact` is a same-implementation regression check and is labelled so. Real data: NASA PDS LOLA LDEM_4 extracts with the full-image digests and label; synthetic terrain is labelled SYNTHETIC end to end.
+
+## Order 2026-10-23 additions
+
+### Custody (updated)
+Three custody classes coexist: development custody (service-held actor keys, labelled `development`), **external signer custody** (`external-signer:<id>`: the operator-controlled signer process holds the key; the service holds the public identity, verifies signatures and refuses unsigned spending with `signature_required`), and authority custody (the domain key). The signer is a separate executable with its own token and store; it is still operated by the same operator in this session, so it is operator-controlled custody, not an independent validator.
+
+### Witness
+A commit-checkpoint witness (separate process, pinned identity, freshness policy) gives rollback detection that does not depend on a file next to the database. It is run by the same operator here; it detects a stale restore and refuses contradictory checkpoints, and it cannot prevent an authority from signing two histories.
+
+### What the controller is and is not
+The mission controller is deterministic: it enumerates explicit actions from recorded state, validates each against recorded constraints and performs at most one per step. An LLM may propose; the validator decides; nothing in the economic path depends on a model output. Blackout behaviour is a consequence of the link state recorded in the domain, not a timer.
+
+### Provider client boundary
+`metacoin_provider` talks to the public API only, verifies receipts and bundles under roots it pins itself, and never holds a private key (payments go through a signer the provider's operator runs). Its wire format is pinned to the service's by versioned conformance fixtures.
+
+### Two hosts
+Documented in `docs/native/TWO_HOST.md`; exercised on one host only. BPv7 (RFC 9171) transport: no installable daemon was available in this environment; the envelope/bundle layer is transport-agnostic and a BPv7 adapter remains unverified.

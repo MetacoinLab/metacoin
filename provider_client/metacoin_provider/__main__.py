@@ -1,6 +1,6 @@
 """metacoin-provider: command line of the portable provider client.
 
-  python -m metacoin_provider enroll --base URL --admin-cred FILE --signer URL --signer-token FILE --name NAME --ceiling N --out CRED
+  python -m metacoin_provider --base URL --signer URL --signer-token FILE enroll --admin-cred FILE --name NAME --ceiling N --out CRED
   python -m metacoin_provider --base URL --cred CRED offer-publish compute cpu-1 100000 1 --window-seconds 7200
   python -m metacoin_provider --base URL --cred CRED reservations | activate RID | deliver-compute RID --executor "python -m metacoin_service.lunar task" | settle RID
   python -m metacoin_provider --base URL --cred CRED --signer URL --signer-token FILE --actor NAME pay TO AMOUNT --request-id R
