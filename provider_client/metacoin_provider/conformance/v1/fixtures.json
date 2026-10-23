@@ -1927,17 +1927,6 @@
      "transferred": 0
     },
     {
-     "amount": 13,
-     "asset": "dev:dom-fx:native:MU:0",
-     "created_sequence": 2,
-     "lot_id": "lot_c1",
-     "origin_allocation": "nal_fx1",
-     "owner_account": "na_b",
-     "parent_lot": "lot_p",
-     "status": "active",
-     "transferred": 0
-    },
-    {
      "amount": 7,
      "asset": "dev:dom-fx:native:MU:0",
      "created_sequence": 2,
@@ -1949,7 +1938,7 @@
      "transferred": 1
     },
     {
-     "amount": 5,
+     "amount": 13,
      "asset": "dev:dom-fx:native:MU:0",
      "created_sequence": 3,
      "lot_id": "lot_bad",
@@ -1960,38 +1949,27 @@
      "transferred": 1
     }
    ],
-   "note": "children of a spent parent exceed its amount (20 vs 25): a split consumed an already spent parent"
+   "note": "a child issued from an already spent 20-unit parent: the lots sum to 40 against an allocation of 20"
   },
   {
    "allocation": {
     "amount": 20,
     "id": "nal_fx1",
-    "returned_amount": 0
+    "returned_amount": 13
    },
    "expect": "valid",
    "id": "valid_lot_partition",
    "kind": "lots",
    "lots": [
     {
-     "amount": 20,
+     "amount": 13,
      "asset": "dev:dom-fx:native:MU:0",
      "created_sequence": 1,
      "lot_id": "lot_p",
      "origin_allocation": "nal_fx1",
      "owner_account": "na_b",
      "parent_lot": null,
-     "status": "spent",
-     "transferred": 0
-    },
-    {
-     "amount": 13,
-     "asset": "dev:dom-fx:native:MU:0",
-     "created_sequence": 2,
-     "lot_id": "lot_c1",
-     "origin_allocation": "nal_fx1",
-     "owner_account": "na_b",
-     "parent_lot": "lot_p",
-     "status": "active",
+     "status": "retired",
      "transferred": 0
     },
     {
@@ -2005,7 +1983,8 @@
      "status": "active",
      "transferred": 1
     }
-   ]
+   ],
+   "note": "a split reduces the parent in place (13 retired) and issues the remainder (7, transferred)"
   },
   {
    "commitments": [],

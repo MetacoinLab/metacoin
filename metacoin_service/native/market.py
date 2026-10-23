@@ -187,6 +187,7 @@ class Market:
             guard(db, principal, 'native:transfer', amount=price)
         resid = 'rr_' + secrets.token_hex(6)
         commit = self.svc.pools.commit(db, principal.workspace, o['pool_id'], resid, istart, iend, q) if o['pool_id'] else None   # same transaction as the money: no reservation without pool admission
+        from ..economy import ops as _ops; _ops.fault(db, self.settings, 'pool_commit')                                                  # test hook: a crash here leaves no durable commitment (whole transaction rolls back)
         ob = self.native.obligation_create(db, principal.workspace, 'resource', buyer['id'], o['provider_account'], o['asset'], price, 'resource_reservation', resid, {'partial_payments': True, 'offer_id': o['id'], 'offer_version': o['version'], 'unit': o['unit'], 'quantity': q, 'price_per_unit': o['price_per_unit'], 'note': 'the delivered portion is owed; the undelivered portion is released at settlement or cancellation'})
         obid = ob['id'] if isinstance(ob, dict) else ob
         self.native._consume_claims(db, principal.workspace, buyer['id'], o['asset'], price, 'resource_reservation', resid)

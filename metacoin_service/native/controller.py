@@ -380,6 +380,8 @@ class Controller:
                 self.M.set_milestone(db, m['id'], ms['key'], 'accepted', {'decision_id': d.get('id'), 'job_id': jid, 'payable_amount': d.get('payable_amount')}, {'science': ev.get('science'), 'payment_class': d.get('payment_class'), 'payable_amount': d.get('payable_amount'), 'product_inputs': product_inputs, 'job_id': jid})
             else:
                 self.M.set_milestone(db, m['id'], ms['key'], 'failed', {'decision_id': d.get('id'), 'job_id': jid}, {'science': ev.get('science'), 'reason': ev.get('reason')}, reason='rejected: ' + str(ev.get('reason'))[:200])
+                released = E.money.close_award_if_done(db, b['award_id'])            # nothing payable remains: the award closes and its unspent reservation returns to the payer (order 2026-10-23: no funds stay locked behind a failed branch)
+                return {'decision': d['decision'], 'science': ev.get('science'), 'payable_amount': d.get('payable_amount'), 'award_closed': released}
             return {'decision': d['decision'], 'science': ev.get('science'), 'payable_amount': d.get('payable_amount')}
         if a == 'pay':
             paid = list(b.get('paid') or []); requests = []

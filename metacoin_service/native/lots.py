@@ -161,6 +161,10 @@ def invariants(db, ws, allocation_id):
         return None
     rows = db.execute("SELECT status, SUM(amount) s FROM native_claim_lots WHERE workspace=? AND origin_allocation=? AND status<>'merged' GROUP BY status", (ws, allocation_id)).fetchall(); by = {r['status']: r['s'] for r in rows}
     partition = sum(by.values()); returned = a['returned_amount'] if 'returned_amount' in a.keys() else 0
+    legacy = not partition and a['direction'] == 'import' and a['state'] in ('imported', 'acknowledged', 'return_requested', 'returned')   # imported before claim lineage existed and (partly) consumed then: no lots are invented for it
+    if legacy:
+        return {'allocation': allocation_id, 'amount': a['amount'], 'lots_by_status': {}, 'partition_sum': 0, 'partition_ok': None, 'legacy_without_lineage': True, 'returned_amount': returned, 'still_backed': a['amount'] - returned, 'backed_matches_lots': None,
+                'rule': 'historical allocation consumed before claim lineage existed: no lots are invented for it; only a full return of its remaining backing is possible, never a partial retirement'}
     return {'allocation': allocation_id, 'amount': a['amount'], 'lots_by_status': by, 'partition_sum': partition, 'partition_ok': partition == a['amount'] if partition else a['direction'] == 'export' or a['state'] not in ('imported', 'acknowledged', 'return_requested', 'returned'),
             'returned_amount': returned, 'still_backed': a['amount'] - returned, 'backed_matches_lots': (by.get('active', 0) + by.get('committed', 0) + by.get('spent', 0)) == a['amount'] - returned if partition else None,
             'rule': 'lots of one origin partition its amount; retired lots correspond to returns (pending or completed); active + committed + spent = still backed'}

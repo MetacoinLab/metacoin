@@ -128,20 +128,19 @@ def check_pool(pool, commitments):
 
 
 def check_lots(allocation, lots):
-    """Lots of one origin partition its amount; children never exceed their spent parent; retired lots never exceed the return."""
+    """Lots of one origin partition its amount exactly once: a split reduces the parent in place and issues the remainder as a
+    child, so the sum over every non-merged lot (active, committed, retired, spent) equals the allocation amount. A child issued
+    from an already spent parent breaks the partition (the spent parent still carries its amount)."""
     mine = [l for l in lots if l['origin_allocation'] == allocation['id'] and l['status'] != 'merged']
-    by_parent = {}
-    for l in mine:
-        if l.get('parent_lot'):
-            by_parent.setdefault(l['parent_lot'], 0); by_parent[l['parent_lot']] += l['amount']
+    if not mine:
+        return [_ok('lots:' + allocation['id'], True, {'note': 'no lots recorded (legacy allocation without lineage)'})]
     parents = {l['lot_id']: l for l in mine}
-    for pid, child_sum in by_parent.items():
-        par = parents.get(pid)
-        if par is not None and par['status'] == 'spent' and child_sum > par['amount']:
-            return [_ok('lots:' + allocation['id'], False, {'error': 'lot_partition', 'parent': pid, 'parent_amount': par['amount'], 'children_sum': child_sum, 'note': 'a split consumed an already spent parent'})]
-    live = sum(l['amount'] for l in mine if l['status'] in ('active', 'committed', 'retired') and not (l.get('parent_lot') in parents and parents[l['parent_lot']]['status'] != 'spent'))
-    ok = live == allocation['amount'] if mine else True
-    return [_ok('lots:' + allocation['id'], ok, {'error': None if ok else 'lot_partition', 'live_sum': live, 'amount': allocation['amount'], 'returned': allocation.get('returned_amount', 0)})]
+    for l in mine:
+        par = parents.get(l.get('parent_lot') or '')
+        if par is not None and par['status'] == 'spent' and l['created_sequence'] > par['created_sequence'] and l.get('split_after_spent'):
+            return [_ok('lots:' + allocation['id'], False, {'error': 'lot_partition', 'parent': par['lot_id'], 'note': 'a split consumed an already spent parent'})]
+    total = sum(l['amount'] for l in mine); ok = total == allocation['amount']
+    return [_ok('lots:' + allocation['id'], ok, {'error': None if ok else 'lot_partition', 'lot_sum': total, 'amount': allocation['amount'], 'returned': allocation.get('returned_amount', 0), 'note': None if ok else 'lots of this origin do not partition the allocation amount (a split consumed an already spent parent, or a lot was lost)'})]
 
 
 def check_export_v2(export, roots):
