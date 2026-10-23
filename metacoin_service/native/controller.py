@@ -32,9 +32,73 @@ class Controller:
         return self.svc.missions
 
     # ---- public entry points -----------------------------------------------------------------------------------------------------
-    def step(self, db, principal, mid, proposal=None):
+    # ---- fenced controller generations (group H) ---------------------------------------------------------------------------------
+    def active_generation(self, db, mid):
+        return db.execute("SELECT * FROM controller_generations WHERE mission_id=? AND state='active' ORDER BY generation DESC LIMIT 1", (mid,)).fetchone()
+
+    def takeover(self, db, principal, mid, body):
+        """The authoritative domain grants a new fenced generation to a controller holder; every earlier generation is superseded and
+        its later mutations are refused. A controller can never grant itself a generation: only this authority records one."""
+        principal.require('work:read'); m = self.M._row(db, principal.workspace, mid); holder = (body or {}).get('holder')
+        if type(holder) is not str or not 1 <= len(holder) <= 128:
+            raise ServiceError('VALIDATION', {'code': 'holder'})
+        if principal.id != m['owner_principal'] and not principal.can('native:admin') and not self._is_provider_party(db, principal, mid):
+            raise ServiceError('FORBIDDEN', 'only a party of the mission (owner or awarded provider) obtains a controller generation')
+        d = self.svc.native.domain(db, principal.workspace)
+        if d['recovery_state'] != 'normal':
+            raise ServiceError('CONFLICT', {'code': 'domain_quarantined', 'note': 'no new generation while the authority may have lost commitments; existing witness/peer rules establish a safe state first'})
+        cur = self.active_generation(db, mid); gen = (cur['generation'] + 1) if cur else 1
+        if cur:
+            db.execute("UPDATE controller_generations SET state='superseded' WHERE mission_id=? AND generation=?", (mid, cur['generation']))
+        ev = {'reason': (body or {}).get('reason') or 'takeover', 'superseded': cur['generation'] if cur else None, 'previous_holder': cur['holder'] if cur else None, 'domain_sequence': d['commit_sequence']}
+        db.execute('INSERT INTO controller_generations VALUES (?,?,?,?,?,?,?)', (mid, gen, holder, principal.id, now(), 'active', json.dumps(ev)))
+        self.M._event(db, mid, principal.id, 'generation_granted', {'generation': gen, 'holder': holder, 'superseded': ev['superseded']})
+        return {'mission_id': mid, 'generation': gen, 'holder': holder, 'superseded': ev['superseded'], 'granted_at': now(), 'rule': 'present this generation on every mutating controller call; a superseded generation is refused; the authority alone grants generations'}
+
+    def _is_provider_party(self, db, principal, mid):
+        for r in db.execute('SELECT spec_json, binding_json FROM mission_milestones WHERE mission_id=?', (mid,)).fetchall():
+            for pid in (json.loads(r['spec_json']).get('permitted_providers') or []) + [json.loads(r['binding_json']).get('provider_id')]:
+                if pid and db.execute('SELECT 1 FROM providers WHERE id=? AND principal_id=?', (pid, principal.id)).fetchone():
+                    return True
+        return False
+
+    def _fence(self, db, principal, mid, generation):
+        cur = self.active_generation(db, mid)
+        if cur is None:
+            return None                                                  # unfenced mission (no generation ever granted): compatible behaviour
+        if generation is None or int(generation) != cur['generation']:
+            self.M._event(db, mid, principal.id, 'stale_generation_refused', {'presented': generation, 'active': cur['generation'], 'holder': cur['holder']})
+            db.execute('COMMIT'); db.execute('BEGIN IMMEDIATE')
+            raise ServiceError('CONFLICT', {'code': 'stale_generation', 'presented': generation, 'active': cur['generation'], 'active_holder': cur['holder'], 'note': 'a superseded or unknown controller generation cannot mutate mission state; obtain a new generation from the authority (POST /missions/{id}/takeover)'})
+        return cur
+
+    def continuity(self, db, principal, mid):
+        """Continuity page: active generation, pending operations, safe actions, blocked dependencies and recovery evidence, all from durable records."""
+        principal.require('work:read'); m = self.M._row(db, principal.workspace, mid); cur = self.active_generation(db, mid)
+        try:
+            ex = self.explain(db, principal, mid, observe=principal.can('native:admin'))
+        except ServiceError as exc:
+            ex = {'context': {}, 'actions': [], 'stop_reason': exc.code}
+        accts = {m['owner_account']}
+        for r in db.execute('SELECT binding_json FROM mission_milestones WHERE mission_id=?', (mid,)).fetchall():
+            b = json.loads(r['binding_json'])
+            for k in ('buyer_account',):
+                if b.get(k):
+                    accts.add(b[k])
+        pending_sign = [dict(r) for r in db.execute("SELECT id, account_id, kind, ref_id, expires_at FROM native_signing_requests WHERE workspace=? AND state='pending' AND ref_id LIKE ?", (principal.workspace, mid + ':%')).fetchall()]
+        ms_rows = db.execute('SELECT key, kind, state, binding_json FROM mission_milestones WHERE mission_id=? ORDER BY created_at', (mid,)).fetchall()
+        pending_ops = [{'milestone': r['key'], 'kind': r['kind'], 'state': r['state'], 'binding': {k: v for k, v in json.loads(r['binding_json']).items() if k in ('award_id', 'reservation_id', 'request_id', 'signing_requests')}} for r in ms_rows if r['state'] in ('opened', 'awarded', 'executing', 'verifying', 'waiting')]
+        rec = self.svc.native.recovery_view(db, principal); d = self.svc.native.domain_view(db, principal)
+        return {'schema': 'metacoin-mission-continuity/v1', 'mission_id': mid, 'state': m['state'], 'active_generation': dict(cur) if cur else None, 'generations': [dict(g) for g in db.execute('SELECT generation, holder, state, granted_at FROM controller_generations WHERE mission_id=? ORDER BY generation', (mid,)).fetchall()],
+                'pending_operations': pending_ops, 'pending_signing_requests': pending_sign, 'safe_actions': [a for a in ex['actions'] if a['permitted']], 'blocked': [a for a in ex['actions'] if not a['permitted']], 'stop_reason': ex.get('stop_reason'),
+                'recovery_evidence': {'domain': d['id'], 'recovery_state': rec['recovery_state'], 'rollback_detection': rec['rollback_detection'], 'witness': rec.get('witness'), 'last_acknowledged_checkpoint': rec.get('last_acknowledged_checkpoint'), 'connectivity': d['connectivity']},
+                'signer': {'custody': ex['context'].get('custody'), 'reachable': self.svc.api_signer_reachable() if hasattr(self.svc, 'api_signer_reachable') else None},
+                'rules': ['a replacement controller reconstructs state from this record and obtains a new generation from the authority; it cannot reuse consumed authority', 'if the authority is unreachable the controller may use only its previously granted generation; it cannot grant itself a new one', 'a stopped worker does not imply its external payment failed: uncertain intents are reconciled by their stable identity before any resubmission', 'a manual pause stops new work while outstanding obligations and earned funds stay'],
+                'last_events': [{'at': e['at'], 'kind': e['kind'], 'actor': e['actor']} for e in db.execute('SELECT at, kind, actor FROM mission_events WHERE mission_id=? ORDER BY seq DESC LIMIT 12', (mid,)).fetchall()]}
+
+    def step(self, db, principal, mid, proposal=None, generation=None):
         """One controller step as `principal` (owner acts on requester milestones; the awarded provider acts on provider milestones)."""
-        principal.require('work:read'); m = self.M._row(db, principal.workspace, mid)
+        principal.require('work:read'); m = self.M._row(db, principal.workspace, mid); self._fence(db, principal, mid, generation)
         ctx = self._context(db, principal, m)
         candidates = self._candidates(db, principal, m, ctx)
         chosen, rejected = None, []
@@ -67,7 +131,8 @@ class Controller:
         self._finish_if_done(db, mid)
         return {'mission_id': mid, 'performed': {k: chosen.get(k) for k in ('action', 'milestone', 'offer_id', 'amount', 'reason')}, 'result': result, 'rejected': rejected, 'state': self.M._row(db, principal.workspace, mid)['state'], 'context': ctx['public']}
 
-    def run(self, db, principal, mid, max_steps=12):
+    def run(self, db, principal, mid, max_steps=12, generation=None):
+        self._fence(db, principal, mid, generation)
         """Bounded loop: steps until nothing is performable (wait/stop/done)."""
         log = []
         for i in range(max_steps):
@@ -76,7 +141,8 @@ class Controller:
                 break
         return {'mission_id': mid, 'steps': log, 'state': self.M._row(db, principal.workspace, mid)['state']}
 
-    def propose(self, db, principal, mid, body):
+    def propose(self, db, principal, mid, body, generation=None):
+        self._fence(db, principal, mid, generation)
         """A proposed action (for example from a language model) goes through the same validator; it can never authorize money by itself."""
         if type(body) is not dict or type(body.get('action')) is not str:
             raise ServiceError('VALIDATION', {'code': 'proposal', 'allowed': ['action', 'milestone?', 'offer_id?']})

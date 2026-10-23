@@ -550,6 +550,13 @@ MIGRATIONS = [
     CREATE TABLE mission_products (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, producer_account TEXT NOT NULL, producer_principal TEXT NOT NULL, version INTEGER NOT NULL, title TEXT NOT NULL, kind TEXT NOT NULL, content_hash TEXT NOT NULL, artifact_id TEXT NOT NULL, source_job TEXT, source_award TEXT, source_data_json TEXT NOT NULL, conventions_json TEXT NOT NULL, compatibility_json TEXT NOT NULL, license TEXT NOT NULL, permitted_uses_json TEXT NOT NULL, price INTEGER NOT NULL, asset TEXT NOT NULL, measured_json TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (content_hash, version));
     CREATE TABLE product_entitlements (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, product_id TEXT NOT NULL REFERENCES mission_products(id), version INTEGER NOT NULL, buyer_account TEXT NOT NULL, buyer_principal TEXT NOT NULL, obligation_id TEXT, intent_id TEXT, request_id TEXT NOT NULL, state TEXT NOT NULL, delivered_at INTEGER, delivery_json TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (buyer_account, request_id));
     """),
+    ('053_relay_service', """
+    CREATE TABLE relay_routes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, sender_account TEXT NOT NULL, sender_principal TEXT NOT NULL, recipient_account TEXT NOT NULL, message_id TEXT NOT NULL, content_hash TEXT, bytes INTEGER NOT NULL, hops_json TEXT NOT NULL, policy_json TEXT NOT NULL, fee_ceiling INTEGER NOT NULL, fees_bound INTEGER NOT NULL, state TEXT NOT NULL, evidence_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (sender_account, message_id));
+    CREATE TABLE relay_queue (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, route_id TEXT NOT NULL REFERENCES relay_routes(id), hop_index INTEGER NOT NULL, relay_account TEXT NOT NULL, artifact_id TEXT, bytes INTEGER NOT NULL, content_hash TEXT, state TEXT NOT NULL, retention_until INTEGER, stored_at INTEGER, forwarded_at INTEGER, attempts INTEGER NOT NULL DEFAULT 0, evidence_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (route_id, hop_index));
+    """),
+    ('054_controller_generations', """
+    CREATE TABLE controller_generations (mission_id TEXT NOT NULL REFERENCES mission_contracts(id), generation INTEGER NOT NULL, holder TEXT NOT NULL, granted_by TEXT NOT NULL, granted_at INTEGER NOT NULL, state TEXT NOT NULL, evidence_json TEXT NOT NULL, PRIMARY KEY (mission_id, generation));
+    """),
 ]
 
 

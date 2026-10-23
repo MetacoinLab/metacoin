@@ -463,9 +463,49 @@ def mount(app, svc, run, read_body, API):
             raise ServiceError('NOT_FOUND', 'product action')
         return await run(request, True, fn, 'product.' + action, raw)
 
+    @app.post(API + '/relay/routes', status_code=201)
+    async def relay_create(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.relay.create(db, p, body), 201), 'relay.create', raw)
+
+    @app.get(API + '/relay/routes')
+    async def relay_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.relay.list(db, p)})
+
+    @app.get(API + '/relay/routes/{rid}')
+    async def relay_view(request: Request, rid: str):
+        return await run(request, False, lambda db, p: svc.relay.view(db, p, rid))
+
+    @app.get(API + '/relay/routes/{rid}/message')
+    async def relay_fetch(request: Request, rid: str):
+        from fastapi import Response
+        holder = {}
+        def fn(db, p):
+            data, chash = svc.relay.fetch(db, p, rid); holder.update(data=data, chash=chash); return {'content_hash': chash}
+        out = await run(request, False, fn)
+        if holder:
+            return Response(content=holder['data'], media_type='application/octet-stream', headers={'X-Content-Hash': holder['chash']})
+        return out
+
+    @app.post(API + '/relay/routes/{rid}/{action}')
+    async def relay_action(request: Request, rid: str, action: str):
+        raw = await request.body()
+        if action == 'submit':
+            return await run(request, True, lambda db, p: svc.relay.submit(db, p, rid, raw), 'relay.submit', raw)
+        body = read_body(request, raw)
+        fn = {'forward': lambda db, p: svc.relay.forward(db, p, rid, int(body.get('hop', 0))), 'acknowledge': lambda db, p: svc.relay.acknowledge(db, p, rid, body), 'settle': lambda db, p: svc.relay.settle(db, p, rid), 'cancel-unused': lambda db, p: svc.relay.cancel_unused(db, p, rid)}.get(action)
+        if fn is None:
+            from ..errors import ServiceError
+            raise ServiceError('NOT_FOUND', 'relay action')
+        return await run(request, True, fn, 'relay.' + action, raw)
+
     @app.get(API + '/native/operator')
     async def native_operator(request: Request):
         return await run(request, False, lambda db, p: svc.operator.view(db, p, request.query_params.get('asset')))
+
+    @app.get(API + '/missions/{mid}/continuity')
+    async def mission_continuity(request: Request, mid: str):
+        return await run(request, False, lambda db, p: CT.continuity(db, p, mid))
 
     @app.get(API + '/missions/{mid}/bundle')
     async def mission_bundle(request: Request, mid: str):
@@ -482,8 +522,10 @@ def mount(app, svc, run, read_body, API):
     @app.post(API + '/missions/{mid}/{action}')
     async def mission_action(request: Request, mid: str, action: str):
         raw = await request.body(); body = read_body(request, raw)
+        gen = body.get('generation') if isinstance(body, dict) and body.get('generation') is not None else request.headers.get('X-Controller-Generation')
         fn = {'freeze': lambda db, p: MS.freeze(db, p, mid), 'amend': lambda db, p: MS.amend(db, p, mid, body), 'pause': lambda db, p: MS.pause(db, p, mid, body), 'resume': lambda db, p: MS.resume(db, p, mid),
-              'step': lambda db, p: CT.step(db, p, mid), 'run': lambda db, p: CT.run(db, p, mid, int(body.get('max_steps', 12))), 'propose': lambda db, p: CT.propose(db, p, mid, body), 'gate': lambda db, p: {'conclusion': CT.gate_progress(db, p, mid, body.get('milestone', 'gate'))},
+              'step': lambda db, p: CT.step(db, p, mid, generation=gen), 'run': lambda db, p: CT.run(db, p, mid, int(body.get('max_steps', 12)), generation=gen), 'propose': lambda db, p: CT.propose(db, p, mid, {k: v for k, v in body.items() if k != 'generation'}, generation=gen), 'gate': lambda db, p: {'conclusion': CT.gate_progress(db, p, mid, body.get('milestone', 'gate'))},
+              'takeover': lambda db, p: CT.takeover(db, p, mid, body),
               'plan': lambda db, p: svc.planning.plan(db, p, [mid] + [x for x in (body.get('mission_ids') or []) if x != mid], {k: v for k, v in body.items() if k != 'mission_ids'})}.get(action)
         if fn is None:
             from ..errors import ServiceError

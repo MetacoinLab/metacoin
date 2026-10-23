@@ -95,6 +95,7 @@ class Services:
         from .native.signing import Signing; self.signing = Signing(settings, self)
         from .native.subcontracts import Subcontracts; self.subcontracts = Subcontracts(settings, self)
         from .native.products import Products; self.products = Products(settings, self)
+        from .native.relay import Relay; self.relay = Relay(settings, self)
         self.on_signed_hooks = {'subcontract': [self.subcontracts.on_signed], 'product_entitlement': [self.products.on_signed]}
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
