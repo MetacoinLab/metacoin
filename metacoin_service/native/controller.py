@@ -214,11 +214,19 @@ class Controller:
                 out.append({'action': 'await_signature', 'milestone': ms['key'], 'signing_requests': pend, 'reason': 'awaiting the account holder\'s signer: %d request(s) pending; no fallback custody' % len(pend)}); continue
             if k == 'work':
                 if ms['state'] in ('ready', 'waiting') and not b.get('request_id'):
+                    if sp.get('not_before') and now() < sp['not_before']:
+                        out.append({'action': 'wait', 'milestone': ms['key'], 'reason': 'not_before %d: this period opens later (%d s)' % (sp['not_before'], sp['not_before'] - now())}); continue
                     out.append({'action': 'open_request', 'milestone': ms['key'], 'amount': MC.ceiling_of(sp, 'work'), 'spec': sp})
                 elif ms['state'] == 'opened':
-                    for o in self._eligible_offers(db, principal, b['request_id']):
-                        if sp.get('permitted_providers') and o['provider_id'] not in sp['permitted_providers']:
-                            continue
+                    eligible = [o for o in self._eligible_offers(db, principal, b['request_id']) if not sp.get('permitted_providers') or o['provider_id'] in sp['permitted_providers']]
+                    if sp.get('selection'):
+                        from . import bidding
+                        sel = bidding.validate(sp['selection']); req = db.execute('SELECT created_at, opened_at FROM work_requests WHERE id=?', (b['request_id'],)).fetchone(); opened_at = (req['opened_at'] or req['created_at']) if req else now()
+                        pick = bidding.select(sel, [dict(o, sequence=o.get('sequence', 0)) for o in eligible], opened_at, now(), ceiling=sp['price'])
+                        if not pick['ready']:
+                            out.append({'action': 'wait', 'milestone': ms['key'], 'reason': 'bidding: ' + pick['reason']}); continue
+                        o = pick['chosen']; out.append({'action': 'award', 'milestone': ms['key'], 'offer_id': o['offer_id'], 'amount': o['price_amount'] + o['price_amount'] * sp.get('bps', 0) // 10000 + sp.get('verifier', 0), 'provider_id': o['provider_id'], 'request_id': b['request_id'], 'spec': sp, 'selection': pick['record']}); continue
+                    for o in eligible:
                         out.append({'action': 'award', 'milestone': ms['key'], 'offer_id': o['offer_id'], 'amount': o['price_amount'] + o['price_amount'] * sp.get('bps', 0) // 10000 + sp.get('verifier', 0), 'provider_id': o['provider_id'], 'request_id': b['request_id'], 'spec': sp})
                 elif ms['state'] in ('executing', 'verifying') and b.get('award_id'):
                     aw = db.execute('SELECT * FROM work_awards WHERE id=?', (b['award_id'],)).fetchone(); v = self.svc.economy.board.award_view(db, principal, aw); dims = v['milestones'][0]['dimensions']
@@ -364,8 +372,8 @@ class Controller:
             self.M.set_milestone(db, m['id'], ms['key'], 'opened', {'terms_id': t['id'], 'terms_digest': f.get('digest'), 'request_id': r['id'], 'input_root': (f.get('terms') or {}).get('operation', {}).get('input_root')})
             return {'terms_id': t['id'], 'request_id': r['id'], 'frozen_digest': f.get('digest')}
         if a == 'award':
-            aw = E.board.award(db, principal, c['request_id'], {'offer_id': c['offer_id']})
-            self.M.set_milestone(db, m['id'], ms['key'], 'executing', {'award_id': aw['id'], 'offer_id': c['offer_id'], 'provider_id': c['provider_id'], 'ceiling': aw['ceiling']})
+            aw = E.board.award(db, principal, c['request_id'], dict({'offer_id': c['offer_id']}, **({'reason': 'selection policy %s declared in the frozen terms (ranking recorded in the milestone binding)' % c['selection']['policy']} if c.get('selection') else {})))
+            self.M.set_milestone(db, m['id'], ms['key'], 'executing', {'selection': c.get('selection'), 'award_id': aw['id'], 'offer_id': c['offer_id'], 'provider_id': c['provider_id'], 'ceiling': aw['ceiling']})
             return {'award_id': aw['id'], 'ceiling': aw['ceiling'], 'provider_id': c['provider_id']}
         if a == 'verify':
             r = E.evidence.verify(db, principal, c['award_id'], 'm1', {}); self.M.set_milestone(db, m['id'], ms['key'], 'verifying', {'verified': True, 'verification_id': r.get('id')}); return {'verification': r.get('id'), 'state': r.get('state')}

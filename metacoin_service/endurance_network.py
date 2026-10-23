@@ -42,13 +42,18 @@ def main(argv=None):
     A.start_worker('w2-end-a')
     keys = ('transfers', 'signed_transfers', 'pool_reservations', 'work', 'cross_domain', 'lots'); stats = {k: {'ok': 0, 'expected': {}, 'unexpected': {}, 'latency': []} for k in keys}; lock = threading.Lock(); stop = threading.Event(); events = []
     progress = {'started_at': int(t_begin), 'seed': a.seed, 'seconds_planned': a.seconds, 'ticks': []}
-    def count(k, ok, code=None, dt=None):
+    restart_marks = []; samples = []
+    def count(k, ok, code=None, dt=None, body=None):
         with lock:
             s = stats[k]
             if ok:
                 s['ok'] += 1
             else:
-                bucket = 'expected' if (code in EXPECTED or (code or '').startswith('transport:')) else 'unexpected'; s[bucket][code or 'unknown'] = s[bucket].get(code or 'unknown', 0) + 1
+                near_restart = any(abs(time.time() - m) <= 15 for m in restart_marks); conn = 'ConnectError' in (code or '') or 'ReadError' in (code or '') or 'RemoteProtocolError' in (code or '')
+                bucket = 'expected' if (code in EXPECTED or (code or '').startswith('transport:') or (conn and near_restart)) else 'unexpected'; key = (code + ' (during restart)') if (conn and near_restart and not (code or '').startswith('transport:')) else (code or 'unknown')
+                s[bucket][key] = s[bucket].get(key, 0) + 1
+                if bucket == 'unexpected' and len(samples) < 12:
+                    samples.append({'at_s': round(time.time() - t_begin, 1), 'loop': k, 'code': code, 'body': (json.dumps(body, default=str)[:400] if body is not None else None)})
             if dt is not None:
                 s['latency'].append(dt)
     def safe(fn, k):
@@ -57,7 +62,7 @@ def main(argv=None):
             st, r = fn(); ok = st in (200, 201); code = None
             if not ok:
                 d = r.get('detail') if isinstance(r, dict) else None; code = (d.get('code') if isinstance(d, dict) else None) or (r.get('code') if isinstance(r, dict) else None) or 'HTTP_%s' % st
-            count(k, ok, code, time.perf_counter() - t0); return st, r
+            count(k, ok, code, time.perf_counter() - t0, None if ok else r); return st, r
         except Exception as exc:
             count(k, False, 'transport:' + type(exc).__name__, time.perf_counter() - t0); time.sleep(0.3); return 0, {}
     def mark(ev, **kw):
@@ -107,7 +112,7 @@ def main(argv=None):
                 try:
                     tt, rr, oo, (sa, aw) = A.award('req', 'mach', 'determination', energy_inputs('FEASIBLE' if i % 2 else 'INFEASIBLE'), 3)
                     if sa != 201:
-                        d = aw.get('detail') if isinstance(aw, dict) else None; count('work', False, (d.get('code') if isinstance(d, dict) else None) or aw.get('code', 'award_%s' % sa)); time.sleep(1); continue
+                        d = aw.get('detail') if isinstance(aw, dict) else None; count('work', False, (d.get('code') if isinstance(d, dict) else None) or aw.get('code', 'award_%s' % sa), None, aw); time.sleep(1); continue
                     v, d = A.deliver_accept(aw['id'], 'req', timeout=180); paid = A.pay_all(aw['id'], 'req') if d else {}
                     count('work', bool(d) and d.get('decision') == 'accepted' and paid.get('provider', {}).get('rail') == 'native', None if d else 'execution_incomplete', time.perf_counter() - t0)
                 except Exception as exc:
@@ -138,9 +143,9 @@ def main(argv=None):
                 if kind == 'partition':
                     A.connectivity('cut'); mark('partition_cut'); time.sleep(20); A.connectivity('online'); mark('partition_online'); partitions += 1
                 elif kind == 'signer':
-                    sgA.restart(); restarts['signer'] += 1; mark('signer_restarted', seconds=round(time.time() - t0, 2)); recovery.append({'signer': round(time.time() - t0, 2)})
+                    restart_marks.append(time.time()); sgA.restart(); restarts['signer'] += 1; mark('signer_restarted', seconds=round(time.time() - t0, 2)); recovery.append({'signer': round(time.time() - t0, 2)})
                 elif kind == 'api':
-                    A.restart_api(); restarts['api'] += 1; dt = round(time.time() - t0, 2); mark('api_restarted', seconds=dt); recovery.append({'api': dt})
+                    restart_marks.append(time.time()); A.restart_api(); restart_marks.append(time.time()); restarts['api'] += 1; dt = round(time.time() - t0, 2); mark('api_restarted', seconds=dt); recovery.append({'api': dt})
             if el >= next_tick:
                 with lock:
                     tick = {'at_s': round(el), 'ok': {k: stats[k]['ok'] for k in keys}, 'unexpected': {k: sum(stats[k]['unexpected'].values()) for k in keys}, 'api_rss_kb': rss_kb(A.api.pid)}
@@ -165,7 +170,11 @@ def main(argv=None):
         oldest_queued = db.execute("SELECT MIN(created_at) FROM jobs WHERE state IN ('queued','leased','running')").fetchone()[0]; db.close()
         held_total = auA['total_held'] + auA['backing_locked_for_exports']; conserved = auA['conserved'] and held_total == auA['fixture_funding'] and auB['claims_backed_elsewhere'] == auB['total_held'] and all(acc['checks'].values()) and all(accB['checks'].values()) and accB['lots']['partition_ok']
         pct = lambda xs, q: (sorted(xs)[min(len(xs) - 1, int(q * len(xs)))] if xs else None); unexpected = sum(sum(s['unexpected'].values()) for s in stats.values()); all_lat = [x for s in stats.values() for x in s['latency']]
-        out = {'schema': 'metacoin-endurance-network/v1', 'seconds': elapsed, 'seed': a.seed, 'restarts': restarts, 'partitions': partitions, 'events': events, 'ticks': progress['ticks'],
+        try:
+            A.api_log.flush(); api_tail = open(A.api_log.name, 'rb').read()[-6000:].decode('utf-8', 'replace')
+        except Exception:
+            api_tail = None
+        out = {'schema': 'metacoin-endurance-network/v1', 'seconds': elapsed, 'seed': a.seed, 'restarts': restarts, 'partitions': partitions, 'events': events, 'ticks': progress['ticks'], 'unexpected_samples': samples, 'api_stderr_tail': api_tail,
                'loops': {k: {'ok': v['ok'], 'expected_refusals': v['expected'], 'unexpected_failures': v['unexpected'], 'per_s': round(v['ok'] / elapsed, 2), 'p50_s': round(pct(v['latency'], 0.5), 4) if v['latency'] else None, 'p95_s': round(pct(v['latency'], 0.95), 4) if v['latency'] else None, 'p99_s': round(pct(v['latency'], 0.99), 4) if v['latency'] else None} for k, v in stats.items()},
                'summary': {'completed': sum(s['ok'] for s in stats.values()), 'refused_expected': sum(sum(s['expected'].values()) for s in stats.values()), 'unexpected_failures': unexpected, 'duplicate_settlements': len(dup_intents) + len(dup_res), 'conserved': conserved, 'latency_p99_s': round(pct(all_lat, 0.99), 4) if all_lat else None, 'recovery_seconds': recovery, 'backlog_age_s': (int(time.time()) - oldest_queued) if oldest_queued else 0, 'api_rss_kb_last': rss_kb(A.api.pid)},
                'final': {'audit_a': {k: auA[k] for k in ('total_held', 'fixture_funding', 'backing_locked_for_exports', 'claims_backed_elsewhere', 'conserved')}, 'audit_b_asset_a': {k: auB[k] for k in ('total_held', 'claims_backed_elsewhere', 'conserved')}, 'accounting_checks_a': acc['checks'], 'accounting_b': {'checks': accB['checks'], 'lots': accB['lots']}, 'pool': {'peak_slots_used': pv['peak_slots_used'], 'all_within_capacity': pv['all_within_capacity'], 'commitments': len(pv['commitments'])}, 'reservation_states': res_states, 'jobs': jobs, 'duplicate_settled_intents': dup_intents, 'duplicate_reservations': dup_res},

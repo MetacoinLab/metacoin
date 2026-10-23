@@ -54,6 +54,14 @@ def validate_graph(graph):
             if type(sp.get('template')) is not str or type(sp.get('inputs')) not in (dict, type(None)) or (sp.get('inputs') is None and type(sp.get('inputs_from')) is not str):
                 raise ServiceError('VALIDATION', {'code': 'work_spec', 'key': m['key'], 'allowed': ['template', 'inputs | inputs_from', 'price', 'bps?', 'verifier_pay_to?', 'verifier?', 'permitted_providers?', 'verification_class?', 'diagnostic?', 'scheme?']})
             _int(sp.get('price'), 1, P.MAX_AMOUNT, 'price'); _int(sp.get('bps', 0), 0, 10000, 'bps'); _int(sp.get('verifier', 0), 0, P.MAX_AMOUNT, 'verifier')
+            if sp.get('not_before') is not None:
+                _int(sp.get('not_before'), 0, 1 << 40, 'not_before')
+            if sp.get('selection') is not None:
+                from . import bidding
+                try:
+                    bidding.validate(sp['selection'])
+                except ValueError as exc:
+                    raise ServiceError('VALIDATION', {'code': 'selection', 'note': str(exc)})
         elif m['kind'] == 'resource':
             if sp.get('offer_kind') not in ('compute', 'storage', 'contact'):
                 raise ServiceError('VALIDATION', {'code': 'resource_spec', 'key': m['key'], 'allowed': ['offer_kind', 'quantity', 'max_price_per_unit', 'provider_account?', 'offer_id?', 'buyer (requester|provider_of:<key>)?']})
@@ -254,7 +262,7 @@ class Missions:
         """Projection of the authoritative journal and obligations onto this mission's milestones: ceiling, reserved, spent, released."""
         r = self._row(db, principal.workspace, mid); rows = db.execute('SELECT * FROM mission_milestones WHERE mission_id=? ORDER BY created_at', (mid,)).fetchall(); out = []; tot = {'ceiling': 0, 'reserved': 0, 'spent': 0, 'released': 0}
         for m in rows:
-            b = json.loads(m['binding_json']); sp = json.loads(m['spec_json']); row = {'key': m['key'], 'kind': m['kind'], 'state': m['state'], 'ceiling': ceiling_of(sp, m['kind']), 'reserved': 0, 'spent': 0, 'released': 0, 'binding': b, 'obligations': []}
+            b = json.loads(m['binding_json']); sp = json.loads(m['spec_json']); row = {'key': m['key'], 'kind': m['kind'], 'state': m['state'], 'ceiling': 0 if m['state'] == 'cancelled' else ceiling_of(sp, m['kind']), 'reserved': 0, 'spent': 0, 'released': 0, 'binding': b, 'obligations': []}
             for aid_key in ('award_id', 'acquisition_award_id'):
                 if b.get(aid_key):
                     row['obligations'] += [o['id'] for o in db.execute("SELECT id FROM native_obligations WHERE json_extract(policy_json, '$.award_id')=?", (b[aid_key],)).fetchall()]

@@ -298,7 +298,7 @@ class Board:
         if not self._audience_ok(principal, r):
             raise ServiceError('NOT_FOUND', 'work request')
         t, terms = _terms(db, r['terms_id'])
-        is_req = principal.id == r['requester_id'] or principal.can('work:award')
+        is_req = principal.id == r['requester_id'] or (principal.can('work:award') and principal.role != 'actor')      # offers are private: another provider (an actor principal) sees only its own
         out = {'id': r['id'], 'state': r['state'], 'requester_id': r['requester_id'], 'terms_id': r['terms_id'], 'terms_digest': r['terms_digest'], 'audience': json.loads(r['audience_json']) if is_req else {'scope': json.loads(r['audience_json'])['scope']},
                'max_awards': r['max_awards'], 'opened_at': r['opened_at'], 'closes_at': r['closes_at'], 'closed_at': r['closed_at'], 'close_reason': r['close_reason'], 'created_at': r['created_at'], 'updated_at': r['updated_at'],
                'title': terms['title'], 'kind': terms['operation']['kind'], 'purpose': terms.get('purpose'),

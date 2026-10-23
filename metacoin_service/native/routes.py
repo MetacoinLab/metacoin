@@ -514,6 +514,55 @@ def mount(app, svc, run, read_body, API):
         raw = await request.body(); body = read_body(request, raw)
         return await run(request, False, lambda db, p: (p.require('work:read'), svc.portfolio.rolling_vs_fixed(body))[1])
 
+    @app.post(API + '/portfolio/scenarios')
+    async def portfolio_scenarios(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        from .scenarios import compare as _scen
+        def go(db, p):
+            p.require('work:read')
+            try:
+                return _scen(body.get('assumptions') if isinstance(body, dict) else None)
+            except ValueError as exc:
+                from ..errors import ServiceError
+                raise ServiceError('VALIDATION', {'code': 'assumptions', 'note': str(exc)})
+        return await run(request, False, go)
+
+    @app.post(API + '/relay/plan')
+    async def relay_plan(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        from . import route_planning as RP
+        from ..db import now as _now
+        from ..errors import ServiceError
+        def go(db, p):
+            p.require('native:read')
+            if type(body) is not dict or set(body) - {'bytes', 'recipient_account', 'max_hops', 'fee_ceiling', 'exclude_accounts', 'route_hops'}:
+                raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['bytes', 'recipient_account', 'max_hops (1..4)', 'fee_ceiling', 'exclude_accounts?', 'route_hops? (check an existing route\'s exposure instead of planning)']})
+            offers = svc.market.offers(db, p, 'contact'); me = svc.native.account_of(db, p, create=False)
+            try:
+                if body.get('route_hops') is not None:
+                    return RP.check_exposure(body['route_hops'], offers, int(body['bytes']), int(body['fee_ceiling']))
+                return RP.plan(offers, int(body['bytes']), int(body.get('max_hops', 2)), int(body['fee_ceiling']), _now(), recipient_account=body.get('recipient_account'), exclude_accounts=body.get('exclude_accounts') or (), sender_account=me['id'] if me else None)
+            except (ValueError, TypeError, KeyError) as exc:
+                raise ServiceError('VALIDATION', {'code': 'plan', 'note': str(exc)[:120]})
+        return await run(request, False, go)
+
+    @app.post(API + '/subscriptions', status_code=201)
+    async def subscription_create(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.subscriptions.create(db, p, body), 201), 'subscription.create', raw)
+
+    @app.get(API + '/subscriptions/{mid}')
+    async def subscription_view(request: Request, mid: str):
+        return await run(request, False, lambda db, p: svc.subscriptions.view(db, p, mid))
+
+    @app.post(API + '/subscriptions/{mid}/{action}')
+    async def subscription_action(request: Request, mid: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        from ..errors import ServiceError
+        if action not in ('stop', 'revoke'):
+            raise ServiceError('NOT_FOUND', 'subscription action')
+        return await run(request, True, lambda db, p: svc.subscriptions.stop(db, p, mid, body, by_provider=(action == 'revoke')), 'subscription.' + action, raw)
+
     @app.get(API + '/native/accounts/{aid}/liquidity')
     async def native_liquidity(request: Request, aid: str):
         from .portfolio import liquidity
@@ -546,6 +595,7 @@ def mount(app, svc, run, read_body, API):
         fn = {'freeze': lambda db, p: MS.freeze(db, p, mid), 'amend': lambda db, p: MS.amend(db, p, mid, body), 'pause': lambda db, p: MS.pause(db, p, mid, body), 'resume': lambda db, p: MS.resume(db, p, mid),
               'step': lambda db, p: CT.step(db, p, mid, generation=gen), 'run': lambda db, p: CT.run(db, p, mid, int(body.get('max_steps', 12)), generation=gen), 'propose': lambda db, p: CT.propose(db, p, mid, {k: v for k, v in body.items() if k != 'generation'}, generation=gen), 'gate': lambda db, p: {'conclusion': CT.gate_progress(db, p, mid, body.get('milestone', 'gate'))},
               'takeover': lambda db, p: CT.takeover(db, p, mid, body),
+              'substitute': lambda db, p: svc.substitution.propose(db, p, mid, body),
               'plan': lambda db, p: svc.planning.plan(db, p, [mid] + [x for x in (body.get('mission_ids') or []) if x != mid], {k: v for k, v in body.items() if k != 'mission_ids'})}.get(action)
         if fn is None:
             from ..errors import ServiceError

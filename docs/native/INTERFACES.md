@@ -85,3 +85,7 @@ page shows environment, asset, custody and domain.
 ### MCP tools
 READ (lock nothing, spend nothing): `pools`, `portfolio_plan`, `plan_validate`, `mission_continuity`, `subcontract_status`, `products`,
 `product_check_reuse`, `relay_routes`. SPEND (idempotency key, grant envelope): `subcontract_propose`, `product_purchase`.
+
+### §21 extensions
+API: `POST /missions/{id}/substitute`, `POST /relay/plan`, `POST /subscriptions`, `GET /subscriptions/{mission}`, `POST /subscriptions/{mission}/{stop|revoke}`, `POST /portfolio/scenarios`; mission work specs accept `selection` and `not_before`.
+MCP (read only): `relay_plan`, `evidence_scenarios`. Offline: `python -m metacoin_service.native.offline_console`. Starter kit: `provider_client/starter_kit/{minimal_provider,receipt_consumer,compat_test}.py`.

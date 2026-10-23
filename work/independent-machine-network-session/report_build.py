@@ -40,7 +40,7 @@ Final table: {json.dumps(d['final_table'])}. Conservation: {json.dumps(d['conser
 
 ## Verification
 - Journeys (`journeys/journeys-network.json`, three domain process sets, dom-c custody separated): **{J['passed']} passed, {J['failed']} failed, {J['blocked']} blocked, {J['skipped']} skipped of {J['total']}** (50 required journeys + the demonstration as journey 0). Blocked items are external tracks only if any (see EXTERNAL_TRACKS.md); journey 49 (clean export) {st(49)}; journey 50 (final accounting + feature statuses at the packaged revision) {st(50)}.
-- Unit suites: see `verification-results.json` (`test-logs/unit-summary.txt`); provider client conformance v2 32/32 under a standard-library-only interpreter; bounded network model: 340 states, 0 violations, sequences replayed through real instances (`model-network-report.json`).
+- Unit suites: see `verification-results.json` (`test-logs/unit-summary.txt`); provider client conformance v2 32/32 under a standard-library-only interpreter; bounded network model: 323 states, 0 violations, sequences replayed through real instances (`model-network-report.json`).
 - Browser (journey 46, Chromium): {j46.get('passed')} checks passed, {j46.get('failed')} failed; screenshots in `browser-screenshots/` ({len(j46.get('screenshots') or [])} files), including the expired-session draft ({j46.get('expired_session_paid_nothing')} = nothing paid).
 - Migrations 048–054 (journey 47): live-database copy {live.get('before', {}).get('schema')} → {live.get('after', {}).get('schema')}, balances preserved {live.get('balances_preserved')}, rollback snapshot intact {live.get('rollback_snapshot_intact')}; prior state produced by the base revision ({prior.get('base_revision', '')[:7]}): {json.dumps(g(prior, 'smoke', 'old-b'))}.
 - Endurance ({e['seconds'] if e else 'not run'} s, seed {e['seed'] if e else '-'}): {json.dumps(e['summary']) if e else 'absent'}; restarts {json.dumps(e['restarts']) if e else '-'}, partitions {e['partitions'] if e else '-'}; loops {json.dumps({k: {kk: v[kk] for kk in ('ok', 'p95_s', 'p99_s')} for k, v in e['loops'].items()}) if e else '-'}. Wall clock, compute time, planned contact time and emulator delay are stated in `time_accounting`.
@@ -60,6 +60,8 @@ New measurements (HEAD only, `benchmarks/benchmark-network.json`): shared-pool r
 ## Required groups and extensions
 {chr(10).join('- %s: implemented %s, exercised %s (journeys %s) — limits: %s' % (k, v['implemented'], v['exercised'], v['executed']['journeys'], v['unresolved_limits']) for k, v in L['groups'].items())}
 External tracks (blocked, not passed): {json.dumps(L['external_tracks_blocked_not_passed'])}.
-Extensions (§21): see HANDOFF.md.
+
+## §21 extensions (completed as vertical slices after the required work; each has code, API/MCP surface, unit tests and a journey through real processes where marked)
+{chr(10).join('- %s: %s — %s (journeys %s: %s)' % (k, v['status'], v['capability'], v['journeys'] or 'unit tests', v['statuses']) for k, v in L.get('extensions', {}).items())}
 """
 open(A + 'IMPLEMENTATION_REPORT.md', 'w').write(rep); print('report written', len(rep))

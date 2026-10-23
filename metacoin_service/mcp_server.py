@@ -492,6 +492,14 @@ def build(api=None):
     def mission_plan(mission_id: str, objective: str = 'earliest_delivery', planner: str = 'improved') -> dict:
         s, b = api.call('POST', '/api/v1/missions/' + mission_id + '/plan', {'objective': objective, 'planner': planner}); return ok_or_refused(s, b)
 
+    @mcp.tool(name='relay_plan', description='ANALYSIS (read only): rank candidate relay routes over the open contact offers under a fee ceiling and hop bound; exposure re-derived independently; reserves nothing.', annotations=READ)
+    def relay_plan(bytes: int, recipient_account: str, fee_ceiling: int, max_hops: int = 2) -> dict:
+        s, b = api.call('POST', '/api/v1/relay/plan', {'bytes': bytes, 'recipient_account': recipient_account, 'fee_ceiling': fee_ceiling, 'max_hops': max_hops}); return ok_or_refused(s, b)
+
+    @mcp.tool(name='evidence_scenarios', description='ANALYSIS (read only): compare proceeding, buying evidence first and waiting under fixed declared assumptions; model estimates, never guarantees.', annotations=READ)
+    def evidence_scenarios(assumptions: dict) -> dict:
+        s, b = api.call('POST', '/api/v1/portfolio/scenarios', {'assumptions': assumptions}); return ok_or_refused(s, b)
+
     @mcp.tool(name='pools', description='READ: shared resource pools with interval utilization (who committed what, when) across offers.', annotations=READ)
     def pools() -> dict:
         s, b = api.call('GET', '/api/v1/resources/pools'); return ok_or_refused(s, b)

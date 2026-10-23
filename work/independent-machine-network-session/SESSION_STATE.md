@@ -14,15 +14,15 @@ Migrations used: 048 resource_pools, 049 signing_requests, 050 mission_subcontra
 ## Progress
 - [x] A B C D E F G H I J implemented with unit suites (all OK at 2e5158f)
 - [x] §17 model (model_network.py: 340 states, 0 violations; replay tests), checker + client verifier v2, conformance fixtures v2 (32 cases)
-- [x] 50-journey harness `tests/journeys_network.py` (+ browser script, demonstration on dom-c with four signers): shakedown run full1 39/9/3; fixes applied; full2 running (artifacts/journeys/journeys-network-full2.json)
-- [ ] endurance ≥30 min (`endurance_network.py`, smoke 90 s OK after fixes) — run after full2
+- [x] 50-journey harness `tests/journeys_network.py` (+ browser script, demonstration on dom-c with four signers): full1 39/9/3 → full2 47/1/3 (sequence-number defect found by the demonstration, fixed) → full3 47/1/3 (reconnection check) → **full4 48/0/3 at 1b396f3** (48/49/50 blocked only on inputs produced later)
+- [~] endurance 30 min running since 07:40:45Z (`artifacts/benchmarks/endurance-network.json`, progress ticks; no unexpected failures at 660 s)
 - [ ] benchmarks before/after (`run_benchmark.py`) — run after endurance
 - [ ] docs (PROTOCOL §12, ARCHITECTURE, INTERFACES, TWO_HOST appended) · artifacts: TRUST_MODEL, MIGRATION_NOTES, CLEAN_START, HANDOFF, DELIVERY_INDEX, EXTERNAL_TRACKS, IMPLEMENTATION_REPORT, FEATURE_LEDGER (ledger_build.py), IMPLEMENTATION_INDEX
 - [ ] packaging (package.sh, clean_export.sh → journey 49), SHA256SUMS on fresh extraction, candidate record, records commit
-- [ ] §21 extensions (after required work)
+- [~] §21 extensions: modules written (bidding, substitution, route_planning, subscriptions, offline_console, scenarios, starter_kit) + tests + journeys 51–56; WIRING of controller/mission_contracts/routes/api/mcp waits for the endurance run to end (imported modules must not change while its API restarts) — script scratchpad/wire_extensions.py
 
 ## Owned processes
 Journey/endurance/benchmark runs spawn their own API/worker/signer/witness processes in temp dirs and stop them; nothing of mine runs persistently. The leftover `--provider-mode test-http serve` processes from 2026-09-28 are not mine.
 
 ## Exact next action
-Wait for full2 → fix any failure → rerun → endurance 30 min (background) → benchmarks → ledger/report → package → clean export (journey 49) → journey 50 with the feature ledger → records commit → final report.
+When the endurance run ends (~08:11Z): apply wire_extensions.py → run test_native_extensions + affected suites → commit → full5 with --extensions → run_benchmark.py → ledger/report → package.sh → clean_export.sh (journey 49) → rerun 48,49,50 with the result files → merge into journeys-network.json → CANDIDATE.json + RECORDS_COMMIT → final report.

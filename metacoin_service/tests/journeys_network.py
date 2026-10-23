@@ -1052,8 +1052,73 @@ class NetworkJourneys(Journeys):
             Path(self.ctx['demo_out']).write_text(json.dumps(record, indent=1, default=str))
         self.rec(0, self._demo.__doc__, ok, {'mission': mid, 'steps': [x['step'][:80] for x in steps], 'conditions': conds, 'final_table': final, 'conserved': conserved, 'checker': rep['summary']}, t0=t0)
 
-    def run_all(self, only=None):
-        order = list(range(1, 45)) + [0] + list(range(45, 51))
+
+    # ---- §21 extensions 1–5, 8 through real processes (51–56; run with --extensions) ---------------------------------------------------
+    def j51(self, t0):
+        """Extension 1: multi-provider bidding under a declared deterministic policy with private offers and a funded ceiling."""
+        A = self.A; A.fund('requester', 300); A.actor('rival'); A.provider('rival'); spec = {'template': 'lunar_route_feasibility', 'inputs': dict(lunar_example('route'), private_label='BID'), 'price': 20, 'bps': 0, 'verifier': 0, 'selection': {'policy': 'lowest_price', 'min_bids': 2, 'bidding_window_seconds': 3600}}
+        m = A.mission('requester', graph={'milestones': [{'key': 'job', 'kind': 'work', 'depends': [], 'spec': spec}, {'key': 'pay', 'kind': 'settle', 'depends': ['job'], 'spec': {'of': 'job'}}]}, title='bidding'); mid = m['id']
+        s = A.advance('requester', mid, 'open_request'); rid = A.ms('requester', mid, 'job')['binding']['request_id']
+        A.call('post', '/api/v1/work/requests/%s/offers' % rid, role='machine', json={'price_amount': 18, 'asset': A.asset, 'scheme': 'exact', 'window_seconds': 3600, 'verification': {'class': 'analytical'}}); one = A.step('requester', mid)
+        st, o2 = A.call('post', '/api/v1/work/requests/%s/offers' % rid, role='rival', json={'price_amount': 15, 'asset': A.asset, 'scheme': 'exact', 'window_seconds': 3600, 'verification': {'class': 'analytical'}}); rv = A.call('get', '/api/v1/work/requests/' + rid, role='rival')[1]
+        aw = A.advance('requester', mid, 'award'); b = A.ms('requester', mid, 'job')['binding']; d = A.advance('requester', mid, 'decide'); pay = A.advance('requester', mid, 'pay')
+        ok = one['performed'] is None and 'bidding' in json.dumps(one) and [x['id'] for x in rv['offers']] == [o2['id']] and aw['performed']['offer_id'] == o2['id'] and b['selection']['policy'] == 'lowest_price' and len(b['selection']['ranking']) == 2 and d['result']['decision'] in ('accepted', 'rejected') and pay['performed']['action'] == 'pay'
+        self.rec(51, self.j51.__doc__, ok, {'first_bid_waited': one['performed'] is None, 'rival_sees_only_own_offer': [x['id'] for x in rv['offers']] == [o2['id']], 'awarded': aw['performed'].get('offer_id') == o2['id'], 'selection_record': b.get('selection'), 'decision': d['result'].get('decision')}, t0=t0)
+
+    def j52(self, t0):
+        """Extension 2: explicit provider substitution for an unstarted milestone with affected-party authorization; awarded work untouched."""
+        A = self.A; A.fund('requester', 100); spec = {'template': 'lunar_route_feasibility', 'inputs': dict(lunar_example('route'), private_label='SUBST'), 'price': 20, 'bps': 0, 'verifier': 0, 'permitted_providers': [A.actors['machine']['provider_id']]}
+        m = A.mission('requester', graph={'milestones': [{'key': 'job', 'kind': 'work', 'depends': [], 'spec': spec}, {'key': 'pay', 'kind': 'settle', 'depends': ['job'], 'spec': {'of': 'job'}}]}, title='substitution'); mid = m['id']
+        st, sub = A.call('post', '/api/v1/missions/%s/substitute' % mid, role='requester', json={'milestone': 'job', 'provider_id': A.actors['rival']['provider_id'], 'reason': 'machine unavailable'}); rev_before = A.mview('requester', mid)['frozen_revision']
+        auth = [A.call('post', '/api/v1/missions/%s/revisions/%s/authorize' % (mid, sub.get('revision')), role=w, json={})[0] for w in ('machine', 'rival')]; rev_after = A.mview('requester', mid)['frozen_revision']
+        A.advance('requester', mid, 'open_request'); rid = A.ms('requester', mid, 'job')['binding']['request_id']; A.call('post', '/api/v1/work/requests/%s/offers' % rid, role='rival', json={'price_amount': 20, 'asset': A.asset, 'scheme': 'exact', 'window_seconds': 3600, 'verification': {'class': 'analytical'}}); aw = A.advance('requester', mid, 'award'); awarded_to = (aw.get('result') or {}).get('provider_id')
+        late = A.call('post', '/api/v1/missions/%s/substitute' % mid, role='requester', json={'milestone': 'job', 'provider_id': A.actors['machine']['provider_id']})
+        ok = st == 200 and sub['to_provider'] == A.actors['rival']['provider_id'] and len(sub['affected_parties']) >= 3 and rev_before == 1 and auth == [200, 200] and rev_after == 2 and awarded_to == A.actors['rival']['provider_id'] and self.code(late[1]) == 'milestone_committed'
+        self.rec(52, self.j52.__doc__, ok, {'proposed': (st, sub.get('affected_parties')), 'revision_before_after': (rev_before, rev_after), 'authorizations': auth, 'awarded_to_substitute': awarded_to == A.actors['rival']['provider_id'], 'after_award_refused': self.code(late[1])}, t0=t0)
+
+    def j53(self, t0):
+        """Extension 3: shared route planning across relay offers with bounded hops and independently checked exposure, then the planned route carried."""
+        A = self.A; A.fund('requester', 200); t = int(time.time()); o1, o2, hops = self.ctx.get('hops', (None, None, None)) if False else (None, None, None)
+        for name, price in (('supplier', 1), ('relay2', 2), ('rival', 3)):
+            A.actor(name); self.contact(A, name, 'plan-%s-%d' % (name, t), t - 1, t + 3600, price)
+        st, pl = A.call('post', '/api/v1/relay/plan', role='requester', json={'bytes': 3000, 'recipient_account': A.actors['machine']['account'], 'max_hops': 2, 'fee_ceiling': 20}); two = next((r for r in pl.get('routes', []) if r['hop_count'] == 2), None)
+        chk = A.call('post', '/api/v1/relay/plan', role='requester', json={'bytes': 3000, 'fee_ceiling': 20, 'route_hops': two['hops']})[1] if two else {}; low = A.call('post', '/api/v1/relay/plan', role='requester', json={'bytes': 3000, 'fee_ceiling': 4, 'route_hops': two['hops']})[1] if two else {}
+        st_r, rt = self.route(A, 'requester', [{k: h[k] for k in ('offer_id', 'offer_version', 'relay_account')} for h in two['hops']], A.actors['machine']['account'], 'planned-%d' % t) if two else (0, {})
+        payload = b'planned' * 300; A.http.post('/api/v1/relay/routes/%s/submit' % rt['id'], headers=dict(A.H('requester'), **{'Content-Type': 'application/octet-stream'}), content=payload) if st_r == 201 else None
+        f = [A.call('post', '/api/v1/relay/routes/%s/forward' % rt['id'], role=h['relay_account_name'] if False else next(n for n in ('supplier', 'relay2', 'rival') if A.actors[n]['account'] == h['relay_account']), json={'hop': i})[1].get('state') for i, h in enumerate(two['hops'])] if st_r == 201 else []
+        ok = st == 200 and pl['routes'] and pl['routes'][0]['total_fee'] == 3 and two and chk.get('ok') and chk.get('total_exposure') == two['total_fee'] and not low.get('ok') and st_r == 201 and rt['fees_bound'] == two['total_fee'] and f[-1:] == ['delivered']
+        self.rec(53, self.j53.__doc__, ok, {'cheapest': (pl.get('routes') or [{}])[0].get('total_fee'), 'two_hop': two and two['total_fee'], 'exposure_check': chk.get('ok'), 'exposure_refused_under_low_ceiling': not low.get('ok'), 'route_created_fees_bound': rt.get('fees_bound'), 'forward_states': f, 'bound': pl.get('bound')}, t0=t0)
+
+    def j54(self, t0):
+        """Extension 4: bounded prepaid subscription (no renewal); first period delivered and paid, the rest stopped and released."""
+        A = self.A; A.fund('requester', 100); m0 = A.bal('machine'); start = int(time.time())
+        st, sub = A.call('post', '/api/v1/subscriptions', role='requester', json={'provider_id': A.actors['machine']['provider_id'], 'template': 'lunar_route_feasibility', 'inputs': dict(lunar_example('route'), private_label='SUBJ'), 'price': 10, 'periods': 3, 'period_seconds': 3600, 'start_at': start}); mid = sub.get('mission')
+        s = A.advance('requester', mid, 'open_request'); rid = A.ms('requester', mid, 'period_1')['binding']['request_id']; A.call('post', '/api/v1/work/requests/%s/offers' % rid, role='machine', json={'price_amount': 10, 'asset': A.asset, 'scheme': 'exact', 'window_seconds': 3600, 'verification': {'class': 'analytical'}})
+        A.advance('requester', mid, 'award'); A.advance('requester', mid, 'verify'); d = A.advance('requester', mid, 'decide'); pay = A.advance('requester', mid, 'pay'); ex = A.explain('requester', mid); waits = [a.get('reason') for a in ex['actions'] if a['action'] == 'wait']
+        st2, stp = A.call('post', '/api/v1/subscriptions/%s/stop' % mid, role='requester', json={'reason': 'enough'}); v = A.call('get', '/api/v1/subscriptions/' + mid, role='requester')[1]
+        ok = st == 201 and len(sub['periods']) == 3 and sub['renewal'] == 'none' and sub['ledger']['ceiling'] == 30 and pay['performed']['action'] == 'pay' and any('not_before' in (w or '') for w in waits) and st2 == 200 and (stp['stopped'], stp['cancelled'], stp['delivered']) == (2, 2, 1) and v['ledger']['ceiling'] == 10 and A.bal('machine') == m0 + 10
+        self.rec(54, self.j54.__doc__, ok, {'periods': len(sub.get('periods', [])), 'renewal': sub.get('renewal'), 'ceiling_before_after': (sub.get('ledger', {}).get('ceiling'), v.get('ledger', {}).get('ceiling')), 'period_2_waits': any('not_before' in (w or '') for w in waits), 'stopped': {k: stp.get(k) for k in ('stopped', 'cancelled', 'delivered')}, 'machine_paid': A.bal('machine') - m0}, t0=t0)
+
+    def j55(self, t0):
+        """Extension 5: offline operator console rendered from a signed export with explicit freshness; no live API."""
+        A = self.A; ex = A.call('get', '/api/v1/native/export')[1]; d = A.domain(); roots = {d['id']: [{'key_id': d['authority']['key_id'], 'public_hex': d['authority']['public_hex'], 'epoch': d['authority']['epoch']}]}; tmp = Path(tempfile.mkdtemp(prefix='offline-'))
+        (tmp / 'e.json').write_text(json.dumps(ex)); (tmp / 'r.json').write_text(json.dumps(roots)); A.api.terminate(); A.api.wait(timeout=20)                   # the API is down while the page renders
+        p = subprocess.run([PY, '-m', 'metacoin_service.native.offline_console', str(tmp / 'e.json'), '--roots', str(tmp / 'r.json'), '--out', str(tmp / 'page.html')], cwd=ROOT, env=ENV, capture_output=True, text=True); A.start_api(); page = (tmp / 'page.html').read_text() if (tmp / 'page.html').exists() else ''
+        out = json.loads(p.stdout) if p.returncode == 0 else {}
+        if self.ctx.get('shots'):
+            shutil.copy(tmp / 'page.html', Path(self.ctx['shots']) / 'offline-console.html') if page else None
+        ok = p.returncode == 0 and 'Freshness' in page and 'no live connection' in page and out.get('checker', {}).get('authorized_bookkeeping') and out['checker'].get('resource_and_lineage')
+        self.rec(55, self.j55.__doc__, ok, {'rendered_with_api_down': p.returncode == 0, 'bytes': len(page), 'checker': out.get('checker'), 'tables': [x for x in ('Resource pools', 'Claim lots', 'Obligations', 'Allocations') if x in page]}, t0=t0)
+
+    def j56(self, t0):
+        """Extension 8: scenario comparison of extra evidence versus delay under fixed declared assumptions, labelled as estimates."""
+        A = self.A; a = {'p_feasible_bps': 6000, 'evidence_price': 10, 'evidence_delay_slots': 2, 'evidence_reliability_bps': 9000, 'followon_price': 40, 'followon_delay_slots': 3, 'delay_cost_per_slot': 1, 'deadline_slots': 10, 'value_if_feasible': 100, 'loss_if_infeasible_proceeded': 60}
+        st, r = A.call('post', '/api/v1/portfolio/scenarios', role='requester', json={'assumptions': a}); st2, r2 = A.call('post', '/api/v1/portfolio/scenarios', role='requester', json={'assumptions': dict(a, p_feasible_bps=9900)}); bad = A.call('post', '/api/v1/portfolio/scenarios', role='requester', json={'assumptions': {'p_feasible_bps': 1}})[0]
+        ok = st == 200 and r['recommended_under_assumptions'] == 'buy_evidence_then_decide' and r2['recommended_under_assumptions'] == 'proceed_without_evidence' and all('not a guarantee' in x['label'] for x in r['rows']) and 'not spending authorization' in r['caveat'] and bad == 422
+        self.rec(56, self.j56.__doc__, ok, {'at_p60': r.get('recommended_under_assumptions'), 'at_p99': r2.get('recommended_under_assumptions'), 'breakeven_bps': r.get('breakeven_p_feasible_bps_for_proceeding'), 'labelled': all('not a guarantee' in x['label'] for x in r.get('rows', []))}, t0=t0)
+
+    def run_all(self, only=None, extensions=False):
+        order = list(range(1, 45)) + [0] + list(range(45, 51)) + (list(range(51, 57)) if extensions else [])
         for n in order:
             if only and n not in only:
                 continue
@@ -1062,14 +1127,15 @@ class NetworkJourneys(Journeys):
 
 
 def main():
-    p = argparse.ArgumentParser(); p.add_argument('--out'); p.add_argument('--only'); p.add_argument('--shots'); p.add_argument('--demo'); a = p.parse_args()
+    p = argparse.ArgumentParser(); p.add_argument('--out'); p.add_argument('--only'); p.add_argument('--shots'); p.add_argument('--demo'); p.add_argument('--extensions', action='store_true'); a = p.parse_args()
     j = NetworkJourneys(shots=a.shots, demo_out=a.demo)
     try:
-        results = j.run_all([int(x) for x in a.only.split(',')] if a.only else None); health = j.A.call('get', '/api/health')[1]
+        results = j.run_all([int(x) for x in a.only.split(',')] if a.only else None, extensions=a.extensions or bool(a.only and any(int(x) > 50 for x in a.only.split(',')))); health = j.A.call('get', '/api/health')[1]
     finally:
         j.close()
     out = {'schema': 'metacoin-journeys-network/v1', 'provider_mode': 'simulation', 'x402_disabled': True, 'facilitator_url': 'http://127.0.0.1:1/blocked', 'domains': {'dom-a': 'development custody permitted (fixtures, claim journeys)', 'dom-b': 'development custody permitted (claim destination)', 'dom-c': 'development custody disabled; signers sig-requester / sig-machine / sig-supplier / sig-others'}, 'revision': health.get('revision'), 'python': sys.version.split()[0], 'started_at': j.started_at, 'finished_at': now(), 'results': results,
-           'passed': sum(r['status'] == 'passed' for r in results), 'failed': sum(r['status'] == 'failed' for r in results), 'blocked': sum(r['status'] == 'blocked' for r in results), 'skipped': sum(r['status'] == 'skipped' for r in results), 'total': len(results)}
+           'passed': sum(r['status'] == 'passed' for r in results), 'failed': sum(r['status'] == 'failed' for r in results), 'blocked': sum(r['status'] == 'blocked' for r in results), 'skipped': sum(r['status'] == 'skipped' for r in results), 'total': len(results),
+           'required': {'passed': sum(r['status'] == 'passed' for r in results if r['journey'] <= 50), 'failed': sum(r['status'] == 'failed' for r in results if r['journey'] <= 50), 'blocked': sum(r['status'] == 'blocked' for r in results if r['journey'] <= 50), 'total': sum(1 for r in results if r['journey'] <= 50)}, 'extensions': {'passed': sum(r['status'] == 'passed' for r in results if r['journey'] > 50), 'failed': sum(r['status'] == 'failed' for r in results if r['journey'] > 50), 'total': sum(1 for r in results if r['journey'] > 50)}}
     text = json.dumps(out, indent=1, default=str)
     if a.out:
         Path(a.out).write_text(text)
