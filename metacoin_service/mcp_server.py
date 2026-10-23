@@ -471,6 +471,40 @@ def build(api=None):
     def lunar_sources() -> dict:
         s, b = api.call('GET', '/api/v1/lunar/sources'); return ok_or_refused(s, b)
 
+    # ---- resource market and missions (order 2026-10-23): analysis vs spending kept apart; mutating tools need grants and idempotency ----
+    @mcp.tool(name='resource_market', description='READ: offers (available/reserved capacity, windows, price, evidence requirements, refusal reasons) and reservations.', annotations=READ)
+    def resource_market() -> dict:
+        s, b = api.call('GET', '/api/v1/resources'); return ok_or_refused(s, b)
+
+    @mcp.tool(name='resource_quote', description='SIMULATE: nonbinding price for a quantity at the current offer version; nothing reserved.', annotations=SIMULATE)
+    def resource_quote(offer_id: str, quantity: int) -> dict:
+        s, b = api.call('POST', '/api/v1/resources/quote', {'offer_id': offer_id, 'quantity': quantity}); return ok_or_refused(s, b)
+
+    @mcp.tool(name='resource_reserve', description='SPEND: binding reservation that funds a native obligation from the calling account for the exact offer version (stale versions are refused, never repriced). Requires native:transfer; idempotent by request_id.', annotations=SPEND)
+    def resource_reserve(offer_id: str, offer_version: int, quantity: int, request_id: str) -> dict:
+        s, b = api.call('POST', '/api/v1/resources/reservations', {'offer_id': offer_id, 'offer_version': offer_version, 'quantity': quantity, 'request_id': request_id}, idempotency_key=request_id); return ok_or_refused(s, b, (201,))
+
+    @mcp.tool(name='mission_status', description='READ: a mission contract: frozen revision, milestones with bindings and evidence, budget ledger projection.', annotations=READ)
+    def mission_status(mission_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/missions/' + mission_id)
+        if s != 200: return refused(s, b)
+        s2, led = api.call('GET', '/api/v1/missions/' + mission_id + '/ledger'); return {'mission': b, 'ledger': led if s2 == 200 else None}
+
+    @mcp.tool(name='mission_explain', description='ANALYSIS: what the bounded controller would do now and why each alternative is permitted or rejected (recorded constraints only). Performs nothing.', annotations=READ)
+    def mission_explain(mission_id: str) -> dict:
+        s, b = api.call('GET', '/api/v1/missions/' + mission_id + '/explain'); return ok_or_refused(s, b)
+
+    @mcp.tool(name='mission_propose', description='PROPOSE: submit an action for the deterministic validator; it may perform ONE validated action of the mission (which can spend from the mission envelope) or record a rejection with reasons. A proposal never widens a grant.', annotations=SPEND)
+    def mission_propose(mission_id: str, action: str, milestone: str | None = None, offer_id: str | None = None, idempotency_key: str | None = None) -> dict:
+        body = {'action': action}
+        if milestone: body['milestone'] = milestone
+        if offer_id: body['offer_id'] = offer_id
+        s, b = api.call('POST', '/api/v1/missions/' + mission_id + '/propose', body, idempotency_key=idempotency_key); return ok_or_refused(s, b)
+
+    @mcp.tool(name='mission_step', description='SPEND: one controller step of a frozen mission under its grant and policy (at most one validated action). Idempotency key recommended.', annotations=SPEND)
+    def mission_step(mission_id: str, idempotency_key: str | None = None) -> dict:
+        s, b = api.call('POST', '/api/v1/missions/' + mission_id + '/step', {}, idempotency_key=idempotency_key); return ok_or_refused(s, b)
+
     return mcp
 
 

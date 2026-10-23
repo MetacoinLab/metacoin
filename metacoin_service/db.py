@@ -514,6 +514,13 @@ MIGRATIONS = [
     CREATE INDEX resource_reservations_offer ON resource_reservations(offer_id, state);
     CREATE UNIQUE INDEX resource_reservations_req ON resource_reservations(buyer_account, request_id);
     """),
+    ('047_mission_contracts', """
+    CREATE TABLE mission_contracts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_principal TEXT NOT NULL, owner_account TEXT NOT NULL, title TEXT NOT NULL, template TEXT, asset TEXT NOT NULL, grant_id TEXT, policy_json TEXT NOT NULL, state TEXT NOT NULL, revision INTEGER NOT NULL, frozen_revision INTEGER, pause_reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE mission_revisions (mission_id TEXT NOT NULL REFERENCES mission_contracts(id), revision INTEGER NOT NULL, graph_json TEXT NOT NULL, digest TEXT NOT NULL, created_by TEXT NOT NULL, state TEXT NOT NULL, affected_json TEXT NOT NULL, authorizations_json TEXT NOT NULL, reason TEXT, created_at INTEGER NOT NULL, PRIMARY KEY (mission_id, revision));
+    CREATE TABLE mission_milestones (id TEXT PRIMARY KEY, mission_id TEXT NOT NULL REFERENCES mission_contracts(id), key TEXT NOT NULL, kind TEXT NOT NULL, actor TEXT NOT NULL, optional INTEGER NOT NULL DEFAULT 0, depends_json TEXT NOT NULL, spec_json TEXT NOT NULL, spec_digest TEXT NOT NULL, state TEXT NOT NULL, binding_json TEXT NOT NULL, result_json TEXT, reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (mission_id, key));
+    CREATE TABLE mission_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, mission_id TEXT NOT NULL, at INTEGER NOT NULL, actor TEXT NOT NULL, kind TEXT NOT NULL, detail_json TEXT NOT NULL);
+    CREATE INDEX mission_events_mission ON mission_events(mission_id, seq);
+    """),
 ]
 
 

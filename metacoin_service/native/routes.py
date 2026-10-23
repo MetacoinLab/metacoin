@@ -301,3 +301,47 @@ def mount(app, svc, run, read_body, API):
             from ..errors import ServiceError
             raise ServiceError('NOT_FOUND', 'reservation action')
         return await run(request, True, fn, 'resources.' + action, raw)
+
+    # ---- mission contracts and the bounded controller (order 2026-10-23 groups C, D) ------------------------------------------------
+    MS, CT = svc.missions, svc.controller
+
+    @app.post(API + '/missions', status_code=201)
+    async def mission_create(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (MS.create(db, p, body), 201), 'mission.create', raw)
+
+    @app.get(API + '/missions')
+    async def missions_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': MS.list(db, p)})
+
+    @app.get(API + '/missions/templates')
+    async def mission_templates(request: Request):
+        from . import mission_templates as MT
+        return await run(request, False, lambda db, p: {'templates': MT.TEMPLATES})
+
+    @app.get(API + '/missions/{mid}')
+    async def mission_view(request: Request, mid: str):
+        return await run(request, False, lambda db, p: MS.view(db, p, mid))
+
+    @app.get(API + '/missions/{mid}/ledger')
+    async def mission_ledger(request: Request, mid: str):
+        return await run(request, False, lambda db, p: MS.budget_ledger(db, p, mid))
+
+    @app.get(API + '/missions/{mid}/explain')
+    async def mission_explain(request: Request, mid: str):
+        return await run(request, False, lambda db, p: CT.explain(db, p, mid))
+
+    @app.post(API + '/missions/{mid}/{action}')
+    async def mission_action(request: Request, mid: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        fn = {'freeze': lambda db, p: MS.freeze(db, p, mid), 'amend': lambda db, p: MS.amend(db, p, mid, body), 'pause': lambda db, p: MS.pause(db, p, mid, body), 'resume': lambda db, p: MS.resume(db, p, mid),
+              'step': lambda db, p: CT.step(db, p, mid), 'run': lambda db, p: CT.run(db, p, mid, int(body.get('max_steps', 12))), 'propose': lambda db, p: CT.propose(db, p, mid, body), 'gate': lambda db, p: {'conclusion': CT.gate_progress(db, p, mid, body.get('milestone', 'gate'))}}.get(action)
+        if fn is None:
+            from ..errors import ServiceError
+            raise ServiceError('NOT_FOUND', 'mission action')
+        return await run(request, True, fn, 'mission.' + action, raw)
+
+    @app.post(API + '/missions/{mid}/revisions/{rev}/authorize')
+    async def mission_authorize(request: Request, mid: str, rev: int):
+        raw = await request.body(); read_body(request, raw)
+        return await run(request, True, lambda db, p: MS.authorize(db, p, mid, rev), 'mission.authorize', raw)

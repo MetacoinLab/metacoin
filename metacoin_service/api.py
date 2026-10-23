@@ -85,6 +85,10 @@ class Services:
         self.lunar = Lunar(settings, self)
         from .native.market import Market
         self.market = Market(settings, self)
+        from .native.mission_contracts import Missions
+        from .native.controller import Controller
+        self.missions = Missions(settings, self)
+        self.controller = Controller(settings, self)
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start

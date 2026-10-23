@@ -1019,6 +1019,58 @@ def mount(app, svc):
             return RedirectResponse('/console/resources/reservations/' + rid, status_code=303)
         return await page(request, fn, mutating=True)
 
+    # ---- mission contracts (order 2026-10-23 groups C, D) --------------------------------------------------------------------------
+    MS, CT = svc.missions, svc.controller
+
+    @app.get('/console/missions', response_class=HTMLResponse)
+    async def missions_page(request: Request):
+        def fn(db, p):
+            from .native import mission_templates as MT
+            return render(request, 'native_missions.html', principal=p, items=MS.list(db, p), templates=MT.TEMPLATES)
+        return await page(request, fn)
+
+    @app.post('/console/missions', response_class=HTMLResponse)
+    async def missions_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            pol = {'price': int(f.get('price') or 40), 'min_cash_reserve': int(f.get('min_cash_reserve') or 0)}
+            if f.get('verifier_pay_to'):
+                pol['verifier_pay_to'] = f['verifier_pay_to']; pol['verifier'] = 3
+            else:
+                pol['verifier'] = 0
+            m = MS.create(db, p, {'title': f.get('template'), 'template': f.get('template'), 'policy': pol}); MS.freeze(db, p, m['id'])
+            return RedirectResponse('/console/missions/' + m['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/missions/{mid}', response_class=HTMLResponse)
+    async def mission_page(request: Request, mid: str):
+        def fn(db, p):
+            m = MS.view(db, p, mid)
+            try:
+                ex = CT.explain(db, p, mid)
+            except ServiceError as exc:
+                ex = {'context': {}, 'actions': [], 'stop_reason': exc.code}
+            return render(request, 'native_mission_detail.html', principal=p, m=m, ledger=MS.budget_ledger(db, p, mid), ex=ex)
+        return await page(request, fn)
+
+    @app.post('/console/missions/{mid}/action', response_class=HTMLResponse)
+    async def mission_action_form(request: Request, mid: str):
+        f = await form(request)
+        def fn(db, p):
+            a = f.get('action')
+            if a == 'step':
+                CT.step(db, p, mid)
+            elif a == 'run':
+                CT.run(db, p, mid, 8)
+            elif a == 'pause':
+                MS.pause(db, p, mid, {'reason': f.get('reason') or 'operator pause'})
+            elif a == 'resume':
+                MS.resume(db, p, mid)
+            elif a == 'amend':
+                MS.amend(db, p, mid, {'milestones': json.loads(f.get('milestones') or '[]'), 'reason': f.get('reason') or 'replan'})
+            return RedirectResponse('/console/missions/' + mid, status_code=303)
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/work/reconciliation', response_class=HTMLResponse)
     async def work_reconciliation_page(request: Request):
         return await page(request, lambda db, p: render(request, 'work_reconciliation.html', principal=p, v=E.money.pending_observations(db, p), exposure=E.money.exposure(db, p)))

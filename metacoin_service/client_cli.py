@@ -476,9 +476,10 @@ WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-fre
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
                  'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
+MISSION_COMMANDS = ('missions', 'mission-templates', 'mission-create', 'mission', 'mission-ledger', 'mission-explain', 'mission-action', 'mission-authorize')
 MARKET_COMMANDS = ('resources', 'resource-offer-publish', 'resource-offers', 'resource-quote', 'resource-reserve', 'resource-reservations', 'resource-reservation', 'resource-action', 'resource-storage-put')
 SIGNER_COMMANDS = ('signer-health', 'signer-enroll', 'signer-rotate', 'signer-revoke', 'signer-delegate', 'signer-keys', 'native-keys', 'native-key-revoke', 'native-transfer-signed')
-NATIVE_COMMANDS = SIGNER_COMMANDS + MARKET_COMMANDS + ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
+NATIVE_COMMANDS = SIGNER_COMMANDS + MARKET_COMMANDS + MISSION_COMMANDS + ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
                    'native-allocation', 'native-allocation-return', 'native-recover', 'native-peer-pin', 'native-peer', 'native-outbox', 'native-inbox', 'native-bundle-write', 'native-bundle-import', 'native-courier', 'native-observation', 'native-rotate', 'native-connectivity',
                    'native-recovery', 'native-reconcile', 'native-audit', 'native-export-record', 'native-check', 'native-vectors', 'native-model', 'native-spec', 'native-disputes', 'native-dispute-open', 'native-dispute-resolve',
                    'procurement-plan', 'procurement-benchmark', 'lunar-sources', 'lunar-products', 'lunar-product', 'lunar-download', 'lunar-example')
@@ -539,6 +540,31 @@ def signer_commands(args, go):
     return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
 
 
+def mission_commands(args, go):
+    c = args.command; key = getattr(args, 'idempotency_key', None); jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    if c == 'missions':
+        return go('GET', '/api/v1/missions')
+    if c == 'mission-templates':
+        return go('GET', '/api/v1/missions/templates')
+    if c == 'mission-create':
+        body = jf() if args.file else {'title': args.template, 'template': args.template, 'policy': json.loads(args.policy) if args.policy else {}}
+        st, m = go('POST', '/api/v1/missions', body, idempotency_key=key)
+        if st < 400 and args.freeze:
+            return go('POST', '/api/v1/missions/' + m['id'] + '/freeze', {}, idempotency_key=(key + '-freeze') if key else None)
+        return st, m
+    if c == 'mission':
+        return go('GET', '/api/v1/missions/' + args.mission_id)
+    if c == 'mission-ledger':
+        return go('GET', '/api/v1/missions/' + args.mission_id + '/ledger')
+    if c == 'mission-explain':
+        return go('GET', '/api/v1/missions/' + args.mission_id + '/explain')
+    if c == 'mission-action':
+        return go('POST', '/api/v1/missions/%s/%s' % (args.mission_id, args.action), jf(), idempotency_key=key)
+    if c == 'mission-authorize':
+        return go('POST', '/api/v1/missions/%s/revisions/%d/authorize' % (args.mission_id, args.revision), {}, idempotency_key=key)
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
+
+
 def market_commands(args, go):
     c = args.command; key = getattr(args, 'idempotency_key', None); jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
     if c == 'resources':
@@ -572,6 +598,8 @@ def native(args, go):
         return signer_commands(args, go)
     if c in MARKET_COMMANDS:
         return market_commands(args, go)
+    if c in MISSION_COMMANDS:
+        return mission_commands(args, go)
     jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
     key = getattr(args, 'idempotency_key', None)
     if c == 'native-domain':
@@ -1136,6 +1164,12 @@ def main(argv=None):
     w = sub.add_parser('work-challenge-package'); w.add_argument('challenge_id'); w.add_argument('--out')
     w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
     w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
+    # ---- missions ----
+    sub.add_parser('missions'); sub.add_parser('mission-templates')
+    n = sub.add_parser('mission-create', help='create (and optionally freeze) a mission from a template or a JSON graph file'); n.add_argument('--template'); n.add_argument('--policy', help='JSON policy (price, verifier_pay_to, min_cash_reserve, ...)'); n.add_argument('--file'); n.add_argument('--freeze', action='store_true'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('mission'); n.add_argument('mission_id'); n = sub.add_parser('mission-ledger'); n.add_argument('mission_id'); n = sub.add_parser('mission-explain'); n.add_argument('mission_id')
+    n = sub.add_parser('mission-action'); n.add_argument('mission_id'); n.add_argument('action', choices=('freeze', 'amend', 'pause', 'resume', 'step', 'run', 'propose', 'gate')); n.add_argument('--file'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('mission-authorize'); n.add_argument('mission_id'); n.add_argument('revision', type=int); n.add_argument('--idempotency-key')
     # ---- resource market ----
     sub.add_parser('resources'); n = sub.add_parser('resource-offer-publish', help='publish a fixed-price resource offer (JSON file: kind, resource_id, capacity, price_per_unit, window_start, window_end, ...)'); n.add_argument('--file', required=True); n.add_argument('--idempotency-key')
     n = sub.add_parser('resource-offers'); n.add_argument('--kind'); n = sub.add_parser('resource-quote'); n.add_argument('offer_id'); n.add_argument('quantity', type=int)
