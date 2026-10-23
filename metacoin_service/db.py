@@ -546,6 +546,10 @@ MIGRATIONS = [
     ALTER TABLE native_allocations ADD COLUMN returned_amount INTEGER NOT NULL DEFAULT 0;
     INSERT INTO native_claim_lots SELECT 'lot_legacy_' || substr(allocation_id, 4), workspace, allocation_id, NULL, asset, amount, account_id, 'active', 0, imported_sequence, '{"migrated_from":"native_claim_lineage","exact_provenance":true}', created_at, created_at FROM native_claim_lineage WHERE consumed = 0 AND state = 'active';
     """),
+    ('052_mission_products', """
+    CREATE TABLE mission_products (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, producer_account TEXT NOT NULL, producer_principal TEXT NOT NULL, version INTEGER NOT NULL, title TEXT NOT NULL, kind TEXT NOT NULL, content_hash TEXT NOT NULL, artifact_id TEXT NOT NULL, source_job TEXT, source_award TEXT, source_data_json TEXT NOT NULL, conventions_json TEXT NOT NULL, compatibility_json TEXT NOT NULL, license TEXT NOT NULL, permitted_uses_json TEXT NOT NULL, price INTEGER NOT NULL, asset TEXT NOT NULL, measured_json TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (content_hash, version));
+    CREATE TABLE product_entitlements (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, product_id TEXT NOT NULL REFERENCES mission_products(id), version INTEGER NOT NULL, buyer_account TEXT NOT NULL, buyer_principal TEXT NOT NULL, obligation_id TEXT, intent_id TEXT, request_id TEXT NOT NULL, state TEXT NOT NULL, delivered_at INTEGER, delivery_json TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (buyer_account, request_id));
+    """),
 ]
 
 

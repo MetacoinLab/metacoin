@@ -420,6 +420,49 @@ def mount(app, svc, run, read_body, API):
             return {'merged': L.consolidate(db, p.workspace, aid), 'lots': L.summary(db, p.workspace, aid)}
         return await run(request, True, fn, 'native.lots.consolidate', raw)
 
+    @app.post(API + '/products', status_code=201)
+    async def product_publish(request: Request):
+        raw = await request.body(); body = read_body(request, raw)
+        return await run(request, True, lambda db, p: (svc.products.publish(db, p, body), 201), 'product.publish', raw)
+
+    @app.get(API + '/products')
+    async def products_list(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.products.list(db, p, request.query_params.get('state', 'listed'))})
+
+    @app.get(API + '/products/entitlements')
+    async def product_entitlements(request: Request):
+        return await run(request, False, lambda db, p: {'items': svc.products.my_entitlements(db, p)})
+
+    @app.get(API + '/products/entitlements/{eid}')
+    async def product_entitlement(request: Request, eid: str):
+        return await run(request, False, lambda db, p: svc.products.entitlement_view(db, p, eid))
+
+    @app.get(API + '/products/entitlements/{eid}/download')
+    async def product_download(request: Request, eid: str):
+        from fastapi import Response
+        holder = {}
+        def fn(db, p):
+            data, media, name = svc.products.deliver(db, p, eid); holder.update(data=data, media=media, name=name); return {'delivered': True}
+        out = await run(request, True, fn, 'product.deliver', b'')
+        if holder:
+            return Response(content=holder['data'], media_type=holder['media'], headers={'Content-Disposition': 'attachment; filename="%s"' % holder['name']})
+        return out
+
+    @app.get(API + '/products/{pid}')
+    async def product_view(request: Request, pid: str):
+        return await run(request, False, lambda db, p: svc.products.view(db, p, pid))
+
+    @app.post(API + '/products/{pid}/{action}')
+    async def product_action(request: Request, pid: str, action: str):
+        raw = await request.body(); body = read_body(request, raw)
+        if action == 'check-reuse':
+            return await run(request, False, lambda db, p: svc.products.check_reuse(db, p, pid, body))
+        fn = {'purchase': lambda db, p: svc.products.purchase(db, p, pid, body), 'withdraw': lambda db, p: svc.products.withdraw(db, p, pid)}.get(action)
+        if fn is None:
+            from ..errors import ServiceError
+            raise ServiceError('NOT_FOUND', 'product action')
+        return await run(request, True, fn, 'product.' + action, raw)
+
     @app.get(API + '/native/operator')
     async def native_operator(request: Request):
         return await run(request, False, lambda db, p: svc.operator.view(db, p, request.query_params.get('asset')))
