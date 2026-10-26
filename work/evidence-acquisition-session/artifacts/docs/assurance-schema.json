@@ -1,0 +1,198 @@
+{
+ "requirement_schema": "metacoin-assurance-requirement/v1",
+ "claims_by_kind": {
+  "temporal_batch": {
+   "full_exact": {
+    "claim_type": "itemwise_reference_exact",
+    "coverage": "every_item",
+    "comparison": "exact",
+    "implementation_independent": true
+   },
+   "sampled_reference": {
+    "claim_type": "itemwise_reference_exact",
+    "coverage": "sampled_items",
+    "comparison": "exact",
+    "implementation_independent": true
+   },
+   "analytical": {
+    "claim_type": "analytical_invariants",
+    "coverage": "invariants_only",
+    "comparison": "invariant",
+    "implementation_independent": true
+   },
+   "replica": {
+    "claim_type": "replica_agreement",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   }
+  },
+  "monte_carlo_reliability": {
+   "full_reference": {
+    "claim_type": "producer_sample_reevaluation",
+    "coverage": "producer_stored_samples",
+    "comparison": "exact",
+    "implementation_independent": "partial"
+   },
+   "analytical": {
+    "claim_type": "analytical_invariants",
+    "coverage": "invariants_only",
+    "comparison": "invariant",
+    "implementation_independent": true
+   },
+   "replica": {
+    "claim_type": "replica_agreement",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   }
+  },
+  "heat_diffusion": {
+   "full_reference": {
+    "claim_type": "whole_result_reference",
+    "coverage": "whole_result",
+    "comparison": "tolerance",
+    "implementation_independent": true
+   },
+   "analytical": {
+    "claim_type": "analytical_invariants",
+    "coverage": "invariants_only",
+    "comparison": "invariant",
+    "implementation_independent": true
+   },
+   "sampled_reference": {
+    "claim_type": "final_transition_reference",
+    "coverage": "final_transition",
+    "comparison": "tolerance",
+    "implementation_independent": true
+   },
+   "replica": {
+    "claim_type": "replica_agreement",
+    "coverage": "whole_result",
+    "comparison": "tolerance",
+    "implementation_independent": false
+   }
+  },
+  "calibration_fit": {
+   "full_reference": {
+    "claim_type": "whole_result_reference",
+    "coverage": "whole_result",
+    "comparison": "tolerance",
+    "implementation_independent": true
+   }
+  },
+  "resource_plan": {
+   "full_reference": {
+    "claim_type": "whole_result_reference",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": true
+   },
+   "analytical": {
+    "claim_type": "analytical_invariants",
+    "coverage": "invariants_only",
+    "comparison": "invariant",
+    "implementation_independent": true
+   }
+  },
+  "temporal_energy": {
+   "full_exact": {
+    "claim_type": "same_implementation_regression",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   }
+  },
+  "energy_audit": {
+   "full_exact": {
+    "claim_type": "same_implementation_regression",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   }
+  },
+  "safe_runtime": {
+   "full_exact": {
+    "claim_type": "same_implementation_regression",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   }
+  },
+  "plan_comparison": {
+   "full_exact": {
+    "claim_type": "same_implementation_regression",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   }
+  },
+  "task_selection": {
+   "full_exact": {
+    "claim_type": "same_implementation_regression",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   }
+  },
+  "legacy_task_replay": {
+   "full_exact": {
+    "claim_type": "legacy_exact_replay",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   }
+  },
+  "decision_observability": {
+   "full_exact": {
+    "claim_type": "same_implementation_regression",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   },
+   "analytical": {
+    "claim_type": "witness_check",
+    "coverage": "whole_result",
+    "comparison": "enumerated_predicate",
+    "implementation_independent": true
+   }
+  },
+  "evidence_acquisition": {
+   "full_exact": {
+    "claim_type": "same_implementation_regression",
+    "coverage": "whole_result",
+    "comparison": "exact",
+    "implementation_independent": false
+   },
+   "analytical": {
+    "claim_type": "witness_check",
+    "coverage": "whole_result",
+    "comparison": "enumerated_predicate",
+    "implementation_independent": true
+   }
+  }
+ },
+ "implications": {
+  "every_item->sampled_items": "every item checked exactly is a sample of all N items (k = N): the miss probability is zero for any m >= 1"
+ },
+ "independence_dimensions": [
+  "implementation",
+  "process",
+  "operator",
+  "organization",
+  "input_source",
+  "instrument",
+  "hardware",
+  "library",
+  "challenge_authority"
+ ],
+ "coverages": [
+  "every_item",
+  "sampled_items",
+  "whole_result",
+  "final_transition",
+  "invariants_only",
+  "producer_stored_samples"
+ ],
+ "rule": "a class name or numeric rank never satisfies a requirement; absence is never success; a detected defect with the same bindings fails even if a later attempt passed"
+}

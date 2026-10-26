@@ -476,6 +476,355 @@ WORK_COMMANDS = ('work-terms-create', 'work-terms', 'work-term', 'work-terms-fre
                  'work-disputes', 'work-bundle', 'work-audit-grant', 'work-audit-use', 'work-audit-revoke', 'work-pay', 'work-intents', 'work-intent', 'work-reconcile', 'work-refund', 'work-journal', 'work-journal-replay', 'work-treasury', 'work-treasury-allocate',
                  'work-exposure', 'work-status', 'work-notifications', 'work-measurements', 'work-mission-import', 'work-missions', 'work-mission', 'work-mission-draft', 'work-observation', 'work-rails', 'work-close', 'work-provider-history', 'work-provider-portfolio', 'work-provider-portfolio-set', 'work-package-preview', 'work-program-create', 'work-programs', 'work-program', 'work-program-run', 'work-program-close', 'work-pricing-experiment', 'work-pricing-experiments', 'work-challenge', 'work-challenges', 'work-challenge-package', 'work-reconciliation', 'work-mission-scenario', 'work-mission-scenarios')
 
+MISSION_COMMANDS = ('native-sign-pending', 'native-signing-requests', 'native-operator', 'mission-plan', 'mission-bundle', 'missions', 'mission-templates', 'mission-create', 'mission', 'mission-ledger', 'mission-explain', 'mission-action', 'mission-authorize')
+MARKET_COMMANDS = ('resources', 'resource-offer-publish', 'resource-offers', 'resource-quote', 'resource-reserve', 'resource-reservations', 'resource-reservation', 'resource-action', 'resource-storage-put')
+SIGNER_COMMANDS = ('signer-health', 'signer-enroll', 'signer-rotate', 'signer-revoke', 'signer-delegate', 'signer-keys', 'native-keys', 'native-key-revoke', 'native-transfer-signed')
+NATIVE_COMMANDS = SIGNER_COMMANDS + MARKET_COMMANDS + MISSION_COMMANDS + ('native-domain', 'native-domain-init', 'native-accounts', 'native-account', 'native-actor-create', 'native-fund', 'native-transfer', 'native-simulate', 'native-intents', 'native-intent', 'native-obligations', 'native-export', 'native-allocations',
+                   'native-allocation', 'native-allocation-return', 'native-recover', 'native-peer-pin', 'native-peer', 'native-outbox', 'native-inbox', 'native-bundle-write', 'native-bundle-import', 'native-courier', 'native-observation', 'native-rotate', 'native-connectivity',
+                   'native-recovery', 'native-reconcile', 'native-audit', 'native-export-record', 'native-check', 'native-vectors', 'native-model', 'native-spec', 'native-disputes', 'native-dispute-open', 'native-dispute-resolve',
+                   'procurement-plan', 'procurement-benchmark', 'lunar-sources', 'lunar-products', 'lunar-product', 'lunar-download', 'lunar-example')
+
+
+def _signer(args):
+    from .native.signer import SignerClient
+    return SignerClient(args.signer, args.signer_token_file)
+
+
+def signer_commands(args, go):
+    """Operator-controlled signing (order 2026-10-23 group A): the signer is a separate process; the service stores public identities
+    and signatures. Enrollment registers the public key with the service; rotation/delegation proofs are produced by the signer."""
+    c = args.command; key = getattr(args, 'idempotency_key', None)
+    if c == 'signer-health':
+        return _signer(args).health()
+    if c == 'signer-enroll':
+        st, e = _signer(args).call('POST', '/enroll', {'name': args.name, 'ceiling': args.ceiling})
+        if st != 200:
+            return st, e
+        st2, acct = go('POST', '/api/v1/native/actors/enroll', {'name': args.name, 'public_hex': e['public_hex'], 'key_id': e['key_id'], 'signer_id': e['signer_id']}, idempotency_key=key)
+        if st2 < 400:
+            _signer(args).call('POST', '/bind', {'actor': args.name, 'account': acct['account_id']})
+            if args.out:
+                fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(fd, 'w') as f:
+                    json.dump({'token': acct['credential']['token']}, f)
+                acct = {k: v for k, v in acct.items() if k != 'credential'}; acct['credential_file'] = args.out
+        return st2, acct
+    if c in ('signer-rotate', 'signer-delegate'):
+        body = {'actor': args.actor, 'grace_seconds': args.grace_seconds} if c == 'signer-rotate' else {'actor': args.actor, 'name': args.name, 'recipients': args.recipients.split(','), 'ceiling': args.ceiling}
+        st, r = _signer(args).call('POST', '/rotate' if c == 'signer-rotate' else '/delegate', body)
+        if st != 200 or not r.get('registration'):
+            return st, r
+        st2, reg = go('POST', '/api/v1/native/accounts/%s/keys' % args.account, r['registration'], idempotency_key=key)
+        return st2, {'signer': {k: r[k] for k in r if k != 'registration'}, 'service_registration': reg}
+    if c == 'signer-revoke':
+        st, r = _signer(args).call('POST', '/revoke', {'actor': args.actor, 'key_id': args.key_id})
+        st2, s2 = go('POST', '/api/v1/native/accounts/%s/keys/%s/revoke' % (args.account, args.key_id), {}, idempotency_key=key) if st == 200 else (st, r)
+        return st2, {'signer': r, 'service': s2}
+    if c == 'signer-keys':
+        return _signer(args).call('GET', '/keys/' + args.actor)
+    if c == 'native-keys':
+        return go('GET', '/api/v1/native/accounts/%s/keys' % args.account)
+    if c == 'native-key-revoke':
+        return go('POST', '/api/v1/native/accounts/%s/keys/%s/revoke' % (args.account, args.key_id), {}, idempotency_key=key)
+    if c == 'native-transfer-signed':
+        body = {'to_account': args.to_account, 'amount': args.amount, 'request_id': args.request_id}
+        for k in ('asset', 'from_account', 'obligation_id'):
+            if getattr(args, k, None): body[k] = getattr(args, k)
+        st, prep = go('POST', '/api/v1/native/transfers/prepare', body)
+        if st >= 400:
+            return st, prep
+        st2, sig = _signer(args).sign(args.actor, prep['message'], getattr(args, 'delegate', None))
+        if st2 != 200:
+            return st2, {'prepared': prep['message_digest'], 'signer_refusal': sig}
+        return go('POST', '/api/v1/native/transfers/submit', {'message': prep['message'], 'signature_hex': sig['signature_hex'], 'key_id': sig['key_id']}, idempotency_key=key)
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
+
+
+def mission_commands(args, go):
+    c = args.command; key = getattr(args, 'idempotency_key', None); jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    if c == 'native-signing-requests':
+        return go('GET', '/api/v1/native/signing/pending' + ('?account=' + args.account if args.account else ''))
+    if c == 'native-sign-pending':
+        from .native.signer import SignerClient
+        sg = SignerClient(args.signer, args.signer_token); st, pend = go('GET', '/api/v1/native/signing/pending' + ('?account=' + args.account if args.account else ''))
+        if st != 200:
+            return st, pend
+        out = []
+        for req in pend['items']:
+            ss, sig = sg.sign(args.actor, req['message'], context=req['context'])
+            if ss != 200:
+                out.append({'request': req['id'], 'kind': req['kind'], 'signer_refusal': sig}); continue
+            st2, r = go('POST', '/api/v1/native/signing/requests/%s/submit' % req['id'], {'signature_hex': sig['signature_hex'], 'key_id': sig['key_id']}, idempotency_key=req['id'])
+            out.append({'request': req['id'], 'kind': req['kind'], 'submitted': st2, 'state': r.get('state'), 'result': {k: (r.get('result') or {}).get(k) for k in ('id', 'state', 'final_amount')}})
+        return 200, {'account': pend.get('account'), 'processed': out, 'custody': pend.get('custody')}
+    if c == 'native-operator':
+        return go('GET', '/api/v1/native/operator')
+    if c == 'mission-plan':
+        return go('POST', '/api/v1/missions/%s/plan' % args.mission_id, {'objective': args.objective, 'planner': args.planner, 'apply': bool(args.apply)}, idempotency_key=key)
+    if c == 'mission-bundle':
+        st, b = go('GET', '/api/v1/missions/%s/bundle' % args.mission_id)
+        if st < 400 and args.out:
+            Path(args.out).write_text(json.dumps(b)); return st, {'written': args.out, 'seal': b.get('seal')}
+        return st, b
+    if c == 'missions':
+        return go('GET', '/api/v1/missions')
+    if c == 'mission-templates':
+        return go('GET', '/api/v1/missions/templates')
+    if c == 'mission-create':
+        body = jf() if args.file else {'title': args.template, 'template': args.template, 'policy': json.loads(args.policy) if args.policy else {}}
+        st, m = go('POST', '/api/v1/missions', body, idempotency_key=key)
+        if st < 400 and args.freeze:
+            return go('POST', '/api/v1/missions/' + m['id'] + '/freeze', {}, idempotency_key=(key + '-freeze') if key else None)
+        return st, m
+    if c == 'mission':
+        return go('GET', '/api/v1/missions/' + args.mission_id)
+    if c == 'mission-ledger':
+        return go('GET', '/api/v1/missions/' + args.mission_id + '/ledger')
+    if c == 'mission-explain':
+        return go('GET', '/api/v1/missions/' + args.mission_id + '/explain')
+    if c == 'mission-action':
+        return go('POST', '/api/v1/missions/%s/%s' % (args.mission_id, args.action), jf(), idempotency_key=key)
+    if c == 'mission-authorize':
+        return go('POST', '/api/v1/missions/%s/revisions/%d/authorize' % (args.mission_id, args.revision), {}, idempotency_key=key)
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
+
+
+def market_commands(args, go):
+    c = args.command; key = getattr(args, 'idempotency_key', None); jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    if c == 'resources':
+        return go('GET', '/api/v1/resources')
+    if c == 'resource-offer-publish':
+        return go('POST', '/api/v1/resources/offers', jf(), idempotency_key=key)
+    if c == 'resource-offers':
+        return go('GET', '/api/v1/resources/offers' + ('?kind=' + args.kind if args.kind else ''))
+    if c == 'resource-quote':
+        return go('POST', '/api/v1/resources/quote', {'offer_id': args.offer_id, 'quantity': args.quantity})
+    if c == 'resource-reserve':
+        return go('POST', '/api/v1/resources/reservations', {'offer_id': args.offer_id, 'offer_version': args.offer_version, 'quantity': args.quantity, 'request_id': args.request_id}, idempotency_key=key)
+    if c == 'resource-reservations':
+        return go('GET', '/api/v1/resources/reservations' + ('?account=' + args.account if args.account else ''))
+    if c == 'resource-reservation':
+        return go('GET', '/api/v1/resources/reservations/' + args.reservation_id)
+    if c == 'resource-action':
+        return go('POST', '/api/v1/resources/reservations/%s/%s' % (args.reservation_id, args.action), jf(), idempotency_key=key)
+    if c == 'resource-storage-put':
+        with open(args.path, 'rb') as f:
+            data = f.read()
+        return go('POST', '/api/v1/resources/reservations/%s/storage' % args.reservation_id, data, idempotency_key=key)
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
+
+
+def native(args, go):
+    """Native protocol commands (order 2026-10-22): one authenticated HTTP request each unless marked offline. Reading never
+    spends; native-transfer / native-export / native-fund are the consequential ones and are idempotent by request id."""
+    c = args.command
+    if c in SIGNER_COMMANDS:
+        return signer_commands(args, go)
+    if c in MARKET_COMMANDS:
+        return market_commands(args, go)
+    if c in MISSION_COMMANDS:
+        return mission_commands(args, go)
+    jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    key = getattr(args, 'idempotency_key', None)
+    if c == 'native-domain':
+        return go('GET', '/api/v1/native/domain')
+    if c == 'native-domain-init':
+        return go('POST', '/api/v1/native/domain', {'domain_id': args.domain_id, 'operator': args.operator, 'host': args.host}, idempotency_key=key)
+    if c == 'native-accounts':
+        return go('GET', '/api/v1/native/accounts')
+    if c == 'native-account':
+        return go('GET', '/api/v1/native/accounts/' + args.account_id)
+    if c == 'native-actor-create':
+        st, out = go('POST', '/api/v1/native/actors', {'name': args.name}, idempotency_key=key)
+        if st < 400 and args.out:
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'w') as f:
+                json.dump({'token': out['credential']['token']}, f)
+            out = {k: v for k, v in out.items() if k != 'credential'}; out['credential_file'] = args.out
+        return st, out
+    if c == 'native-fund':
+        return go('POST', '/api/v1/native/fixtures/fund', {'account_id': args.account_id, 'amount': args.amount, 'label': 'cli fixture'}, idempotency_key=key)
+    if c in ('native-transfer', 'native-simulate'):
+        body = {'to_account': args.to_account, 'amount': args.amount, 'request_id': args.request_id}
+        if args.asset: body['asset'] = args.asset
+        if getattr(args, 'from_account', None): body['from_account'] = args.from_account
+        if getattr(args, 'obligation_id', None): body['obligation_id'] = args.obligation_id
+        return go('POST', '/api/v1/native/transfers' + ('/simulate' if c == 'native-simulate' else ''), body, idempotency_key=key)
+    if c == 'native-intents':
+        return go('GET', '/api/v1/native/intents' + ('?account=' + args.account if args.account else ''))
+    if c == 'native-intent':
+        return go('GET', '/api/v1/native/intents/' + args.intent_id)
+    if c == 'native-obligations':
+        return go('GET', '/api/v1/native/obligations' + ('?account=' + args.account if args.account else ''))
+    if c == 'native-export':
+        body = {'destination_domain': args.destination, 'recipient_account': args.recipient, 'amount': args.amount, 'request_id': args.request_id}
+        if args.asset: body['asset'] = args.asset
+        return go('POST', '/api/v1/native/allocations/export', body, idempotency_key=key)
+    if c == 'native-allocations':
+        return go('GET', '/api/v1/native/allocations')
+    if c == 'native-allocation':
+        return go('GET', '/api/v1/native/allocations/' + args.allocation_id)
+    if c == 'native-allocation-return':
+        return go('POST', '/api/v1/native/allocations/' + args.allocation_id + '/return', {}, idempotency_key=key)
+    if c == 'native-recover':
+        return go('POST', '/api/v1/native/allocations/recover', {}, idempotency_key=key)
+    if c == 'native-peer-pin':
+        return go('POST', '/api/v1/native/peers', jf(), idempotency_key=key)
+    if c == 'native-peer':
+        return go('GET', '/api/v1/native/peers/' + args.domain_id)
+    if c == 'native-outbox':
+        return go('GET', '/api/v1/native/transport/outbox?receiver=%s&transport=%s' % (args.receiver, args.transport))
+    if c == 'native-inbox':
+        return go('POST', '/api/v1/native/transport/inbox?transport=' + args.transport, jf())
+    if c in ('native-bundle-write', 'native-bundle-import', 'native-courier'):
+        from .native import courier
+        src = courier.Endpoint(args.base, args.credential_file)
+        if c == 'native-bundle-write':
+            return 200, courier.write_bundle(src, args.receiver, args.path)
+        if c == 'native-bundle-import':
+            return 200, courier.import_bundle(src, args.path, args.replies)
+        dst = courier.Endpoint(args.dst_base, args.dst_credential_file)
+        out = courier.push(src, dst, args.receiver); return (200 if out.get('ok') else 409), out
+    if c == 'native-observation':
+        return go('POST', '/api/v1/native/transport/observation', {'peer': args.peer}, idempotency_key=key)
+    if c == 'native-rotate':
+        return go('POST', '/api/v1/native/domain/rotate', {'grace_seconds': args.grace_seconds}, idempotency_key=key)
+    if c == 'native-connectivity':
+        return go('POST', '/api/v1/native/domain/connectivity', {'state': args.state}, idempotency_key=key)
+    if c == 'native-recovery':
+        return go('GET', '/api/v1/native/recovery')
+    if c == 'native-reconcile':
+        return go('POST', '/api/v1/native/recovery/reconcile', jf(), idempotency_key=key)
+    if c == 'native-audit':
+        return go('GET', '/api/v1/native/audit' + ('?asset=' + args.asset if args.asset else ''))
+    if c == 'native-export-record':
+        st, out = go('GET', '/api/v1/native/export')
+        if st < 400 and args.out:
+            with open(args.out, 'w') as f:
+                json.dump(out, f)
+            out = {'written': args.out, 'domain': out.get('domain'), 'receipts': len(out.get('receipts', [])), 'intents': len(out.get('intents', []))}
+        return st, out
+    if c == 'native-check':                                                          # offline
+        from .native import checker
+        rep = checker.check(json.load(open(args.export)), json.load(open(args.roots)), args.environment); return (200 if all(v in (True, None) for v in rep['summary'].values()) else 409), rep
+    if c == 'native-vectors':                                                        # offline
+        from .native import vectors
+        out = vectors.run(); return (200 if out['all_as_expected'] else 409), out
+    if c == 'native-model':                                                          # offline
+        from .native import model
+        out = model.explore(args.depth); return (200 if out['violation_count'] == 0 else 409), out
+    if c == 'native-spec':
+        return go('GET', '/api/v1/native/spec')
+    if c == 'native-disputes':
+        return go('GET', '/api/v1/native/disputes')
+    if c == 'native-dispute-open':
+        return go('POST', '/api/v1/native/disputes', {'obligation_id': args.obligation_id, 'kind': args.kind, 'claim': args.claim}, idempotency_key=key)
+    if c == 'native-dispute-resolve':
+        return go('POST', '/api/v1/native/disputes/' + args.dispute_id + '/resolve', {'outcome': args.outcome, 'reason': args.reason or ''}, idempotency_key=key)
+    if c == 'procurement-plan':
+        return go('POST', '/api/v1/native/procurement/plan', dict(jf(), policy=args.policy))
+    if c == 'procurement-benchmark':
+        return go('GET', '/api/v1/native/procurement/benchmark?missions=%d&seed=%d' % (args.missions, args.seed))
+    if c == 'lunar-sources':
+        return go('GET', '/api/v1/lunar/sources')
+    if c == 'lunar-products':
+        return go('GET', '/api/v1/lunar/products')
+    if c == 'lunar-product':
+        return go('GET', '/api/v1/lunar/products/' + args.job_id)
+    if c == 'lunar-example':
+        return go('GET', '/api/v1/lunar/examples/%s?source=%s' % (args.name, args.source))
+    if c == 'lunar-download':
+        st, out = go('GET', '/api/v1/lunar/products/' + args.job_id + '/download', raw=True)
+        if st < 400:
+            with open(args.out, 'wb') as f:
+                f.write(out)
+            return st, {'written': args.out, 'bytes': len(out)}
+        return st, out
+    return 400, {'error': True, 'code': 'UNKNOWN_COMMAND'}
+
+
+DECISION_COMMANDS = ('decision-analyze', 'decisions', 'decision', 'decision-projection', 'decision-witnesses', 'decision-bundle', 'acquisition-preview', 'acquisition-plan', 'acquisition-plans', 'acquisition-materialize',
+                     'work-deliver', 'work-delivery-spec', 'work-assurance', 'sampling-plan', 'sampling-plans', 'sampling-audit', 'sampling-verify', 'assurance-evaluate', 'assurance-claims', 'verification-assurance',
+                     'portfolio-create', 'portfolios', 'portfolio', 'portfolio-select', 'fault-suite', 'campaign', 'campaigns')
+
+
+def decision(args, go):
+    """Decision-evidence commands (order of 2026-10-22): analyses, acquisition plans, deliveries, assurance previews, sampling
+    plans and audits, portfolios. One authenticated HTTP request each; analysis never implies spending authority."""
+    c = args.command
+    jf = (lambda: json.load(open(args.file))) if getattr(args, 'file', None) else (lambda: {})
+    key = getattr(args, 'idempotency_key', None)
+    if c == 'decision-analyze':
+        return go('POST', '/api/v1/decisions/analyze', {'inputs': jf(), 'title': args.title or 'decision observability'}, idempotency_key=key)
+    if c == 'decisions':
+        return go('GET', '/api/v1/decisions' + ('?kind=' + args.kind if args.kind else ''))
+    if c == 'decision':
+        return go('GET', '/api/v1/decisions/' + args.job_id)
+    if c == 'decision-projection':
+        return go('GET', '/api/v1/decisions/' + args.job_id + '/projection')
+    if c == 'decision-witnesses':
+        return go('GET', '/api/v1/decisions/' + args.job_id + '/witnesses')
+    if c == 'decision-bundle':
+        status, content = go('GET', '/api/v1/decisions/' + args.job_id + '/bundle', raw=True)
+        if status == 200:
+            fd = os.open(args.out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, 'wb') as fh:
+                fh.write(content)
+            return status, {'written': args.out, 'bytes': len(content), 'replay': 'python -m metacoin_service.decision.replay %s --trust-root <service public key hex> --json' % args.out}
+        return status, json.loads(content)
+    if c in ('acquisition-preview', 'acquisition-plan'):
+        body = dict(jf(), analysis_job_id=args.job_id, budget=args.budget)
+        return go('POST', '/api/v1/acquisition-plans' + ('/preview' if c == 'acquisition-preview' else ''), body, idempotency_key=key)
+    if c == 'acquisition-plans':
+        return go('GET', '/api/v1/acquisition-plans')
+    if c == 'acquisition-materialize':
+        body = {'diagnostic_amount': args.diagnostic}
+        if args.title:
+            body['title'] = args.title
+        return go('POST', '/api/v1/acquisition-plans/' + args.plan_id + '/materialize', body, idempotency_key=key)
+    if c == 'work-deliver':
+        return go('POST', '/api/v1/work/awards/%s/milestones/%s/deliver' % (args.award_id, args.milestone), {'delivery': jf()}, idempotency_key=key)
+    if c == 'work-delivery-spec':
+        return go('GET', '/api/v1/work/awards/%s/milestones/%s/delivery-spec' % (args.award_id, args.milestone))
+    if c == 'work-assurance':
+        return go('GET', '/api/v1/work/awards/%s/milestones/%s/assurance' % (args.award_id, args.milestone))
+    if c == 'sampling-plan':
+        body = {'job_id': args.job_id, 'alpha': args.alpha, 'max_samples': args.max_samples}
+        if args.defect_fraction:
+            body['defect_fraction'] = args.defect_fraction
+        else:
+            body['minimum_defects'] = args.minimum_defects
+        if args.preview:
+            body['preview'] = True
+        return go('POST', '/api/v1/verification/sampling-plans', body)
+    if c == 'sampling-plans':
+        return go('GET', '/api/v1/verification/sampling-plans' + ('/' + args.plan_id if args.plan_id else ('?job_id=' + args.job_id if args.job_id else '')))
+    if c == 'sampling-audit':
+        return go('POST', '/api/v1/verification/sampling-plans/' + args.plan_id + '/audit', {}, idempotency_key=key)
+    if c == 'sampling-verify':
+        return go('POST', '/api/v1/verification/sampling-plans/verify', {'bundle': jf()})
+    if c == 'assurance-evaluate':
+        return go('POST', '/api/v1/verification/assurance/evaluate', {'job_id': args.job_id, 'requirement': jf()})
+    if c == 'assurance-claims':
+        return go('GET', '/api/v1/verification/assurance/claims')
+    if c == 'verification-assurance':
+        return go('GET', '/api/v1/verification/' + args.verification_id + '/assurance')
+    if c == 'portfolio-create':
+        return go('POST', '/api/v1/portfolios', jf(), idempotency_key=key)
+    if c == 'portfolios':
+        return go('GET', '/api/v1/portfolios')
+    if c == 'portfolio':
+        return go('GET', '/api/v1/portfolios/' + args.portfolio_id)
+    if c == 'portfolio-select':
+        return go('POST', '/api/v1/portfolios/select', {'suite_id': args.suite_id, 'required_families': args.families.split(','), **({'max_cost': args.max_cost} if args.max_cost is not None else {})})
+    if c == 'fault-suite':
+        return go('POST', '/api/v1/portfolios/fault-suite', jf(), idempotency_key=key)
+    if c == 'campaign':
+        return go('POST', '/api/v1/portfolios/campaigns', {'suite_id': args.suite_id, 'portfolio_ids': args.portfolio_ids.split(','), 'split': args.split}, idempotency_key=key)
+    if c == 'campaigns':
+        return go('GET', '/api/v1/portfolios/campaigns' + ('/' + args.campaign_id if args.campaign_id else ''))
+    return 2, {'error': 'unknown decision command'}
+
 
 def work(args, go):
     """Work-economy commands: every call is one authenticated HTTP request (or a documented short sequence); idempotency keys
@@ -839,6 +1188,88 @@ def main(argv=None):
     w = sub.add_parser('work-challenge-package'); w.add_argument('challenge_id'); w.add_argument('--out')
     w = sub.add_parser('work-mission-scenario', help='portfolio budget scenario under declared utilities (JSON file: name, budget_ceilings, utilities, costs)'); w.add_argument('portfolio_id'); w.add_argument('--file', required=True)
     w = sub.add_parser('work-mission-scenarios'); w.add_argument('portfolio_id'); w.add_argument('scenario_id', nargs='?')
+    # ---- missions ----
+    n = sub.add_parser('native-signing-requests', help='pending signing requests of my account (external custody)'); n.add_argument('--account')
+    n = sub.add_parser('native-sign-pending', help='actor-side signing agent: fetch pending requests, have MY signer check and sign them, submit'); n.add_argument('--actor', required=True); n.add_argument('--signer', required=True); n.add_argument('--signer-token', required=True); n.add_argument('--account')
+    sub.add_parser('native-operator', help='operator screen: owns/owes, committed resources, missing evidence, blackout possibilities, pending cross-domain')
+    n = sub.add_parser('mission-plan'); n.add_argument('mission_id'); n.add_argument('--objective', default='earliest_delivery', choices=('earliest_delivery', 'lowest_cost')); n.add_argument('--planner', default='improved', choices=('baseline', 'improved', 'oracle')); n.add_argument('--apply', action='store_true'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('mission-bundle', help='portable, sealed mission bundle for offline verification'); n.add_argument('mission_id'); n.add_argument('--out')
+    sub.add_parser('missions'); sub.add_parser('mission-templates')
+    n = sub.add_parser('mission-create', help='create (and optionally freeze) a mission from a template or a JSON graph file'); n.add_argument('--template'); n.add_argument('--policy', help='JSON policy (price, verifier_pay_to, min_cash_reserve, ...)'); n.add_argument('--file'); n.add_argument('--freeze', action='store_true'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('mission'); n.add_argument('mission_id'); n = sub.add_parser('mission-ledger'); n.add_argument('mission_id'); n = sub.add_parser('mission-explain'); n.add_argument('mission_id')
+    n = sub.add_parser('mission-action'); n.add_argument('mission_id'); n.add_argument('action', choices=('freeze', 'amend', 'pause', 'resume', 'step', 'run', 'propose', 'gate')); n.add_argument('--file'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('mission-authorize'); n.add_argument('mission_id'); n.add_argument('revision', type=int); n.add_argument('--idempotency-key')
+    # ---- resource market ----
+    sub.add_parser('resources'); n = sub.add_parser('resource-offer-publish', help='publish a fixed-price resource offer (JSON file: kind, resource_id, capacity, price_per_unit, window_start, window_end, ...)'); n.add_argument('--file', required=True); n.add_argument('--idempotency-key')
+    n = sub.add_parser('resource-offers'); n.add_argument('--kind'); n = sub.add_parser('resource-quote'); n.add_argument('offer_id'); n.add_argument('quantity', type=int)
+    n = sub.add_parser('resource-reserve', help='binding: checks the exact offer version, funds and capacity in one transaction'); n.add_argument('offer_id'); n.add_argument('offer_version', type=int); n.add_argument('quantity', type=int); n.add_argument('--request-id', required=True); n.add_argument('--idempotency-key')
+    n = sub.add_parser('resource-reservations'); n.add_argument('--account'); n = sub.add_parser('resource-reservation'); n.add_argument('reservation_id')
+    n = sub.add_parser('resource-action'); n.add_argument('reservation_id'); n.add_argument('action', choices=('activate', 'deliver', 'settle', 'cancel')); n.add_argument('--file'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('resource-storage-put'); n.add_argument('reservation_id'); n.add_argument('path'); n.add_argument('--idempotency-key')
+    # ---- external signer ----
+    def sg(p):
+        p.add_argument('--signer', required=True, help='signer base URL (loopback or an authorized host)'); p.add_argument('--signer-token-file', required=True); return p
+    sg(sub.add_parser('signer-health'))
+    n = sg(sub.add_parser('signer-enroll', help='create the actor key in the signer and register the public identity with the service; credential to --out (0600)')); n.add_argument('name'); n.add_argument('--ceiling', type=int, required=True); n.add_argument('--out'); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('signer-rotate')); n.add_argument('actor'); n.add_argument('--account', required=True); n.add_argument('--grace-seconds', type=int, default=3600); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('signer-revoke')); n.add_argument('actor'); n.add_argument('--account', required=True); n.add_argument('--key-id', required=True); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('signer-delegate', help='bounded delegate key: recipient scope and aggregate ceiling never widen the actor\'s authority')); n.add_argument('actor'); n.add_argument('--account', required=True); n.add_argument('--name', required=True); n.add_argument('--recipients', required=True); n.add_argument('--ceiling', type=int, required=True); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('signer-keys')); n.add_argument('actor')
+    n = sub.add_parser('native-keys'); n.add_argument('account'); n = sub.add_parser('native-key-revoke'); n.add_argument('account'); n.add_argument('key_id'); n.add_argument('--idempotency-key')
+    n = sg(sub.add_parser('native-transfer-signed', help='prepare -> sign outside the service -> submit')); n.add_argument('actor'); n.add_argument('to_account'); n.add_argument('amount', type=int); n.add_argument('--request-id', required=True); n.add_argument('--asset'); n.add_argument('--from-account'); n.add_argument('--obligation-id'); n.add_argument('--delegate'); n.add_argument('--idempotency-key')
+    # ---- native protocol ----
+    sub.add_parser('native-domain'); n = sub.add_parser('native-domain-init'); n.add_argument('domain_id'); n.add_argument('--operator', default='same operator (local development)'); n.add_argument('--host', default='this host'); n.add_argument('--idempotency-key')
+    sub.add_parser('native-accounts'); n = sub.add_parser('native-account'); n.add_argument('account_id', nargs='?', default='me')
+    n = sub.add_parser('native-actor-create', help='create an earn-and-pay actor identity; the credential goes to --out (0600), never to stdout'); n.add_argument('name'); n.add_argument('--out'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-fund', help='development fixture funding (native:admin; dev only; zero-value asset)'); n.add_argument('account_id'); n.add_argument('amount', type=int); n.add_argument('--idempotency-key')
+    for cmd in ('native-transfer', 'native-simulate'):
+        n = sub.add_parser(cmd); n.add_argument('to_account'); n.add_argument('amount', type=int); n.add_argument('--request-id', required=True); n.add_argument('--asset'); n.add_argument('--from-account'); n.add_argument('--obligation-id'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-intents'); n.add_argument('--account'); n = sub.add_parser('native-intent'); n.add_argument('intent_id'); n = sub.add_parser('native-obligations'); n.add_argument('--account')
+    n = sub.add_parser('native-export', help='export a destination-bound allocation to a pinned peer'); n.add_argument('destination'); n.add_argument('recipient'); n.add_argument('amount', type=int); n.add_argument('--request-id', required=True); n.add_argument('--asset'); n.add_argument('--idempotency-key')
+    sub.add_parser('native-allocations'); n = sub.add_parser('native-allocation'); n.add_argument('allocation_id'); n = sub.add_parser('native-allocation-return'); n.add_argument('allocation_id'); n.add_argument('--idempotency-key'); n = sub.add_parser('native-recover'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-peer-pin', help='pin a peer authority root (JSON file: domain_id, authority_key_id, authority_public_hex, epoch)'); n.add_argument('--file', required=True); n.add_argument('--idempotency-key'); n = sub.add_parser('native-peer'); n.add_argument('domain_id')
+    n = sub.add_parser('native-outbox'); n.add_argument('--receiver', required=True); n.add_argument('--transport', default='online'); n = sub.add_parser('native-inbox'); n.add_argument('--file', required=True); n.add_argument('--transport', default='online')
+    n = sub.add_parser('native-bundle-write', help='file-bundle adapter: write this domain\'s outbox for a receiver'); n.add_argument('--receiver', required=True); n.add_argument('path')
+    n = sub.add_parser('native-bundle-import', help='file-bundle adapter: import a bundle file at this domain; replies (acks) to --replies'); n.add_argument('path'); n.add_argument('--replies')
+    n = sub.add_parser('native-courier', help='online adapter: one round trip from this domain to a peer API'); n.add_argument('--receiver', required=True); n.add_argument('--dst-base', required=True); n.add_argument('--dst-credential-file', required=True)
+    n = sub.add_parser('native-observation'); n.add_argument('--peer', required=True); n.add_argument('--idempotency-key'); n = sub.add_parser('native-rotate'); n.add_argument('--grace-seconds', type=int, default=604800); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-connectivity'); n.add_argument('state', choices=('online', 'cut')); n.add_argument('--idempotency-key'); sub.add_parser('native-recovery'); n = sub.add_parser('native-reconcile'); n.add_argument('--file'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-audit'); n.add_argument('--asset'); n = sub.add_parser('native-export-record'); n.add_argument('--out')
+    n = sub.add_parser('native-check', help='OFFLINE independent conformance check of an exported record under explicitly pinned roots'); n.add_argument('export'); n.add_argument('--roots', required=True); n.add_argument('--environment', default='dev')
+    sub.add_parser('native-vectors', help='OFFLINE deterministic valid/invalid vectors through the checker'); n = sub.add_parser('native-model', help='OFFLINE bounded state-space exploration'); n.add_argument('--depth', type=int, default=5)
+    sub.add_parser('native-spec'); sub.add_parser('native-disputes'); n = sub.add_parser('native-dispute-open'); n.add_argument('obligation_id'); n.add_argument('--kind', required=True); n.add_argument('--claim', required=True); n.add_argument('--idempotency-key')
+    n = sub.add_parser('native-dispute-resolve'); n.add_argument('dispute_id'); n.add_argument('--outcome', required=True, choices=('uphold', 'dismiss')); n.add_argument('--reason'); n.add_argument('--idempotency-key')
+    n = sub.add_parser('procurement-plan', help='resource/contact-aware plan selection (JSON file: envelope, plans)'); n.add_argument('--file', required=True); n.add_argument('--policy', default='cheapest_eligible')
+    n = sub.add_parser('procurement-benchmark'); n.add_argument('--missions', type=int, default=200); n.add_argument('--seed', type=int, default=1)
+    sub.add_parser('lunar-sources'); sub.add_parser('lunar-products'); n = sub.add_parser('lunar-product'); n.add_argument('job_id'); n = sub.add_parser('lunar-download'); n.add_argument('job_id'); n.add_argument('--out', required=True)
+    n = sub.add_parser('lunar-example'); n.add_argument('name', choices=('terrain', 'route', 'pack')); n.add_argument('--source', default='apollo11_32')
+    d = sub.add_parser('decision-analyze', help='analyse a declared finite candidate model (JSON file: hypotheses, views, coordinates, optional observations, disclosure)'); d.add_argument('--file', required=True); d.add_argument('--title'); d.add_argument('--idempotency-key')
+    d = sub.add_parser('decisions'); d.add_argument('--kind')
+    d = sub.add_parser('decision'); d.add_argument('job_id')
+    d = sub.add_parser('decision-projection', help='the disclosure-policed projection (counts, conclusion, digests)'); d.add_argument('job_id')
+    d = sub.add_parser('decision-witnesses', help='private ambiguity witnesses (owner / designated reviewer)'); d.add_argument('job_id')
+    d = sub.add_parser('decision-bundle', help='authorized decision bundle for offline replay (python -m metacoin_service.decision.replay)'); d.add_argument('job_id'); d.add_argument('--out', required=True)
+    d = sub.add_parser('acquisition-preview', help='the next useful measurement set under a budget (nothing stored)'); d.add_argument('job_id'); d.add_argument('--budget', type=int, required=True); d.add_argument('--file', required=True, help='JSON {menu: [...]}')
+    d = sub.add_parser('acquisition-plan', help='store a bound acquisition plan'); d.add_argument('job_id'); d.add_argument('--budget', type=int, required=True); d.add_argument('--file', required=True); d.add_argument('--idempotency-key')
+    d = sub.add_parser('acquisition-plans')
+    d = sub.add_parser('acquisition-materialize', help='freeze decision-evidence-acquisition terms from a plan and open the request (nothing reserved until award)'); d.add_argument('plan_id'); d.add_argument('--diagnostic', type=int, default=0); d.add_argument('--title'); d.add_argument('--idempotency-key')
+    d = sub.add_parser('work-deliver', help='provider: deliver the observation (JSON file: delivery)'); d.add_argument('award_id'); d.add_argument('--milestone', default='m1'); d.add_argument('--file', required=True); d.add_argument('--idempotency-key')
+    d = sub.add_parser('work-delivery-spec'); d.add_argument('award_id'); d.add_argument('--milestone', default='m1')
+    d = sub.add_parser('work-assurance', help='required assurance, available evidence, satisfied / missing clauses, next checks'); d.add_argument('award_id'); d.add_argument('--milestone', default='m1')
+    d = sub.add_parser('sampling-plan', help='exact finite-population sampling plan for an itemwise job'); d.add_argument('job_id'); d.add_argument('--alpha', required=True, help='rational string, e.g. 1/100'); d.add_argument('--max-samples', type=int, required=True); d.add_argument('--minimum-defects', type=int); d.add_argument('--defect-fraction', help='rational string; ceiling rule'); d.add_argument('--preview', action='store_true')
+    d = sub.add_parser('sampling-plans'); d.add_argument('plan_id', nargs='?'); d.add_argument('--job-id')
+    d = sub.add_parser('sampling-audit', help='issue the bound challenge (single fixed-size attempt)'); d.add_argument('plan_id'); d.add_argument('--idempotency-key')
+    d = sub.add_parser('sampling-verify', help='recompute the sampling arithmetic of a signed statement bundle (JSON file)'); d.add_argument('--file', required=True)
+    d = sub.add_parser('assurance-evaluate', help='evaluate a typed assurance requirement (JSON file) against a job\'s evidence'); d.add_argument('job_id'); d.add_argument('--file', required=True)
+    d = sub.add_parser('assurance-claims')
+    d = sub.add_parser('verification-assurance'); d.add_argument('verification_id')
+    d = sub.add_parser('portfolio-create', help='versioned verification portfolio (JSON file: name, components)'); d.add_argument('--file', required=True); d.add_argument('--idempotency-key')
+    d = sub.add_parser('portfolios')
+    d = sub.add_parser('portfolio'); d.add_argument('portfolio_id')
+    d = sub.add_parser('portfolio-select'); d.add_argument('suite_id'); d.add_argument('--families', required=True); d.add_argument('--max-cost', type=int)
+    d = sub.add_parser('fault-suite', help='preregistered fault campaign suite (JSON file: name, seed, cases_per_family, holdout_per_family, families?)'); d.add_argument('--file', required=True); d.add_argument('--idempotency-key')
+    d = sub.add_parser('campaign'); d.add_argument('suite_id'); d.add_argument('--portfolio-ids', required=True); d.add_argument('--split', default='dev', choices=('dev', 'held-out')); d.add_argument('--idempotency-key')
+    d = sub.add_parser('campaigns'); d.add_argument('campaign_id', nargs='?')
     w = sub.add_parser('work-reconciliation', help='pending payment observations with the one bounded action that applies to each')
     w = sub.add_parser('work-provider-history', help='evidence-based provider history (dimensions with sample sizes; no score)'); w.add_argument('provider_id'); w.add_argument('--disclosed', action='store_true')
     w = sub.add_parser('work-provider-portfolio'); w.add_argument('provider_id')
@@ -1103,6 +1534,10 @@ def main(argv=None):
         status, out = go('GET', '/api/v1/compute/jobs/' + args.job_id + '/log')
     elif args.command in WORK_COMMANDS:
         status, out = work(args, go)
+    elif args.command in DECISION_COMMANDS:
+        status, out = decision(args, go)
+    elif args.command in NATIVE_COMMANDS:
+        status, out = native(args, go)
     elif args.command in EXPANSION_COMMANDS:
         status, out = expansion(args, go)
     elif args.command == 'share':

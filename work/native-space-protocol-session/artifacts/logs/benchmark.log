@@ -1,0 +1,62 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+benchmark rc 0
+
+{
+ "transfers": {
+  "count": 300,
+  "elapsed_s": 3.453,
+  "throughput_per_s": 86.9,
+  "p50_s": 0.0214,
+  "p95_s": 0.3429,
+  "max_s": 1.7414,
+  "errors": [],
+  "payee_available_after": 300,
+  "correct": true
+ },
+ "settlement": {
+  "native": {
+   "rail": "native",
+   "awards": 6,
+   "failed_or_unaccepted": 0,
+   "verification_jobs": 12,
+   "award_p50_s": 0.0323,
+   "award_p95_s": 0.038,
+   "to_accepted_p50_s": 1.162,
+   "pay_p50_s": 0.0556,
+   "pay_p95_s": 0.0703
+  },
+  "application_journal": {
+   "rail": "application-journal",
+   "awards": 6,
+   "failed_or_unaccepted": 0,
+   "verification_jobs": 12,
+   "award_p50_s": 0.03,
+   "award_p95_s": 0.0807,
+   "to_accepted_p50_s": 1.14,
+   "pay_p50_s": 0.0566,
+   "pay_p95_s": 0.064
+  }
+ },
+ "journal_replay": {
+  "seconds": 0.081,
+  "consistent": true,
+  "scopes": 2
+ },
+ "recovery_sweep": {
+  "seconds": 0.0029,
+  "resumed": 0
+ },
+ "storage_bytes": {
+  "service_sqlite": 4468736,
+  "wal": 0
+ },
+ "economic_summary": {
+  "protocol_operations": 348,
+  "accepted_work_products": 12,
+  "same_operator_transfer_volume": 300,
+  "external_demand": 0,
+  "note": "operation count is not accepted work; all volume is same-operator; verification jobs and unaccepted awards are included above"
+ }
+}
+BENCH_RC=0

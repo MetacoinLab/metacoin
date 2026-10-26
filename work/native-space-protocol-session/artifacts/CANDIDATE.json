@@ -1,0 +1,11 @@
+{
+ "source_candidate": "691d68ba91ac4c1e61f14770582c9e75cc3f2ee7",
+ "base": "0ded29d90706d4e5aafbd2e59b6d029d66d08702",
+ "branch": "protocol/native-space-settlement-v0",
+ "live_service": {
+  "revision": "3e34126",
+  "schema": "040_work_programs_pricing_challenges",
+  "upgraded": false
+ },
+ "published": false
+}

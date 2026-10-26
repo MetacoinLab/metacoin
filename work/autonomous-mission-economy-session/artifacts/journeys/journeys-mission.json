@@ -1,0 +1,1007 @@
+{
+ "schema": "metacoin-journeys-mission/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "revision": "809b95eb974337c934dd78c7e736678a3bf1c83c",
+ "python": "3.12.3",
+ "started_at": 1792728431,
+ "finished_at": 1792728490,
+ "results": [
+  {
+   "journey": 1,
+   "title": "Recover baseline and reproduce the distinct-recipient 80-unit accounting example.",
+   "status": "passed",
+   "evidence": {
+    "base_revision": "6a9b5926bfd35c8b521847707d49ac2eacfe4647",
+    "revision": "809b95eb974337c934dd78c7e736678a3bf1c83c",
+    "purchase_before_earning": 400,
+    "after_terrain_settlement": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 30,
+     "s80": 9,
+     "v80": 3,
+     "c80": 2,
+     "treasury": 1
+    },
+    "expected": {
+     "r80": 35,
+     "m80": 30,
+     "s80": 9,
+     "v80": 3,
+     "c80": 2,
+     "treasury": 1
+    },
+    "total": 80,
+    "award_recipient_distinct_from_machine": true,
+    "previous_record_untouched": "journey 21 of the native order awarded the treasury contract to the machine on purpose (machine 32); this replay names a distinct recipient",
+    "seconds": 4.284
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "Complete the native economic cycle with x402 disabled and facilitator unavailable.",
+   "status": "passed",
+   "evidence": {
+    "x402": {
+     "disabled": true,
+     "installed": false,
+     "required_by_native_core": false,
+     "role": "optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement"
+    },
+    "facilitator_probe": "ConnectError",
+    "rail": "native",
+    "machine": 5,
+    "signer_capability": true,
+    "seconds": 1.658
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "Enroll an actor through the external signer; server has no configured actor private key.",
+   "status": "passed",
+   "evidence": {
+    "custody": "external-signer:sig-test",
+    "key_files_on_server": 0,
+    "unsigned_transfer": 409,
+    "signed_transfer": "settled",
+    "alice": 40,
+    "seconds": 0.09
+   },
+   "caveat": null
+  },
+  {
+   "journey": 4,
+   "title": "Refuse altered recipient, amount, domain and obligation before signing.",
+   "status": "passed",
+   "evidence": {
+    "service_refusals": {
+     "recipient": [
+      403,
+      "signature_invalid"
+     ],
+     "amount_ceiling": [
+      403,
+      "signature_invalid"
+     ],
+     "authority": [
+      422,
+      "authority_mismatch"
+     ],
+     "obligation_id": [
+      403,
+      "signature_invalid"
+     ]
+    },
+    "signer_refusals": {
+     "wrong_domain": [
+      400,
+      "domain_not_pinned"
+     ],
+     "expired": [
+      400,
+      "expired"
+     ],
+     "unknown_field": [
+      400,
+      "intent"
+     ],
+     "float": [
+      400,
+      "encoding"
+     ]
+    },
+    "balances_unchanged_until_valid_submit": [
+     40,
+     15,
+     0
+    ],
+    "valid_submit": "settled",
+    "seconds": 0.053
+   },
+   "caveat": null
+  },
+  {
+   "journey": 5,
+   "title": "Crash and restart the signer around signature persistence without additional exposure.",
+   "status": "passed",
+   "evidence": {
+    "crash_before_record": 500,
+    "exposure_after_crash": 0,
+    "crash_after_record": 500,
+    "replayed_after_restart": true,
+    "exposure_outstanding": 10,
+    "bob": 20,
+    "seconds": 0.384
+   },
+   "caveat": null
+  },
+  {
+   "journey": 6,
+   "title": "Rotate a signer, verify historical receipts and refuse unauthorized new old-key intents.",
+   "status": "passed",
+   "evidence": {
+    "keys": [
+     [
+      "k_d06c9ba4",
+      "retired"
+     ],
+     [
+      "k_1da61da1",
+      "active"
+     ]
+    ],
+    "historical_signature_verifies": true,
+    "historical_receipts": 1,
+    "old_key_new_intent": [
+     403,
+     "key_not_authorized"
+    ],
+    "carol": 14,
+    "seconds": 0.166
+   },
+   "caveat": null
+  },
+  {
+   "journey": 7,
+   "title": "Refuse delegation that expands recipient scope or aggregate authority.",
+   "status": "passed",
+   "evidence": {
+    "widening_delegation": "delegation_exceeds_authority",
+    "out_of_scope": "delegate_recipient_out_of_scope",
+    "within": 200,
+    "over_ceiling_signer": "delegate_ceiling",
+    "over_ceiling_server": "delegate_ceiling",
+    "dave": 35,
+    "seconds": 0.102
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "Race two buyers for one resource slot; capacity and funds remain consistent.",
+   "status": "passed",
+   "evidence": {
+    "results": [
+     [
+      "requester",
+      201,
+      null
+     ],
+     [
+      "machine",
+      409,
+      "capacity_exhausted"
+     ]
+    ],
+    "offer": {
+     "reserved": 8,
+     "available": 2
+    },
+    "winner": "requester",
+    "seconds": 0.076
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "Refuse acceptance of a stale resource quote without silently repricing it.",
+   "status": "passed",
+   "evidence": {
+    "quote": {
+     "price": 2000,
+     "binding": false
+    },
+    "stale": [
+     409,
+     "stale_quote"
+    ],
+    "fresh": [
+     30,
+     2
+    ],
+    "seconds": 0.049
+   },
+   "caveat": null
+  },
+  {
+   "journey": 10,
+   "title": "Deliver actual compute work and settle its measured contract once.",
+   "status": "passed",
+   "evidence": {
+    "measured_cpu_ms": 24,
+    "exit_code": 0,
+    "verification": true,
+    "delivered_quantity": 24,
+    "settled_once": true,
+    "measurement_source": "os rusage of the child process (RUSAGE_CHILDREN deltas); a bounded execution, not a benchmark of the provider's hardware",
+    "seconds": 0.145
+   },
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "title": "Deliver storage and emulated contact capacity with correctly labelled evidence.",
+   "status": "passed",
+   "evidence": {
+    "storage": {
+     "stored_bytes": 2048,
+     "kib_seconds": 4,
+     "labels": [
+      "metered_fact",
+      "provider_assertion",
+      "verified"
+     ]
+    },
+    "contact": {
+     "received_bytes": 20480,
+     "label": "emulated loopback link (one host; declared bandwidth cap; no",
+     "delivered_kib": 20,
+     "settled": 40
+    },
+    "seconds": 0.182
+   },
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "title": "Cancel uncommitted resource reservations and preserve committed obligations.",
+   "status": "passed",
+   "evidence": {
+    "uncommitted": "cancelled",
+    "committed_after_activation": [
+     "settled",
+     10
+    ],
+    "offer": {
+     "reserved": 0,
+     "delivered": 10,
+     "available": 90
+    },
+    "seconds": 0.106
+   },
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "title": "Execute a multi-milestone mission with frozen terms and linked input versions.",
+   "status": "passed",
+   "evidence": {
+    "mission": "mc_8786f3f24837",
+    "frozen_digest": "37d192c171cb80e5",
+    "acquire_terms_digest": "e4e16e16d588d06e",
+    "compute_input_root": "eb2aa163f7a77c6f",
+    "science": "FEASIBLE",
+    "ledger_spent": 49,
+    "balances": {
+     "machine": 5151,
+     "verifier": 3,
+     "treasury": 3
+    },
+    "seconds": 2.891
+   },
+   "caveat": null
+  },
+  {
+   "journey": 14,
+   "title": "Settle a partial useful delivery without paying an unfinished mandatory milestone.",
+   "status": "passed",
+   "evidence": {
+    "states": {
+     "after": "skipped",
+     "bad": "failed",
+     "first": "accepted",
+     "pay_first": "settled"
+    },
+    "machine_delta": 3,
+    "rejected_reason": "rejected: failed predicates: reference",
+    "seconds": 2.828
+   },
+   "caveat": null
+  },
+  {
+   "journey": 15,
+   "title": "Accept and pay a valid negative result under an explicit policy.",
+   "status": "passed",
+   "evidence": {
+    "science": "INFEASIBLE",
+    "decision": "accepted",
+    "payment_class": null,
+    "paid": 10,
+    "seconds": 1.505
+   },
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "title": "Refuse unauthorized mutation of awarded terms; accept an authorized amendment.",
+   "status": "passed",
+   "evidence": {
+    "provider_amend": 403,
+    "committed_milestone_amend": [
+     409,
+     "milestone_committed"
+    ],
+    "affected": 2,
+    "unaffected_authorize": 403,
+    "frozen_revision": 2,
+    "new_price_paid": 30,
+    "seconds": 2.956
+   },
+   "caveat": null
+  },
+  {
+   "journey": 17,
+   "title": "Refuse a machine purchase before earnings; allow it from settled earnings afterward.",
+   "status": "passed",
+   "evidence": {
+    "before_settlement": "insufficient_liquidity: spendable settled 4 (available 4 minus minimum reserve 0) < 20; receivables 40 are not spendable",
+    "after_settlement": {
+     "action": "reserve",
+     "milestone": "followon",
+     "offer_id": "ro_bc486e85c40c",
+     "amount": 20,
+     "reason": null
+    },
+    "machine_reserved": 20,
+    "machine_available": 24,
+    "seconds": 3.032
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "Refuse spending unsettled anticipated revenue and preserve minimum cash reserve.",
+   "status": "passed",
+   "evidence": {
+    "spendable_with_reserve_150": 50,
+    "machine_receivable": 4,
+    "machine_available": 0,
+    "unsettled_revenue_refusal": [
+     400,
+     "insufficient_available"
+    ],
+    "reserve_198_refusal": "insufficient_liquidity: spendable settled 0 (available 196 minus minimum reserve 198) < 4; receivables 0 are not spendab",
+    "seconds": 1.622
+   },
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "title": "Reject an unsafe model-proposed action through the deterministic grant validator.",
+   "status": "passed",
+   "evidence": {
+    "rejections": [
+     "not_a_permissible_action",
+     "not_a_permissible_action",
+     "not_a_permissible_action"
+    ],
+    "recorded": 3,
+    "seconds": 0.124
+   },
+   "caveat": null
+  },
+  {
+   "journey": 20,
+   "title": "Continue during blackout within preallocated authority; wait when exhausted.",
+   "status": "passed",
+   "evidence": {
+    "paid_during_blackout": {
+     "action": "pay",
+     "milestone": "settle",
+     "offer_id": null,
+     "amount": 45,
+     "reason": null
+    },
+    "then": "waiting",
+    "wait_reason": "no permitted action: insufficient_liquidity: spendable settled 1 (available 151 minus minimum reserv",
+    "link_cut_refusals": [],
+    "operator_possible": [
+     [
+      "pay",
+      "settle"
+     ],
+     [
+      "reserve",
+      "store"
+     ],
+     [
+      "pay",
+      "settle"
+     ],
+     [
+      "reserve",
+      "store"
+     ],
+     [
+      "reserve",
+      "store"
+     ]
+    ],
+    "operator_disabled": [
+     [
+      "open_request",
+      "insufficient_liquidity: spendable settled 0 (avail"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 1 (avail"
+     ]
+    ],
+    "seconds": 1.499
+   },
+   "caveat": "local settlement from reserved funds continues; relay and cross-domain actions are refused with link_cut"
+  },
+  {
+   "journey": 21,
+   "title": "Apply learned revocation to new work while retaining already incurred obligations.",
+   "status": "passed",
+   "evidence": {
+    "stop_reason": "grant_revoked",
+    "incurred_obligation_paid": {
+     "action": "pay",
+     "milestone": "settle_acquire",
+     "offer_id": null,
+     "amount": 4,
+     "reason": null
+    },
+    "new_work_refused": [
+     [
+      "open_request",
+      "grant_revoked"
+     ]
+    ],
+    "spent": 4,
+    "seconds": 1.54
+   },
+   "caveat": null
+  },
+  {
+   "journey": 22,
+   "title": "Match the planner to an exhaustive oracle on bounded fixtures.",
+   "status": "passed",
+   "evidence": {
+    "fixtures": 80,
+    "optimal_agreements": 36,
+    "infeasible_agreements": 44,
+    "mismatches": [],
+    "via": "POST /plans/solve (oracle vs improved)",
+    "seconds": 0.743
+   },
+   "caveat": null
+  },
+  {
+   "journey": 23,
+   "title": "Schedule competing missions without overcommitting shared resources.",
+   "status": "passed",
+   "evidence": {
+    "joint_cost": 475,
+    "plan_locked_nothing": true,
+    "reserved": {
+     "mc_edc101ef979c": true,
+     "mc_062c44ab3a68": true
+    },
+    "third_mission_plans_around_live_availability": {
+     "mc_eeab2f8805e4:link": "ro_4a85a3c4e3d4"
+    },
+    "seconds": 0.205
+   },
+   "caveat": null
+  },
+  {
+   "journey": 24,
+   "title": "Replan after a missed contact window without duplicating payments or reservations.",
+   "status": "passed",
+   "evidence": {
+    "first_reservation": "rr_928e04400420",
+    "released": 450,
+    "second_reservation": "rr_428cc07561bf",
+    "ledger": {
+     "ceiling": 2250,
+     "reserved": 0,
+     "spent": 900,
+     "released": 450
+    },
+    "supplier_delta": 900,
+    "requester_delta": -900,
+    "seconds": 2.743
+   },
+   "caveat": null
+  },
+  {
+   "journey": 25,
+   "title": "Return an explicit feasibility failure when reserve/deadline constraints conflict.",
+   "status": "passed",
+   "evidence": {
+    "reserve_witness": {
+     "constraint": "budget",
+     "mission": "mc_8a9f4f791493",
+     "minimum_cost": 1500,
+     "budget": 10,
+     "note": "cheapest feasible offer per task already exceeds the budget (reserve already deducted)"
+    },
+    "deadline_witness": {
+     "constraint": "deadline",
+     "task": "mc_b5cb7ea29235:link",
+     "note": "even the earliest feasible chain finishes after the deadline or outside the horizon",
+     "deadline_slot": 5,
+     "dependencies_end_slot": 0
+    },
+    "seconds": 0.14
+   },
+   "caveat": null
+  },
+  {
+   "journey": 0,
+   "title": "Connected mission across two domains with signers: terrain analysis on pinned public data, native settlement with fees, machine purchases from earnings, blackout, outage replan, reconnection, treasury award to a distinct recipient.",
+   "status": "passed",
+   "evidence": {
+    "mission": "mc_4a982c4ab1ac",
+    "steps": [
+     "initial funding (zero-value development asset; fixture funding of the requester only)",
+     "terrain analysis computed from the pinned public tile and accepted (not yet settled)",
+     "blackout: link cut; mission settled locally from reserved funds (provider 40 + fee 2 + verifier 3); export to dom-b certified but undeliverable",
+     "machine purchased compute from its settled earnings (local market, still in blackout); measured delivery settled",
+     "outage: the early contact window was missed (provider outage); reservation released in full, replanned to the next window, delivered and settled once",
+     "reconnection: certificate delivered, claim credited at dom-b, acknowledged and witnessed; accounting reconciled",
+     "at dom-b the machine bought storage with the imported claim (claim partially consumed: nonreturnable)",
+     "supplier (external signer custody) pays the verifier 1: unsigned refused, signed through the signer settled",
+     "treasury award: a distinct recipient paid 2 from collected fees only"
+    ],
+    "final_table": {
+     "d_req": 1951,
+     "d_mach": 14,
+     "d_sup": 3019,
+     "d_ver": 4,
+     "d_con": 2,
+     "treasury": 7,
+     "dom-b:d_mach_b": 6,
+     "dom-b:d_sup_b": 4
+    },
+    "conserved": true,
+    "seconds": 12.163
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "Subdivide an export and prove disjoint identities and exact backing conservation.",
+   "status": "passed",
+   "evidence": {
+    "portions": [
+     10,
+     6,
+     4
+    ],
+    "distinct_ids": 3,
+    "replay_same_ids": true,
+    "alice": 30,
+    "backing_locked": 30,
+    "claims_at_b": [
+     10,
+     6,
+     4
+    ],
+    "accounting_checks": {
+     "backing_matches_journal": true,
+     "claims_matches_journal": true
+    },
+    "seconds": 0.243
+   },
+   "caveat": null
+  },
+  {
+   "journey": 27,
+   "title": "Spend one allocation and return a separate unused allocation safely.",
+   "status": "passed",
+   "evidence": {
+    "spent_from_a10": 7,
+    "returned": "nal_e19112dba5032d31",
+    "alice_after_return": 34,
+    "replay_duplicate": true,
+    "claims_retired": 4,
+    "seconds": 0.167
+   },
+   "caveat": null
+  },
+  {
+   "journey": 28,
+   "title": "Refuse unsupported return of spent or mixed provenance.",
+   "status": "passed",
+   "evidence": {
+    "spent_allocation_return": [
+     409,
+     "return_partial_unsupported"
+    ],
+    "mixed_spend_consumed_unlineaged_first": true,
+    "carol_returnable": 0,
+    "non_holder_return": 403,
+    "seconds": 0.043
+   },
+   "caveat": null
+  },
+  {
+   "journey": 29,
+   "title": "Crash at export, import, retirement, return and acknowledgment boundaries; replay safely.",
+   "status": "passed",
+   "evidence": {
+    "boundaries": {
+     "native_export_reserve": {
+      "first": 409,
+      "durable_state": "reserved",
+      "retry_state": "certified",
+      "same_id": true,
+      "recover_sweep": []
+     },
+     "native_export_commit": {
+      "first": 409,
+      "durable_state": "export_committed",
+      "retry_state": "certified",
+      "same_id": true,
+      "recover_sweep": []
+     },
+     "native_certificate_publish": {
+      "first": 409,
+      "durable_state": "certified",
+      "retry_state": "certified",
+      "same_id": true,
+      "recover_sweep": []
+     },
+     "native_import_commit": {
+      "first": 409,
+      "credited": 0
+     },
+     "native_ack": {
+      "first": 409,
+      "credited": 0
+     },
+     "return": {
+      "init_crash": 409,
+      "durable": [
+       "return_requested",
+       "retirement_pending"
+      ],
+      "replayed": true,
+      "after_completion_crash": "acknowledged",
+      "final": [
+       "returned",
+       "returned"
+      ]
+     }
+    },
+    "alice_delta": -6,
+    "funding": 22380,
+    "seconds": 0.593
+   },
+   "caveat": null
+  },
+  {
+   "journey": 30,
+   "title": "Deliver duplicate/reordered/expired bundles without duplicate settlement or timeout refund.",
+   "status": "passed",
+   "evidence": {
+    "fragments": 9,
+    "economic_ids": 3,
+    "reordered_duplicated_credited_once": 3,
+    "tampered_fragment": true,
+    "unsupported_version": 422,
+    "expired": [
+     "expired"
+    ],
+    "expired_backing_still_locked": "certified",
+    "seconds": 2.916
+   },
+   "caveat": "expiry never refunds: the 2 units stay locked as backing until a return or an administrator decision"
+  },
+  {
+   "journey": 31,
+   "title": "Restore stale state and quarantine against a signed external checkpoint.",
+   "status": "passed",
+   "evidence": {
+    "witness_sequence_before_restore": 57,
+    "after_restore": {
+     "recovery_state": "quarantine",
+     "detection": "available: witness-acknowledged checkpoint"
+    },
+    "spend_during_quarantine": [
+     409,
+     "domain_quarantined"
+    ],
+    "reconciled": "normal",
+    "sequence_after": 57,
+    "seconds": 0.891
+   },
+   "caveat": "the local watermark file was removed on purpose: only the witness could tell the restored database was stale"
+  },
+  {
+   "journey": 32,
+   "title": "Detect contradictory authority histories; expose the actual safety limitation.",
+   "status": "passed",
+   "evidence": {
+    "witness_conflicting_checkpoint": "conflicting_checkpoint",
+    "twin_certificate": "conflicting_signed_history",
+    "quarantined_peers_at_b": [
+     "dom-a"
+    ],
+    "safety_limitation": "crash / retry tolerance is provided by durable commits and idempotent request ids; Byzantine authority behaviour is detected and quarantined",
+    "earlier_credit_stands": true,
+    "seconds": 0.258
+   },
+   "caveat": null
+  },
+  {
+   "journey": 33,
+   "title": "Install a clean provider client and complete an offer-to-receipt cycle over public APIs.",
+   "status": "passed",
+   "evidence": {
+    "install_method": "package directory on PYTHONPATH (pip could not build offline: ModuleNotFoundError: No module named 'setuptools')",
+    "conformance": {
+     "cases": 22,
+     "passed": 22,
+     "ok": true
+    },
+    "third_party_modules_imported": [],
+    "enrolled_custody": "external-signer:sig-test",
+    "delivery_labels": {
+     "measurement": "provider_assertion",
+     "verification": "verified",
+     "verified": true
+    },
+    "delivered_quantity": 24,
+    "settled": "settled",
+    "receipts_verified_offline": 1,
+    "export_verified_offline": true,
+    "signed_payment": "settled",
+    "seconds": 2.623
+   },
+   "caveat": "same host: the client ran in a fresh virtual environment with only the standard library; the executor ran the public lunar module from the repository"
+  },
+  {
+   "journey": 34,
+   "title": "Verify a portable mission bundle offline; reject tampered evidence and accounting.",
+   "status": "passed",
+   "evidence": {
+    "bundle": {
+     "receipts": 4,
+     "intents": 4,
+     "journal_entries": 8,
+     "seal_key": "k_b36541afcf"
+    },
+    "valid": true,
+    "tampering": {
+     "ledger_spent": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "ledger_spent_matches_settled_intents",
+       "ledger_totals_match_rows"
+      ]
+     },
+     "receipt_claim": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "receipt:nr_e46ec56488318a64"
+      ]
+     },
+     "journal_posting": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "entries_balanced"
+      ]
+     },
+     "intent_amount": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "ledger_spent_matches_settled_intents"
+      ]
+     }
+    },
+    "no_roots": [
+     "seal_root_pinned",
+     "receipt:nr_e46ec56488318a64",
+     "receipt:nr_33bfaae168492415"
+    ],
+    "seconds": 0.443
+   },
+   "caveat": null
+  },
+  {
+   "journey": 35,
+   "title": "Run the connected mission through the console, including blackout and recovery states.",
+   "status": "passed",
+   "evidence": {
+    "passed": 12,
+    "failed": 0,
+    "checks": [
+     {
+      "check": "operator screen: owns/owes, committed resources, missing evidence, possible/disabled actions, pending cross-domain, recovery",
+      "ok": true,
+      "detail": "('MetaCoin work service', ' MetaCoin work service Work list New analysis Safe runtime Compare plans Select tasks Budget Compute Models Documents Knowledge Notebooks Analyses Calibration Verification Nodes Approvals Services Datasets Workflows Packages Campaigns Queue Agents Usage Statement Work Budg"
+     },
+     {
+      "check": "blackout: the operator screen shows the cut link and keeps local actions possible",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "mission page during blackout: controller context says connectivity cut; disabled actions carry reasons",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "reconnection: the operator screen shows the link online again",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "mission page: graph/timeline, budget ledger projection, controller explanation, revisions and events",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "mission builder lists the three executable templates",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "resource market: offers with capacity, windows, price, evidence labels and refusal reasons",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "settlement page explains local finality, remote acknowledgment and unresolved exposure",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "recovery page names the rollback detection source and the safety limitation",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "product view states provenance, assumptions and resolution of the pinned public data",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "the requester sees its own mission with the controller explanation",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "narrow width: no horizontal page overflow on operator, mission and market pages",
+      "ok": true,
+      "detail": "{'/console/operator': True, '/console/missions/mc_4a982c4ab1ac': True, '/console/resources': True, '/console/missions': True}"
+     }
+    ],
+    "screenshots": [
+     "01-operator-online.png",
+     "02-operator-blackout.png",
+     "03-mission-blackout.png",
+     "04-mission.png",
+     "05-mission-builder.png",
+     "06-market.png",
+     "07-settlement.png",
+     "08-recovery.png",
+     "09-product.png",
+     "10-narrow-operator.png"
+    ],
+    "crash": null,
+    "stderr": null,
+    "operator_console_status": 200,
+    "operator_console_snippet": null,
+    "operator_api": [
+     200,
+     "ok"
+    ],
+    "seconds": 4.01
+   },
+   "caveat": null
+  },
+  {
+   "journey": 36,
+   "title": "Reproduce the packaged candidate in a fresh environment and verify migrations on a prior-state copy.",
+   "status": "passed",
+   "evidence": {
+    "migration": {
+     "before": {
+      "schema": "040_work_programs_pricing_challenges",
+      "jobs": 38,
+      "artifacts": 172,
+      "journal_entries": 0,
+      "balances_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     },
+     "after": {
+      "schema": "047_mission_contracts",
+      "jobs": 38,
+      "artifacts": 172,
+      "journal_entries": 0,
+      "balances_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "new_tables": [
+       "mission_contracts",
+       "mission_events",
+       "mission_links",
+       "mission_milestones",
+       "mission_portfolios",
+       "mission_revisions",
+       "mission_scenarios",
+       "native_account_keys",
+       "native_checkpoints",
+       "native_claim_consumption",
+       "native_claim_lineage",
+       "native_fragments",
+       "resource_offers",
+       "resource_reservations"
+      ]
+     },
+     "migrate_rc": 0,
+     "stderr": null,
+     "smoke": {
+      "health": "c3b6767f12318d9e6617485e3df4c1e9c7573409",
+      "old_jobs_readable": true,
+      "domain": 201,
+      "replay_consistent": true,
+      "market": 200,
+      "missions": 200,
+      "operator": 200,
+      "capabilities_signer": true
+     },
+     "balances_preserved": true,
+     "live_service_untouched": true
+    },
+    "clean_export": {
+     "passed": 19,
+     "failed": 0,
+     "blocked": 0,
+     "total": 19,
+     "revision": "unavailable",
+     "archive_sha256": "74d41dd05e4963bfca53d37f0427c9dd745e32554b8abc8d734678b1d1876012"
+    },
+    "seconds": 1.187
+   },
+   "caveat": "migration rehearsed on an isolated copy of the preserved live database; the live service was neither upgraded nor restarted; recorded from a separate run of journey 36 after packaging (clean export of the same source archive)"
+  }
+ ],
+ "passed": 37,
+ "failed": 0,
+ "blocked": 0,
+ "skipped": 0,
+ "total": 37,
+ "journey_36_source": "separate run with METACOIN_MISSION_CLEAN_EXPORT_JSON after packaging"
+}

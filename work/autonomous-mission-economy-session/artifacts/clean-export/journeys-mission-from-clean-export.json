@@ -1,0 +1,491 @@
+{
+ "schema": "metacoin-journeys-mission/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "revision": "unavailable",
+ "python": "3.12.3",
+ "started_at": 1792728942,
+ "finished_at": 1792728969,
+ "results": [
+  {
+   "journey": 1,
+   "title": "Recover baseline and reproduce the distinct-recipient 80-unit accounting example.",
+   "status": "passed",
+   "evidence": {
+    "base_revision": null,
+    "revision": "unavailable",
+    "purchase_before_earning": 400,
+    "after_terrain_settlement": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 30,
+     "s80": 9,
+     "v80": 3,
+     "c80": 2,
+     "treasury": 1
+    },
+    "expected": {
+     "r80": 35,
+     "m80": 30,
+     "s80": 9,
+     "v80": 3,
+     "c80": 2,
+     "treasury": 1
+    },
+    "total": 80,
+    "award_recipient_distinct_from_machine": true,
+    "previous_record_untouched": "journey 21 of the native order awarded the treasury contract to the machine on purpose (machine 32); this replay names a distinct recipient",
+    "seconds": 4.345
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "Complete the native economic cycle with x402 disabled and facilitator unavailable.",
+   "status": "passed",
+   "evidence": {
+    "x402": {
+     "disabled": true,
+     "installed": false,
+     "required_by_native_core": false,
+     "role": "optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement"
+    },
+    "facilitator_probe": "ConnectError",
+    "rail": "native",
+    "machine": 5,
+    "signer_capability": true,
+    "seconds": 1.667
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "Enroll an actor through the external signer; server has no configured actor private key.",
+   "status": "passed",
+   "evidence": {
+    "custody": "external-signer:sig-test",
+    "key_files_on_server": 0,
+    "unsigned_transfer": 409,
+    "signed_transfer": "settled",
+    "alice": 40,
+    "seconds": 0.079
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "Race two buyers for one resource slot; capacity and funds remain consistent.",
+   "status": "passed",
+   "evidence": {
+    "results": [
+     [
+      "requester",
+      201,
+      null
+     ],
+     [
+      "machine",
+      409,
+      "capacity_exhausted"
+     ]
+    ],
+    "offer": {
+     "reserved": 8,
+     "available": 2
+    },
+    "winner": "requester",
+    "seconds": 0.056
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "Refuse acceptance of a stale resource quote without silently repricing it.",
+   "status": "passed",
+   "evidence": {
+    "quote": {
+     "price": 2000,
+     "binding": false
+    },
+    "stale": [
+     409,
+     "stale_quote"
+    ],
+    "fresh": [
+     30,
+     2
+    ],
+    "seconds": 0.047
+   },
+   "caveat": null
+  },
+  {
+   "journey": 10,
+   "title": "Deliver actual compute work and settle its measured contract once.",
+   "status": "passed",
+   "evidence": {
+    "measured_cpu_ms": 26,
+    "exit_code": 0,
+    "verification": true,
+    "delivered_quantity": 26,
+    "settled_once": true,
+    "measurement_source": "os rusage of the child process (RUSAGE_CHILDREN deltas); a bounded execution, not a benchmark of the provider's hardware",
+    "seconds": 0.148
+   },
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "title": "Execute a multi-milestone mission with frozen terms and linked input versions.",
+   "status": "passed",
+   "evidence": {
+    "mission": "mc_bc8b0f307e30",
+    "frozen_digest": "e9269081a1297143",
+    "acquire_terms_digest": "7e73948f9f8b03c9",
+    "compute_input_root": "b48372d0730b10b1",
+    "science": "FEASIBLE",
+    "ledger_spent": 49,
+    "balances": {
+     "machine": 159,
+     "verifier": 3,
+     "treasury": 3
+    },
+    "seconds": 3.013
+   },
+   "caveat": null
+  },
+  {
+   "journey": 15,
+   "title": "Accept and pay a valid negative result under an explicit policy.",
+   "status": "passed",
+   "evidence": {
+    "science": "INFEASIBLE",
+    "decision": "accepted",
+    "payment_class": null,
+    "paid": 10,
+    "seconds": 1.468
+   },
+   "caveat": null
+  },
+  {
+   "journey": 17,
+   "title": "Refuse a machine purchase before earnings; allow it from settled earnings afterward.",
+   "status": "passed",
+   "evidence": {
+    "before_settlement": "insufficient_liquidity: spendable settled 4 (available 4 minus minimum reserve 0) < 20; receivables 40 are not spendable",
+    "after_settlement": {
+     "action": "reserve",
+     "milestone": "followon",
+     "offer_id": "ro_0d58bd9fb6a6",
+     "amount": 20,
+     "reason": null
+    },
+    "machine_reserved": 20,
+    "machine_available": 24,
+    "seconds": 2.998
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "Refuse spending unsettled anticipated revenue and preserve minimum cash reserve.",
+   "status": "passed",
+   "evidence": {
+    "spendable_with_reserve_150": 50,
+    "machine_receivable": 4,
+    "machine_available": 0,
+    "unsettled_revenue_refusal": [
+     400,
+     "insufficient_available"
+    ],
+    "reserve_198_refusal": "insufficient_liquidity: spendable settled 0 (available 196 minus minimum reserve 198) < 4; receivables 0 are not spendab",
+    "seconds": 1.605
+   },
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "title": "Reject an unsafe model-proposed action through the deterministic grant validator.",
+   "status": "passed",
+   "evidence": {
+    "rejections": [
+     "not_a_permissible_action",
+     "not_a_permissible_action",
+     "not_a_permissible_action"
+    ],
+    "recorded": 3,
+    "seconds": 0.117
+   },
+   "caveat": null
+  },
+  {
+   "journey": 20,
+   "title": "Continue during blackout within preallocated authority; wait when exhausted.",
+   "status": "passed",
+   "evidence": {
+    "paid_during_blackout": {
+     "action": "pay",
+     "milestone": "settle",
+     "offer_id": null,
+     "amount": 45,
+     "reason": null
+    },
+    "then": "waiting",
+    "wait_reason": "no permitted action: no_offer_for_storage",
+    "link_cut_refusals": [],
+    "operator_possible": [
+     [
+      "pay",
+      "settle"
+     ]
+    ],
+    "operator_disabled": [
+     [
+      "open_request",
+      "insufficient_liquidity: spendable settled 0 (avail"
+     ],
+     [
+      "wait",
+      "no_offer_for_storage"
+     ],
+     [
+      "wait",
+      "no_offer_for_storage"
+     ],
+     [
+      "wait",
+      "no_offer_for_storage"
+     ]
+    ],
+    "seconds": 1.419
+   },
+   "caveat": "local settlement from reserved funds continues; relay and cross-domain actions are refused with link_cut"
+  },
+  {
+   "journey": 22,
+   "title": "Match the planner to an exhaustive oracle on bounded fixtures.",
+   "status": "passed",
+   "evidence": {
+    "fixtures": 80,
+    "optimal_agreements": 36,
+    "infeasible_agreements": 44,
+    "mismatches": [],
+    "via": "POST /plans/solve (oracle vs improved)",
+    "seconds": 0.872
+   },
+   "caveat": null
+  },
+  {
+   "journey": 24,
+   "title": "Replan after a missed contact window without duplicating payments or reservations.",
+   "status": "passed",
+   "evidence": {
+    "first_reservation": "rr_cbafb1ef27ec",
+    "released": 450,
+    "second_reservation": "rr_cbc0150e58e2",
+    "ledger": {
+     "ceiling": 2250,
+     "reserved": 0,
+     "spent": 900,
+     "released": 450
+    },
+    "supplier_delta": 900,
+    "requester_delta": -900,
+    "seconds": 2.774
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "Subdivide an export and prove disjoint identities and exact backing conservation.",
+   "status": "passed",
+   "evidence": {
+    "portions": [
+     10,
+     6,
+     4
+    ],
+    "distinct_ids": 3,
+    "replay_same_ids": true,
+    "alice": 30,
+    "backing_locked": 20,
+    "claims_at_b": [
+     10,
+     6,
+     4
+    ],
+    "accounting_checks": {
+     "backing_matches_journal": true,
+     "claims_matches_journal": true
+    },
+    "seconds": 0.236
+   },
+   "caveat": null
+  },
+  {
+   "journey": 27,
+   "title": "Spend one allocation and return a separate unused allocation safely.",
+   "status": "passed",
+   "evidence": {
+    "spent_from_a10": 7,
+    "returned": "nal_b7d6bfe26810d7d3",
+    "alice_after_return": 34,
+    "replay_duplicate": true,
+    "claims_retired": 4,
+    "seconds": 0.169
+   },
+   "caveat": null
+  },
+  {
+   "journey": 29,
+   "title": "Crash at export, import, retirement, return and acknowledgment boundaries; replay safely.",
+   "status": "passed",
+   "evidence": {
+    "boundaries": {
+     "native_export_reserve": {
+      "first": 409,
+      "durable_state": "reserved",
+      "retry_state": "certified",
+      "same_id": true,
+      "recover_sweep": []
+     },
+     "native_export_commit": {
+      "first": 409,
+      "durable_state": "export_committed",
+      "retry_state": "certified",
+      "same_id": true,
+      "recover_sweep": []
+     },
+     "native_certificate_publish": {
+      "first": 409,
+      "durable_state": "certified",
+      "retry_state": "certified",
+      "same_id": true,
+      "recover_sweep": []
+     },
+     "native_import_commit": {
+      "first": 409,
+      "credited": 0
+     },
+     "native_ack": {
+      "first": 409,
+      "credited": 0
+     },
+     "return": {
+      "init_crash": 409,
+      "durable": [
+       "return_requested",
+       "retirement_pending"
+      ],
+      "replayed": true,
+      "after_completion_crash": "acknowledged",
+      "final": [
+       "returned",
+       "returned"
+      ]
+     }
+    },
+    "alice_delta": -6,
+    "funding": 8080,
+    "seconds": 0.636
+   },
+   "caveat": null
+  },
+  {
+   "journey": 33,
+   "title": "Install a clean provider client and complete an offer-to-receipt cycle over public APIs.",
+   "status": "passed",
+   "evidence": {
+    "install_method": "package directory on PYTHONPATH (pip could not build offline: ModuleNotFoundError: No module named 'setuptools')",
+    "conformance": {
+     "cases": 22,
+     "passed": 22,
+     "ok": true
+    },
+    "third_party_modules_imported": [],
+    "enrolled_custody": "external-signer:sig-test",
+    "delivery_labels": {
+     "measurement": "provider_assertion",
+     "verification": "verified",
+     "verified": true
+    },
+    "delivered_quantity": 38,
+    "settled": "settled",
+    "receipts_verified_offline": 1,
+    "export_verified_offline": true,
+    "signed_payment": "settled",
+    "seconds": 2.542
+   },
+   "caveat": "same host: the client ran in a fresh virtual environment with only the standard library; the executor ran the public lunar module from the repository"
+  },
+  {
+   "journey": 34,
+   "title": "Verify a portable mission bundle offline; reject tampered evidence and accounting.",
+   "status": "passed",
+   "evidence": {
+    "bundle": {
+     "receipts": 4,
+     "intents": 4,
+     "journal_entries": 8,
+     "seal_key": "k_55c29e99f3"
+    },
+    "valid": true,
+    "tampering": {
+     "ledger_spent": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "ledger_spent_matches_settled_intents",
+       "ledger_totals_match_rows"
+      ]
+     },
+     "receipt_claim": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "receipt:nr_76f2509d1330dacf"
+      ]
+     },
+     "journal_posting": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "entries_balanced"
+      ]
+     },
+     "intent_amount": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "ledger_spent_matches_settled_intents"
+      ]
+     }
+    },
+    "no_roots": [
+     "seal_root_pinned",
+     "receipt:nr_76f2509d1330dacf",
+     "receipt:nr_b31e5b390ca3daf2"
+    ],
+    "seconds": 0.43
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 19,
+ "failed": 0,
+ "blocked": 0,
+ "skipped": 0,
+ "total": 19,
+ "archive_sha256": "74d41dd05e4963bfca53d37f0427c9dd745e32554b8abc8d734678b1d1876012"
+}

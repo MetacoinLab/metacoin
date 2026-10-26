@@ -1,0 +1,23 @@
+{
+ "schema_before": "040_work_programs_pricing_challenges",
+ "schema_after": "041_decision_evidence",
+ "migrations": [
+  {
+   "name": "041_decision_evidence",
+   "objects": [
+    "sampling_plans",
+    "sampling_plans_job (index)",
+    "acquisition_plans",
+    "acquisition_plans_job (index)",
+    "job_deliveries",
+    "verification_portfolios",
+    "portfolio_campaigns"
+   ],
+   "note": "additive only: new tables and indexes; no existing table is altered or rebuilt; foreign keys reference jobs, artifacts and principals",
+   "rollback": "SQLite: restore the pre-migration backup made by the established backup process (metacoin_service backup --include-keys) or, if no new rows were written, DROP the seven objects and delete the schema_migrations row 041_decision_evidence; a service at the previous revision ignores the new tables and runs unchanged",
+   "recovery": "the migration runs inside migrate() in its own transaction; a failure rolls the whole step back and leaves schema 040 intact; rerunning migrate is idempotent"
+  }
+ ],
+ "live_service": "NOT upgraded by this order: the owner's live service (tmux metacoin-service, 127.0.0.1:8402) stays at 3e34126 / schema 040; development and verification used disposable instances and temporary state directories only",
+ "evaluation_registry": "fault suites are stored as evaluation suites (item type fault_case, split dev|held-out) in the existing tables; no schema change"
+}

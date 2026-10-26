@@ -1,0 +1,133 @@
+{
+ "sampling": {
+  "N1000_m10_alpha_1_100": {
+   "schema": "finite-population-sampling-plan/v1",
+   "population": 1000,
+   "minimum_defects": 10,
+   "minimum_defects_rule": "m declared directly",
+   "minimum_defects_meaning": "an ASSUMPTION of the claim (at least m defective items), not an observed number of defects",
+   "alpha": "1/100",
+   "max_samples": 1000,
+   "required_samples": 368,
+   "feasible": true,
+   "evaluated_samples": 368,
+   "achieved_bound": {
+    "exact": "352449623749338115/35595886548914893626",
+    "float": 0.00990141440261676,
+    "log_domain": {
+     "upper": 0.009901414402616842,
+     "log_upper": -4.615077663095193,
+     "rounding": "upward (conservative) by 4 ulps per factor",
+     "note": null
+    }
+   },
+   "required_budget": 368,
+   "frame_digest": null,
+   "checker_digest": null,
+   "fault_model": "a defective item is detected whenever it is sampled (perfect itemwise checker); defects are fixed before sampling",
+   "sample_unit": "one committed item of the frozen population frame",
+   "sampling_model": "uniform without replacement from an immutable population of N committed items",
+   "claim": "P(all k sampled items pass | at least m of N items are defective) <= alpha; this is NOT P(result correct | audit passed) and says nothing about model misspecification shared by producer and checker",
+   "arithmetic": "exact integer comparison of C(N-m,k)/C(N,k) against alpha (no floating point at the decision threshold); binary search over k"
+  },
+  "N1000_m1_alpha_1_100_cap_500": {
+   "schema": "finite-population-sampling-plan/v1",
+   "population": 1000,
+   "minimum_defects": 1,
+   "minimum_defects_rule": "m declared directly",
+   "minimum_defects_meaning": "an ASSUMPTION of the claim (at least m defective items), not an observed number of defects",
+   "alpha": "1/100",
+   "max_samples": 500,
+   "required_samples": 990,
+   "feasible": false,
+   "evaluated_samples": 500,
+   "achieved_bound": {
+    "exact": "1/2",
+    "float": 0.5,
+    "log_domain": {
+     "upper": 0.5000000000000004,
+     "log_upper": -0.6931471805599445,
+     "rounding": "upward (conservative) by 4 ulps per factor",
+     "note": null
+    }
+   },
+   "required_budget": 990,
+   "frame_digest": null,
+   "checker_digest": null,
+   "fault_model": "a defective item is detected whenever it is sampled (perfect itemwise checker); defects are fixed before sampling",
+   "sample_unit": "one committed item of the frozen population frame",
+   "sampling_model": "uniform without replacement from an immutable population of N committed items",
+   "claim": "P(all k sampled items pass | at least m of N items are defective) <= alpha; this is NOT P(result correct | audit passed) and says nothing about model misspecification shared by producer and checker",
+   "arithmetic": "exact integer comparison of C(N-m,k)/C(N,k) against alpha (no floating point at the decision threshold); binary search over k",
+   "refusal": {
+    "code": "sample_budget_insufficient",
+    "required_samples": 990,
+    "max_samples": 500,
+    "achieved_bound_at_budget": {
+     "exact": "1/2",
+     "float": 0.5,
+     "log_domain": {
+      "upper": 0.5000000000000004,
+      "log_upper": -0.6931471805599445,
+      "rounding": "upward (conservative) by 4 ulps per factor",
+      "note": null
+     }
+    },
+    "note": "alpha and m are never relaxed silently; raise the budget, accept a weaker claim explicitly, or use full recomputation"
+   }
+  }
+ },
+ "exhaustive_small_population_check": [
+  {
+   "N": 6,
+   "m": 2,
+   "k": 2,
+   "exact": "2/5"
+  },
+  {
+   "N": 7,
+   "m": 3,
+   "k": 1,
+   "exact": "4/7"
+  },
+  {
+   "N": 8,
+   "m": 1,
+   "k": 4,
+   "exact": "1/2"
+  }
+ ],
+ "witness_check_on_example": {
+  "ok": true,
+  "checks": [
+   {
+    "check": "decision_relevant_pair_count",
+    "ok": true,
+    "detail": {
+     "recomputed": 1
+    }
+   },
+   {
+    "check": "every_pair_classified_once",
+    "ok": true
+   },
+   {
+    "check": "witness:hot_cell_1|hot_cell_2",
+    "ok": true
+   },
+   {
+    "check": "conclusion_consistent",
+    "ok": true
+   }
+  ],
+  "checker": "decision-witness-checker/v1",
+  "scope": "whole result re-decided from the raw hypotheses and views by an independent implementation (no producer projections used)"
+ },
+ "reliability": {
+  "zero_failures_250_upper_95": 0.011911419714980637,
+  "wilson_178_15840_95": [
+   0.009710274068440713,
+   0.013001481774102173
+  ]
+ }
+}

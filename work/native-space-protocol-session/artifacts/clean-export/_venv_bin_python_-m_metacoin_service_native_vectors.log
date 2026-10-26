@@ -1,0 +1,145 @@
+{
+ "schema": "metacoin-native-vector-results/v0",
+ "all_as_expected": true,
+ "results": [
+  {
+   "id": "valid_certificate",
+   "expect": "valid",
+   "failed_checks": [],
+   "as_expected": true
+  },
+  {
+   "id": "valid_ack",
+   "expect": "valid",
+   "failed_checks": [],
+   "as_expected": true
+  },
+  {
+   "id": "changed_recipient",
+   "expect": "invalid",
+   "failed_checks": [
+    "payload_digest",
+    "payload_signature",
+    "duplicate_envelope_id"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "changed_amount",
+   "expect": "invalid",
+   "failed_checks": [
+    "payload_digest",
+    "payload_signature",
+    "duplicate_envelope_id"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "changed_asset",
+   "expect": "invalid",
+   "failed_checks": [
+    "payload_digest",
+    "payload_signature",
+    "duplicate_envelope_id"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "changed_domain",
+   "expect": "invalid",
+   "failed_checks": [
+    "payload_digest",
+    "payload_signature",
+    "certificate_destination_binding",
+    "duplicate_envelope_id"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "changed_epoch",
+   "expect": "invalid",
+   "failed_checks": [
+    "payload_digest",
+    "payload_signature",
+    "certificate_sender_binding",
+    "duplicate_envelope_id"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "changed_policy",
+   "expect": "invalid",
+   "failed_checks": [
+    "payload_digest",
+    "payload_signature",
+    "payload_fields",
+    "duplicate_envelope_id"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "resigned_by_unpinned_key",
+   "expect": "invalid",
+   "failed_checks": [
+    "sender_root_pinned"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "epoch_key_mismatch_signed",
+   "expect": "invalid",
+   "failed_checks": [
+    "certificate_sender_binding"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "destination_binding_mismatch_signed",
+   "expect": "invalid",
+   "failed_checks": [
+    "certificate_destination_binding"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "mismatched_output_digest",
+   "expect": "invalid",
+   "failed_checks": [
+    "envelope_signature",
+    "payload_digest",
+    "duplicate_envelope_id"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "duplicate_identifier",
+   "expect": "invalid",
+   "failed_checks": [
+    "duplicate_envelope_id"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "conflicting_allocation",
+   "expect": "invalid",
+   "failed_checks": [
+    "conflicting_allocation_history"
+   ],
+   "as_expected": true
+  },
+  {
+   "id": "valid_receipt",
+   "expect": "valid",
+   "failed_checks": [],
+   "as_expected": true
+  },
+  {
+   "id": "changed_acceptance_policy_receipt",
+   "expect": "invalid",
+   "failed_checks": [
+    "receipt:nr_vector"
+   ],
+   "as_expected": true
+  }
+ ]
+}

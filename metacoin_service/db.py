@@ -1,9 +1,11 @@
 """SQLite persistence with explicit migrations, WAL, foreign keys, busy handling and
 BEGIN IMMEDIATE transactions. One connection per transaction; never shared across threads."""
+import collections
 from contextlib import contextmanager
 import os
 import sqlite3
 import stat
+import threading
 import time
 
 MIGRATIONS = [
@@ -454,11 +456,125 @@ MIGRATIONS = [
     CREATE TABLE mission_scenarios (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, portfolio_id TEXT NOT NULL REFERENCES mission_portfolios(id), name TEXT NOT NULL, assumptions_json TEXT NOT NULL, job_id TEXT NOT NULL REFERENCES jobs(id), created_by TEXT NOT NULL, created_at INTEGER NOT NULL);
     CREATE TABLE work_challenges (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, receipt_id TEXT NOT NULL REFERENCES work_receipts(id), award_id TEXT NOT NULL REFERENCES work_awards(id), challenger_id TEXT NOT NULL, claim TEXT NOT NULL, inputs_json TEXT NOT NULL, asserted_outcome TEXT NOT NULL, kind TEXT NOT NULL, contract_id TEXT NOT NULL REFERENCES contracts(id), job_id TEXT NOT NULL REFERENCES jobs(id), state TEXT NOT NULL, result_json TEXT, created_at INTEGER NOT NULL);
     """),
+    ('041_decision_evidence', """
+    CREATE TABLE sampling_plans (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, target_job_id TEXT NOT NULL REFERENCES jobs(id), kind TEXT NOT NULL, result_commitment TEXT NOT NULL, population INTEGER NOT NULL, frame_digest TEXT NOT NULL,
+        minimum_defects INTEGER NOT NULL, defects_rule TEXT NOT NULL, alpha TEXT NOT NULL, max_samples INTEGER NOT NULL, required_samples INTEGER NOT NULL, feasible INTEGER NOT NULL, achieved_bound_exact TEXT, checker_digest TEXT NOT NULL,
+        fault_model TEXT NOT NULL, sample_unit TEXT NOT NULL, attempt_policy TEXT NOT NULL, plan_json TEXT NOT NULL, plan_digest TEXT NOT NULL, state TEXT NOT NULL, verification_id TEXT, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX sampling_plans_job ON sampling_plans (target_job_id);
+    CREATE TABLE acquisition_plans (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, analysis_job_id TEXT NOT NULL REFERENCES jobs(id), candidate_model_digest TEXT NOT NULL, menu_digest TEXT NOT NULL, budget INTEGER NOT NULL, objective TEXT NOT NULL,
+        plan_json TEXT NOT NULL, plan_digest TEXT NOT NULL, cost INTEGER NOT NULL, selected_json TEXT NOT NULL, expires_at INTEGER, state TEXT NOT NULL, terms_id TEXT, request_id TEXT, award_id TEXT, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX acquisition_plans_job ON acquisition_plans (analysis_job_id);
+    CREATE TABLE job_deliveries (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, job_id TEXT NOT NULL REFERENCES jobs(id), award_id TEXT, milestone_id TEXT, artifact_id TEXT NOT NULL REFERENCES artifacts(id), delivery_digest TEXT NOT NULL, status TEXT NOT NULL,
+        delivered_by TEXT NOT NULL, created_at INTEGER NOT NULL, UNIQUE (job_id));
+    CREATE TABLE verification_portfolios (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, name TEXT NOT NULL, version INTEGER NOT NULL, portfolio_json TEXT NOT NULL, digest TEXT NOT NULL, created_by TEXT NOT NULL, created_at INTEGER NOT NULL, retired_at INTEGER, UNIQUE (workspace, name, version));
+    CREATE TABLE portfolio_campaigns (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, suite_id TEXT NOT NULL REFERENCES evaluation_suites(id), split TEXT NOT NULL, portfolios_json TEXT NOT NULL, report_json TEXT NOT NULL, started_by TEXT NOT NULL, created_at INTEGER NOT NULL);
+    """),
+    ('042_native_protocol', """
+    -- requires foreign_keys=off;
+    CREATE TABLE principals_new (id TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL CHECK (role IN ('owner','worker','reviewer','viewer','provider','actor')), workspace TEXT NOT NULL, created_at INTEGER NOT NULL, revoked_at INTEGER);
+    INSERT INTO principals_new SELECT id, name, role, workspace, created_at, revoked_at FROM principals;
+    DROP TABLE principals;
+    ALTER TABLE principals_new RENAME TO principals;
+    CREATE TABLE native_domains (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, environment TEXT NOT NULL, authority_key_id TEXT NOT NULL, authority_public_hex TEXT NOT NULL, epoch INTEGER NOT NULL, operator TEXT NOT NULL, host TEXT NOT NULL, policy_version TEXT NOT NULL,
+        connectivity TEXT NOT NULL, recovery_state TEXT NOT NULL, commit_sequence INTEGER NOT NULL DEFAULT 0, export_watermark INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE native_peers (domain_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, authority_key_id TEXT NOT NULL, authority_public_hex TEXT NOT NULL, epoch INTEGER NOT NULL, trust_policy TEXT NOT NULL, pinned_by TEXT NOT NULL, pinned_at INTEGER NOT NULL, state TEXT NOT NULL);
+    CREATE TABLE native_assets (asset_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, label TEXT NOT NULL, zero_value INTEGER NOT NULL, origin_domain TEXT NOT NULL, registered_at INTEGER NOT NULL);
+    CREATE TABLE native_accounts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, principal_id TEXT, kind TEXT NOT NULL CHECK (kind IN ('actor','treasury','fixture','authority')), label TEXT NOT NULL, key_id TEXT, public_hex TEXT, custody TEXT NOT NULL, nonce_counter INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE UNIQUE INDEX native_accounts_principal ON native_accounts (workspace, principal_id) WHERE principal_id IS NOT NULL;
+    CREATE TABLE native_intents (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, domain_id TEXT NOT NULL, actor_account TEXT NOT NULL REFERENCES native_accounts(id), signer_principal TEXT, type TEXT NOT NULL, asset TEXT NOT NULL, amount_ceiling INTEGER NOT NULL, amount_final INTEGER, recipient TEXT, obligation_ref TEXT,
+        grant_id TEXT, nonce TEXT NOT NULL, request_id TEXT NOT NULL, message_json TEXT NOT NULL, message_digest TEXT NOT NULL, signature_hex TEXT, state TEXT NOT NULL, commit_sequence INTEGER, reason TEXT, history_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL,
+        UNIQUE (actor_account, nonce), UNIQUE (actor_account, request_id));
+    CREATE TABLE native_obligations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, payer_account TEXT NOT NULL, payee_account TEXT NOT NULL, asset TEXT NOT NULL, amount INTEGER NOT NULL, settled_amount INTEGER NOT NULL DEFAULT 0, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, policy_json TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (ref_type, ref_id, kind));
+    CREATE TABLE native_allocations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, direction TEXT NOT NULL CHECK (direction IN ('export','import')), source_domain TEXT NOT NULL, destination_domain TEXT NOT NULL, asset TEXT NOT NULL, amount INTEGER NOT NULL, source_account TEXT, recipient_account TEXT NOT NULL,
+        state TEXT NOT NULL, epoch INTEGER NOT NULL, commit_sequence INTEGER, certificate_json TEXT, certificate_signature TEXT, ack_json TEXT, return_json TEXT, evidence_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE native_envelopes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, direction TEXT NOT NULL CHECK (direction IN ('out','in')), sender TEXT NOT NULL, receiver TEXT NOT NULL, message_type TEXT NOT NULL, causality TEXT, payload_json TEXT NOT NULL, payload_digest TEXT NOT NULL, envelope_json TEXT NOT NULL, signature_hex TEXT NOT NULL,
+        state TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, reason TEXT, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE native_tombstones (key TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE native_disputes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, opened_by TEXT NOT NULL, respondent_account TEXT, held_amount INTEGER NOT NULL DEFAULT 0, claim TEXT NOT NULL, state TEXT NOT NULL, resolution_json TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE native_receipts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, kind TEXT NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, key_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+    """),
+    ('043_native_authority_keys', """
+    CREATE TABLE native_authority_keys (domain_id TEXT NOT NULL, epoch INTEGER NOT NULL, key_id TEXT NOT NULL, public_hex TEXT NOT NULL, local INTEGER NOT NULL DEFAULT 0, key_file TEXT, state TEXT NOT NULL, valid_from INTEGER NOT NULL, retired_at INTEGER, grace_until INTEGER, recorded_at INTEGER NOT NULL, PRIMARY KEY (domain_id, epoch));
+    CREATE INDEX native_authority_keys_kid ON native_authority_keys(key_id);
+    CREATE INDEX native_envelopes_dir_state ON native_envelopes(workspace, direction, state, receiver);
+    CREATE INDEX native_allocations_state ON native_allocations(workspace, direction, state);
+    """),
+    ('044_native_account_keys', """
+    CREATE TABLE native_account_keys (key_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL REFERENCES native_accounts(id), epoch INTEGER NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('primary','delegate')), public_hex TEXT NOT NULL, scope_json TEXT, state TEXT NOT NULL, registered_by TEXT, proof_key_id TEXT, valid_from INTEGER NOT NULL, retired_at INTEGER, grace_until INTEGER, created_at INTEGER NOT NULL);
+    CREATE INDEX native_account_keys_acct ON native_account_keys(account_id, state);
+    """),
+    ('045_claim_lineage_checkpoints_fragments', """
+    CREATE TABLE native_claim_lineage (allocation_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL, asset TEXT NOT NULL, amount INTEGER NOT NULL, consumed INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL, imported_sequence INTEGER NOT NULL, retired_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX native_claim_lineage_acct ON native_claim_lineage(account_id, asset, state);
+    CREATE TABLE native_claim_consumption (id INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, allocation_id TEXT NOT NULL, amount INTEGER NOT NULL, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE native_checkpoints (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, domain_id TEXT NOT NULL, epoch INTEGER NOT NULL, sequence INTEGER NOT NULL, statement_json TEXT NOT NULL, signature_hex TEXT NOT NULL, witness_id TEXT, witness_ack_json TEXT, witness_signature TEXT, acknowledged_at INTEGER, created_at INTEGER NOT NULL);
+    CREATE TABLE native_fragments (message_id TEXT NOT NULL, workspace TEXT NOT NULL, sender TEXT NOT NULL, idx INTEGER NOT NULL, count INTEGER NOT NULL, data TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (message_id, idx));
+    """),
+    ('046_resource_market', """
+    CREATE TABLE resource_offers (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, provider_account TEXT NOT NULL, provider_principal TEXT NOT NULL, kind TEXT NOT NULL, resource_id TEXT NOT NULL, unit TEXT NOT NULL, capacity INTEGER NOT NULL, price_per_unit INTEGER NOT NULL, asset TEXT NOT NULL, window_start INTEGER NOT NULL, window_end INTEGER NOT NULL, version INTEGER NOT NULL, reservation_policy TEXT NOT NULL, cancellation TEXT NOT NULL, meta_json TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL);
+    CREATE TABLE resource_reservations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, offer_id TEXT NOT NULL REFERENCES resource_offers(id), offer_version INTEGER NOT NULL, buyer_account TEXT NOT NULL, provider_account TEXT NOT NULL, quantity INTEGER NOT NULL, delivered_quantity INTEGER NOT NULL DEFAULT 0, price INTEGER NOT NULL, asset TEXT NOT NULL, obligation_id TEXT, state TEXT NOT NULL, request_id TEXT NOT NULL, evidence_json TEXT NOT NULL, measurement_json TEXT, settlement_intent TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, activated_at INTEGER);
+    CREATE INDEX resource_reservations_offer ON resource_reservations(offer_id, state);
+    CREATE UNIQUE INDEX resource_reservations_req ON resource_reservations(buyer_account, request_id);
+    """),
+    ('047_mission_contracts', """
+    CREATE TABLE mission_contracts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_principal TEXT NOT NULL, owner_account TEXT NOT NULL, title TEXT NOT NULL, template TEXT, asset TEXT NOT NULL, grant_id TEXT, policy_json TEXT NOT NULL, state TEXT NOT NULL, revision INTEGER NOT NULL, frozen_revision INTEGER, pause_reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE mission_revisions (mission_id TEXT NOT NULL REFERENCES mission_contracts(id), revision INTEGER NOT NULL, graph_json TEXT NOT NULL, digest TEXT NOT NULL, created_by TEXT NOT NULL, state TEXT NOT NULL, affected_json TEXT NOT NULL, authorizations_json TEXT NOT NULL, reason TEXT, created_at INTEGER NOT NULL, PRIMARY KEY (mission_id, revision));
+    CREATE TABLE mission_milestones (id TEXT PRIMARY KEY, mission_id TEXT NOT NULL REFERENCES mission_contracts(id), key TEXT NOT NULL, kind TEXT NOT NULL, actor TEXT NOT NULL, optional INTEGER NOT NULL DEFAULT 0, depends_json TEXT NOT NULL, spec_json TEXT NOT NULL, spec_digest TEXT NOT NULL, state TEXT NOT NULL, binding_json TEXT NOT NULL, result_json TEXT, reason TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (mission_id, key));
+    CREATE TABLE mission_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, mission_id TEXT NOT NULL, at INTEGER NOT NULL, actor TEXT NOT NULL, kind TEXT NOT NULL, detail_json TEXT NOT NULL);
+    CREATE INDEX mission_events_mission ON mission_events(mission_id, seq);
+    """),
+    ('048_resource_pools', """
+    CREATE TABLE resource_pools (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, provider_account TEXT NOT NULL, provider_principal TEXT NOT NULL, kind TEXT NOT NULL, label TEXT NOT NULL, slot_unit TEXT NOT NULL, units_per_slot_second INTEGER NOT NULL, resolution_seconds INTEGER NOT NULL, schedule_json TEXT NOT NULL, version INTEGER NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE TABLE pool_commitments (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, pool_id TEXT NOT NULL REFERENCES resource_pools(id), reservation_id TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT NULL, slots INTEGER NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX pool_commitments_pool ON pool_commitments(pool_id, state);
+    ALTER TABLE resource_offers ADD COLUMN pool_id TEXT;
+    ALTER TABLE resource_reservations ADD COLUMN interval_start INTEGER;
+    ALTER TABLE resource_reservations ADD COLUMN interval_end INTEGER;
+    ALTER TABLE resource_reservations ADD COLUMN slots INTEGER;
+    ALTER TABLE resource_reservations ADD COLUMN commitment_id TEXT;
+    """),
+    ('049_signing_requests', """
+    CREATE TABLE native_signing_requests (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL, kind TEXT NOT NULL, message_json TEXT NOT NULL, context_json TEXT NOT NULL, policy_hash TEXT NOT NULL, ref_type TEXT, ref_id TEXT, state TEXT NOT NULL, signature_hex TEXT, key_id TEXT, result_json TEXT, expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX native_signing_requests_acct ON native_signing_requests(workspace, account_id, state);
+    """),
+    ('050_mission_subcontracts', """
+    CREATE TABLE mission_subcontracts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, parent_mission TEXT NOT NULL REFERENCES mission_contracts(id), parent_revision INTEGER NOT NULL, parent_milestone TEXT NOT NULL, primary_principal TEXT NOT NULL, primary_account TEXT NOT NULL, provider_id TEXT NOT NULL, provider_principal TEXT NOT NULL, child_mission TEXT NOT NULL REFERENCES mission_contracts(id), deliverable_json TEXT NOT NULL, deliverable_digest TEXT NOT NULL, acceptance_json TEXT NOT NULL, deadline_at INTEGER, funded_amount INTEGER NOT NULL, funding_mode TEXT NOT NULL, prefund_obligation TEXT, return_destination TEXT, depth INTEGER NOT NULL, state TEXT NOT NULL, timeline_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX mission_subcontracts_parent ON mission_subcontracts(parent_mission, parent_milestone);
+    """),
+    ('051_claim_lots', """
+    CREATE TABLE native_claim_lots (lot_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, origin_allocation TEXT NOT NULL, parent_lot TEXT, asset TEXT NOT NULL, amount INTEGER NOT NULL, owner_account TEXT NOT NULL, status TEXT NOT NULL, transferred INTEGER NOT NULL DEFAULT 0, created_sequence INTEGER NOT NULL, ref_json TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
+    CREATE INDEX native_claim_lots_owner ON native_claim_lots(workspace, owner_account, asset, status);
+    CREATE INDEX native_claim_lots_origin ON native_claim_lots(origin_allocation, status);
+    ALTER TABLE native_allocations ADD COLUMN returned_amount INTEGER NOT NULL DEFAULT 0;
+    INSERT INTO native_claim_lots SELECT 'lot_legacy_' || substr(allocation_id, 4), workspace, allocation_id, NULL, asset, amount, account_id, 'active', 0, imported_sequence, '{"migrated_from":"native_claim_lineage","exact_provenance":true}', created_at, created_at FROM native_claim_lineage WHERE consumed = 0 AND state = 'active';
+    """),
+    ('052_mission_products', """
+    CREATE TABLE mission_products (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, producer_account TEXT NOT NULL, producer_principal TEXT NOT NULL, version INTEGER NOT NULL, title TEXT NOT NULL, kind TEXT NOT NULL, content_hash TEXT NOT NULL, artifact_id TEXT NOT NULL, source_job TEXT, source_award TEXT, source_data_json TEXT NOT NULL, conventions_json TEXT NOT NULL, compatibility_json TEXT NOT NULL, license TEXT NOT NULL, permitted_uses_json TEXT NOT NULL, price INTEGER NOT NULL, asset TEXT NOT NULL, measured_json TEXT NOT NULL, state TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (content_hash, version));
+    CREATE TABLE product_entitlements (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, product_id TEXT NOT NULL REFERENCES mission_products(id), version INTEGER NOT NULL, buyer_account TEXT NOT NULL, buyer_principal TEXT NOT NULL, obligation_id TEXT, intent_id TEXT, request_id TEXT NOT NULL, state TEXT NOT NULL, delivered_at INTEGER, delivery_json TEXT, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (buyer_account, request_id));
+    """),
+    ('053_relay_service', """
+    CREATE TABLE relay_routes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, sender_account TEXT NOT NULL, sender_principal TEXT NOT NULL, recipient_account TEXT NOT NULL, message_id TEXT NOT NULL, content_hash TEXT, bytes INTEGER NOT NULL, hops_json TEXT NOT NULL, policy_json TEXT NOT NULL, fee_ceiling INTEGER NOT NULL, fees_bound INTEGER NOT NULL, state TEXT NOT NULL, evidence_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (sender_account, message_id));
+    CREATE TABLE relay_queue (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, route_id TEXT NOT NULL REFERENCES relay_routes(id), hop_index INTEGER NOT NULL, relay_account TEXT NOT NULL, artifact_id TEXT, bytes INTEGER NOT NULL, content_hash TEXT, state TEXT NOT NULL, retention_until INTEGER, stored_at INTEGER, forwarded_at INTEGER, attempts INTEGER NOT NULL DEFAULT 0, evidence_json TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, UNIQUE (route_id, hop_index));
+    """),
+    ('054_controller_generations', """
+    CREATE TABLE controller_generations (mission_id TEXT NOT NULL REFERENCES mission_contracts(id), generation INTEGER NOT NULL, holder TEXT NOT NULL, granted_by TEXT NOT NULL, granted_at INTEGER NOT NULL, state TEXT NOT NULL, evidence_json TEXT NOT NULL, PRIMARY KEY (mission_id, generation));
+    """),
 ]
 
 
-def open_db(path, create=False):
-    path = os.fspath(path)
+DEFAULT_BUSY_TIMEOUT_MS = int(os.environ.get('METACOIN_DB_BUSY_TIMEOUT_MS', '15000'))
+BEGIN_POLL_S = 0.001            # fixed retry interval for BEGIN IMMEDIATE across processes (SQLite's default handler backs off to 100 ms)
+HANDOFF_YIELD_S = 0.0005        # a thread that received the gate by hand-off leaves the file lock free this long before BEGIN
+
+
+def is_busy(exc):
+    """True for SQLite's lock-wait timeout ('database is locked' / 'database table is locked'): a retryable refusal in which
+    nothing was begun or written by the failing statement."""
+    return isinstance(exc, sqlite3.OperationalError) and 'locked' in str(exc)
+
+
+def open_db(path, create=False, busy_timeout_ms=None):
+    path = os.fspath(path); busy_timeout_ms = DEFAULT_BUSY_TIMEOUT_MS if busy_timeout_ms is None else int(busy_timeout_ms)
     if not create and not os.path.exists(path):
         raise FileNotFoundError('database missing')
     if create:
@@ -467,12 +583,12 @@ def open_db(path, create=False):
     info = os.stat(path)
     if not stat.S_ISREG(info.st_mode) or info.st_mode & 0o077:
         raise PermissionError('database must be a private regular file')
-    db = sqlite3.connect(path, timeout=15, isolation_level=None)
+    db = sqlite3.connect(path, timeout=busy_timeout_ms / 1000.0, isolation_level=None)
     db.row_factory = sqlite3.Row
     db.execute('PRAGMA foreign_keys=ON')
     db.execute('PRAGMA journal_mode=WAL')
     db.execute('PRAGMA synchronous=FULL')
-    db.execute('PRAGMA busy_timeout=15000')
+    db.execute('PRAGMA busy_timeout=%d' % busy_timeout_ms)
     return db
 
 
@@ -551,26 +667,109 @@ def check_schema(path, allow_older=False):
     return actual
 
 
+class FairGate:
+    """Strict FIFO hand-off mutex. Threads of one process queue here before BEGIN IMMEDIATE instead of all polling SQLite's busy
+    handler, whose back-off (1…100 ms sleeps) lets fresh arrivals overtake a long waiter under saturation — the starvation that
+    produced 15 s lock-wait timeouts in the 2026-10-23 endurance runs while commits kept flowing every second. A plain
+    threading.Lock would not do (a releasing thread's successor can be barged by a new arrival), and a notify_all ticket lock
+    cost a third of the transfer throughput (every release woke every waiter): here release() hands ownership directly to the
+    oldest waiter and wakes only that thread. Cross-process contention (API vs workers) is settled by _begin_immediate's fixed-interval
+    poll plus a sub-millisecond yield on every hand-off: a seamless hand-off chain otherwise never leaves the file lock free long
+    enough for another process's poll to land (endurance run 5, 2026-10-23: 90 worker lock-wait timeouts behind a busy API)."""
+    def __init__(self):
+        self._mu = threading.Lock(); self._held = False; self._q = collections.deque(); self.waiters_max = 0
+
+    def acquire(self, timeout):
+        """True when acquired. self.handed_off (per call, read right after) tells whether ownership arrived by hand-off."""
+        with self._mu:
+            if not self._held and not self._q:
+                self._held = True; return True
+            ev = threading.Event(); self._q.append(ev); self.waiters_max = max(self.waiters_max, len(self._q))
+        if ev.wait(timeout):
+            return True                                      # ownership was handed to this thread by release()
+        with self._mu:
+            if ev.is_set():                                  # handed off in the instant between the timeout and this check
+                return True
+            self._q.remove(ev); return False                 # gave up: the threads behind are unaffected
+
+    def release(self):
+        with self._mu:
+            if self._q:
+                self._q.popleft().set()                      # hand-off: _held stays True for the successor; nobody can barge
+            else:
+                self._held = False
+
+
+_GATES = {}
+_GATES_LOCK = threading.Lock()
+
+
+def _gate_for(path):
+    key = os.path.realpath(path)
+    with _GATES_LOCK:
+        g = _GATES.get(key)
+        if g is None:
+            g = _GATES[key] = FairGate()
+        return g
+
+
 class Database:
-    def __init__(self, path):
+    def __init__(self, path, busy_timeout_ms=None):
         self.path = os.fspath(path)
+        self.busy_timeout_ms = DEFAULT_BUSY_TIMEOUT_MS if busy_timeout_ms is None else int(busy_timeout_ms)
+        self.gate_enabled = os.environ.get('METACOIN_DB_WRITE_GATE', '1') != '0'
+        self.busy_count = 0
 
     @contextmanager
     def tx(self):
-        db = open_db(self.path)
+        """BEGIN IMMEDIATE … COMMIT on a fresh connection. A failure of BEGIN itself (lock-wait timeout) is re-raised unchanged —
+        ROLLBACK is issued only over an open transaction, so the original error is never replaced by 'cannot rollback'."""
+        db = open_db(self.path, busy_timeout_ms=self.busy_timeout_ms)                 # connection set-up and tear-down stay outside the gate
         try:
-            db.execute('BEGIN IMMEDIATE')
-            yield db
-            db.execute('COMMIT')
-        except BaseException:
-            db.execute('ROLLBACK')
-            raise
+            gate = _gate_for(self.path) if self.gate_enabled else None
+            t_gate = time.monotonic()
+            if gate is not None and not gate.acquire(timeout=self.busy_timeout_ms / 1000.0):
+                self.busy_count += 1
+                raise sqlite3.OperationalError('database is locked')                  # same refusal as SQLite's own timeout: nothing begun
+            try:
+                if gate is not None and time.monotonic() - t_gate > 0.0002:
+                    time.sleep(HANDOFF_YIELD_S)                                        # arrived by hand-off: leave the file lock free for a moment so other processes can take a turn
+                self._begin_immediate(db, deadline=t_gate + self.busy_timeout_ms / 1000.0)
+                try:
+                    yield db
+                    db.execute('COMMIT')
+                except BaseException:
+                    if db.in_transaction:
+                        db.execute('ROLLBACK')
+                    raise
+            finally:
+                if gate is not None:
+                    gate.release()
         finally:
             db.close()
 
+    def _begin_immediate(self, db, deadline):
+        """BEGIN IMMEDIATE with a fixed-interval retry instead of SQLite's exponential back-off: every process polls at the same
+        cadence, so no process is systematically overtaken (the in-process gate keeps one poller per process). SQLite's own
+        busy timeout stays in force for every other statement."""
+        db.execute('PRAGMA busy_timeout=0')
+        try:
+            while True:
+                try:
+                    db.execute('BEGIN IMMEDIATE'); return
+                except sqlite3.OperationalError as exc:
+                    if not is_busy(exc):
+                        raise
+                    if time.monotonic() >= deadline:
+                        self.busy_count += 1
+                        raise sqlite3.OperationalError('database is locked') from None
+                    time.sleep(BEGIN_POLL_S)
+        finally:
+            db.execute('PRAGMA busy_timeout=%d' % self.busy_timeout_ms)
+
     @contextmanager
     def read(self):
-        db = open_db(self.path)
+        db = open_db(self.path, busy_timeout_ms=self.busy_timeout_ms)
         try:
             yield db
         finally:

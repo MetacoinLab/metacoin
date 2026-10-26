@@ -22,6 +22,9 @@ ACTIONS = dict(refusals.ACTIONS, **{
 })
 
 
+BUSY_RETRY_AFTER_SECONDS = 1
+
+
 class ServiceError(Exception):
     def __init__(self, code, detail=None, status=None):
         super().__init__(code)
@@ -43,5 +46,8 @@ def from_exception(exc):
     if code in ('UNAUTHORIZED', 'UNAUTHORIZED_OR_EXPIRED', 'SPEND_REFUSED'):
         status = 403
     if code == 'JOURNAL_BUSY':
-        status = 503
+        # the write lock was not obtained within the busy timeout: BEGIN never ran, nothing was written, the request
+        # (same request id / Idempotency-Key) is safe to repeat; the response carries Retry-After (api.py)
+        return ServiceError(code, {'retryable': True, 'begun': False, 'retry_after_seconds': BUSY_RETRY_AFTER_SECONDS,
+                                   'note': 'write lock not obtained within the busy timeout; nothing was begun — repeat the same request'}, 503)
     return ServiceError(code, message, status)

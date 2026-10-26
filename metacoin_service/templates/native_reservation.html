@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block body %}
+<h1>Reservation <code>{{ r.id }}</code> <span class="badge">{{ r.state }}</span></h1>
+<div class="card"><dl><dt>offer</dt><dd><code>{{ r.offer_id }}</code> version {{ r.offer_version }} · {{ r.kind }} {{ r.resource_id }}</dd><dt>quantity</dt><dd>{{ r.quantity }} {{ r.unit }} reserved · {{ r.delivered_quantity }} delivered</dd><dt>money</dt><dd>{{ r.price }} {{ r.asset }} reserved from <code>{{ r.buyer_account }}</code>{% if r.obligation %} · obligation {{ r.obligation.settled_amount }}/{{ r.obligation.amount }} ({{ r.obligation.state }}){% endif %}</dd><dt>window</dt><dd>{{ r.window.start }} – {{ r.window.end }}</dd><dt>cancellation</dt><dd>{{ r.cancellation }}</dd><dt>atomicity</dt><dd>{{ r.atomicity }}</dd></dl>
+<p class="note">labels: metered fact = {{ r.labels.metered_fact }}; provider assertion = {{ r.labels.provider_assertion }}; verified = {{ r.labels.verified }}</p></div>
+{% if r.measurement %}<div class="card"><h2>Evidence</h2><pre>{{ r.measurement|tojson(indent=1) }}</pre></div>{% endif %}
+<div class="card"><h2>Steps</h2><ul>{% for s in r.evidence.steps %}<li>{{ s.at }} · {{ s.state }}{% if s.delivered_quantity is defined %} ({{ s.delivered_quantity }}){% endif %}{% if s.owed is defined %} owed {{ s.owed }}, released {{ s.released }}{% endif %}</li>{% endfor %}</ul>
+{% if actions %}<form method="post" action="/console/resources/reservations/{{ r.id }}/action" class="inline"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}">{% for a in actions %}<button type="submit" name="action" value="{{ a }}">{{ a }}</button> {% endfor %}</form>{% endif %}
+{% if disabled %}<p class="note">not available now: {% for a, why in disabled.items() %}{{ a }} ({{ why }}); {% endfor %}</p>{% endif %}</div>
+{% endblock %}

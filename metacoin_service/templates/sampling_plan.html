@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}Sampling plan{% endblock %}{% block body %}
+<h1>Sampling plan {% if sp.id %}<code>{{ sp.id }}</code>{% else %}(preview){% endif %} <span class="badge">{{ sp.state }}</span></h1>
+<div class="card"><p>target job <code>{{ sp.target_job_id }}</code> ({{ sp.kind }}) · result commitment <code>{{ sp.result_commitment[:16] }}…</code> · frame digest <code>{{ sp.frame_digest[:16] }}…</code></p>
+<p>population N = <strong>{{ sp.population }}</strong> · assumed minimum defects m = <strong>{{ sp.minimum_defects }}</strong> ({{ sp.minimum_defects_rule }}) · tolerated miss probability alpha = {{ sp.alpha }} · check budget {{ sp.max_samples }}</p>
+<p>required samples k = <strong>{{ sp.required_samples }}</strong> → <strong>{{ 'feasible' if sp.feasible else 'INFEASIBLE under this budget' }}</strong>; achieved bound at the evaluated k: {{ sp.achieved_bound.exact if sp.achieved_bound else '' }}{% if not sp.feasible %} (the budget {{ sp.max_samples }} cannot meet alpha; alpha and m are never relaxed){% endif %}</p>
+<p class="note">{{ sp.conditional_detection_bound if sp.conditional_detection_bound else '' }} The bound is conditional on at least m defective items, uniform sampling without replacement from the committed frame and a correct item checker. It is not the probability that the result is correct, and m is an assumption of the claim, not an observed count.</p>
+<p class="note">{{ sp.randomness }} · fault model: {{ sp.fault_model }} · sample unit: {{ sp.sample_unit }} · attempt policy: {{ sp.attempt_policy }}</p>
+{% if sp.id %}<p>attempts: {% for a in sp.attempts %}<code>{{ a.id }}</code> {{ a.state }} · {% else %}none{% endfor %}{% if sp.verification_id %} · verification <code>{{ sp.verification_id }}</code>{% endif %}</p>
+{% if sp.state == 'bound' and principal.can('verification:submit') %}<form method="post" action="/console/sampling-plans/{{ sp.id }}/audit"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><button type="submit">Run the audit (one bound challenge; cannot be retried)</button></form>{% endif %}
+<p class="note">{{ sp.invalidation }}</p>{% else %}<p class="note">{{ sp.note }}</p>{% endif %}</div>
+{% endblock %}

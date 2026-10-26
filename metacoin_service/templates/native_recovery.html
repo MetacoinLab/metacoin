@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block body %}
+<h1>Recovery <span class="badge {% if r.recovery_state == 'normal' %}ok{% else %}warn{% endif %}">{{ r.recovery_state }}</span></h1>
+<div class="card"><p>database commit sequence {{ r.database_commit_sequence }} · watermark {{ r.watermark|tojson }} · export watermark {{ r.export_watermark }}</p><p>quarantined peers: {{ r.quarantined_peers|join(', ') or 'none' }} · quarantined allocations: {{ r.quarantined_allocations|join(', ') or 'none' }}</p>
+<p><strong>detected:</strong> {{ r.what_is_detected|join('; ') }}</p><p><strong>not provided:</strong> {{ r.what_is_not|join('; ') }}</p><p class="note">{{ r.rollback_note }}</p>
+{% if principal.can('native:admin') %}<form method="post" action="/console/native/recovery/reconcile"><input type="hidden" name="csrf" value="{{ principal.session.csrf }}"><button type="submit">Reconcile with peers' observations</button></form>{% endif %}{% if report %}<pre>{{ report|tojson(indent=1) }}</pre>{% endif %}</div>
+{% endblock %}

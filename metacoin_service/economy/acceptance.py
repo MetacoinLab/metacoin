@@ -13,10 +13,14 @@ from ..errors import ServiceError
 from . import terms as terms_mod
 
 EXECUTION_STATES = {'queued': 'queued', 'running': 'running', 'succeeded': 'completed', 'failed': 'failed', 'cancelled': 'cancelled'}
-SCIENCE_KINDS = {'energy_audit': 'outcome', 'temporal_energy': 'outcome', 'safe_runtime': 'status', 'task_selection': 'status', 'resource_plan': 'status', 'legacy_task_replay': 'not_applicable'}
+SCIENCE_KINDS = {'energy_audit': 'outcome', 'temporal_energy': 'outcome', 'safe_runtime': 'status', 'task_selection': 'status', 'resource_plan': 'status', 'legacy_task_replay': 'not_applicable', 'evidence_acquisition': 'outcome', 'decision_observability': 'outcome', 'terrain_tile': 'outcome', 'route_feasibility': 'outcome', 'scenario_pack': 'outcome'}
 NEGATIVE_OUTCOMES = ('INFEASIBLE',)
 DIAGNOSTIC_OUTCOMES = ('INDETERMINATE',)
+# LEGACY (policy schema v1 only): a universal strength ranking. replica and sampled_reference share rank 2 although they
+# establish different claims; v2 policies compare classes exactly and bind typed assurance requirements instead.
 VERIFICATION_RANK = {'none': 0, 'analytical': 1, 'sampled_reference': 2, 'replica': 2, 'full_reference': 3, 'full_exact': 4}
+LEGACY_RANK_SEMANTICS = 'legacy-rank/v1 (policy schema metacoin-acceptance-policy/v1): class rank >= requested rank satisfies; replica and sampled_reference share rank 2; a later pass is not blocked by an earlier failed audit'
+CLAIM_SEMANTICS = 'claim-specific/v2: same class on the delivered evidence root; a failed audit of the same class on this root fails the predicate even if a later attempt passed'
 
 
 def science_conclusion(kind, job):
@@ -34,6 +38,8 @@ def science_conclusion(kind, job):
                 'limit_no_candidate': 'INDETERMINATE', 'numerical_failure': 'INDETERMINATE', 'candidate_rejected_by_checker': 'INDETERMINATE', 'invalid_input': 'INDETERMINATE'}.get(out, 'unknown')
     if kind in ('safe_runtime', 'task_selection'):
         return {'FEASIBLE': 'FEASIBLE', 'INFEASIBLE': 'INFEASIBLE', 'INDETERMINATE': 'INDETERMINATE'}.get(out, 'not_applicable')
+    if kind in ('evidence_acquisition', 'decision_observability', 'terrain_tile', 'route_feasibility', 'scenario_pack'):
+        return out if out in terms_mod.outcome_vocabulary(kind) else 'unknown'
     return 'not_applicable'
 
 
@@ -41,7 +47,7 @@ def _verifications(db, job):
     return db.execute("SELECT * FROM verification_jobs WHERE target_job_id=? ORDER BY created_at", (job['id'],)).fetchall() if job else []
 
 
-def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, provider_execution='local_worker'):
+def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, provider_execution='local_worker', price_cap=None):
     """Returns the decision candidate. `job` is a sqlite row (or None when nothing executed)."""
     terms_mod.validate(terms, 'frozen')
     ms = next((m for m in terms['milestones'] if m['key'] == milestone_key), None)
@@ -93,7 +99,11 @@ def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, 
             add(p['id'], pt, 'passed' if ok else 'failed', 'canonical output hash equals the registered hash' if ok else 'canonical output hash differs from the registered hash', {'registered': params['registered_hash'], 'delivered': got})
         elif pt == 'verification_passed':
             want = params['class']; distinct = params.get('distinct_verifier', False)
-            passed = [v for v in verifs if v['state'] == 'passed' and v['result_commitment'] == job['evidence_root'] and VERIFICATION_RANK.get(v['class'], 0) >= VERIFICATION_RANK[want]
+            legacy = pol['schema'] == terms_mod.POLICY_SCHEMA_V1
+            semantics = LEGACY_RANK_SEMANTICS if legacy else CLAIM_SEMANTICS
+            def class_ok(v):
+                return (VERIFICATION_RANK.get(v['class'], 0) >= VERIFICATION_RANK[want]) if legacy else v['class'] == want
+            passed = [v for v in verifs if v['state'] == 'passed' and v['result_commitment'] == job['evidence_root'] and class_ok(v)
                       and (params.get('min_sample_count') is None or (json.loads(v['params_json']).get('sample_count') or 0) >= params['min_sample_count'])
                       and (params.get('verifier_digest') is None or json.loads(v['statement_json'] or '{}').get('auditor_digest') == params['verifier_digest'])]
             if passed and distinct:
@@ -103,16 +113,31 @@ def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, 
                 passed = [v for v in passed if provider_execution == 'node']
             pending = [v for v in verifs if v['state'] in ('queued', 'awaiting_replica')]
             failed = [v for v in verifs if v['state'] in ('failed', 'disputed') and v['result_commitment'] == job['evidence_root']]
-            if passed:
-                add(p['id'], pt, 'passed', 'verification %s (%s) passed on this evidence commitment' % (passed[-1]['id'], passed[-1]['class']), {'verification_id': passed[-1]['id'], 'class': passed[-1]['class'], 'distinct_verifier': distinct})
+            # a failed audit the designated reviewer adjudicated as a false alarm (producer_upheld / environment_difference) no
+            # longer blocks; auditor_upheld or inconclusive resolutions keep blocking (resolution records are never rewritten)
+            adjudicated_defects = [v for v in verifs if v['state'] == 'resolved' and v['result_commitment'] == job['evidence_root'] and json.loads(v['resolution_json'] or '{}').get('decision') in ('auditor_upheld', 'inconclusive')]
+            same_class_failed = [v for v in failed + adjudicated_defects if v['class'] == want]
+            if not legacy and same_class_failed:
+                add(p['id'], pt, 'failed', 'verification %s (%s) failed on this evidence commitment; a detected defect is not overridden by a later attempt (a designated reviewer may adjudicate it as a false alarm through the disagreement review)' % (same_class_failed[-1]['id'], want), {'verification_id': same_class_failed[-1]['id'], 'class': want, 'semantics': semantics, 'later_passes': [v['id'] for v in passed]})
+            elif passed:
+                add(p['id'], pt, 'passed', 'verification %s (%s) passed on this evidence commitment' % (passed[-1]['id'], passed[-1]['class']), {'verification_id': passed[-1]['id'], 'class': passed[-1]['class'], 'distinct_verifier': distinct, 'semantics': semantics,
+                                                                                                                                                'substituted_class': passed[-1]['class'] != want, 'earlier_failures_ignored': [v['id'] for v in failed] if legacy and failed else []})
             elif failed and not pending:
-                add(p['id'], pt, 'failed', 'verification %s failed on this evidence commitment' % failed[-1]['id'], {'verification_id': failed[-1]['id'], 'class': failed[-1]['class']})
+                add(p['id'], pt, 'failed', 'verification %s failed on this evidence commitment' % failed[-1]['id'], {'verification_id': failed[-1]['id'], 'class': failed[-1]['class'], 'semantics': semantics})
             elif pending:
-                add(p['id'], pt, 'unknown', 'verification %s pending' % pending[-1]['id'], {'verification_id': pending[-1]['id']})
+                add(p['id'], pt, 'unknown', 'verification %s pending' % pending[-1]['id'], {'verification_id': pending[-1]['id'], 'semantics': semantics})
             elif distinct and provider_execution != 'node' and any(v['state'] == 'passed' and v['result_commitment'] == job['evidence_root'] for v in verifs):
-                add(p['id'], pt, 'unknown', 'a distinct verifier is required but the only passed verification shares the provider\'s process and custody (same worker, same service); unavailable independence is not relabelled', {'required_class': want, 'distinct_verifier': True, 'provider_execution': provider_execution})
+                add(p['id'], pt, 'unknown', 'a distinct verifier is required but the only passed verification shares the provider\'s process and custody (same worker, same service); unavailable independence is not relabelled', {'required_class': want, 'distinct_verifier': True, 'provider_execution': provider_execution, 'semantics': semantics})
             else:
-                add(p['id'], pt, 'unknown', 'no verification of class %s has been requested for this evidence' % want + (' by a distinct verifier' if distinct else ''), {'required_class': want, 'distinct_verifier': distinct})
+                add(p['id'], pt, 'unknown', 'no verification of class %s has been requested for this evidence' % want + (' by a distinct verifier' if distinct else ''), {'required_class': want, 'distinct_verifier': distinct, 'semantics': semantics})
+        elif pt == 'assurance_satisfied':
+            from ..decision import assurance as assurance_mod, records as records_mod
+            req = params['requirement']
+            sts = records_mod.statements_for_job(db, job, contract, provider_execution)
+            ev_a = assurance_mod.evaluate(req, sts, records_mod.binding_for(job, contract))
+            result = {'satisfied': 'passed', 'failed': 'failed', 'unsupported': 'failed'}.get(ev_a['status'], 'unknown')
+            add(p['id'], pt, result, ev_a['plain'], {'status': ev_a['status'], 'requirement_digest': ev_a['requirement_digest'], 'matched_statement': ev_a['matched_statement'], 'defect_statement': ev_a['defect_statement'],
+                                                     'missing_clauses': ev_a['missing_clauses'], 'next_checks': ev_a['next_checks'], 'semantics': CLAIM_SEMANTICS, 'candidates': [{'verification_id': c['verification_id'], 'class': c['class'], 'outcome': c['outcome'], 'missing_clauses': c['missing_clauses']} for c in ev_a['candidates']]})
         elif pt == 'review_signature':
             r = db.execute("SELECT decision FROM reviews WHERE job_id=? ORDER BY created_at DESC LIMIT 1", (job['id'],)).fetchone()
             want = params.get('decision', 'accepted')
@@ -177,8 +202,11 @@ def evaluate(db, terms, milestone_key, job, provider_identity=None, store=None, 
             decision, reason, pay_class = 'accepted', 'all predicates passed; outcome %s accepted' % science, 'complete'
     amount = pol['payment_rule'].get(pay_class, 0) if pay_class != 'none' else 0
     amount = min(amount, ms['max_payment'])
+    if price_cap is not None and pay_class in ('complete', 'partial'):
+        amount = min(amount, price_cap)                                             # the agreed price of the awarded offer bounds what the provider is owed
     return {'schema': 'metacoin-acceptance-evaluation/v1', 'milestone': milestone_key, 'decision_candidate': decision, 'reason': reason,
             'execution': execution, 'science': science, 'payment_class': pay_class, 'payable_amount': amount, 'asset': terms['payment']['asset'],
-            'trace': trace, 'policy_digest': __import__('hashlib').sha256(b'metacoin/acceptance-policy/v1\0' + __import__('experiments.private_receipts.receipt', fromlist=['canonical']).canonical(pol)).hexdigest(),
+            'trace': trace, 'policy_schema': pol['schema'], 'policy_semantics': terms_mod.policy_semantics(pol['schema']),
+            'policy_digest': __import__('hashlib').sha256(b'metacoin/acceptance-policy/v1\0' + __import__('experiments.private_receipts.receipt', fromlist=['canonical']).canonical(pol)).hexdigest(),
             'job_id': job['id'] if job else None, 'evidence_root': job['evidence_root'] if job else None,
             'note': 'candidate only: acceptance and payment transitions are explicit authorized operations; evaluation spent nothing and called no network'}

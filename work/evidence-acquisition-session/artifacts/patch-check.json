@@ -1,0 +1,12 @@
+{
+ "schema": "metacoin-patch-check/v1",
+ "base": "825adf8ea2d99f3211bc81ef421f40c6bfe91895",
+ "candidate": "715938997629eb590e28dc0dcd88087551c0b675",
+ "patch": "metacoin-evidence-acquisition-session-vs-825adf8.patch",
+ "patch_sha256": "7f64c77c93f42f05df2e796d8dabcf25591874ab20e1b76d9b89a9d5bc74db67",
+ "archive_sha256": "3adba62636ae0e38743d0d4373824cabe77df5042ad9867b0b6a7bec6613a32a",
+ "applied_in_isolated_worktree": true,
+ "paths_differing_outside_work": [],
+ "work_dir_excluded_by_design": true,
+ "result": "equal under the documented exclusion (work/)"
+}

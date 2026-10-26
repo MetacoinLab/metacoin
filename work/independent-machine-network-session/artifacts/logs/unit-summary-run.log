@@ -1,0 +1,37 @@
+test_native_pools              Ran 8 tests in 4.541s OK
+test_native_custody            Ran 3 tests in 4.834s OK
+test_native_subcontracts       Ran 2 tests in 4.247s OK
+test_native_lots               Ran 21 tests in 22.462s OK
+test_native_products           Ran 8 tests in 9.672s OK
+test_native_relay              Ran 2 tests in 4.849s OK
+test_native_continuity         Ran 1 test in 1.941s OK
+test_native_portfolio          Ran 3 tests in 1.997s OK
+test_native_onboarding         Ran 5 tests in 6.819s OK
+test_console_network           Ran 1 test in 2.294s OK
+test_native_model_network      Ran 45 tests in 42.934s OK
+test_native_extensions         Ran 10 tests in 5.215s OK
+test_native_missions           Ran 8 tests in 11.121s OK
+test_native_market             Ran 5 tests in 3.862s OK
+test_native_signer             Ran 4 tests in 4.739s OK
+test_native_provider_client    Ran 2 tests in 2.920s OK
+test_native_lineage            Ran 20 tests in 21.459s OK
+test_native_domains            Ran 9 tests in 9.611s OK
+test_native_witness            Ran 22 tests in 28.731s OK
+test_native_conformance        Ran 5 tests in 1.831s OK
+test_native_planner            Ran 4 tests in 0.295s OK
+test_native_model              Ran 21 tests in 30.004s OK
+test_native_protocol           Ran 2 tests in 3.751s OK
+test_native_interfaces         Ran 9 tests in 8.655s OK
+test_native_evidence           Ran 8 tests in 9.403s OK
+test_native_lunar              Ran 3 tests in 4.244s OK
+test_work_money                Ran 4 tests in 7.711s OK
+test_service                   Ran 19 tests in 20.354s OK
+test_mcp                       rc=0
+test_console_pages             Ran 1 test in 1.672s OK
+test_work_evidence             Ran 7 tests in 9.613s OK
+test_work_terms                Ran 6 tests in 6.759s OK
+test_work_board                Ran 5 tests in 3.960s OK
+test_work_faults               Ran 13 tests in 20.233s OK
+test_agent_paid                Ran 1 test in 3.098s OK
+test_db_contention             Ran 8 tests in 11.970s OK
+all ok True conformance 32 / 32 kit 24 / 24

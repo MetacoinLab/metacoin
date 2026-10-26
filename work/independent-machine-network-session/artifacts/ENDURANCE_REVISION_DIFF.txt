@@ -1,0 +1,5 @@
+git diff --stat f10067c 1fc3bda -- . ':!work' (the endurance run 6 revision vs the source candidate; the service packages are byte-identical):
+ .gitignore                                      |  1 +
+ metacoin_service/tests/journeys_network.py      |  4 +-
+ provider_client/starter_kit/receipt_consumer.py | 61 +++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+), 2 deletions(-)

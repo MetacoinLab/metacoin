@@ -1,0 +1,10 @@
+{
+ "schema": "metacoin-candidate/v1",
+ "branch": "evidence/acquisition-assurance",
+ "base_revision": "825adf8ea2d99f3211bc81ef421f40c6bfe91895",
+ "candidate_revision": "715938997629eb590e28dc0dcd88087551c0b675",
+ "tree": "8423b286064579946d0830e6131bb02a68c8fbb1",
+ "git_archive_tar_sha256": "a3de789d5dc7c1a1e50730abc7e89f8158d05edb9a605b31234ad8b478f82da5",
+ "frozen_at": "2026-10-22T08:23:38Z",
+ "note": "source candidate; a records-only commit (work/) follows packaging"
+}

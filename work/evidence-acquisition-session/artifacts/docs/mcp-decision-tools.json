@@ -1,0 +1,288 @@
+{
+ "schema": "metacoin-mcp-tools/v1",
+ "count_total": 51,
+ "decision_tools": [
+  {
+   "name": "analyze_decision",
+   "description": "Submit a finite decision-observability analysis (enumerated rational hypotheses with decision labels, declared linear views, bounded noise, optional observations). Creates a job under the caller's own contract permissions; never spends. Returns the job id; read it with decision_status.",
+   "inputSchema": {
+    "properties": {
+     "inputs": {
+      "additionalProperties": true,
+      "title": "Inputs",
+      "type": "object"
+     },
+     "title": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Title"
+     }
+    },
+    "required": [
+     "inputs"
+    ],
+    "title": "analyze_decisionArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "decision_status",
+   "description": "A decision analysis or acquisition job: state, disclosure-policed projection (counts, conclusion: separated within these assumptions / ambiguous / missing evidence / unsupported), verifications, assurance statements, acquisition plans. Private witnesses are NOT returned here. Read-only.",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id"
+    ],
+    "title": "decision_statusArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "preview_acquisition",
+   "description": "The next useful measurement set under a budget for an ambiguous decision: selected views, costs, predicted remaining ambiguities, exact / unsupported status. Nothing is stored, reserved or purchased. Read-only.",
+   "inputSchema": {
+    "properties": {
+     "analysis_job_id": {
+      "title": "Analysis Job Id",
+      "type": "string"
+     },
+     "menu": {
+      "items": {},
+      "title": "Menu",
+      "type": "array"
+     },
+     "budget": {
+      "title": "Budget",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "analysis_job_id",
+     "menu",
+     "budget"
+    ],
+    "title": "preview_acquisitionArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "create_acquisition_contract",
+   "description": "CONSEQUENTIAL: store the acquisition plan and freeze decision-evidence-acquisition work terms from it, opening a request for offers. Needs work:request and contract:freeze on the caller's grant; an analysis-only grant is refused by the server. Nothing is reserved until an award (award_work).",
+   "inputSchema": {
+    "properties": {
+     "analysis_job_id": {
+      "title": "Analysis Job Id",
+      "type": "string"
+     },
+     "menu": {
+      "items": {},
+      "title": "Menu",
+      "type": "array"
+     },
+     "budget": {
+      "title": "Budget",
+      "type": "integer"
+     },
+     "diagnostic_amount": {
+      "default": 0,
+      "title": "Diagnostic Amount",
+      "type": "integer"
+     },
+     "idempotency_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+     }
+    },
+    "required": [
+     "analysis_job_id",
+     "menu",
+     "budget"
+    ],
+    "title": "create_acquisition_contractArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "assurance_preview",
+   "description": "Required assurance of an award milestone with the available evidence, satisfied and missing clauses and the next checks, in plain English. Read-only.",
+   "inputSchema": {
+    "properties": {
+     "award_id": {
+      "title": "Award Id",
+      "type": "string"
+     },
+     "milestone": {
+      "default": "m1",
+      "title": "Milestone",
+      "type": "string"
+     }
+    },
+    "required": [
+     "award_id"
+    ],
+    "title": "assurance_previewArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "sampling_plan_preview",
+   "description": "Exact finite-population sampling plan for an itemwise job: the smallest sample meeting C(N-m,k)/C(N,k) <= alpha, or infeasible with the required budget. The defect count m is an assumption of the claim, not an observation. Preview only (nothing bound). Read-only.",
+   "inputSchema": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "alpha": {
+      "title": "Alpha",
+      "type": "string"
+     },
+     "max_samples": {
+      "title": "Max Samples",
+      "type": "integer"
+     },
+     "minimum_defects": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Minimum Defects"
+     },
+     "defect_fraction": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Defect Fraction"
+     }
+    },
+    "required": [
+     "job_id",
+     "alpha",
+     "max_samples"
+    ],
+    "title": "sampling_plan_previewArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": true,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  },
+  {
+   "name": "compare_portfolios",
+   "description": "Paired comparison of verification portfolios on a named preregistered fault suite (dev split by default): false acceptance / rejection, abstention, cost and latency by failure family; suite coverage separate from any statistical rate. Runs synthetic cases under the caller's grant; no purchase.",
+   "inputSchema": {
+    "properties": {
+     "suite_id": {
+      "title": "Suite Id",
+      "type": "string"
+     },
+     "portfolio_ids": {
+      "items": {},
+      "title": "Portfolio Ids",
+      "type": "array"
+     },
+     "split": {
+      "default": "dev",
+      "title": "Split",
+      "type": "string"
+     },
+     "idempotency_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Idempotency Key"
+     }
+    },
+    "required": [
+     "suite_id",
+     "portfolio_ids"
+    ],
+    "title": "compare_portfoliosArguments",
+    "type": "object"
+   },
+   "annotations": {
+    "title": null,
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false
+   }
+  }
+ ]
+}

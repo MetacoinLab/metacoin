@@ -1,0 +1,1796 @@
+{
+ "schema": "metacoin-journeys-network/v1",
+ "provider_mode": "simulation",
+ "x402_disabled": true,
+ "facilitator_url": "http://127.0.0.1:1/blocked",
+ "domains": {
+  "dom-a": "development custody permitted (fixtures, claim journeys)",
+  "dom-b": "development custody permitted (claim destination)",
+  "dom-c": "development custody disabled; signers sig-requester / sig-machine / sig-supplier / sig-others"
+ },
+ "revision": "6313e9702cf31645b2ab6924ae864fa136a707cf",
+ "python": "3.12.3",
+ "started_at": 1792739151,
+ "finished_at": 1792739511,
+ "results": [
+  {
+   "journey": 1,
+   "title": "Recover the completed baseline and reproduce the six-actor 80-unit native replay.",
+   "status": "passed",
+   "evidence": {
+    "base_revision": "a6d672d2d1d95c66fd021f43dccccf9e453c540a",
+    "revision": "6313e9702cf31645b2ab6924ae864fa136a707cf",
+    "purchase_before_earning": 400,
+    "after_terrain_settlement": {
+     "r80": 35,
+     "m80": 40,
+     "v80": 3,
+     "treasury": 2
+    },
+    "treasury_before_award": 3,
+    "final": {
+     "r80": 35,
+     "m80": 30,
+     "s80": 9,
+     "v80": 3,
+     "c80": 2,
+     "treasury": 1
+    },
+    "expected": {
+     "r80": 35,
+     "m80": 30,
+     "s80": 9,
+     "v80": 3,
+     "c80": 2,
+     "treasury": 1
+    },
+    "total": 80,
+    "six_actors_distinct": true,
+    "no_extra_fees_squeezed_in": true,
+    "seconds": 4.178
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "Run the new connected mission with x402 disabled and its facilitator unreachable.",
+   "status": "passed",
+   "evidence": {
+    "x402": {
+     "disabled": true,
+     "installed": false,
+     "required_by_native_core": false,
+     "role": "optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement"
+    },
+    "facilitator_probe": "ConnectError",
+    "mission": "mc_fcb812dd4c66",
+    "machine_delta": 44,
+    "custody": "enabled",
+    "seconds": 3.24
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "Enroll a clean provider without server database imports or copied private state.",
+   "status": "passed",
+   "evidence": {
+    "install_method": "package directory on PYTHONPATH (pip could not build offline: ModuleNotFoundError: No module named 'setuptools')",
+    "conformance": {
+     "version": "metacoin-provider-conformance/v2",
+     "cases": 32,
+     "passed": 32,
+     "ok": true
+    },
+    "third_party_modules_imported": [],
+    "enrolled_custody": "external-signer:sig-test",
+    "server_key_files_for_provider": 0,
+    "pinned": {
+     "domain": "dom-a",
+     "environment": "dev",
+     "authority_key_id": "k_74d2633f0989be2507cebb4a",
+     "authority_public_hex": "e4379c00da12f4c8a8792ce9dbc8c0f66f5ed39b24f8d39f59423cf21f9d97c6",
+     "epoch": 1,
+     "protocol": "metacoin-native/v0",
+     "policy_version": "native-policy/v0",
+     "pinned_at": 1792739165
+    },
+    "handshake": true,
+    "delivery_labels": {
+     "measurement": "provider_assertion",
+     "verification": "verified"
+    },
+    "settled": "settled",
+    "receipts_verified_offline": 1,
+    "export_verified_offline": true,
+    "signed_payment": "settled",
+    "seconds": 2.565
+   },
+   "caveat": "same host: the client ran in a fresh virtual environment with only the standard library; no database or key material was copied"
+  },
+  {
+   "journey": 4,
+   "title": "Execute requester funding, machine spending and supplier settlement through configured external signers with no silent custody fallback.",
+   "status": "passed",
+   "evidence": {
+    "development_custody": [
+     501,
+     "development_custody_disabled"
+    ],
+    "requester_settlement_waited": true,
+    "other_work_continued": {
+     "action": "open_request",
+     "milestone": "compute",
+     "offer_id": null,
+     "amount": 45,
+     "reason": null
+    },
+    "requester_signed": [
+     [
+      "settlement",
+      200
+     ],
+     [
+      "settlement",
+      200
+     ],
+     [
+      "settlement",
+      200
+     ],
+     [
+      "settlement",
+      200
+     ]
+    ],
+    "after_compute": {
+     "machine": 44,
+     "verifier": 3,
+     "treasury": 2
+    },
+    "machine_reservation_waited": true,
+    "wrong_signer_refused": "unknown_or_revoked_actor",
+    "machine_reserved": 20,
+    "supplier": {
+     "unsigned": [
+      409,
+      "signature_required"
+     ],
+     "signed": "settled",
+     "earned": 19
+    },
+    "service_actor_key_files": [],
+    "signers": {
+     "c_req": "sig-requester",
+     "c_mach": "sig-machine",
+     "c_sup": "sig-supplier",
+     "c_sub": "sig-others",
+     "c_ver": "sig-others",
+     "c_relay": "sig-others",
+     "c_con": "sig-others"
+    },
+    "seconds": 3.688
+   },
+   "caveat": null
+  },
+  {
+   "journey": 5,
+   "title": "Reject altered recipient, amount, asset, domain and obligation before signing.",
+   "status": "passed",
+   "evidence": {
+    "service_refusals": {
+     "recipient": [
+      403,
+      "signature_invalid"
+     ],
+     "amount_ceiling": [
+      403,
+      "signature_invalid"
+     ],
+     "asset": [
+      422,
+      "asset_unknown_here"
+     ],
+     "authority": [
+      422,
+      "authority_mismatch"
+     ],
+     "obligation_id": [
+      403,
+      "signature_invalid"
+     ]
+    },
+    "signer_refusals": {
+     "wrong_domain": [
+      400,
+      "domain_not_pinned"
+     ],
+     "expired": [
+      400,
+      "expired"
+     ],
+     "unknown_field": [
+      400,
+      "intent"
+     ],
+     "other_asset": [
+      400,
+      "intent"
+     ],
+     "float": [
+      400,
+      "encoding"
+     ]
+    },
+    "context_binding_refusals": {
+     "recipient": "context_recipient_mismatch",
+     "amount": "context_amount_mismatch",
+     "context": "policy_hash_mismatch"
+    },
+    "balances_unchanged_until_valid_submit": [
+     50,
+     44,
+     0
+    ],
+    "valid_submit": "settled",
+    "seconds": 0.142
+   },
+   "caveat": null
+  },
+  {
+   "journey": 6,
+   "title": "Crash and restart a signer around authorization persistence without extra exposure.",
+   "status": "passed",
+   "evidence": {
+    "crash_before_record": 500,
+    "exposure_after_crash": 0,
+    "crash_after_record": 500,
+    "replayed_after_restart": true,
+    "exposure_outstanding": 10,
+    "bob": 20,
+    "seconds": 0.451
+   },
+   "caveat": null
+  },
+  {
+   "journey": 7,
+   "title": "Rotate a key while preserving historical verification and outstanding obligations.",
+   "status": "passed",
+   "evidence": {
+    "keys": [
+     [
+      "k_89fe8974",
+      "retired"
+     ],
+     [
+      "k_aedd02a8",
+      "active"
+     ]
+    ],
+    "historical_signature_verifies": true,
+    "historical_receipts": 1,
+    "old_key_new_intent": [
+     403,
+     "key_not_authorized"
+    ],
+    "obligation_under_old_key_reserved": 10,
+    "settled_after_rotation": "settled",
+    "carol": 24,
+    "seconds": 0.299
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "Refuse a delegation expanding recipient scope or aggregate budget.",
+   "status": "passed",
+   "evidence": {
+    "widening_delegation": "delegation_exceeds_authority",
+    "out_of_scope": "delegate_recipient_out_of_scope",
+    "within": 200,
+    "over_ceiling_signer": "delegate_ceiling",
+    "over_ceiling_server": "delegate_ceiling",
+    "durable_policy_recipient": "policy_recipient",
+    "dave": 35,
+    "seconds": 0.146
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "Detect and disclose shared-operator deployment rather than labelling it independent.",
+   "status": "passed",
+   "evidence": {
+    "rig1": {
+     "independent_party": false,
+     "shared_operator": true,
+     "same_operator_providers": [
+      {
+       "provider_id": "pv_8532871fad44",
+       "name": "rig-2",
+       "machine_id": "rig-2",
+       "worker_instance": "w-rig-2"
+      }
+     ],
+     "disclosure": "providers declaring the same operator_id are one economic party: several workers under one operator are never counted as independent; independence is declared and disclosed, never inferred from keys"
+    },
+    "rig2_declared_independent_but": "providers declaring the same operator_id are one economic party: several workers under one operator are never counted as",
+    "domains_operator": {
+     "dom-a": "same operator (journey host)",
+     "dom-b": "same operator (journey host)",
+     "dom-c": "same operator (journey host)"
+    },
+    "two_local_domains_are_not_independent_parties": true,
+    "seconds": 0.076
+   },
+   "caveat": null
+  },
+  {
+   "journey": 10,
+   "title": "Reject an unpinned peer or incompatible critical protocol version.",
+   "status": "passed",
+   "evidence": {
+    "identity_changed": "identity_changed",
+    "protocol_incompatible": "protocol_incompatible",
+    "plain_http_off_loopback": "refused",
+    "unsupported_envelope_version": 422,
+    "unpinned_sender": "sender_not_pinned",
+    "seconds": 0.055
+   },
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "title": "Publish overlapping offers against one pool and refuse overselling their shared interval.",
+   "status": "passed",
+   "evidence": {
+    "first": [
+     201,
+     1
+    ],
+    "overlapping_refused": [
+     409,
+     "pool_capacity_exceeded",
+     {
+      "start": 1792741000,
+      "end": 1792742800,
+      "used": 2,
+      "capacity": 1,
+      "ok": false
+     }
+    ],
+    "non_overlapping_tail": 201,
+    "pool": {
+     "peak_slots_used": 1,
+     "all_within_capacity": true
+    },
+    "seconds": 0.14
+   },
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "title": "Race reservations across two offers while conserving both capacity and funds.",
+   "status": "passed",
+   "evidence": {
+    "results": [
+     [
+      "m2",
+      201
+     ],
+     [
+      "r2",
+      201
+     ],
+     [
+      "m1",
+      409
+     ],
+     [
+      "r1",
+      409
+     ]
+    ],
+    "peak_slots_used": 2,
+    "reserved_delta": 7200000,
+    "conserved": true,
+    "seconds": 0.168
+   },
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "title": "Handle boundary-touching intervals and unit conversions exactly.",
+   "status": "passed",
+   "evidence": {
+    "x1": 201,
+    "x2_touching": 201,
+    "x3_aligned_overlap": 409,
+    "x4": 201,
+    "x5_one_unit_over": 409,
+    "s1": [
+     201,
+     3
+    ],
+    "s2_over": 409,
+    "s3": 201,
+    "seconds": 0.201
+   },
+   "caveat": null
+  },
+  {
+   "journey": 14,
+   "title": "Refuse a capacity reduction conflicting with committed reservations.",
+   "status": "passed",
+   "evidence": {
+    "to_zero": [
+     409,
+     "capacity_below_commitments"
+    ],
+    "to_one": 200,
+    "remove_committed_hour": 409,
+    "non_owner": 403,
+    "after_delivery_to_zero": 409,
+    "commitments": [
+     "delivered"
+    ],
+    "seconds": 0.223
+   },
+   "caveat": null
+  },
+  {
+   "journey": 15,
+   "title": "Drain a provider without erasing delivered work or accepted obligations.",
+   "status": "passed",
+   "evidence": {
+    "drain": "draining",
+    "new_reservation": [
+     409,
+     "provider_draining"
+    ],
+    "new_offer": 409,
+    "closed": "closed",
+    "delivered_settled_after_close": 41,
+    "commitments_kept": [
+     "delivered"
+    ],
+    "seconds": 0.207
+   },
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "title": "Create a funded subcontract bound to parent terms and permitted inputs.",
+   "status": "passed",
+   "evidence": {
+    "subcontract": "sc_0aaf5bfdf28a",
+    "bound_to": {
+     "mission": "mc_a13b71cdc7ed",
+     "revision": 1,
+     "milestone": "compute"
+    },
+    "inputs_digest": "5f7cf8de2f31350c",
+    "before_funding": [
+     "not_funded",
+     403,
+     "duplicate_subcontract"
+    ],
+    "prefund_bound_obligation": "no_bab55df741d4400c",
+    "funded": "funded",
+    "seconds": 1.651
+   },
+   "caveat": null
+  },
+  {
+   "journey": 17,
+   "title": "Refuse circular funding based on the parent's expected future earnings.",
+   "status": "failed",
+   "evidence": {
+    "future_earnings": [
+     422,
+     "circular_funding"
+    ],
+    "beyond_settled": [
+     201,
+     null,
+     null
+    ],
+    "machine_liquidity": {
+     "held_locally": 14559996,
+     "expected_earnings": 0,
+     "spendable": 14559996
+    },
+    "seconds": 0.066
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "Execute a subcontract from settled machine earnings and settle it once.",
+   "status": "passed",
+   "evidence": {
+    "decision": "accepted",
+    "paid_once": [
+     10,
+     10
+    ],
+    "timeline": {
+     "reserved": 0,
+     "spent": 10,
+     "earned_by_provider": 10,
+     "disputed": 0,
+     "returned": 0,
+     "events": [
+      {
+       "at": 1792739173,
+       "event": "proposed",
+       "funded_amount": 12,
+       "mode": "requester_prefund",
+       "state": "awaiting_prefund"
+      },
+      {
+       "at": 1792739173,
+       "event": "prefunded",
+       "intent": "ni_802019b1f19e4a66",
+       "amount": 12
+      },
+      {
+       "at": 1792739173,
+       "event": "running"
+      },
+      {
+       "at": 1792739175,
+       "event": "completed"
+      }
+     ]
+    },
+    "returned_unused": 2,
+    "parent_milestone": "executing",
+    "earnings_funded_second": [
+     201,
+     "funded"
+    ],
+    "seconds": 1.505
+   },
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "title": "Fail a subcontract milestone while preserving separately accepted useful work.",
+   "status": "failed",
+   "evidence": {
+    "exception": "KeyError",
+    "detail": "'id'",
+    "trace": "Traceback (most recent call last):\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_mission.py\", line 159, in guard\n    fn(t0)\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_network.py\", line 448, in j19\n    s1 = self.drive_child(A, 'machine', good, 'subco'); self.sub_adv(A, 'machine', good, 'pay'); s2 = self.drive_child(A, 'machine', bad['id'], 'subco', fail=True)\n                                                                                                                                     ~~~^^^^^^\nKeyError: 'id'\n",
+    "last_award_errors": [
+     {
+      "award": {
+       "error": true,
+       "code": "BUDGET_EXHAUSTED",
+       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
+       "detail": {
+        "code": "insufficient_available",
+        "available": 0,
+        "requested": 10,
+        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
+       }
+      },
+      "offer": "offered",
+      "eligibility": {
+       "eligible": true,
+       "reasons": []
+      },
+      "who": "m80",
+      "template": "determination"
+     }
+    ],
+    "seconds": 1.444
+   },
+   "caveat": null
+  },
+  {
+   "journey": 20,
+   "title": "Refuse an unauthorized amendment and excessive delegation depth.",
+   "status": "failed",
+   "evidence": {
+    "exception": "KeyError",
+    "detail": "'sub_good'",
+    "trace": "Traceback (most recent call last):\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_mission.py\", line 159, in guard\n    fn(t0)\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_network.py\", line 456, in j20\n    A = self.A; mid = self.ctx['sub_parent']; good = self.ctx['sub_good']; child = A.call('get', '/api/v1/subcontracts/' + good, role='machine')[1]['child_mission']\n                                                     ~~~~~~~~^^^^^^^^^^^^\nKeyError: 'sub_good'\n",
+    "last_award_errors": [
+     {
+      "award": {
+       "error": true,
+       "code": "BUDGET_EXHAUSTED",
+       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
+       "detail": {
+        "code": "insufficient_available",
+        "available": 0,
+        "requested": 10,
+        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
+       }
+      },
+      "offer": "offered",
+      "eligibility": {
+       "eligible": true,
+       "reasons": []
+      },
+      "who": "m80",
+      "template": "determination"
+     }
+    ],
+    "seconds": 0.0
+   },
+   "caveat": null
+  },
+  {
+   "journey": 21,
+   "title": "Prevent private artifact disclosure to an unauthorized subcontractor.",
+   "status": "failed",
+   "evidence": {
+    "exception": "KeyError",
+    "detail": "'sub_good'",
+    "trace": "Traceback (most recent call last):\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_mission.py\", line 159, in guard\n    fn(t0)\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_network.py\", line 467, in j21\n    A = self.A; mid = self.ctx['sub_parent']; good = self.ctx['sub_good']; child = A.call('get', '/api/v1/subcontracts/' + good, role='machine')[1]['child_mission']\n                                                     ~~~~~~~~^^^^^^^^^^^^\nKeyError: 'sub_good'\n",
+    "last_award_errors": [
+     {
+      "award": {
+       "error": true,
+       "code": "BUDGET_EXHAUSTED",
+       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
+       "detail": {
+        "code": "insufficient_available",
+        "available": 0,
+        "requested": 10,
+        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
+       }
+      },
+      "offer": "offered",
+      "eligibility": {
+       "eligible": true,
+       "reasons": []
+      },
+      "who": "m80",
+      "template": "determination"
+     }
+    ],
+    "seconds": 0.0
+   },
+   "caveat": null
+  },
+  {
+   "journey": 22,
+   "title": "Publish a versioned mission product with explicit provenance and rights.",
+   "status": "passed",
+   "evidence": {
+    "product": "mp_b751899598ed",
+    "version": 1,
+    "source_data": {
+     "product_id": "LDEM_4",
+     "image_sha256": "c04632eba6449af49e3108ed7c25b3b1c450600abd3690df4fc815853a1af476",
+     "coordinate_system": null,
+     "units": null
+    },
+    "resolution_mm_per_pixel": 7580840,
+    "license": "processing-service",
+    "rights": "access entitlement only: not ownership of public data, not scientific validity, not exclusivity; revocation or refund ca",
+    "unsupported_license": "license_unsupported",
+    "same_content_same_version": true,
+    "seconds": 0.037
+   },
+   "caveat": null
+  },
+  {
+   "journey": 23,
+   "title": "Purchase and reuse a compatible product through native settlement.",
+   "status": "passed",
+   "evidence": {
+    "purchase": "purchased",
+    "content_hash_matches": true,
+    "retry_replayed": true,
+    "other_actor_download": 403,
+    "compatible_reuse": true,
+    "external_buyer": {
+     "before_signature": [
+      "awaiting_signature",
+      409
+     ],
+     "after": [
+      200,
+      200
+     ]
+    },
+    "seller_delta": 10,
+    "seconds": 0.204
+   },
+   "caveat": null
+  },
+  {
+   "journey": 24,
+   "title": "Recover a crash after payment but before entitlement delivery without charging again.",
+   "status": "passed",
+   "evidence": {
+    "crash_response": 409,
+    "charged_durably_once": true,
+    "retry": [
+     true,
+     "purchased"
+    ],
+    "download_after_retry": 200,
+    "entitlements": {
+     "sold": 3,
+     "delivered": 3
+    },
+    "seconds": 0.1
+   },
+   "caveat": null
+  },
+  {
+   "journey": 25,
+   "title": "Refuse reuse when resolution, units or required assumptions are incompatible.",
+   "status": "passed",
+   "evidence": {
+    "reasons": [
+     "resolution: product 7580840 mm/px, required 100000 mm/px (grid-scale products cannot be resampled into finer evidence)",
+     "units[slope]: product 'milli-degrees', required 'degrees'",
+     "source tile: product apollo11_32, required tycho_48",
+     "assumptions not carried by the product: ['calibrated thermal model'] (fresh evidence required)"
+    ],
+    "float_resolution": 422,
+    "seconds": 0.006
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "Execute a paid two-hop relay with separate queues and bounded fees.",
+   "status": "passed",
+   "evidence": {
+    "route": "rl_d05d0162d0b8",
+    "fees_bound": 9,
+    "queues_after_hop0": [
+     "forwarded",
+     "stored"
+    ],
+    "recipient_before_final": 409,
+    "settlement": {
+     "before_ack": [
+      "settled",
+      "awaiting_acknowledgment"
+     ],
+     "after_ack": [
+      "settled",
+      "settled"
+     ]
+    },
+    "paid": {
+     "supplier": 2,
+     "relay2": 4
+    },
+    "undelivered_kib_released": true,
+    "seconds": 0.262
+   },
+   "caveat": null
+  },
+  {
+   "journey": 27,
+   "title": "Distinguish an intermediate relay receipt from final application delivery.",
+   "status": "passed",
+   "evidence": {
+    "after_hop0": "in_transit",
+    "hop0_evidence_label": "emulated loopback link (one host; declared bandwidth cap; not a radio or a DTN n",
+    "final": "delivered",
+    "final_note": "application delivery to the recipient queue: the recipient must acknowledge; this is not mission suc",
+    "seconds": 0.097
+   },
+   "caveat": null
+  },
+  {
+   "journey": 28,
+   "title": "Recover lost receipts, duplicate delivery and a relay restart without duplicate charges.",
+   "status": "passed",
+   "evidence": {
+    "duplicate_forward_replayed": true,
+    "lost_receipt_crash": 409,
+    "queues_after_restart": [
+     "forwarded",
+     "forwarded"
+    ],
+    "ack_after_restart": "acknowledged",
+    "settled_once": true,
+    "supplier_delta": 1,
+    "seconds": 0.837
+   },
+   "caveat": null
+  },
+  {
+   "journey": 29,
+   "title": "Miss a contact window and replan without unsafe financial release.",
+   "status": "passed",
+   "evidence": {
+    "missed_window_cancelled": [
+     "cancelled",
+     "cancelled"
+    ],
+    "reserved_released_in_full": true,
+    "replanned_route": "rl_ba7f59f69ef4",
+    "forwarded_hop_kept": "delivered",
+    "unused_hop_cancelled": "cancelled",
+    "seconds": 2.453
+   },
+   "caveat": null
+  },
+  {
+   "journey": 30,
+   "title": "Enforce payload, retention, recipient and fee limits at relay admission.",
+   "status": "passed",
+   "evidence": {
+    "payload": 422,
+    "recipient_is_sender": "recipient_is_sender",
+    "retention": "retention_limit",
+    "fee_ceiling": "fee_ceiling_exceeded",
+    "hops_limit": 422,
+    "nothing_reserved_on_refusal": true,
+    "seconds": 0.024
+   },
+   "caveat": null
+  },
+  {
+   "journey": 31,
+   "title": "Split a 20-unit claim, spend 7 and retire only the holder's remaining 13.",
+   "status": "passed",
+   "evidence": {
+    "allocation": "nal_25e8b89511b467df",
+    "after_spend": {
+     "bob_lots": [
+      [
+       13,
+       "active"
+      ]
+     ],
+     "carol_lots": [
+      [
+       7,
+       "active",
+       1
+      ]
+     ],
+     "retirable": [
+      13,
+      0
+     ]
+    },
+    "over_retire": [
+     409,
+     "retire_exceeds_owned"
+    ],
+    "retire_13": [
+     "return_requested",
+     "retirement_pending"
+    ],
+    "v2_message": {
+     "partial": true,
+     "amount": 13,
+     "returned_before": 0
+    },
+    "seconds": 0.181
+   },
+   "caveat": null
+  },
+  {
+   "journey": 32,
+   "title": "Release 13 at the source once while leaving the supplier's 7 fully backed.",
+   "status": "passed",
+   "evidence": {
+    "source": {
+     "state": "partially_returned",
+     "returned": 13,
+     "lotter_delta": 13,
+     "backing_locked": 7
+    },
+    "destination": {
+     "state": "imported",
+     "returned": 13,
+     "carol": 7
+    },
+    "replayed_request_and_certificate_duplicates": [
+     true,
+     true
+    ],
+    "accounting": {
+     "partition_ok": true,
+     "returned_total": 13
+    },
+    "seconds": 0.164
+   },
+   "caveat": null
+  },
+  {
+   "journey": 33,
+   "title": "Refuse duplicate parent consumption and attempts to retire another owner's claim.",
+   "status": "passed",
+   "evidence": {
+    "other_owner_retires": 403,
+    "consumed_parent_again": [
+     409,
+     "missing_lineage"
+    ],
+    "lots_by_status": {
+     "retired": 13,
+     "active": 7
+    },
+    "independent_partition_check": true,
+    "seconds": 0.016
+   },
+   "caveat": null
+  },
+  {
+   "journey": 34,
+   "title": "Exercise every retirement/certificate/release/acknowledgment crash boundary.",
+   "status": "passed",
+   "evidence": {
+    "export_boundaries": {
+     "native_export_reserve": {
+      "first": 409,
+      "retry_state": "certified",
+      "recover_sweep": []
+     },
+     "native_export_commit": {
+      "first": 409,
+      "retry_state": "certified",
+      "recover_sweep": []
+     },
+     "native_certificate_publish": {
+      "first": 409,
+      "retry_state": "certified",
+      "recover_sweep": []
+     },
+     "native_import_commit": {
+      "first": 409,
+      "credited": 0
+     },
+     "native_ack": {
+      "first": 409,
+      "credited": 0
+     }
+    },
+    "partial_retirement": {
+     "init_crash": 409,
+     "durable": [
+      "return_requested",
+      "retirement_pending"
+     ],
+     "replayed": true,
+     "after_completion_crash": "acknowledged",
+     "released_once": 4,
+     "journal_after_crash": [
+      [
+       "native_return_completion",
+       "nal_db966b7c1a26fd2e",
+       [
+        [
+         "-a/backing:exported:nal_db966b7c1a26fd2e",
+         4,
+         0
+        ],
+        [
+         "A:0@dom-a/acct:na_e2b2e0e6d229:available",
+         0,
+         4
+        ]
+       ]
+      ]
+     ]
+    },
+    "second_partial_closes": [
+     "returned",
+     "returned",
+     6
+    ],
+    "seconds": 1.024
+   },
+   "caveat": null
+  },
+  {
+   "journey": 35,
+   "title": "Reject mixed-asset or missing-lineage return evidence.",
+   "status": "passed",
+   "evidence": {
+    "missing_lineage_holder": 403,
+    "mixed_asset": "payload_digest_mismatch",
+    "missing_lots": "payload_digest_mismatch",
+    "source_unchanged_until_valid": true,
+    "valid_partial_after": [
+     "partially_returned",
+     4
+    ],
+    "v1_peer_would_refuse_v2_fields": true,
+    "seconds": 0.379
+   },
+   "caveat": null
+  },
+  {
+   "journey": 36,
+   "title": "Reconstruct a mission after controller failure and acquire a valid fenced generation.",
+   "status": "passed",
+   "evidence": {
+    "mission": "mc_0d796b8acbe4",
+    "runner_A": {
+     "rc": 0,
+     "generation": 1,
+     "events": [
+      "reconstructed",
+      "generation_granted",
+      "step",
+      "steps_exhausted"
+     ]
+    },
+    "reconstructed_by_B": {
+     "state": "running",
+     "active_generation": 1,
+     "pending_operations": 1,
+     "safe_actions": [
+      "award"
+     ]
+    },
+    "runner_B": {
+     "rc": 0,
+     "generation": 2,
+     "events": [
+      "reconstructed",
+      "generation_granted",
+      "step",
+      "step",
+      "step",
+      "steps_exhausted"
+     ]
+    },
+    "generations": [
+     [
+      "runner-A",
+      "superseded"
+     ],
+     [
+      "runner-B",
+      "active"
+     ]
+    ],
+    "seconds": 0.881
+   },
+   "caveat": null
+  },
+  {
+   "journey": 37,
+   "title": "Reject stale-controller mutations after takeover.",
+   "status": "passed",
+   "evidence": {
+    "stale_runner_exit": 3,
+    "stale_event": {
+     "event": "stale_generation_refused",
+     "presented": 1,
+     "active": 2,
+     "active_holder": "runner-B",
+     "at": 1792739183
+    },
+    "api_refusals": {
+     "step": "stale_generation",
+     "run": "stale_generation",
+     "propose": "stale_generation"
+    },
+    "header_form": "stale_generation",
+    "no_generation_presented": "stale_generation",
+    "recorded_refusals": 6,
+    "active_generation_steps": 200,
+    "seconds": 0.162
+   },
+   "caveat": null
+  },
+  {
+   "journey": 38,
+   "title": "Refuse self-issued takeover when the authority cannot establish a new generation.",
+   "status": "passed",
+   "evidence": {
+    "forged_generation": [
+     3,
+     {
+      "event": "stale_generation_refused",
+      "presented": 99,
+      "active": 2,
+      "active_holder": "runner-B",
+      "at": 1792739183
+     }
+    ],
+    "unreachable_authority": [
+     4,
+     {
+      "event": "authority_unreachable",
+      "phase": "reconstruct",
+      "detail": "[Errno 111] Connection refused",
+      "at": 1792739183
+     }
+    ],
+    "active_generation_unchanged": 2,
+    "non_party_takeover": 403,
+    "seconds": 0.144
+   },
+   "caveat": null
+  },
+  {
+   "journey": 39,
+   "title": "Quarantine a stale authority restore using witness/peer evidence.",
+   "status": "failed",
+   "evidence": {
+    "witness_sequence_before_restore": 44,
+    "after_restore": {
+     "recovery_state": "quarantine",
+     "detection": "available: witness-acknowledged checkpoint"
+    },
+    "spend_during_quarantine": [
+     409,
+     "domain_quarantined"
+    ],
+    "takeover_during_quarantine": [
+     409,
+     "domain_quarantined"
+    ],
+    "reconciled": "quarantine",
+    "reconcile_response": [
+     200,
+     "{\"domain\": \"dom-a\", \"recovery_state\": \"quarantine\", \"peers\": {\"dom-b\": {\"observed\": 7, \"missing_locally\": [\"nal_bbf3aee8fa986e2a\"], \"observation_issued_at\": 1792739184}}, \"reconstructed\": [{\"allocation_id\": \"nal_bbf3aee8fa986e2a\", \"status\": \"locked\", \"amount\": 5}], \"missing_observations\": [\"dom-c\"], \"rollback_note\": \"rollback detection: a durable watermark (keys_dir/native/watermark-<domain>.json) written outside the database at every inter-domain commitment, plus peers' signed observations. A restore that also restores the watermark file is detected only through a peer observation; a rollback with no peer and no watermark is undetectable (no independent witness exists).\", \"blocked_by\": \"missing peer observations or unreconstructed commitments\"}"
+    ],
+    "seconds": 1.015
+   },
+   "caveat": "the local watermark file was removed to emulate a restore on another host; the witness checkpoint was the detection source"
+  },
+  {
+   "journey": 40,
+   "title": "Preserve uncertain obligations when a signer, witness or external worker is unavailable.",
+   "status": "failed",
+   "evidence": {
+    "signer_down": {
+     "controller": "await_signature",
+     "reason": "awaiting the account holder's signer: 1 request(s) pending; no fallback custody",
+     "pending_requests": 1,
+     "balances_unchanged": [
+      24,
+      4
+     ],
+     "after_restart": 4
+    },
+    "worker_down": {
+     "milestone": "executing",
+     "paid_while_down": 0,
+     "after_restart": 44,
+     "timings": {
+      "decide_after_worker_restart_s": 1.9,
+      "pay_s": 0.1,
+      "decide_timed_out": null
+     }
+    },
+    "witness_down": {
+     "export": [
+      409,
+      "{\"error\": true, \"code\": \"CONFLICT\", \"action\": \"the resource is not in a state that permits this operation\", \"detail\": {\"code\": \"domain_quarantined\", \"recovery_state\": \"quarantine\", \"refused\": \"export\", \"note\": \"reconcile with peers' observations (POST /native/recovery/reconcile) before outward commi",
+      0.0
+     ],
+     "witness": {
+      "configured": true,
+      "reachable": false,
+      "code": "WITNESS_UNREACHABLE"
+     },
+     "after_restart": {
+      "configured": true,
+      "reachable": true,
+      "identity_pinned_matches": true,
+      "latest_sequence": 44,
+      "age_seconds": 309,
+      "witness_id": "w-test",
+      "fresh": true
+     }
+    },
+    "seconds": 307.466
+   },
+   "caveat": null
+  },
+  {
+   "journey": 41,
+   "title": "Match bounded portfolio fixtures against an exhaustive independent oracle.",
+   "status": "passed",
+   "evidence": {
+    "fixtures": 40,
+    "oracle_optimal": 40,
+    "improved_matches_oracle": 40,
+    "mismatches": [],
+    "note": "reference policy never admits more priority mass than the optimum",
+    "seconds": 0.019
+   },
+   "caveat": null
+  },
+  {
+   "journey": 42,
+   "title": "Schedule competing missions across shared pools and domain-local liquidity.",
+   "status": "passed",
+   "evidence": {
+    "status": "optimal",
+    "admitted_in_priority_order": true,
+    "binding": false,
+    "validator": true,
+    "liquidity_split": {
+     "held_locally": 12777071,
+     "reserved": 7230356,
+     "cross_domain_claims_held": 0,
+     "cross_domain_pending": 0,
+     "expected_earnings": 0,
+     "spendable": 12777071
+    },
+    "improved_status": "optimal",
+    "bound": [
+     180,
+     1
+    ],
+    "seconds": 0.195
+   },
+   "caveat": null
+  },
+  {
+   "journey": 43,
+   "title": "Purchase bounded evidence and replan only eligible uncommitted work.",
+   "status": "failed",
+   "evidence": {
+    "exception": "AssertionError",
+    "detail": "{'mission_id': 'mc_c44b61ce7b7a', 'performed': None, 'state': 'stopped', 'wait_reason': 'domain_quarantined', 'rejected': [{'action': 'open_request', 'milestone': 'compute', 'offer_id': None, 'reason': 'domain_quarantined'}], 'context': {'role': 'requester', 'acting_account': 'na_6bd6d832d491', 'spendable_settled': 12777371, 'available': 12777371, 'reserved_exposure': 7230356, 'earned_unsettled_no",
+    "trace": "^^^^^^^^^^^^^^^^\nAssertionError: {'mission_id': 'mc_c44b61ce7b7a', 'performed': None, 'state': 'stopped', 'wait_reason': 'domain_quarantined', 'rejected': [{'action': 'open_request', 'milestone': 'compute', 'offer_id': None, 'reason': 'domain_quarantined'}], 'context': {'role': 'requester', 'acting_account': 'na_6bd6d832d491', 'spendable_settled': 12777371, 'available': 12777371, 'reserved_exposure': 7230356, 'earned_unsettled_not_spendable': 0, 'min_cash_reserve': 0, 'per_action_ceiling': None, 'mission_ceiling': None, 'mission_reserved': 0, 'mission_spent': 0, 'grant': None, 'custody': \"development key held by this service instance on the actor's behalf (0600 file under keys_dir/actors); NOT operator custody and NOT an independent signer\", 'connectivity': 'online', 'recovery_state': 'quarantine', 'energy': {'budget_mwh': None, 'reserve_mwh': 0, 'committed_mwh': 0}, 'now': 1792739492}}\n",
+    "last_award_errors": [
+     {
+      "award": {
+       "error": true,
+       "code": "BUDGET_EXHAUSTED",
+       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
+       "detail": {
+        "code": "insufficient_available",
+        "available": 0,
+        "requested": 10,
+        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
+       }
+      },
+      "offer": "offered",
+      "eligibility": {
+       "eligible": true,
+       "reasons": []
+      },
+      "who": "m80",
+      "template": "determination"
+     }
+    ],
+    "seconds": 0.068
+   },
+   "caveat": null
+  },
+  {
+   "journey": 44,
+   "title": "Reject a planner output spending pending remote claims or overselling resources.",
+   "status": "failed",
+   "evidence": {
+    "oversold": {
+     "pool": "rp_79f9df3b7a9e",
+     "constraint": "pool_oversold",
+     "segments": [
+      {
+       "start": 1792745492,
+       "end": 1792745552,
+       "used": 3,
+       "capacity": 0,
+       "ok": false
+      }
+     ],
+     "note": "the plan schedules an impossible overlap against live commitments"
+    },
+    "not_spendable": {
+     "schema": "metacoin-plan-validation/v1",
+     "valid": true,
+     "reasons": [],
+     "checked": {
+      "pools": [
+       "rp_79f9df3b7a9e"
+      ],
+      "missions": [
+       "mc_f5a6602ad53e",
+       "mc_34a4ceb02e17",
+       "mc_b51604eff3a4"
+      ]
+     },
+     "rule": "a plan that oversells a pool interval or spends non-spendable funds is refused before any reservation"
+    },
+    "pending_remote_claim": {
+     "allocation": null,
+     "state": null,
+     "machine_liquidity_at_dom_c": {
+      "held_locally": 68,
+      "cross_domain_claims_held": 0,
+      "cross_domain_pending": 0,
+      "spendable": 68
+     },
+     "plan_beyond_spendable": [
+      200,
+      null
+     ]
+    },
+    "seconds": 0.088
+   },
+   "caveat": null
+  },
+  {
+   "journey": 0,
+   "title": "Economically complete mission under custody separation: requester, primary machine, subcontractor, resource provider, verifier and relay hold their own keys at separately configured signers; competition for a shared pool, a disconnected interval, a failed delivery branch, safe replanning, return of legitimately unspent funds and a fee-funded contribution; every monetary transition independently auditable.",
+   "status": "failed",
+   "evidence": {
+    "exception": "KeyError",
+    "detail": "'id'",
+    "trace": "ys_network.py\", line 952, in demo\n    self._demo(t0)\n  File \"/home/zhangd2/projects/metacoin/metacoin_service/tests/journeys_network.py\", line 1026, in _demo\n    step('reconnection: the certificate was delivered, the 10-unit claim credited to the machine at dom-c and acknowledged at dom-a; witness checkpoint recorded', transport=[x['state'] for x in out.get('results', [])], allocation=A.alloc(ex['id'])['state'], machine_liquidity={k: liq2.get(k) for k in ('held_locally', 'cross_domain_claims_held', 'cross_domain_pending', 'spendable')}, witness_sequence=(w.get('latest') or {}).get('sequence'), recovery=recC.get('recovery_state'))\n                                                                                                                                                                                                                                              ~~^^^^^^\nKeyError: 'id'\n",
+    "last_award_errors": [
+     {
+      "award": {
+       "error": true,
+       "code": "BUDGET_EXHAUSTED",
+       "action": "campaign exposure plus this amount exceeds the fixed cap; nothing dispatched",
+       "detail": {
+        "code": "insufficient_available",
+        "available": 0,
+        "requested": 10,
+        "note": "only settled available funds spend; receivables, reserved and in-transit amounts do not"
+       }
+      },
+      "offer": "offered",
+      "eligibility": {
+       "eligible": true,
+       "reasons": []
+      },
+      "who": "m80",
+      "template": "determination"
+     }
+    ],
+    "seconds": 8.554
+   },
+   "caveat": null
+  },
+  {
+   "journey": 45,
+   "title": "Verify a portable bundle offline and reject tampered claims, fees and signatures.",
+   "status": "passed",
+   "evidence": {
+    "bundle": {
+     "receipts": 4,
+     "journal_entries": 8
+    },
+    "valid": true,
+    "tampering": {
+     "ledger_spent": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "ledger_spent_matches_settled_intents",
+       "ledger_totals_match_rows"
+      ]
+     },
+     "receipt_claim": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "receipt:nr_b3390e7696e4f1cc"
+      ]
+     },
+     "fee_posting": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "entries_balanced"
+      ]
+     },
+     "signature": {
+      "rc": 1,
+      "ok": false,
+      "failed": [
+       "content_digest",
+       "receipt:nr_b3390e7696e4f1cc"
+      ]
+     }
+    },
+    "no_roots": [
+     "seal_root_pinned",
+     "receipt:nr_b3390e7696e4f1cc",
+     "receipt:nr_007e18b2f18f633c"
+    ],
+    "export_v2_checks": {
+     "dom-a": {
+      "ok": true,
+      "checks": 14,
+      "failed": []
+     },
+     "dom-b": {
+      "ok": true,
+      "checks": 8,
+      "failed": []
+     }
+    },
+    "seconds": 0.504
+   },
+   "caveat": null
+  },
+  {
+   "journey": 46,
+   "title": "Complete enrollment-to-settlement in the real browser, including disruption recovery.",
+   "status": "passed",
+   "evidence": {
+    "passed": 12,
+    "failed": 0,
+    "checks": [
+     {
+      "check": "providers page: identity separation, custody mode, environment, asset and domain shown",
+      "ok": true,
+      "detail": "[]"
+     },
+     {
+      "check": "a provider published a pool and an offer backed by it through the console form",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "mission page: budget ledger, controller explanation, custody and continuity link",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "continuity page: active generation, pending operations and takeover form",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "portfolio page: liquidity split (spendable vs held) and non-binding comparison",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "relay page lists routes with hop states and fees",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "disruption: the operator screen shows the cut link and the actions that stay possible",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "recovery: the link is online again and pending cross-domain items are listed",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "products page: provenance, resolution in integer mm/px, license terms and purchase forms",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "the purchase form of the product exists",
+      "ok": true,
+      "detail": ""
+     },
+     {
+      "check": "expired session: the unsent form is preserved, nothing submitted, nothing paid; the user is asked to sign in again",
+      "ok": true,
+      "detail": "[]"
+     },
+     {
+      "check": "narrow width: no horizontal page overflow on the new pages",
+      "ok": true,
+      "detail": "{'/console/providers': True, '/console/pools': True, '/console/products': True, '/console/relay': True, '/console/portfolio': True, '/console/missions/mc_fcb812dd4c66/continuity': True}"
+     }
+    ],
+    "screenshots": [
+     "01-providers.png",
+     "02-pools.png",
+     "03-mission.png",
+     "04-continuity.png",
+     "05-portfolio.png",
+     "06-relay.png",
+     "07-operator-blackout.png",
+     "08-operator-online.png",
+     "09-products.png",
+     "10-expired-session-draft.png",
+     "11-narrow-pools.png"
+    ],
+    "crash": null,
+    "stderr": null,
+    "expired_session_paid_nothing": true,
+    "seconds": 4.155
+   },
+   "caveat": null
+  },
+  {
+   "journey": 47,
+   "title": "Rehearse migration on prior-state copies and preserve balances, old receipts and jobs.",
+   "status": "passed",
+   "evidence": {
+    "live_copy": {
+     "before": {
+      "schema": "040_work_programs_pricing_challenges",
+      "jobs": 38,
+      "journal_entries": 0,
+      "balances_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+     },
+     "after": {
+      "schema": "054_controller_generations",
+      "jobs": 38,
+      "journal_entries": 0,
+      "balances_digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "new_tables": [
+       "controller_generations",
+       "mission_products",
+       "mission_subcontracts",
+       "native_claim_lots",
+       "native_signing_requests",
+       "pool_commitments",
+       "product_entitlements",
+       "relay_queue",
+       "relay_routes",
+       "resource_pools"
+      ]
+     },
+     "migrate_rc": 0,
+     "stderr": null,
+     "smoke": {
+      "health": "6313e9702cf31645b2ab6924ae864fa136a707cf",
+      "old_jobs_readable": true,
+      "replay_consistent": true,
+      "domain": 201,
+      "pools": 200,
+      "products": 200,
+      "relay": 200,
+      "subcontracts": 200,
+      "missions": 200
+     },
+     "balances_preserved": true,
+     "rollback_snapshot_intact": true,
+     "live_service_untouched": true
+    },
+    "prior_state_from_base_revision": {
+     "base_revision": "a6d672d2d1d95c66fd021f43dccccf9e453c540a",
+     "base_api_revision": "a6d672d2d1d95c66fd021f43dccccf9e453c540a",
+     "before": {
+      "old-a": {
+       "schema": "047_mission_contracts",
+       "jobs": 0,
+       "journal_entries": 6,
+       "balances_digest": "00fafcbd95ce4cd910a9bbf85c2a3c92ab512412fbeacd3950c2924066e2c3e0"
+      },
+      "old-b": {
+       "schema": "047_mission_contracts",
+       "jobs": 0,
+       "journal_entries": 5,
+       "balances_digest": "f939c2d8b8ffad04ef4667b1b43bdefaf969f871dd0dea2076bed52513ca54fa"
+      }
+     },
+     "after": {
+      "old-a": {
+       "schema": "054_controller_generations",
+       "jobs": 0,
+       "journal_entries": 6,
+       "balances_digest": "00fafcbd95ce4cd910a9bbf85c2a3c92ab512412fbeacd3950c2924066e2c3e0",
+       "new_tables": [
+        "controller_generations",
+        "mission_products",
+        "mission_subcontracts",
+        "native_claim_lots",
+        "native_signing_requests",
+        "pool_commitments",
+        "product_entitlements",
+        "relay_queue",
+        "relay_routes",
+        "resource_pools"
+       ]
+      },
+      "old-b": {
+       "schema": "054_controller_generations",
+       "jobs": 0,
+       "journal_entries": 5,
+       "balances_digest": "f939c2d8b8ffad04ef4667b1b43bdefaf969f871dd0dea2076bed52513ca54fa",
+       "new_tables": [
+        "controller_generations",
+        "mission_products",
+        "mission_subcontracts",
+        "native_claim_lots",
+        "native_signing_requests",
+        "pool_commitments",
+        "product_entitlements",
+        "relay_queue",
+        "relay_routes",
+        "resource_pools"
+       ]
+      }
+     },
+     "migrate_rc": [
+      0,
+      0
+     ],
+     "old_balances": {
+      "alice": 65,
+      "bob_claim": 18
+     },
+     "spend_at_b": 201,
+     "smoke": {
+      "old-a": {
+       "alice": 65,
+       "reservation": "reserved",
+       "legacy_offer_without_pool_still_reservable": [
+        true,
+        201
+       ],
+       "mission": "frozen",
+       "audit_conserved": true,
+       "allocations": {
+        "nal_40c853eb03fff24a": "certified",
+        "nal_49894fe274d26d79": "certified"
+       }
+      },
+      "old-b": {
+       "bob_claim": 18,
+       "lots": [
+        [
+         true,
+         5,
+         "active"
+        ]
+       ],
+       "consumed_old_claim_partial_return": [
+        409,
+        "missing_lineage"
+       ],
+       "untouched_old_claim_partial_return": [
+        200,
+        "return_requested"
+       ],
+       "accounting_partition_ok": true
+      }
+     }
+    },
+    "seconds": 4.631
+   },
+   "caveat": "migrations rehearsed on isolated copies; rollback verified by restoring the whole pre-migration snapshot; the live service was neither upgraded nor restarted; old consumed claims get no invented lineage (partial return refused), untouched old claims become retirable lots"
+  },
+  {
+   "journey": 48,
+   "title": "Run a sustained mixed workload with real contention, restarts and auditable recovery.",
+   "status": "blocked",
+   "evidence": {
+    "seconds": 0.0,
+    "blocked": "endurance result not supplied (METACOIN_NETWORK_ENDURANCE_JSON); the \u226530 min run is executed separately by metacoin_service.endurance_network",
+    "skipped": null
+   },
+   "caveat": null
+  },
+  {
+   "journey": 49,
+   "title": "Reproduce clean installation and a representative full mission from the delivery archive.",
+   "status": "blocked",
+   "evidence": {
+    "seconds": 0.0,
+    "blocked": "clean-export result not supplied (METACOIN_NETWORK_CLEAN_EXPORT_JSON); executed from the fresh archive extraction at packaging time",
+    "skipped": null
+   },
+   "caveat": null
+  },
+  {
+   "journey": 50,
+   "title": "Verify the complete final money/resource accounting and all required feature statuses at the packaged source revision.",
+   "status": "blocked",
+   "evidence": {
+    "dom-a": {
+     "conserved": true,
+     "total_held": 40008383,
+     "fixture_funding": 40008410,
+     "backing_locked": 27,
+     "claims_backed_elsewhere": 0,
+     "accounting_checks": {
+      "backing_matches_journal": false,
+      "claims_matches_journal": true
+     },
+     "lots": {
+      "allocations": 0,
+      "partition_ok": true,
+      "legacy_without_lineage": 0,
+      "backed_matches_lots": true,
+      "returned_total": 0,
+      "invariant": "for every imported allocation: lots partition its amount; active + committed + spent lots = amount \u2212 returned"
+     },
+     "checker": {
+      "authorized_bookkeeping": true,
+      "cryptographic_authenticity": true,
+      "scientific_reproducibility": null,
+      "custody_assumptions": false,
+      "economic_backing": true,
+      "resource_and_lineage": true
+     },
+     "treasury": {
+      "confirmed_revenue": 5,
+      "settled_spending": 2,
+      "available": 3
+     },
+     "treasury_awards_within_fees": true
+    },
+    "dom-b": {
+     "conserved": true,
+     "total_held": 27,
+     "fixture_funding": 0,
+     "backing_locked": 0,
+     "claims_backed_elsewhere": 27,
+     "accounting_checks": {
+      "backing_matches_journal": true,
+      "claims_matches_journal": false
+     },
+     "lots": {
+      "allocations": 7,
+      "partition_ok": true,
+      "legacy_without_lineage": 0,
+      "backed_matches_lots": true,
+      "returned_total": 23,
+      "invariant": "for every imported allocation: lots partition its amount; active + committed + spent lots = amount \u2212 returned"
+     },
+     "checker": {
+      "authorized_bookkeeping": true,
+      "cryptographic_authenticity": true,
+      "scientific_reproducibility": null,
+      "custody_assumptions": true,
+      "economic_backing": true,
+      "resource_and_lineage": true
+     },
+     "treasury": null,
+     "treasury_awards_within_fees": true
+    },
+    "dom-c": {
+     "conserved": true,
+     "total_held": 9400,
+     "fixture_funding": 9400,
+     "backing_locked": 0,
+     "claims_backed_elsewhere": 0,
+     "accounting_checks": {
+      "backing_matches_journal": true,
+      "claims_matches_journal": true
+     },
+     "lots": {
+      "allocations": 0,
+      "partition_ok": true,
+      "legacy_without_lineage": 0,
+      "backed_matches_lots": true,
+      "returned_total": 0,
+      "invariant": "for every imported allocation: lots partition its amount; active + committed + spent lots = amount \u2212 returned"
+     },
+     "checker": {
+      "authorized_bookkeeping": true,
+      "cryptographic_authenticity": true,
+      "scientific_reproducibility": null,
+      "custody_assumptions": false,
+      "economic_backing": true,
+      "resource_and_lineage": true
+     },
+     "treasury": {
+      "confirmed_revenue": 4,
+      "settled_spending": 0,
+      "available": 4
+     },
+     "treasury_awards_within_fees": true
+    },
+    "revision": "6313e9702cf31645b2ab6924ae864fa136a707cf",
+    "feature_ledger": null,
+    "seconds": 0.14,
+    "blocked": "feature ledger not supplied yet (METACOIN_NETWORK_FEATURE_LEDGER); accounting part FAILED",
+    "skipped": null
+   },
+   "caveat": null
+  }
+ ],
+ "passed": 39,
+ "failed": 9,
+ "blocked": 3,
+ "skipped": 0,
+ "total": 51
+}

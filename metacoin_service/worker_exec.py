@@ -40,6 +40,25 @@ def run(spec):
     elif kind == 'temporal_energy':
         result = temporal.analyze(inputs)
         outcome = result['outcome']
+    elif kind in ('decision_observability', 'evidence_acquisition'):
+        from metacoin_service.decision import operations as decision_ops
+        if kind == 'decision_observability':
+            result, outcome, summary = decision_ops.run_analysis(inputs)
+        else:
+            result, outcome, summary = decision_ops.run_acquisition(inputs, spec.get('delivery'))
+        evidence = {'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'], 'verifier_id': 'decision-kernels/v1', 'verifier_digest': decision_ops.implementation_digest(),
+                    'result_schema': result['result_schema'], 'model_id': result['model_id'], 'result': result, 'scope': 'declared-finite-model;exact-rational;not-physical-truth'}
+        if kind == 'evidence_acquisition':
+            evidence['delivery_digest'] = result.get('delivery_digest'); evidence['plan_digest'] = inputs['plan_digest']
+        _, vault = merkle.commit(evidence)
+        return {'evidence_vault': vault, 'outcome': outcome, 'summary': summary}
+    elif kind in ('terrain_tile', 'route_feasibility', 'scenario_pack'):
+        from metacoin_service.lunar import operations as lunar_ops
+        result, outcome, summary = lunar_ops.run(kind, inputs)
+        evidence = dict({'contract_digest': spec['contract_digest'], 'input_root': spec['input_root'], 'verifier_id': lunar_ops.VERIFIER_ID, 'verifier_digest': lunar_ops.implementation_digest(),
+                         'result_schema': result['result_schema'], 'model_id': result['model_id'], 'scope': 'declared-grid-model;grid-scale-slopes;not-physical-traversability'}, **lunar_ops.evidence_fields(result))
+        _, vault = merkle.commit(evidence)
+        return {'evidence_vault': vault, 'outcome': outcome, 'summary': summary}
     elif kind == 'legacy_task_replay':
         from metacoin_service.economy import legacy_bridge
         result, outcome, summary = legacy_bridge.run(inputs)

@@ -18,20 +18,26 @@ from experiments.work_contracts import contract as v0_terms, energy_analysis as 
 from ..errors import ServiceError
 
 SCHEMA = 'metacoin-work-terms/v1'
-POLICY_SCHEMA = 'metacoin-acceptance-policy/v1'
+POLICY_SCHEMA_V1 = 'metacoin-acceptance-policy/v1'          # legacy: verification_passed satisfied by class RANK (replica == sampled_reference); preserved for frozen terms
+POLICY_SCHEMA = 'metacoin-acceptance-policy/v2'             # current: claim-specific — verification_passed needs the SAME class; assurance_satisfied binds a typed requirement
+POLICY_SCHEMAS = (POLICY_SCHEMA_V1, POLICY_SCHEMA)
 DIGEST_TAG = b'metacoin/work-terms/v1\0'
 LIMITS = {'milestones': 16, 'deliverables': 16, 'predicates': 24, 'title_chars': 128, 'text_chars': 2000, 'list_items': 32, 'policy_bytes': 32 * 1024, 'terms_bytes': 128 * 1024}
 
 # Typed deliverables (§12): what can be checked automatically and what needs an explicitly authorized reviewer.
 DELIVERABLE_TYPES = {
-    'exact_task_output': {'kinds': ('legacy_task_replay',), 'automatic': ('artifact_complete', 'exact_output_hash', 'source_revision', 'schema_valid'), 'review_required': False,
+    'exact_task_output': {'kinds': ('legacy_task_replay',), 'automatic': ('artifact_complete', 'exact_output_hash', 'source_revision', 'schema_valid', 'assurance_satisfied'), 'review_required': False,
                           'claim': 'canonical output of a frozen deterministic task compared exactly with its registered hash (legacy exact protocol rule, unchanged)'},
-    'determination': {'kinds': ('energy_audit', 'temporal_energy', 'safe_runtime', 'task_selection'), 'automatic': ('artifact_complete', 'outcome_in', 'verification_passed', 'source_revision', 'schema_valid'), 'review_required': False,
+    'determination': {'kinds': ('energy_audit', 'temporal_energy', 'safe_runtime', 'task_selection', 'route_feasibility'), 'automatic': ('artifact_complete', 'outcome_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
                       'claim': 'a valid FEASIBLE / INFEASIBLE / INDETERMINATE determination under the declared exact model; a negative is a first-class deliverable'},
-    'numerical_witness': {'kinds': ('resource_plan',), 'automatic': ('artifact_complete', 'status_in', 'verification_passed', 'source_revision', 'schema_valid'), 'review_required': False,
+    'numerical_witness': {'kinds': ('resource_plan',), 'automatic': ('artifact_complete', 'status_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
                           'claim': 'a schedule/witness checked exactly by the independent integer simulator under the declared model; global optimality is claimed only with the solver status that says so'},
-    'reproducible_workflow_result': {'kinds': ('temporal_batch', 'monte_carlo_reliability', 'heat_diffusion', 'calibration_fit'), 'automatic': ('artifact_complete', 'verification_passed', 'source_revision', 'schema_valid', 'numerical_tolerance'), 'review_required': False,
+    'reproducible_workflow_result': {'kinds': ('temporal_batch', 'monte_carlo_reliability', 'heat_diffusion', 'calibration_fit'), 'automatic': ('artifact_complete', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid', 'numerical_tolerance'), 'review_required': False,
                                      'claim': 'numerical result replayed or audited under its manifest class and declared tolerance (not the legacy exact rule)'},
+    'decision_evidence': {'kinds': ('evidence_acquisition', 'decision_observability'), 'automatic': ('artifact_complete', 'outcome_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
+                          'claim': 'a delivered observation validated against the frozen measurement menu and conditioned on the frozen candidate model; resolved, ambiguous and model-inconsistent are all VALID deliveries, distinct from an invalid delivery or a failed acquisition'},
+    'lunar_product': {'kinds': ('terrain_tile', 'scenario_pack'), 'automatic': ('artifact_complete', 'outcome_in', 'verification_passed', 'assurance_satisfied', 'source_revision', 'schema_valid'), 'review_required': False,
+                      'claim': 'a terrain tile or scenario pack computed under the declared grid model and checked by the independent lunar reference (slopes within 1 milli-degree, witnesses re-walked); a product, never a traversability guarantee'},
     'reviewed_dataset_transformation': {'kinds': ('document_import',), 'automatic': ('artifact_complete', 'source_revision'), 'review_required': True,
                                         'claim': 'a dataset transformation whose mapping a designated reviewer confirmed; automation checks completeness and provenance only'},
     'evidence_linked_report': {'kinds': ('analysis_report',), 'automatic': ('artifact_complete', 'source_revision'), 'review_required': True,
@@ -39,7 +45,21 @@ DELIVERABLE_TYPES = {
     'bounded_model_explanation': {'kinds': ('text_generation',), 'automatic': ('artifact_complete', 'schema_valid'), 'review_required': True,
                                   'claim': 'model output is data; only evidence checks and an authorized review can make it acceptable'},
 }
-PREDICATE_TYPES = ('artifact_complete', 'outcome_in', 'status_in', 'verification_passed', 'exact_output_hash', 'source_revision', 'schema_valid', 'numerical_tolerance', 'review_signature', 'invariants')
+PREDICATE_TYPES = ('artifact_complete', 'outcome_in', 'status_in', 'verification_passed', 'assurance_satisfied', 'exact_output_hash', 'source_revision', 'schema_valid', 'numerical_tolerance', 'review_signature', 'invariants')
+DECISION_OUTCOMES = ('DECISION_RESOLVED', 'DECISION_AMBIGUOUS', 'MODEL_INCONSISTENT_WITH_OBSERVATIONS', 'DELIVERY_INVALID', 'ACQUISITION_FAILED')
+ANALYSIS_OUTCOMES = ('AMBIGUOUS', 'SEPARATED_ON_DECLARED_SET', 'NO_DECISION_RELEVANT_ALTERNATIVES', 'DETERMINED_WITHIN_DECLARED_MODEL', 'AMBIGUOUS_AFTER_OBSERVATION', 'MODEL_INCONSISTENT_WITH_OBSERVATIONS')
+
+
+def outcome_vocabulary(kind):
+    """Science outcomes a policy may name for a kind: the energy determination vocabulary by default; decision kinds have their own."""
+    if kind == 'evidence_acquisition':
+        return DECISION_OUTCOMES
+    if kind == 'decision_observability':
+        return ANALYSIS_OUTCOMES
+    if kind in ('terrain_tile', 'scenario_pack'):
+        from ..lunar import operations as lunar_ops
+        return lunar_ops.OUTCOMES[kind]
+    return energy.OUTCOMES
 OUTCOME_TREATMENTS = ('accept', 'accept_diagnostic', 'reject')
 PAYMENT_CLASSES = ('complete', 'partial', 'diagnostic')
 SELECTION_POLICIES = ('lowest_eligible_price', 'weighted', 'manual')
@@ -51,7 +71,7 @@ ASSETS = {'action-units': {'scale': 0, 'rail': 'application journal (budget unit
           'local-chain-token': {'scale': 0, 'rail': 'private py-evm chain (x402 upto/exact on pinned contracts); synthetic, never production'}}
 SCHEMES = ('exact', 'upto')
 VERIFICATION_CLASSES = ('full_exact', 'full_reference', 'analytical', 'sampled_reference', 'replica', 'none')
-CONSEQUENTIAL_TOP = ('operation', 'deliverables', 'acceptance', 'payment', 'privacy', 'deadlines', 'eligibility', 'selection', 'milestones', 'failure_treatment', 'dispute', 'delegation', 'reassignment', 'max_awards', 'requester')
+CONSEQUENTIAL_TOP = ('operation', 'deliverables', 'acceptance', 'payment', 'privacy', 'deadlines', 'eligibility', 'selection', 'milestones', 'failure_treatment', 'dispute', 'delegation', 'reassignment', 'max_awards', 'requester', 'resource_envelope')
 COSMETIC_TOP = ('title', 'purpose', 'notes')
 TOP_FIELDS = ('schema',) + CONSEQUENTIAL_TOP + COSMETIC_TOP
 
@@ -91,11 +111,14 @@ def _enum_list(v, allowed, code, minimum=1):
 
 
 # ---- validation -----------------------------------------------------------------------------------------------------
-def validate_policy(policy, deliverable_types):
-    """Acceptance policy: a bounded declarative program over trusted validators (§14). Never executable code."""
+def validate_policy(policy, deliverable_types, kind=None):
+    """Acceptance policy: a bounded declarative program over trusted validators (§14). Never executable code.
+    v1 (legacy) and v2 (claim-specific) schemas are both valid; the semantics of verification_passed differ and are
+    labelled in every evaluation trace. assurance_satisfied is a v2 predicate."""
     _keys(policy, ('schema', 'predicates', 'outcomes', 'valid_negative', 'required_verification', 'payment_rule'), 'acceptance', required=('schema', 'predicates', 'outcomes', 'required_verification', 'payment_rule'))
-    if policy['schema'] != POLICY_SCHEMA:
-        _err('acceptance_schema', allowed=[POLICY_SCHEMA])
+    if policy['schema'] not in POLICY_SCHEMAS:
+        _err('acceptance_schema', allowed=list(POLICY_SCHEMAS))
+    vocab = outcome_vocabulary(kind)
     if len(merkle.canonical(policy)) > LIMITS['policy_bytes']:
         _err('acceptance_policy_too_large', max_bytes=LIMITS['policy_bytes'])
     preds = policy['predicates']
@@ -114,7 +137,7 @@ def validate_policy(policy, deliverable_types):
         if type(params) is not dict:
             _err('predicate_params')
         if p['type'] == 'outcome_in':
-            _enum_list(params.get('outcomes'), energy.OUTCOMES, 'predicate_outcomes')
+            _enum_list(params.get('outcomes'), vocab, 'predicate_outcomes')
         if p['type'] == 'status_in':
             from ..compute import resource_plan as _rp
             _enum_list(params.get('statuses'), _rp.STATUSES, 'predicate_statuses')
@@ -122,6 +145,15 @@ def validate_policy(policy, deliverable_types):
             _keys(params, ('class', 'distinct_verifier', 'verifier_digest', 'min_sample_count'), 'predicate_verification', required=('class',))
             if params['class'] not in VERIFICATION_CLASSES[:-1]:
                 _err('predicate_verification_class', allowed=list(VERIFICATION_CLASSES[:-1]))
+        if p['type'] == 'assurance_satisfied':
+            if policy['schema'] != POLICY_SCHEMA:
+                _err('predicate_assurance_schema', note='assurance_satisfied needs ' + POLICY_SCHEMA)
+            _keys(params, ('requirement',), 'predicate_assurance', required=('requirement',))
+            from ..decision import assurance as assurance_mod
+            try:
+                assurance_mod.validate_requirement(params['requirement'], kind)
+            except assurance_mod.AssuranceInvalid as exc:
+                _err('predicate_assurance_requirement', **dict(exc.detail, requirement_code=exc.code))
         if p['type'] == 'exact_output_hash':
             _keys(params, ('registered_hash', 'field'), 'predicate_exact', required=('registered_hash',))
             merkle._hex(params['registered_hash'])
@@ -140,11 +172,11 @@ def validate_policy(policy, deliverable_types):
         if p['type'] == 'schema_valid':
             _keys(params, ('result_schema', 'model_id'), 'predicate_schema')
     outcomes = policy['outcomes']
-    if type(outcomes) is not dict or not outcomes or not set(outcomes) <= set(energy.OUTCOMES) | {'not_applicable'} or not set(outcomes.values()) <= set(OUTCOME_TREATMENTS):
-        _err('acceptance_outcomes', allowed={'keys': list(energy.OUTCOMES) + ['not_applicable'], 'values': list(OUTCOME_TREATMENTS)})
+    if type(outcomes) is not dict or not outcomes or not set(outcomes) <= set(vocab) | {'not_applicable'} or not set(outcomes.values()) <= set(OUTCOME_TREATMENTS):
+        _err('acceptance_outcomes', allowed={'keys': list(vocab) + ['not_applicable'], 'values': list(OUTCOME_TREATMENTS)})
     neg = policy.get('valid_negative', {'requires': ['verification_passed'], 'note': ''})
     _keys(neg, ('requires', 'note'), 'valid_negative', required=('requires',))
-    _enum_list(neg['requires'], ('verification_passed', 'artifact_complete', 'review_signature', 'source_revision'), 'valid_negative_requires')
+    _enum_list(neg['requires'], ('verification_passed', 'assurance_satisfied', 'artifact_complete', 'review_signature', 'source_revision'), 'valid_negative_requires')
     rv = policy['required_verification']
     _keys(rv, ('class', 'distinct_verifier', 'verifier_digest', 'min_sample_count'), 'required_verification', required=('class', 'distinct_verifier'))
     if rv['class'] not in VERIFICATION_CLASSES:
@@ -191,6 +223,9 @@ def validate(terms, mode='draft'):
         if 'affects' in terms['purpose']:
             if type(terms['purpose']['affects']) is not list or len(terms['purpose']['affects']) > LIMITS['list_items'] or not all(type(x) is str and len(x) <= 128 for x in terms['purpose']['affects']):
                 _err('purpose_affects')
+    if 'resource_envelope' in terms:
+        from ..native import procurement as _proc
+        _proc.validate_envelope(terms['resource_envelope'])                     # energy reserve, memory, runtime, thermal permission, storage, contact windows, deadline semantics, exposure
     _keys(terms['requester'], ('principal_id', 'workspace'), 'requester', required=('principal_id', 'workspace'))
     op = terms['operation']
     _keys(op, ('kind', 'contract_id', 'contract_digest', 'input_root', 'inputs_digest', 'model_id', 'verifier_id', 'verifier_digest', 'implementation', 'compatibility'), 'operation', required=('kind',))
@@ -227,14 +262,14 @@ def validate(terms, mode='draft'):
         if 'max_bytes' in d:
             _int(d['max_bytes'], 1, 64 * 1024 * 1024, 'deliverable_max_bytes')
         if 'media' in d:
-            _enum_list(d['media'], ('application/json', 'application/x-npy', 'text/markdown', 'application/pdf', 'image/svg+xml'), 'deliverable_media')
+            _enum_list(d['media'], ('application/json', 'application/x-npy', 'text/markdown', 'application/pdf', 'image/svg+xml', 'image/png', 'application/zip'), 'deliverable_media')
         if 'partial_allowed' in d and type(d['partial_allowed']) is not bool:
             _err('deliverable_partial_allowed')
         if 'retention_seconds' in d:
             _int(d['retention_seconds'], 3600, 10 * 365 * 86400, 'deliverable_retention')
         if 'provenance' in d:
             _keys(d['provenance'], ('bind_inputs', 'bind_method'), 'deliverable_provenance')
-    validate_policy(terms['acceptance'], dtypes)
+    validate_policy(terms['acceptance'], dtypes, op['kind'])
     review_needed = any(DELIVERABLE_TYPES[t]['review_required'] for t in dtypes)
     if review_needed and not any(p['type'] == 'review_signature' for p in terms['acceptance']['predicates']):
         _err('review_signature_required', note='these deliverable types need an explicitly authorized reviewer; add a review_signature predicate')
@@ -249,10 +284,10 @@ def validate(terms, mode='draft'):
     _int(fp['treasury_bps'], 0, 5000, 'fee_policy_treasury_bps')
     if 'verifier_pay_to' in pay:
         _str(pay['verifier_pay_to'], 'verifier_pay_to', 128)
-    if pay['asset'] not in ASSETS:
-        _err('payment_asset', allowed=list(ASSETS))
-    if pay['scale'] != ASSETS[pay['asset']]['scale']:
-        _err('payment_scale', allowed=ASSETS[pay['asset']]['scale'])
+    if pay['asset'] not in ASSETS and not is_native_asset(pay['asset']):
+        _err('payment_asset', allowed=list(ASSETS) + ['native asset id environment:authority:ledger:asset:scale'])
+    if pay['scale'] != asset_scale(pay['asset']):
+        _err('payment_scale', allowed=asset_scale(pay['asset']))
     _int(pay['ceiling'], 0, 10 ** 15, 'payment_ceiling')
     if pay['scheme'] not in SCHEMES:
         _err('payment_scheme', allowed=list(SCHEMES))
@@ -377,6 +412,28 @@ def validate(terms, mode='draft'):
     return terms
 
 
+def policy_semantics(schema):
+    if schema == POLICY_SCHEMA_V1:
+        return 'legacy-rank/v1: verification_passed is satisfied by any passing verification whose class rank is >= the requested class (replica and sampled_reference share rank 2); not claim-specific; preserved for terms frozen under this schema'
+    return 'claim-specific/v2: verification_passed needs a passing verification of the SAME class on the delivered evidence root; assurance_satisfied binds a typed requirement (claim type, coverage, comparison, independence, sampling bound) and a detected defect on the same bindings is never overridden by a later attempt'
+
+
+def is_native_asset(asset):
+    """A MetaCoin-native asset id (environment:authority:ledger:asset:scale); settles on the native rail of the domain that registered it."""
+    from ..native import protocol as _np
+    try:
+        _np.asset_id(asset); return True
+    except _np.ProtocolError:
+        return False
+
+
+def asset_scale(asset):
+    if asset in ASSETS:
+        return ASSETS[asset]['scale']
+    from ..native import protocol as _np
+    return _np.asset_parts(asset)['scale']
+
+
 def fee_amount(payment, base):
     """Treasury fee in integer base units: floor(base * bps / 10000); the remainder stays with the provider (documented rule)."""
     fp = payment.get('fee_policy') or {}
@@ -430,7 +487,8 @@ def inspect(terms):
     return {'schema': SCHEMA, 'title': terms['title'], 'operation': terms['operation'], 'requester': terms['requester'],
             'deliverables': [{'key': d['key'], 'type': d['type'], 'required': d['required'], 'automatic_checks': list(DELIVERABLE_TYPES[d['type']]['automatic']), 'review_required': DELIVERABLE_TYPES[d['type']]['review_required'], 'claim': DELIVERABLE_TYPES[d['type']]['claim']} for d in terms['deliverables']],
             'what_counts_as_delivery': {'predicates': [{'id': p['id'], 'type': p['type'], 'params': p.get('params', {})} for p in pol['predicates']], 'outcomes': pol['outcomes'], 'valid_negative': pol.get('valid_negative'),
-                                        'required_verification': pol['required_verification'], 'payment_rule': pol['payment_rule']},
+                                        'required_verification': pol['required_verification'], 'payment_rule': pol['payment_rule'], 'policy_schema': pol['schema'],
+                                        'verification_semantics': policy_semantics(pol['schema'])},
             'payment': terms['payment'], 'milestones': [{'key': m['key'], 'max_payment': m['max_payment'], 'depends_on': m['depends_on'], 'on_failure': m['on_failure']} for m in terms['milestones']],
             'deadlines': terms['deadlines'], 'privacy': terms['privacy'], 'eligibility': terms['eligibility'], 'selection': terms['selection'], 'failure_treatment': terms['failure_treatment'], 'dispute': terms['dispute'],
             'delegation': terms['delegation'], 'reassignment': terms['reassignment'], 'max_awards': terms['max_awards'],
@@ -453,7 +511,7 @@ def upgrade_preview(v0_contract):
 # ---- templates (§76-5): reusable determination / infeasibility-witness / independent-replay / diagnostic-delivery ----
 def _base(requester, workspace, kind, title, ceiling, asset='action-units'):
     return {'schema': SCHEMA, 'title': title, 'requester': {'principal_id': requester, 'workspace': workspace}, 'operation': {'kind': kind, 'compatibility': 'same_verifier_digest'},
-            'payment': {'asset': asset, 'scale': ASSETS[asset]['scale'], 'ceiling': ceiling, 'scheme': 'exact', 'verifier_compensation': 0, 'fee_policy': {'schema': 'metacoin-fee-policy/v1', 'treasury_bps': 0, 'rounding': 'floor_fee_remainder_to_provider'}, 'funding': 'requester'},
+            'payment': {'asset': asset, 'scale': asset_scale(asset), 'ceiling': ceiling, 'scheme': 'exact', 'verifier_compensation': 0, 'fee_policy': {'schema': 'metacoin-fee-policy/v1', 'treasury_bps': 0, 'rounding': 'floor_fee_remainder_to_provider'}, 'funding': 'requester'},
             'privacy': {'inputs': 'requester_private', 'evidence_disclosure': ['bindings', 'outcome'], 'verifier_access': 'required_inputs_only', 'projection_default': 'outcome_and_bindings'},
             'deadlines': {'offer_seconds': 86400, 'acknowledge_seconds': 3600, 'delivery_seconds': 86400, 'dispute_seconds': 7 * 86400, 'at_deadline': 'eligible'},
             'eligibility': {'capabilities': [kind], 'verification_classes': ['full_exact', 'full_reference'], 'payment_schemes': ['exact', 'upto'], 'operator_relationships': ['same_operator', 'affiliated', 'independent_declared', 'unknown'], 'execution_types': ['local_worker', 'node']},
@@ -510,10 +568,69 @@ def template(name, requester, workspace, *, ceiling=10, amount=None, kind=None, 
         t['failure_treatment'] = {'execution_failure': 'no_payment', 'invalid_evidence': 'no_payment', 'missed_deadline': 'cancel', 'partial_fee_rule': 'diagnostic: INDETERMINATE with bounds evidence earns the diagnostic amount; partial: an accepted partial deliverable earns the partial amount'}
         t['milestones'] = [{'key': 'm1', 'deliverables': ['determination'], 'max_payment': amount, 'depends_on': [], 'deadline_seconds': 86400, 'on_failure': 'stop_downstream'}]
         return t
+    if name == 'decision_evidence_acquisition':
+        return decision_evidence_terms(requester, workspace, ceiling=ceiling, amount=amount, title=title)
+    if name in ('lunar_terrain_tile', 'lunar_route_feasibility', 'lunar_scenario_pack'):
+        return lunar_terms(name, requester, workspace, ceiling=ceiling, amount=amount, title=title, asset=asset)
     raise ServiceError('VALIDATION', {'code': 'template', 'allowed': list(TEMPLATES)})
+
+
+def decision_evidence_terms(requester, workspace, *, ceiling, amount=None, diagnostic=None, title=None, asset='action-units', purpose=None, requirement=None):
+    """decision-evidence-acquisition/v1: the provider is paid the complete amount for a VALID delivery whatever it establishes
+    (resolved, still ambiguous, or contradicting every declared hypothesis); an invalid delivery earns nothing; a reported
+    failure to acquire earns the frozen diagnostic amount (0 by default). The frozen inputs carry the decision question,
+    candidate-model digest, selected menu with quoted costs, validation method, disclosure and budget."""
+    amount = ceiling if amount is None else amount
+    diagnostic = 0 if diagnostic is None else diagnostic
+    t = _base(requester, workspace, 'evidence_acquisition', title or 'Decision evidence acquisition: deliver the selected measurements under frozen terms', ceiling, asset)
+    t['deliverables'] = [{'key': 'observation', 'type': 'decision_evidence', 'schema': 'evidence-acquisition-result/v1', 'required': True, 'media': ['application/json'], 'provenance': {'bind_inputs': True, 'bind_method': True}}]
+    req = requirement or {'schema': 'metacoin-assurance-requirement/v1', 'claim_type': 'witness_check', 'coverage': 'whole_result', 'comparison': {'semantics': 'enumerated_predicate'}, 'independence': {'implementation': True}, 'checker': {'id': 'decision-witness-checker/v1'}}
+    t['acceptance'] = {'schema': POLICY_SCHEMA, 'predicates': [{'id': 'complete', 'type': 'artifact_complete'}, {'id': 'source', 'type': 'source_revision'}, {'id': 'schema', 'type': 'schema_valid'},
+                                                               {'id': 'valid_delivery', 'type': 'outcome_in', 'params': {'outcomes': ['DECISION_RESOLVED', 'DECISION_AMBIGUOUS', 'MODEL_INCONSISTENT_WITH_OBSERVATIONS', 'ACQUISITION_FAILED']}},
+                                                               {'id': 'witnesses_checked', 'type': 'assurance_satisfied', 'params': {'requirement': req}}],
+                       'outcomes': {}, 'valid_negative': {'requires': ['assurance_satisfied', 'artifact_complete'], 'note': 'a valid delivery that leaves the decision ambiguous or contradicts the model earns the complete amount: the supplier is paid for agreed valid work, not for a desired answer'},
+                       'required_verification': {'class': 'analytical', 'distinct_verifier': False}, 'payment_rule': {'complete': amount, 'partial': 0, 'diagnostic': diagnostic, 'outcome_neutral': True}}
+    t['acceptance']['outcomes'] = {'DECISION_RESOLVED': 'accept', 'DECISION_AMBIGUOUS': 'accept', 'MODEL_INCONSISTENT_WITH_OBSERVATIONS': 'accept', 'DELIVERY_INVALID': 'reject', 'ACQUISITION_FAILED': 'accept_diagnostic' if diagnostic > 0 else 'reject'}
+    t['eligibility'] = {'capabilities': ['evidence_acquisition'], 'verification_classes': ['analytical', 'full_exact'], 'payment_schemes': ['exact', 'upto'], 'operator_relationships': ['same_operator', 'affiliated', 'independent_declared', 'unknown'], 'execution_types': ['local_worker', 'node']}
+    t['privacy'] = {'inputs': 'requester_private', 'evidence_disclosure': ['bindings', 'outcome'], 'verifier_access': 'required_inputs_only', 'projection_default': 'outcome_and_bindings'}   # the candidate model stays private; the provider receives only the selected views (delivery spec)
+    t['failure_treatment'] = {'execution_failure': 'no_payment', 'invalid_evidence': 'no_payment', 'missed_deadline': 'cancel', 'partial_fee_rule': 'diagnostic: a provider report that the evidence could not be acquired earns the diagnostic amount when it is > 0; invalid or malformed deliveries earn nothing'}
+    t['reassignment'] = {'allowed': False, 'conditions': [], 'physical_effects': 'possible_require_declared_policy'}
+    t['milestones'] = [{'key': 'm1', 'deliverables': ['observation'], 'max_payment': amount, 'depends_on': [], 'deadline_seconds': 7 * 86400, 'on_failure': 'stop_downstream'}]
+    if purpose:
+        t['purpose'] = purpose
+    return t
+
+
+def lunar_terms(name, requester, workspace, *, ceiling, amount=None, title=None, asset='action-units', verification_class='analytical'):
+    """The three lunar products: outcome-neutral where the outcome is a determination (route), product-complete otherwise;
+    verification by the independent lunar reference checker (class analytical) unless the terms ask for a same-implementation replay."""
+    from ..lunar import operations as lunar_ops, reference as lunar_ref
+    amount = ceiling if amount is None else amount
+    kind = {'lunar_terrain_tile': 'terrain_tile', 'lunar_route_feasibility': 'route_feasibility', 'lunar_scenario_pack': 'scenario_pack'}[name]
+    titles = {'terrain_tile': 'Lunar terrain tile: elevation, slope, nodata and uncertainty on the declared LOLA/synthetic grid', 'route_feasibility': 'Lunar route feasibility: FEASIBLE / INFEASIBLE / INDETERMINATE under the declared rover model',
+              'scenario_pack': 'Lunar scenario pack: pinned inputs, seeded variations, reference outputs and a reproduction command'}
+    t = _base(requester, workspace, kind, title or titles[kind], ceiling, asset)
+    schema = {'terrain_tile': 'lunar-terrain-tile/v1', 'route_feasibility': 'lunar-route-result/v1', 'scenario_pack': 'lunar-scenario-pack/v1'}[kind]
+    dtype = 'determination' if kind == 'route_feasibility' else 'lunar_product'
+    t['deliverables'] = [{'key': 'product', 'type': dtype, 'schema': schema, 'required': True, 'media': ['application/json', 'image/png'] if kind == 'terrain_tile' else ['application/json', 'application/zip'] if kind == 'scenario_pack' else ['application/json'], 'provenance': {'bind_inputs': True, 'bind_method': True}}]
+    outcomes = list(lunar_ops.OUTCOMES[kind])
+    t['acceptance'] = {'schema': POLICY_SCHEMA, 'predicates': [{'id': 'complete', 'type': 'artifact_complete'}, {'id': 'source', 'type': 'source_revision'}, {'id': 'schema', 'type': 'schema_valid'},
+                                                               {'id': 'outcome', 'type': 'outcome_in', 'params': {'outcomes': outcomes}},
+                                                               {'id': 'reference', 'type': 'verification_passed', 'params': {'class': verification_class, 'distinct_verifier': False}}],
+                       'outcomes': {o: ('accept_diagnostic' if o == 'INDETERMINATE' else 'accept') for o in outcomes},
+                       'valid_negative': {'requires': ['verification_passed', 'artifact_complete'], 'note': 'a verified INFEASIBLE route (closure witness) earns the same as a verified FEASIBLE one; a partial tile (nodata) is a complete product with its gaps declared'},
+                       'required_verification': {'class': verification_class, 'distinct_verifier': False}, 'payment_rule': {'complete': amount, 'partial': 0, 'diagnostic': max(amount // 2, 0), 'outcome_neutral': True}}
+    t['eligibility'] = dict(t['eligibility'], verification_classes=['analytical', 'full_exact'])
+    t['milestones'] = [{'key': 'm1', 'deliverables': ['product'], 'max_payment': amount, 'depends_on': [], 'deadline_seconds': 86400, 'on_failure': 'stop_downstream'}]
+    t['notes'] = 'grid-scale model on the declared tile; a coarse DEM does not establish rock avoidance, wheel traction or safe physical navigation (assumptions are inside the product)'
+    return t
 
 
 TEMPLATES = {'determination': 'outcome-neutral determination (energy_audit): FEASIBLE and INFEASIBLE both paid when verified; INDETERMINATE earns the diagnostic amount',
              'infeasibility_witness': 'numerical witness (resource_plan): feasible schedule checked exactly or infeasibility established; solver limits are never negative proofs',
              'independent_replay': 'exact replay of a frozen deterministic task compared with its registered hash (legacy exact rule)',
-             'diagnostic_delivery': 'determination with pre-agreed complete / partial / diagnostic amounts'}
+             'diagnostic_delivery': 'determination with pre-agreed complete / partial / diagnostic amounts',
+             'decision_evidence_acquisition': 'decision-evidence-acquisition/v1 (evidence_acquisition): a valid delivered measurement is paid whatever it establishes; invalid deliveries earn nothing; created from an acquisition plan (POST /api/v1/acquisition-plans/{id}/materialize)',
+             'lunar_terrain_tile': 'lunar-terrain-tile/v1 (terrain_tile): elevation + slope with nodata, edge, projection-scale and uncertainty treatment; verified by the independent lunar reference',
+             'lunar_route_feasibility': 'lunar-route-feasibility/v1 (route_feasibility): outcome-neutral FEASIBLE / INFEASIBLE / INDETERMINATE with a checkable path or closure witness',
+             'lunar_scenario_pack': 'lunar-scenario-pack/v1 (scenario_pack): reproducible downloadable pack with pinned inputs, seeds, variations and reference outputs'}

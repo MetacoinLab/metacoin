@@ -1,0 +1,503 @@
+{
+ "schema": "metacoin-journeys-decision/v1",
+ "provider_mode": "test-http",
+ "revision": "715938997629eb590e28dc0dcd88087551c0b675",
+ "dependencies": {
+  "compute_interpreter": true,
+  "torch": true,
+  "python": "3.12.3",
+  "local_chain": true
+ },
+ "started_at": 1792657956,
+ "finished_at": 1792658058,
+ "results": [
+  {
+   "journey": 1,
+   "title": "repeated identical total measurements remain ambiguous (witness: both states predict 120)",
+   "status": "passed",
+   "evidence": {
+    "job": "j_f40ed7922ebe989a",
+    "conclusion": "AMBIGUOUS",
+    "reading": "ambiguous",
+    "seconds": 2.588
+   },
+   "caveat": null
+  },
+  {
+   "journey": 2,
+   "title": "a complementary measurement resolves the declared two-state decision",
+   "status": "passed",
+   "evidence": {
+    "conclusion": "SEPARATED_ON_DECLARED_SET",
+    "reading": "separated within these assumptions",
+    "seconds": 2.433
+   },
+   "caveat": null
+  },
+  {
+   "journey": 3,
+   "title": "near-parallel measurements fail to separate states when noise masks their difference",
+   "status": "passed",
+   "evidence": {
+    "conclusion": "AMBIGUOUS",
+    "seconds": 2.464
+   },
+   "caveat": null
+  },
+  {
+   "journey": 4,
+   "title": "touching closed error intervals are not treated as separated (gap 80 = 2*40)",
+   "status": "passed",
+   "evidence": {
+    "witness": {
+     "c1": [
+      "60"
+     ]
+    },
+    "seconds": 2.428
+   },
+   "caveat": null
+  },
+  {
+   "journey": 5,
+   "title": "the generated ambiguity witness passes a separate exact checker (verification class analytical, independent implementation)",
+   "status": "passed",
+   "evidence": {
+    "verification": "vf_67ae8b28dbdf",
+    "state": "passed",
+    "claim": "witness_check",
+    "seconds": 2.397
+   },
+   "caveat": null
+  },
+  {
+   "journey": 6,
+   "title": "a fabricated witness (observation outside one noise box) fails that checker; the genuine one passes",
+   "status": "passed",
+   "evidence": {
+    "fabricated": false,
+    "checker": "decision-witness-checker/v1",
+    "seconds": 0.004
+   },
+   "caveat": null
+  },
+  {
+   "journey": 7,
+   "title": "a budget that buys no useful information causes no useless acquisition charge (no terms, no reservation, no journal entry)",
+   "status": "passed",
+   "evidence": {
+    "plan": "ap_55c061c3e5bb",
+    "state": "nothing_to_acquire",
+    "journal_entries": 0,
+    "seconds": 0.02
+   },
+   "caveat": null
+  },
+  {
+   "journey": 8,
+   "title": "exact finite planning agrees with an independent brute-force oracle on the small menu",
+   "status": "passed",
+   "evidence": {
+    "selected": [
+     "cell_1_sensor"
+    ],
+    "cost": 3,
+    "oracle": [
+     "cell_1_sensor"
+    ],
+    "seconds": 0.009
+   },
+   "caveat": null
+  },
+  {
+   "journey": 9,
+   "title": "scaling an observation row and its noise consistently preserves the separation decision",
+   "status": "passed",
+   "evidence": {
+    "conclusions": [
+     "SEPARATED_ON_DECLARED_SET",
+     "SEPARATED_ON_DECLARED_SET",
+     "SEPARATED_ON_DECLARED_SET"
+    ],
+    "seconds": 7.192
+   },
+   "caveat": null
+  },
+  {
+   "journey": 10,
+   "title": "actual observations outside all hypotheses return model inconsistency (no nearest hypothesis is chosen)",
+   "status": "passed",
+   "evidence": {
+    "conclusion": "MODEL_INCONSISTENT_WITH_OBSERVATIONS",
+    "surviving": [],
+    "seconds": 2.426
+   },
+   "caveat": null
+  },
+  {
+   "journey": 11,
+   "title": "a sample plan meets its declared finite-population bound, is minimal for its target, is bound before the challenge, and its signed statement recomputes offline (signature and arithmetic reported separately)",
+   "status": "passed",
+   "evidence": {
+    "population": 364,
+    "required_samples": 133,
+    "alpha": "1/100",
+    "m_assumed": 10,
+    "verification": "vf_f73f419eaee5",
+    "offline": {
+     "signature": true,
+     "arithmetic": true
+    },
+    "seconds": 5.056
+   },
+   "caveat": null
+  },
+  {
+   "journey": 12,
+   "title": "a single-defect target refuses an insufficient sample budget: achieved bound and required budget reported, alpha and m never relaxed",
+   "status": "passed",
+   "evidence": {
+    "required": 361,
+    "budget": 40,
+    "achieved": "81/91",
+    "seconds": 0.017
+   },
+   "caveat": null
+  },
+  {
+   "journey": 13,
+   "title": "a changed frame digest / scope / model / result root invalidates the attached sampling claim (another job refused; changed root invalidates the plan durably)",
+   "status": "passed",
+   "evidence": {
+    "other_job": "sampling_plan_binding",
+    "changed_root": "sampling_plan_invalidated",
+    "state": "invalidated",
+    "seconds": 2.582
+   },
+   "caveat": null
+  },
+  {
+   "journey": 14,
+   "title": "a same-implementation check cannot satisfy a distinct independent requirement merely through its class or rank (and the independent witness check satisfies only its own claim)",
+   "status": "passed",
+   "evidence": {
+    "witness_check": "satisfied",
+    "regression_claims_independence": "missing",
+    "missing": [
+     "claim_type",
+     "comparison_semantics",
+     "independence:implementation"
+    ],
+    "seconds": 2.457
+   },
+   "caveat": null
+  },
+  {
+   "journey": 15,
+   "title": "a final-transition heat audit (passed) cannot establish an entire-trajectory claim; it satisfies only its own claim",
+   "status": "passed",
+   "evidence": {
+    "audit": "passed",
+    "whole_trajectory": "missing",
+    "final_transition": "satisfied",
+    "seconds": 5.076
+   },
+   "caveat": null
+  },
+  {
+   "journey": 16,
+   "title": "an audit outcome cannot be hidden by retrying until a passing challenge appears: one bound attempt per plan, every attempt recorded",
+   "status": "passed",
+   "evidence": {
+    "first_attempt": "failed",
+    "retry": "sampling_plan_attempt_policy",
+    "attempts": 1,
+    "seconds": 4.885
+   },
+   "caveat": "the corrupted item is detected only when sampled; the attempt policy holds either way"
+  },
+  {
+   "journey": 17,
+   "title": "valid negative / ambiguous / inconsistent / failed-acquisition deliveries receive exactly the payment the frozen terms define; an invalid delivery earns nothing",
+   "status": "passed",
+   "evidence": {
+    "amounts": {
+     "ACQUISITION_FAILED": [
+      "diagnostic",
+      2
+     ],
+     "DECISION_AMBIGUOUS": [
+      "complete",
+      3
+     ],
+     "MODEL_INCONSISTENT": [
+      "complete",
+      3
+     ],
+     "DECISION_RESOLVED": [
+      "complete",
+      3
+     ],
+     "DELIVERY_INVALID": [
+      "none",
+      null
+     ]
+    },
+    "seconds": 36.79
+   },
+   "caveat": null
+  },
+  {
+   "journey": 18,
+   "title": "duplicate prepare/submit requests reconcile without another charge: one entitlement, one intent, journal consistent",
+   "status": "passed",
+   "evidence": {
+    "intent": "pi_c8b135d1a1da1933",
+    "second_submit": 200,
+    "consistent": true,
+    "provider_entitlements": 1,
+    "seconds": 0.054
+   },
+   "caveat": null
+  },
+  {
+   "journey": 19,
+   "title": "an analysis-only credential cannot purchase; another principal and unknown ids never leak private witnesses",
+   "status": "passed",
+   "evidence": {
+    "materialize": 403,
+    "witnesses_other_principal": 403,
+    "seconds": 2.512
+   },
+   "caveat": null
+  },
+  {
+   "journey": 20,
+   "title": "a crash at evidence publication during acquisition resumes without duplicate publication or a second budget reservation",
+   "status": "passed",
+   "evidence": {
+    "state": "succeeded",
+    "evidence_artifacts": 1,
+    "deliveries": 1,
+    "reservations": 1,
+    "seconds": 6.144
+   },
+   "caveat": null
+  },
+  {
+   "journey": 21,
+   "title": "a common-model defect survives identical replicas and the full portfolio alike, and is reported as residual risk with a recommendation for a different evidence source",
+   "status": "passed",
+   "evidence": {
+    "uncaught_families": [
+     "shared_wrong_model"
+    ],
+    "full_false_acceptance": 2,
+    "seconds": 0.14
+   },
+   "caveat": null
+  },
+  {
+   "journey": 22,
+   "title": "a zero-failure campaign on a representative suite retains a nonzero exact one-sided bound",
+   "status": "passed",
+   "evidence": {
+    "false_acceptance": 0,
+    "upper_95": 0.39303776899708276,
+    "seconds": 0.054
+   },
+   "caveat": null
+  },
+  {
+   "journey": 23,
+   "title": "an authorized bundle replays decision witnesses and sampling calculations in a clean process without service secrets",
+   "status": "passed",
+   "evidence": {
+    "members": 8,
+    "integrity": true,
+    "trusted": true,
+    "science": true,
+    "seconds": 0.08
+   },
+   "caveat": null
+  },
+  {
+   "journey": 24,
+   "title": "browser journey",
+   "status": "passed",
+   "evidence": {
+    "checks": 19,
+    "failed": 0,
+    "screenshots": [
+     "01-decisions-overview.png",
+     "02-decision-ambiguous.png",
+     "03-plan-preview.png",
+     "04-request.png",
+     "05-plan-reserved.png",
+     "06-assurance-missing.png",
+     "07-assurance-satisfied.png",
+     "08-decision-resolved.png",
+     "09-narrow-decision.png"
+    ]
+   },
+   "caveat": null
+  },
+  {
+   "journey": 25,
+   "title": "existing legacy work contracts (determination template) and signed evidence remain readable, with their policy semantics named explicitly",
+   "status": "passed",
+   "evidence": {
+    "policy_schema": "metacoin-acceptance-policy/v2",
+    "semantics": "claim-specific/v2: verification_passed needs a passing verif",
+    "receipts": 3,
+    "seconds": 5.072
+   },
+   "caveat": null
+  },
+  {
+   "journey": 26,
+   "title": "a clean exported source tree installs from its lock and reproduces the documented new journey",
+   "status": "passed",
+   "evidence": {
+    "archive_sha256": "3adba62636ae0e38743d0d4373824cabe77df5042ad9867b0b6a7bec6613a32a",
+    "fresh_venv_from_lock_offline": true,
+    "steps": [
+     "rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home --provider-mode test-http init",
+     "rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home status",
+     "rc=0 25s :: .venv/bin/python -m unittest metacoin_service.tests.test_decision_kernels metacoin_service.tests.test_decision_service metacoin_service.tests.test_decision_surfaces metacoin_service.tests.test_work_terms metacoin_service.tests.test_work_evidence",
+     "rc=0 2s :: /usr/bin/python3 -m unittest metacoin_service.tests.test_resource_plan metacoin_service.tests.test_compute_science",
+     "rc=0 30s :: .venv/bin/python -m unittest metacoin_service.tests.test_service",
+     "rc=0 5s :: .venv/bin/python -m unittest integrations.x402.local_chain.test_local_chain metacoin_service.tests.test_packages_upto",
+     "rc=0 3s :: .venv/bin/python -m unittest metacoin_service.tests.test_decision_sampling",
+     "rc=0 53s :: .venv/bin/python -m metacoin_service.tests.journeys_decision --only 1,2,5,7,8,10,17,19,23 --out /tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/er/clean-export/journeys-from-clean-export.json"
+    ],
+    "journey_subset": {
+     "passed": 9,
+     "failed": 0,
+     "blocked": 0
+    },
+    "runtime_data": "placed from protocol-data/ (the candidate also falls back to tracked records)"
+   },
+   "caveat": "the exported tree has no .git; the service reports loaded_revision \"unavailable\" there"
+  }
+ ],
+ "browser": {
+  "passed": 19,
+  "failed": 0,
+  "checks": [
+   {
+    "check": "decisions overview renders with the analysis form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "analysis job created from the form",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "analysis completes and reads as ambiguous with the private witness",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "viewer sees the reading and counts but no hypothesis ids, labels or witness values",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "plan preview shows the selected measurement and expected cost before any action",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "plan stored with expected cost 3",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "acquisition contract created and request opened",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "provider sees the request without the private candidate model",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "award performed; actual cost shown as reserved on the plan",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "plan page shows actual cost: reserved, separately from the outcome",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "provider page shows the delivery form and no private witnesses",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "observation delivered; execution completes",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "assurance preview says the check is missing before verification (absence is never success)",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "assurance satisfied after the independent witness check",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "acceptance recorded; payment payable",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "plan shows actual cost payable (3) separately from the scientific outcome",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "acquisition job reads as determined within the declared model",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "portfolios page explains coverage, not a trust score",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "narrow width: no horizontal overflow on the decision pages",
+    "ok": true,
+    "detail": "{'/console/decisions': True, '/console/decisions/j_dd43d586cb048ebd': True, '/console/acquisition-plans/ap_f0fb39ff36e7': True, '/console/work/awards/wa_9cc44b77ef72cf21': True, '/console/portfolios': True}"
+   }
+  ],
+  "screenshots": [
+   "01-decisions-overview.png",
+   "02-decision-ambiguous.png",
+   "03-plan-preview.png",
+   "04-request.png",
+   "05-plan-reserved.png",
+   "06-assurance-missing.png",
+   "07-assurance-satisfied.png",
+   "08-decision-resolved.png",
+   "09-narrow-decision.png"
+  ],
+  "crash": null,
+  "rc": 0,
+  "status": "passed"
+ },
+ "passed": 26,
+ "failed": 0,
+ "blocked": 0,
+ "total": 26
+}

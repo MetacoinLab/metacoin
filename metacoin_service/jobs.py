@@ -60,6 +60,9 @@ class Jobs:
         from . import tracing
         history.record(db, principal.workspace, principal.id, 'job.queued', 'job', jid,
                        {'contract_id': row['id'], 'contract_digest': row['contract_digest'], 'kind': row['kind'], 'batch_id': batch_id, 'grant_id': grant, 'traceparent': tracing.current_traceparent()})
+        if row['kind'] == 'evidence_acquisition':
+            # the frozen operation waits for the provider's observation delivery (job_deliveries); the worker never claims a held job
+            db.execute('UPDATE jobs SET hold=1, updated_at=? WHERE id=?', (now(), jid))
         from .compute import manifests as compute_manifests
         if row['kind'] in compute_manifests.KINDS:
             params = json.loads(row['params_json'] or '{}')

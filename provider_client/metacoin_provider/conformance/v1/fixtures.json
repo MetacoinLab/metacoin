@@ -1,0 +1,2087 @@
+{
+ "bundles": [
+  {
+   "bundle": {
+    "content": {
+     "accounts": [
+      {
+       "custody": "external-signer:fx",
+       "id": "na_actor",
+       "key_id": "k_f1a520c8395070c07b20310a",
+       "kind": "actor",
+       "label": "actor",
+       "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "active"
+      }
+     ],
+     "domain": "dom-fx",
+     "environment": "dev",
+     "exported_at": 1700000003,
+     "intents": [
+      {
+       "actor_account": "na_actor",
+       "amount_final": 7,
+       "asset": "dev:dom-fx:native:MU:0",
+       "commit_sequence": 1,
+       "id": "pi_1",
+       "message": {
+        "actor_account": "na_actor",
+        "amount_ceiling": 7,
+        "asset": "dev:dom-fx:native:MU:0",
+        "authority": "dom-fx",
+        "environment": "dev",
+        "expires_at": 1700000600,
+        "nonce": "1",
+        "obligation_id": "ob_1",
+        "policy_version": "native-policy/v0",
+        "protocol": "metacoin-native/v0",
+        "recipient": "na_b",
+        "request_id": "r1",
+        "type": "intent"
+       },
+       "message_digest": "7af8ba48fac55aad85ab7adcb5db80b17033cfac3d233882f1e081a268ab49b1",
+       "obligation_id": "ob_1",
+       "recipient": "na_b",
+       "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c",
+       "signer_public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "settled",
+       "type": "transfer"
+      }
+     ],
+     "journal_entries": [
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000000,
+       "environment": "dev",
+       "event_key": "fund",
+       "id": "je0",
+       "kind": "fixture_funding",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/equity:fixture_funding",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "f",
+       "ref_type": "fixture"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000001,
+       "environment": "dev",
+       "event_key": "commit:pi_1",
+       "id": "je1",
+       "kind": "native_commit",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000002,
+       "environment": "dev",
+       "event_key": "settle:pi_1",
+       "id": "je2",
+       "kind": "native_settlement",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_b:available",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      }
+     ],
+     "ledger": {
+      "milestones": [
+       {
+        "ceiling": 7,
+        "key": "work",
+        "kind": "work",
+        "obligations": [
+         "ob_1"
+        ],
+        "released": 0,
+        "reserved": 0,
+        "spent": 7,
+        "state": "settled"
+       }
+      ],
+      "totals": {
+       "ceiling": 7,
+       "released": 0,
+       "reserved": 0,
+       "spent": 7
+      }
+     },
+     "mission": {
+      "frozen_revision": 1,
+      "id": "mc_fx",
+      "owner_account": "na_actor",
+      "receipt_ids": [
+       "nr_1"
+      ]
+     },
+     "obligations": [
+      {
+       "amount": 7,
+       "id": "ob_1",
+       "settled_amount": 7,
+       "state": "settled"
+      }
+     ],
+     "receipts": [
+      {
+       "id": "nr_1",
+       "key_id": "k_9d608cf1a9e629dd5a2de070",
+       "kind": "settlement",
+       "ref_id": "pi_1",
+       "ref_type": "native_intent",
+       "signature_hex": "6ad697d54119c9adf31dd5b0729c0def11712dc63f056a13fb21ab45eddd4780dd2a5ae6df141d2a739b537dfab5a573290a7981e9da554477066801a8d42100",
+       "statement": {
+        "claims": {
+         "amount": 7,
+         "from": "na_actor",
+         "intent_id": "pi_1",
+         "obligation_id": "ob_1",
+         "to": "na_b"
+        },
+        "issued_at": 1700000000,
+        "kind": "settlement",
+        "nonce": "abcd",
+        "protocol": "metacoin-native/v0",
+        "ref_id": "pi_1",
+        "ref_type": "native_intent",
+        "schema": "metacoin-native-receipt/v0"
+       }
+      }
+     ]
+    },
+    "schema": "metacoin-mission-bundle/v1",
+    "seal": {
+     "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+     "domain": "dom-fx",
+     "key_id": "k_9d608cf1a9e629dd5a2de070",
+     "signature_hex": "522d716f2644b0c674a4a6c77b3455beed96e1b9acb4e9f924063d02f16a082d18dddce6846de2197ec1bd4a0caa22b67fb7c92efb8e87d7f3fffe3dca6bd009",
+     "statement": {
+      "claims": {
+       "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+       "mission_id": "mc_fx",
+       "revision": 1
+      },
+      "issued_at": 1700000003,
+      "kind": "mission_bundle_seal",
+      "nonce": "seal",
+      "protocol": "metacoin-native/v0",
+      "ref_id": "mc_fx",
+      "ref_type": "mission",
+      "schema": "metacoin-native-receipt/v0"
+     }
+    }
+   },
+   "expect_failed_checks": [],
+   "expect_ok": true,
+   "id": "valid",
+   "roots": {
+    "dom-fx": [
+     {
+      "epoch": 1,
+      "key_id": "k_9d608cf1a9e629dd5a2de070",
+      "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317"
+     }
+    ]
+   }
+  },
+  {
+   "bundle": {
+    "content": {
+     "accounts": [
+      {
+       "custody": "external-signer:fx",
+       "id": "na_actor",
+       "key_id": "k_f1a520c8395070c07b20310a",
+       "kind": "actor",
+       "label": "actor",
+       "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "active"
+      }
+     ],
+     "domain": "dom-fx",
+     "environment": "dev",
+     "exported_at": 1700000003,
+     "intents": [
+      {
+       "actor_account": "na_actor",
+       "amount_final": 7,
+       "asset": "dev:dom-fx:native:MU:0",
+       "commit_sequence": 1,
+       "id": "pi_1",
+       "message": {
+        "actor_account": "na_actor",
+        "amount_ceiling": 7,
+        "asset": "dev:dom-fx:native:MU:0",
+        "authority": "dom-fx",
+        "environment": "dev",
+        "expires_at": 1700000600,
+        "nonce": "1",
+        "obligation_id": "ob_1",
+        "policy_version": "native-policy/v0",
+        "protocol": "metacoin-native/v0",
+        "recipient": "na_b",
+        "request_id": "r1",
+        "type": "intent"
+       },
+       "message_digest": "7af8ba48fac55aad85ab7adcb5db80b17033cfac3d233882f1e081a268ab49b1",
+       "obligation_id": "ob_1",
+       "recipient": "na_b",
+       "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c",
+       "signer_public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "settled",
+       "type": "transfer"
+      }
+     ],
+     "journal_entries": [
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000000,
+       "environment": "dev",
+       "event_key": "fund",
+       "id": "je0",
+       "kind": "fixture_funding",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/equity:fixture_funding",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "f",
+       "ref_type": "fixture"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000001,
+       "environment": "dev",
+       "event_key": "commit:pi_1",
+       "id": "je1",
+       "kind": "native_commit",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000002,
+       "environment": "dev",
+       "event_key": "settle:pi_1",
+       "id": "je2",
+       "kind": "native_settlement",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_b:available",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      }
+     ],
+     "ledger": {
+      "milestones": [
+       {
+        "ceiling": 7,
+        "key": "work",
+        "kind": "work",
+        "obligations": [
+         "ob_1"
+        ],
+        "released": 0,
+        "reserved": 0,
+        "spent": 7,
+        "state": "settled"
+       }
+      ],
+      "totals": {
+       "ceiling": 7,
+       "released": 0,
+       "reserved": 0,
+       "spent": 7
+      }
+     },
+     "mission": {
+      "frozen_revision": 1,
+      "id": "mc_fx",
+      "owner_account": "na_actor",
+      "receipt_ids": [
+       "nr_1"
+      ]
+     },
+     "obligations": [
+      {
+       "amount": 7,
+       "id": "ob_1",
+       "settled_amount": 7,
+       "state": "settled"
+      }
+     ],
+     "receipts": [
+      {
+       "id": "nr_1",
+       "key_id": "k_9d608cf1a9e629dd5a2de070",
+       "kind": "settlement",
+       "ref_id": "pi_1",
+       "ref_type": "native_intent",
+       "signature_hex": "6ad697d54119c9adf31dd5b0729c0def11712dc63f056a13fb21ab45eddd4780dd2a5ae6df141d2a739b537dfab5a573290a7981e9da554477066801a8d42100",
+       "statement": {
+        "claims": {
+         "amount": 70,
+         "from": "na_actor",
+         "intent_id": "pi_1",
+         "obligation_id": "ob_1",
+         "to": "na_b"
+        },
+        "issued_at": 1700000000,
+        "kind": "settlement",
+        "nonce": "abcd",
+        "protocol": "metacoin-native/v0",
+        "ref_id": "pi_1",
+        "ref_type": "native_intent",
+        "schema": "metacoin-native-receipt/v0"
+       }
+      }
+     ]
+    },
+    "schema": "metacoin-mission-bundle/v1",
+    "seal": {
+     "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+     "domain": "dom-fx",
+     "key_id": "k_9d608cf1a9e629dd5a2de070",
+     "signature_hex": "522d716f2644b0c674a4a6c77b3455beed96e1b9acb4e9f924063d02f16a082d18dddce6846de2197ec1bd4a0caa22b67fb7c92efb8e87d7f3fffe3dca6bd009",
+     "statement": {
+      "claims": {
+       "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+       "mission_id": "mc_fx",
+       "revision": 1
+      },
+      "issued_at": 1700000003,
+      "kind": "mission_bundle_seal",
+      "nonce": "seal",
+      "protocol": "metacoin-native/v0",
+      "ref_id": "mc_fx",
+      "ref_type": "mission",
+      "schema": "metacoin-native-receipt/v0"
+     }
+    }
+   },
+   "expect_failed_checks": [
+    "content_digest",
+    "receipt:nr_1"
+   ],
+   "expect_ok": false,
+   "id": "receipt_claim_altered",
+   "roots": {
+    "dom-fx": [
+     {
+      "epoch": 1,
+      "key_id": "k_9d608cf1a9e629dd5a2de070",
+      "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317"
+     }
+    ]
+   }
+  },
+  {
+   "bundle": {
+    "content": {
+     "accounts": [
+      {
+       "custody": "external-signer:fx",
+       "id": "na_actor",
+       "key_id": "k_f1a520c8395070c07b20310a",
+       "kind": "actor",
+       "label": "actor",
+       "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "active"
+      }
+     ],
+     "domain": "dom-fx",
+     "environment": "dev",
+     "exported_at": 1700000003,
+     "intents": [
+      {
+       "actor_account": "na_actor",
+       "amount_final": 7,
+       "asset": "dev:dom-fx:native:MU:0",
+       "commit_sequence": 1,
+       "id": "pi_1",
+       "message": {
+        "actor_account": "na_actor",
+        "amount_ceiling": 7,
+        "asset": "dev:dom-fx:native:MU:0",
+        "authority": "dom-fx",
+        "environment": "dev",
+        "expires_at": 1700000600,
+        "nonce": "1",
+        "obligation_id": "ob_1",
+        "policy_version": "native-policy/v0",
+        "protocol": "metacoin-native/v0",
+        "recipient": "na_b",
+        "request_id": "r1",
+        "type": "intent"
+       },
+       "message_digest": "7af8ba48fac55aad85ab7adcb5db80b17033cfac3d233882f1e081a268ab49b1",
+       "obligation_id": "ob_1",
+       "recipient": "na_b",
+       "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c",
+       "signer_public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "settled",
+       "type": "transfer"
+      }
+     ],
+     "journal_entries": [
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000000,
+       "environment": "dev",
+       "event_key": "fund",
+       "id": "je0",
+       "kind": "fixture_funding",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/equity:fixture_funding",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "f",
+       "ref_type": "fixture"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000001,
+       "environment": "dev",
+       "event_key": "commit:pi_1",
+       "id": "je1",
+       "kind": "native_commit",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000002,
+       "environment": "dev",
+       "event_key": "settle:pi_1",
+       "id": "je2",
+       "kind": "native_settlement",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_b:available",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      }
+     ],
+     "ledger": {
+      "milestones": [
+       {
+        "ceiling": 7,
+        "key": "work",
+        "kind": "work",
+        "obligations": [
+         "ob_1"
+        ],
+        "released": 0,
+        "reserved": 0,
+        "spent": 70,
+        "state": "settled"
+       }
+      ],
+      "totals": {
+       "ceiling": 7,
+       "released": 0,
+       "reserved": 0,
+       "spent": 70
+      }
+     },
+     "mission": {
+      "frozen_revision": 1,
+      "id": "mc_fx",
+      "owner_account": "na_actor",
+      "receipt_ids": [
+       "nr_1"
+      ]
+     },
+     "obligations": [
+      {
+       "amount": 7,
+       "id": "ob_1",
+       "settled_amount": 7,
+       "state": "settled"
+      }
+     ],
+     "receipts": [
+      {
+       "id": "nr_1",
+       "key_id": "k_9d608cf1a9e629dd5a2de070",
+       "kind": "settlement",
+       "ref_id": "pi_1",
+       "ref_type": "native_intent",
+       "signature_hex": "6ad697d54119c9adf31dd5b0729c0def11712dc63f056a13fb21ab45eddd4780dd2a5ae6df141d2a739b537dfab5a573290a7981e9da554477066801a8d42100",
+       "statement": {
+        "claims": {
+         "amount": 7,
+         "from": "na_actor",
+         "intent_id": "pi_1",
+         "obligation_id": "ob_1",
+         "to": "na_b"
+        },
+        "issued_at": 1700000000,
+        "kind": "settlement",
+        "nonce": "abcd",
+        "protocol": "metacoin-native/v0",
+        "ref_id": "pi_1",
+        "ref_type": "native_intent",
+        "schema": "metacoin-native-receipt/v0"
+       }
+      }
+     ]
+    },
+    "schema": "metacoin-mission-bundle/v1",
+    "seal": {
+     "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+     "domain": "dom-fx",
+     "key_id": "k_9d608cf1a9e629dd5a2de070",
+     "signature_hex": "522d716f2644b0c674a4a6c77b3455beed96e1b9acb4e9f924063d02f16a082d18dddce6846de2197ec1bd4a0caa22b67fb7c92efb8e87d7f3fffe3dca6bd009",
+     "statement": {
+      "claims": {
+       "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+       "mission_id": "mc_fx",
+       "revision": 1
+      },
+      "issued_at": 1700000003,
+      "kind": "mission_bundle_seal",
+      "nonce": "seal",
+      "protocol": "metacoin-native/v0",
+      "ref_id": "mc_fx",
+      "ref_type": "mission",
+      "schema": "metacoin-native-receipt/v0"
+     }
+    }
+   },
+   "expect_failed_checks": [
+    "content_digest",
+    "ledger_spent_matches_settled_intents"
+   ],
+   "expect_ok": false,
+   "id": "ledger_spent_altered",
+   "roots": {
+    "dom-fx": [
+     {
+      "epoch": 1,
+      "key_id": "k_9d608cf1a9e629dd5a2de070",
+      "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317"
+     }
+    ]
+   }
+  },
+  {
+   "bundle": {
+    "content": {
+     "accounts": [
+      {
+       "custody": "external-signer:fx",
+       "id": "na_actor",
+       "key_id": "k_f1a520c8395070c07b20310a",
+       "kind": "actor",
+       "label": "actor",
+       "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "active"
+      }
+     ],
+     "domain": "dom-fx",
+     "environment": "dev",
+     "exported_at": 1700000003,
+     "intents": [
+      {
+       "actor_account": "na_actor",
+       "amount_final": 7,
+       "asset": "dev:dom-fx:native:MU:0",
+       "commit_sequence": 1,
+       "id": "pi_1",
+       "message": {
+        "actor_account": "na_actor",
+        "amount_ceiling": 7,
+        "asset": "dev:dom-fx:native:MU:0",
+        "authority": "dom-fx",
+        "environment": "dev",
+        "expires_at": 1700000600,
+        "nonce": "1",
+        "obligation_id": "ob_1",
+        "policy_version": "native-policy/v0",
+        "protocol": "metacoin-native/v0",
+        "recipient": "na_b",
+        "request_id": "r1",
+        "type": "intent"
+       },
+       "message_digest": "7af8ba48fac55aad85ab7adcb5db80b17033cfac3d233882f1e081a268ab49b1",
+       "obligation_id": "ob_1",
+       "recipient": "na_b",
+       "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c",
+       "signer_public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "settled",
+       "type": "transfer"
+      }
+     ],
+     "journal_entries": [
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000000,
+       "environment": "dev",
+       "event_key": "fund",
+       "id": "je0",
+       "kind": "fixture_funding",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/equity:fixture_funding",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "f",
+       "ref_type": "fixture"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000001,
+       "environment": "dev",
+       "event_key": "commit:pi_1",
+       "id": "je1",
+       "kind": "native_commit",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000002,
+       "environment": "dev",
+       "event_key": "settle:pi_1",
+       "id": "je2",
+       "kind": "native_settlement",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_b:available",
+         "credit": 70,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      }
+     ],
+     "ledger": {
+      "milestones": [
+       {
+        "ceiling": 7,
+        "key": "work",
+        "kind": "work",
+        "obligations": [
+         "ob_1"
+        ],
+        "released": 0,
+        "reserved": 0,
+        "spent": 7,
+        "state": "settled"
+       }
+      ],
+      "totals": {
+       "ceiling": 7,
+       "released": 0,
+       "reserved": 0,
+       "spent": 7
+      }
+     },
+     "mission": {
+      "frozen_revision": 1,
+      "id": "mc_fx",
+      "owner_account": "na_actor",
+      "receipt_ids": [
+       "nr_1"
+      ]
+     },
+     "obligations": [
+      {
+       "amount": 7,
+       "id": "ob_1",
+       "settled_amount": 7,
+       "state": "settled"
+      }
+     ],
+     "receipts": [
+      {
+       "id": "nr_1",
+       "key_id": "k_9d608cf1a9e629dd5a2de070",
+       "kind": "settlement",
+       "ref_id": "pi_1",
+       "ref_type": "native_intent",
+       "signature_hex": "6ad697d54119c9adf31dd5b0729c0def11712dc63f056a13fb21ab45eddd4780dd2a5ae6df141d2a739b537dfab5a573290a7981e9da554477066801a8d42100",
+       "statement": {
+        "claims": {
+         "amount": 7,
+         "from": "na_actor",
+         "intent_id": "pi_1",
+         "obligation_id": "ob_1",
+         "to": "na_b"
+        },
+        "issued_at": 1700000000,
+        "kind": "settlement",
+        "nonce": "abcd",
+        "protocol": "metacoin-native/v0",
+        "ref_id": "pi_1",
+        "ref_type": "native_intent",
+        "schema": "metacoin-native-receipt/v0"
+       }
+      }
+     ]
+    },
+    "schema": "metacoin-mission-bundle/v1",
+    "seal": {
+     "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+     "domain": "dom-fx",
+     "key_id": "k_9d608cf1a9e629dd5a2de070",
+     "signature_hex": "522d716f2644b0c674a4a6c77b3455beed96e1b9acb4e9f924063d02f16a082d18dddce6846de2197ec1bd4a0caa22b67fb7c92efb8e87d7f3fffe3dca6bd009",
+     "statement": {
+      "claims": {
+       "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+       "mission_id": "mc_fx",
+       "revision": 1
+      },
+      "issued_at": 1700000003,
+      "kind": "mission_bundle_seal",
+      "nonce": "seal",
+      "protocol": "metacoin-native/v0",
+      "ref_id": "mc_fx",
+      "ref_type": "mission",
+      "schema": "metacoin-native-receipt/v0"
+     }
+    }
+   },
+   "expect_failed_checks": [
+    "content_digest",
+    "entries_balanced"
+   ],
+   "expect_ok": false,
+   "id": "journal_posting_altered",
+   "roots": {
+    "dom-fx": [
+     {
+      "epoch": 1,
+      "key_id": "k_9d608cf1a9e629dd5a2de070",
+      "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317"
+     }
+    ]
+   }
+  },
+  {
+   "bundle": {
+    "content": {
+     "accounts": [
+      {
+       "custody": "external-signer:fx",
+       "id": "na_actor",
+       "key_id": "k_f1a520c8395070c07b20310a",
+       "kind": "actor",
+       "label": "actor",
+       "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "active"
+      }
+     ],
+     "domain": "dom-fx",
+     "environment": "dev",
+     "exported_at": 1700000003,
+     "intents": [
+      {
+       "actor_account": "na_actor",
+       "amount_final": 70,
+       "asset": "dev:dom-fx:native:MU:0",
+       "commit_sequence": 1,
+       "id": "pi_1",
+       "message": {
+        "actor_account": "na_actor",
+        "amount_ceiling": 7,
+        "asset": "dev:dom-fx:native:MU:0",
+        "authority": "dom-fx",
+        "environment": "dev",
+        "expires_at": 1700000600,
+        "nonce": "1",
+        "obligation_id": "ob_1",
+        "policy_version": "native-policy/v0",
+        "protocol": "metacoin-native/v0",
+        "recipient": "na_b",
+        "request_id": "r1",
+        "type": "intent"
+       },
+       "message_digest": "7af8ba48fac55aad85ab7adcb5db80b17033cfac3d233882f1e081a268ab49b1",
+       "obligation_id": "ob_1",
+       "recipient": "na_b",
+       "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c",
+       "signer_public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "settled",
+       "type": "transfer"
+      }
+     ],
+     "journal_entries": [
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000000,
+       "environment": "dev",
+       "event_key": "fund",
+       "id": "je0",
+       "kind": "fixture_funding",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/equity:fixture_funding",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "f",
+       "ref_type": "fixture"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000001,
+       "environment": "dev",
+       "event_key": "commit:pi_1",
+       "id": "je1",
+       "kind": "native_commit",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000002,
+       "environment": "dev",
+       "event_key": "settle:pi_1",
+       "id": "je2",
+       "kind": "native_settlement",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_b:available",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      }
+     ],
+     "ledger": {
+      "milestones": [
+       {
+        "ceiling": 7,
+        "key": "work",
+        "kind": "work",
+        "obligations": [
+         "ob_1"
+        ],
+        "released": 0,
+        "reserved": 0,
+        "spent": 7,
+        "state": "settled"
+       }
+      ],
+      "totals": {
+       "ceiling": 7,
+       "released": 0,
+       "reserved": 0,
+       "spent": 7
+      }
+     },
+     "mission": {
+      "frozen_revision": 1,
+      "id": "mc_fx",
+      "owner_account": "na_actor",
+      "receipt_ids": [
+       "nr_1"
+      ]
+     },
+     "obligations": [
+      {
+       "amount": 7,
+       "id": "ob_1",
+       "settled_amount": 7,
+       "state": "settled"
+      }
+     ],
+     "receipts": [
+      {
+       "id": "nr_1",
+       "key_id": "k_9d608cf1a9e629dd5a2de070",
+       "kind": "settlement",
+       "ref_id": "pi_1",
+       "ref_type": "native_intent",
+       "signature_hex": "6ad697d54119c9adf31dd5b0729c0def11712dc63f056a13fb21ab45eddd4780dd2a5ae6df141d2a739b537dfab5a573290a7981e9da554477066801a8d42100",
+       "statement": {
+        "claims": {
+         "amount": 7,
+         "from": "na_actor",
+         "intent_id": "pi_1",
+         "obligation_id": "ob_1",
+         "to": "na_b"
+        },
+        "issued_at": 1700000000,
+        "kind": "settlement",
+        "nonce": "abcd",
+        "protocol": "metacoin-native/v0",
+        "ref_id": "pi_1",
+        "ref_type": "native_intent",
+        "schema": "metacoin-native-receipt/v0"
+       }
+      }
+     ]
+    },
+    "schema": "metacoin-mission-bundle/v1",
+    "seal": {
+     "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+     "domain": "dom-fx",
+     "key_id": "k_9d608cf1a9e629dd5a2de070",
+     "signature_hex": "522d716f2644b0c674a4a6c77b3455beed96e1b9acb4e9f924063d02f16a082d18dddce6846de2197ec1bd4a0caa22b67fb7c92efb8e87d7f3fffe3dca6bd009",
+     "statement": {
+      "claims": {
+       "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+       "mission_id": "mc_fx",
+       "revision": 1
+      },
+      "issued_at": 1700000003,
+      "kind": "mission_bundle_seal",
+      "nonce": "seal",
+      "protocol": "metacoin-native/v0",
+      "ref_id": "mc_fx",
+      "ref_type": "mission",
+      "schema": "metacoin-native-receipt/v0"
+     }
+    }
+   },
+   "expect_failed_checks": [
+    "content_digest",
+    "ledger_spent_matches_settled_intents"
+   ],
+   "expect_ok": false,
+   "id": "intent_amount_altered",
+   "roots": {
+    "dom-fx": [
+     {
+      "epoch": 1,
+      "key_id": "k_9d608cf1a9e629dd5a2de070",
+      "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317"
+     }
+    ]
+   }
+  },
+  {
+   "bundle": {
+    "content": {
+     "accounts": [
+      {
+       "custody": "external-signer:fx",
+       "id": "na_actor",
+       "key_id": "k_f1a520c8395070c07b20310a",
+       "kind": "actor",
+       "label": "actor",
+       "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "active"
+      }
+     ],
+     "domain": "dom-fx",
+     "environment": "dev",
+     "exported_at": 1700000099,
+     "intents": [
+      {
+       "actor_account": "na_actor",
+       "amount_final": 7,
+       "asset": "dev:dom-fx:native:MU:0",
+       "commit_sequence": 1,
+       "id": "pi_1",
+       "message": {
+        "actor_account": "na_actor",
+        "amount_ceiling": 7,
+        "asset": "dev:dom-fx:native:MU:0",
+        "authority": "dom-fx",
+        "environment": "dev",
+        "expires_at": 1700000600,
+        "nonce": "1",
+        "obligation_id": "ob_1",
+        "policy_version": "native-policy/v0",
+        "protocol": "metacoin-native/v0",
+        "recipient": "na_b",
+        "request_id": "r1",
+        "type": "intent"
+       },
+       "message_digest": "7af8ba48fac55aad85ab7adcb5db80b17033cfac3d233882f1e081a268ab49b1",
+       "obligation_id": "ob_1",
+       "recipient": "na_b",
+       "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c",
+       "signer_public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "settled",
+       "type": "transfer"
+      }
+     ],
+     "journal_entries": [
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000000,
+       "environment": "dev",
+       "event_key": "fund",
+       "id": "je0",
+       "kind": "fixture_funding",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/equity:fixture_funding",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "f",
+       "ref_type": "fixture"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000001,
+       "environment": "dev",
+       "event_key": "commit:pi_1",
+       "id": "je1",
+       "kind": "native_commit",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000002,
+       "environment": "dev",
+       "event_key": "settle:pi_1",
+       "id": "je2",
+       "kind": "native_settlement",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_b:available",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      }
+     ],
+     "ledger": {
+      "milestones": [
+       {
+        "ceiling": 7,
+        "key": "work",
+        "kind": "work",
+        "obligations": [
+         "ob_1"
+        ],
+        "released": 0,
+        "reserved": 0,
+        "spent": 7,
+        "state": "settled"
+       }
+      ],
+      "totals": {
+       "ceiling": 7,
+       "released": 0,
+       "reserved": 0,
+       "spent": 7
+      }
+     },
+     "mission": {
+      "frozen_revision": 1,
+      "id": "mc_fx",
+      "owner_account": "na_actor",
+      "receipt_ids": [
+       "nr_1"
+      ]
+     },
+     "obligations": [
+      {
+       "amount": 7,
+       "id": "ob_1",
+       "settled_amount": 7,
+       "state": "settled"
+      }
+     ],
+     "receipts": [
+      {
+       "id": "nr_1",
+       "key_id": "k_9d608cf1a9e629dd5a2de070",
+       "kind": "settlement",
+       "ref_id": "pi_1",
+       "ref_type": "native_intent",
+       "signature_hex": "6ad697d54119c9adf31dd5b0729c0def11712dc63f056a13fb21ab45eddd4780dd2a5ae6df141d2a739b537dfab5a573290a7981e9da554477066801a8d42100",
+       "statement": {
+        "claims": {
+         "amount": 7,
+         "from": "na_actor",
+         "intent_id": "pi_1",
+         "obligation_id": "ob_1",
+         "to": "na_b"
+        },
+        "issued_at": 1700000000,
+        "kind": "settlement",
+        "nonce": "abcd",
+        "protocol": "metacoin-native/v0",
+        "ref_id": "pi_1",
+        "ref_type": "native_intent",
+        "schema": "metacoin-native-receipt/v0"
+       }
+      }
+     ]
+    },
+    "schema": "metacoin-mission-bundle/v1",
+    "seal": {
+     "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+     "domain": "dom-fx",
+     "key_id": "k_9d608cf1a9e629dd5a2de070",
+     "signature_hex": "522d716f2644b0c674a4a6c77b3455beed96e1b9acb4e9f924063d02f16a082d18dddce6846de2197ec1bd4a0caa22b67fb7c92efb8e87d7f3fffe3dca6bd009",
+     "statement": {
+      "claims": {
+       "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+       "mission_id": "mc_fx",
+       "revision": 1
+      },
+      "issued_at": 1700000003,
+      "kind": "mission_bundle_seal",
+      "nonce": "seal",
+      "protocol": "metacoin-native/v0",
+      "ref_id": "mc_fx",
+      "ref_type": "mission",
+      "schema": "metacoin-native-receipt/v0"
+     }
+    }
+   },
+   "expect_failed_checks": [
+    "content_digest"
+   ],
+   "expect_ok": false,
+   "id": "content_altered_seal_stale",
+   "roots": {
+    "dom-fx": [
+     {
+      "epoch": 1,
+      "key_id": "k_9d608cf1a9e629dd5a2de070",
+      "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317"
+     }
+    ]
+   }
+  },
+  {
+   "bundle": {
+    "content": {
+     "accounts": [
+      {
+       "custody": "external-signer:fx",
+       "id": "na_actor",
+       "key_id": "k_f1a520c8395070c07b20310a",
+       "kind": "actor",
+       "label": "actor",
+       "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "active"
+      }
+     ],
+     "domain": "dom-fx",
+     "environment": "dev",
+     "exported_at": 1700000003,
+     "intents": [
+      {
+       "actor_account": "na_actor",
+       "amount_final": 7,
+       "asset": "dev:dom-fx:native:MU:0",
+       "commit_sequence": 1,
+       "id": "pi_1",
+       "message": {
+        "actor_account": "na_actor",
+        "amount_ceiling": 7,
+        "asset": "dev:dom-fx:native:MU:0",
+        "authority": "dom-fx",
+        "environment": "dev",
+        "expires_at": 1700000600,
+        "nonce": "1",
+        "obligation_id": "ob_1",
+        "policy_version": "native-policy/v0",
+        "protocol": "metacoin-native/v0",
+        "recipient": "na_b",
+        "request_id": "r1",
+        "type": "intent"
+       },
+       "message_digest": "7af8ba48fac55aad85ab7adcb5db80b17033cfac3d233882f1e081a268ab49b1",
+       "obligation_id": "ob_1",
+       "recipient": "na_b",
+       "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c",
+       "signer_public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+       "state": "settled",
+       "type": "transfer"
+      }
+     ],
+     "journal_entries": [
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000000,
+       "environment": "dev",
+       "event_key": "fund",
+       "id": "je0",
+       "kind": "fixture_funding",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/equity:fixture_funding",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "f",
+       "ref_type": "fixture"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000001,
+       "environment": "dev",
+       "event_key": "commit:pi_1",
+       "id": "je1",
+       "kind": "native_commit",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:reserved",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      },
+      {
+       "asset": "dev:dom-fx:native:MU:0",
+       "created_at": 1700000002,
+       "environment": "dev",
+       "event_key": "settle:pi_1",
+       "id": "je2",
+       "kind": "native_settlement",
+       "memo": "",
+       "network": "dom-fx",
+       "postings": [
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_actor:committed_outgoing",
+         "credit": 0,
+         "debit": 7
+        },
+        {
+         "account": "dev:dom-fx:native:MU:0@dom-fx/acct:na_b:available",
+         "credit": 7,
+         "debit": 0
+        }
+       ],
+       "ref_id": "pi_1",
+       "ref_type": "native_intent"
+      }
+     ],
+     "ledger": {
+      "milestones": [
+       {
+        "ceiling": 7,
+        "key": "work",
+        "kind": "work",
+        "obligations": [
+         "ob_1"
+        ],
+        "released": 0,
+        "reserved": 0,
+        "spent": 7,
+        "state": "settled"
+       }
+      ],
+      "totals": {
+       "ceiling": 7,
+       "released": 0,
+       "reserved": 0,
+       "spent": 7
+      }
+     },
+     "mission": {
+      "frozen_revision": 1,
+      "id": "mc_fx",
+      "owner_account": "na_actor",
+      "receipt_ids": [
+       "nr_1"
+      ]
+     },
+     "obligations": [
+      {
+       "amount": 7,
+       "id": "ob_1",
+       "settled_amount": 7,
+       "state": "settled"
+      }
+     ],
+     "receipts": [
+      {
+       "id": "nr_1",
+       "key_id": "k_9d608cf1a9e629dd5a2de070",
+       "kind": "settlement",
+       "ref_id": "pi_1",
+       "ref_type": "native_intent",
+       "signature_hex": "6ad697d54119c9adf31dd5b0729c0def11712dc63f056a13fb21ab45eddd4780dd2a5ae6df141d2a739b537dfab5a573290a7981e9da554477066801a8d42100",
+       "statement": {
+        "claims": {
+         "amount": 7,
+         "from": "na_actor",
+         "intent_id": "pi_1",
+         "obligation_id": "ob_1",
+         "to": "na_b"
+        },
+        "issued_at": 1700000000,
+        "kind": "settlement",
+        "nonce": "abcd",
+        "protocol": "metacoin-native/v0",
+        "ref_id": "pi_1",
+        "ref_type": "native_intent",
+        "schema": "metacoin-native-receipt/v0"
+       }
+      }
+     ]
+    },
+    "schema": "metacoin-mission-bundle/v1",
+    "seal": {
+     "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+     "domain": "dom-fx",
+     "key_id": "k_9d608cf1a9e629dd5a2de070",
+     "signature_hex": "522d716f2644b0c674a4a6c77b3455beed96e1b9acb4e9f924063d02f16a082d18dddce6846de2197ec1bd4a0caa22b67fb7c92efb8e87d7f3fffe3dca6bd009",
+     "statement": {
+      "claims": {
+       "content_digest": "1bf969eb05f2d1f1997f72e1c2dc2f46db5000e33307e4bf1dafcf3a1307f4f7",
+       "mission_id": "mc_fx",
+       "revision": 1
+      },
+      "issued_at": 1700000003,
+      "kind": "mission_bundle_seal",
+      "nonce": "seal",
+      "protocol": "metacoin-native/v0",
+      "ref_id": "mc_fx",
+      "ref_type": "mission",
+      "schema": "metacoin-native-receipt/v0"
+     }
+    }
+   },
+   "expect_failed_checks": [
+    "seal_root_pinned",
+    "receipt:nr_1"
+   ],
+   "expect_ok": false,
+   "id": "no_root_pinned",
+   "roots": {}
+  }
+ ],
+ "canonical": [
+  {
+   "canonical": "{\"a\":\"x\",\"b\":[1,2,{\"a\":true,\"z\":null}],\"n\":-5}",
+   "digest": "6436df47b781534d8fc0e183464e5c221225c38335cab90b360044c7743405ac",
+   "id": "nested_sorted",
+   "object": {
+    "a": "x",
+    "b": [
+     1,
+     2,
+     {
+      "a": true,
+      "z": null
+     }
+    ],
+    "n": -5
+   }
+  },
+  {
+   "canonical": "{\"s\":\"d\\u00e9j\\u00e0 \\u2603\"}",
+   "digest": "af875072ea5c42c78d088e5adb0d8259913001aa28459aa27546326d0a4e6b11",
+   "id": "unicode_escaped",
+   "object": {
+    "s": "d\u00e9j\u00e0 \u2603"
+   }
+  },
+  {
+   "canonical": "{\"v\":4611686018427387903}",
+   "digest": "a135b146d1a591b33c95bfd9a00c32f36f6a57f89db25c96c2d759944b8a7814",
+   "id": "big_int",
+   "object": {
+    "v": 4611686018427387903
+   }
+  }
+ ],
+ "invalid_json": [
+  {
+   "error": "float_forbidden",
+   "id": "float",
+   "raw": "{\"a\": 1.5}"
+  },
+  {
+   "error": "duplicate_key",
+   "id": "duplicate_key",
+   "raw": "{\"a\": 1, \"a\": 2}"
+  },
+  {
+   "error": "constant_forbidden",
+   "id": "nan",
+   "raw": "{\"a\": NaN}"
+  }
+ ],
+ "keys": {
+  "actor": {
+   "key_id": "k_f1a520c8395070c07b20310a",
+   "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1"
+  },
+  "authority": {
+   "key_id": "k_9d608cf1a9e629dd5a2de070",
+   "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317"
+  },
+  "key_id_rule": "k_ + sha256(public_bytes)[:24]"
+ },
+ "note": "test-only keys derived from public seeds; the client must reproduce every expectation with its own implementation",
+ "signatures": [
+  {
+   "body": {
+    "claims": {
+     "amount": 7,
+     "from": "na_a",
+     "to": "na_b"
+    },
+    "issued_at": 1700000000,
+    "kind": "settlement",
+    "nonce": "abcd",
+    "protocol": "metacoin-native/v0",
+    "ref_id": "pi_fixture",
+    "ref_type": "native_intent",
+    "schema": "metacoin-native-receipt/v0"
+   },
+   "expect": true,
+   "id": "receipt_valid",
+   "message_type": "receipt",
+   "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317",
+   "signature_hex": "6453e67e4c4f35e06a39cc7328d436f9420bdf4b63436d7a5cb14880c9eb301147ea4b4f7268a651be1f3cc489399e561ee02afa19701e254d19737278bb4d0f"
+  },
+  {
+   "body": {
+    "claims": {
+     "amount": 7,
+     "from": "na_a",
+     "to": "na_b"
+    },
+    "issued_at": 1700000000,
+    "kind": "settlement",
+    "nonce": "abcd",
+    "protocol": "metacoin-native/v0",
+    "ref_id": "pi_fixture",
+    "ref_type": "native_intent",
+    "schema": "metacoin-native-receipt/v0"
+   },
+   "expect": false,
+   "id": "receipt_wrong_key",
+   "message_type": "receipt",
+   "public_hex": "c2aa98c755d5cc4466ebfa5570164bfd66dea4c2369a23a05b0a9f1ef64ea241",
+   "signature_hex": "6453e67e4c4f35e06a39cc7328d436f9420bdf4b63436d7a5cb14880c9eb301147ea4b4f7268a651be1f3cc489399e561ee02afa19701e254d19737278bb4d0f"
+  },
+  {
+   "body": {
+    "claims": {
+     "amount": 8,
+     "from": "na_a",
+     "to": "na_b"
+    },
+    "issued_at": 1700000000,
+    "kind": "settlement",
+    "nonce": "abcd",
+    "protocol": "metacoin-native/v0",
+    "ref_id": "pi_fixture",
+    "ref_type": "native_intent",
+    "schema": "metacoin-native-receipt/v0"
+   },
+   "expect": false,
+   "id": "receipt_altered_claim",
+   "message_type": "receipt",
+   "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317",
+   "signature_hex": "6453e67e4c4f35e06a39cc7328d436f9420bdf4b63436d7a5cb14880c9eb301147ea4b4f7268a651be1f3cc489399e561ee02afa19701e254d19737278bb4d0f"
+  },
+  {
+   "body": {
+    "claims": {
+     "amount": 7,
+     "from": "na_a",
+     "to": "na_b"
+    },
+    "issued_at": 1700000000,
+    "kind": "settlement",
+    "nonce": "abcd",
+    "protocol": "metacoin-native/v0",
+    "ref_id": "pi_fixture",
+    "ref_type": "native_intent",
+    "schema": "metacoin-native-receipt/v0"
+   },
+   "expect": false,
+   "id": "receipt_as_intent_type",
+   "message_type": "intent",
+   "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317",
+   "signature_hex": "6453e67e4c4f35e06a39cc7328d436f9420bdf4b63436d7a5cb14880c9eb301147ea4b4f7268a651be1f3cc489399e561ee02afa19701e254d19737278bb4d0f"
+  },
+  {
+   "body": {
+    "claims": {
+     "amount": 7,
+     "from": "na_a",
+     "to": "na_b"
+    },
+    "issued_at": 1700000000,
+    "kind": "settlement",
+    "nonce": "abcd",
+    "protocol": "metacoin-native/v0",
+    "ref_id": "pi_fixture",
+    "ref_type": "native_intent",
+    "schema": "metacoin-native-receipt/v0"
+   },
+   "expect": false,
+   "id": "signature_truncated",
+   "message_type": "receipt",
+   "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317",
+   "signature_hex": "6453e67e4c4f35e06a39cc7328d436f9420bdf4b63436d7a5cb14880c9eb301147ea4b4f7268a651be1f3cc489399e561ee02afa19701e254d19737278bb4d"
+  },
+  {
+   "body": {
+    "claims": {
+     "amount": 7,
+     "from": "na_a",
+     "to": "na_b"
+    },
+    "issued_at": 1700000000,
+    "kind": "settlement",
+    "nonce": "abcd",
+    "protocol": "metacoin-native/v0",
+    "ref_id": "pi_fixture",
+    "ref_type": "native_intent",
+    "schema": "metacoin-native-receipt/v0"
+   },
+   "expect": false,
+   "id": "public_key_not_on_curve",
+   "message_type": "receipt",
+   "public_hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+   "signature_hex": "6453e67e4c4f35e06a39cc7328d436f9420bdf4b63436d7a5cb14880c9eb301147ea4b4f7268a651be1f3cc489399e561ee02afa19701e254d19737278bb4d0f"
+  },
+  {
+   "body": {
+    "actor_account": "na_actor",
+    "amount_ceiling": 7,
+    "asset": "dev:dom-fx:native:MU:0",
+    "authority": "dom-fx",
+    "environment": "dev",
+    "expires_at": 1700000600,
+    "nonce": "1",
+    "obligation_id": "ob_1",
+    "policy_version": "native-policy/v0",
+    "protocol": "metacoin-native/v0",
+    "recipient": "na_b",
+    "request_id": "r1",
+    "type": "intent"
+   },
+   "expect": true,
+   "id": "intent_valid",
+   "message_type": "intent",
+   "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+   "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c"
+  },
+  {
+   "body": {
+    "actor_account": "na_actor",
+    "amount_ceiling": 7,
+    "asset": "dev:dom-fx:native:MU:0",
+    "authority": "dom-fx",
+    "environment": "dev",
+    "expires_at": 1700000600,
+    "nonce": "1",
+    "obligation_id": "ob_1",
+    "policy_version": "native-policy/v0",
+    "protocol": "metacoin-native/v0",
+    "recipient": "na_c",
+    "request_id": "r1",
+    "type": "intent"
+   },
+   "expect": false,
+   "id": "intent_recipient_altered",
+   "message_type": "intent",
+   "public_hex": "089cf7eae33dbbbdc38a3fd6f65aea1a0b73ea39c27d2e1c734b3180193759f1",
+   "signature_hex": "5acc81814f330944121f3062941b656b3d49d9edbe49720d797be061c5328f766c68b16f3bc71f2324d58e33cb074808366df0656f98582f5437ffcdfd677b0c"
+  }
+ ],
+ "v2": [
+  {
+   "body": {
+    "actor_account": "na_actor",
+    "amount_ceiling": 9223372036854775813,
+    "asset": "dev:dom-fx:native:MU:0",
+    "authority": "dom-fx",
+    "environment": "dev",
+    "expires_at": 1700000600,
+    "nonce": "1",
+    "obligation_id": "ob_1",
+    "policy_version": "native-policy/v0",
+    "protocol": "metacoin-native/v0",
+    "recipient": "na_b",
+    "request_id": "r-big",
+    "type": "intent"
+   },
+   "error": "integer_out_of_bounds",
+   "expect": "invalid",
+   "id": "monetary_overflow",
+   "kind": "intent"
+  },
+  {
+   "error": "duplicate_key",
+   "expect": "invalid",
+   "id": "duplicate_keys",
+   "kind": "raw",
+   "raw": "{\"protocol\": \"metacoin-native/v0\", \"protocol\": \"x\"}"
+  },
+  {
+   "body": {
+    "actor_account": "na_actor",
+    "amount_ceiling": 7,
+    "asset": "dev:dom-fx:native:MU:0",
+    "authority": "dom-fx",
+    "environment": "dev",
+    "expires_at": 1700000600,
+    "nonce": "1",
+    "obligation_id": "ob_1",
+    "policy_version": "native-policy/v0",
+    "protocol": "metacoin-native/v0",
+    "recipient": "na_b",
+    "request_id": "r1",
+    "settlement_hint": "pay-anyway",
+    "type": "intent"
+   },
+   "error": "unknown_critical_field",
+   "expect": "invalid",
+   "id": "unknown_critical_field",
+   "kind": "intent"
+  },
+  {
+   "body": {
+    "allocation_id": "nal_fx1",
+    "amount": 20,
+    "asset": "dev:dom-fx:native:MU:0",
+    "commit_digest": "abababababababababababababababababababababababababababababababab",
+    "commit_sequence": 7,
+    "destination_authority": "dom-fy",
+    "environment": "dev",
+    "issued_at": 1700000000,
+    "policy_version": "native-policy/v0",
+    "protocol": "metacoin-native/v0",
+    "recipient_account": "na_b",
+    "source_authority": "dom-fx",
+    "source_epoch": 0,
+    "type": "allocation_certificate"
+   },
+   "error": "epoch_key_mismatch",
+   "expect": "invalid",
+   "id": "stale_authority_epoch",
+   "key_epoch": 1,
+   "kind": "certificate_epoch"
+  },
+  {
+   "body": {
+    "claims": {
+     "amount": 7,
+     "from": "na_a",
+     "to": "na_b"
+    },
+    "issued_at": 1700000000,
+    "kind": "settlement",
+    "nonce": "abcd",
+    "protocol": "metacoin-native/v0",
+    "ref_id": "pi_fixture",
+    "ref_type": "native_intent",
+    "schema": "metacoin-native-receipt/v0"
+   },
+   "error": "key_not_valid",
+   "expect": "invalid",
+   "id": "revoked_signer",
+   "key": {
+    "epoch": 1,
+    "grace_until": 1600000001,
+    "key_id": "k_9d608cf1a9e629dd5a2de070",
+    "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317",
+    "retired_at": 1600000000,
+    "state": "revoked"
+   },
+   "kind": "receipt_key",
+   "public_hex": "596b063d52755bd0e69dd83e35078ae6ffcf454c3a38a82834a4a96b2cc06317",
+   "signature_hex": "6453e67e4c4f35e06a39cc7328d436f9420bdf4b63436d7a5cb14880c9eb301147ea4b4f7268a651be1f3cc489399e561ee02afa19701e254d19737278bb4d0f"
+  },
+  {
+   "allocation": {
+    "amount": 20,
+    "id": "nal_fx1",
+    "returned_amount": 0
+   },
+   "error": "lot_partition",
+   "expect": "invalid",
+   "id": "consumed_claim_parent",
+   "kind": "lots",
+   "lots": [
+    {
+     "amount": 20,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 1,
+     "lot_id": "lot_p",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_b",
+     "parent_lot": null,
+     "status": "spent",
+     "transferred": 0
+    },
+    {
+     "amount": 7,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 2,
+     "lot_id": "lot_c2",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_c",
+     "parent_lot": "lot_p",
+     "status": "active",
+     "transferred": 1
+    },
+    {
+     "amount": 13,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 3,
+     "lot_id": "lot_bad",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_d",
+     "parent_lot": "lot_p",
+     "status": "active",
+     "transferred": 1
+    }
+   ],
+   "note": "a child issued from an already spent 20-unit parent: the lots sum to 40 against an allocation of 20"
+  },
+  {
+   "allocation": {
+    "amount": 20,
+    "id": "nal_fx1",
+    "returned_amount": 13
+   },
+   "expect": "valid",
+   "id": "valid_lot_partition",
+   "kind": "lots",
+   "lots": [
+    {
+     "amount": 13,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 1,
+     "lot_id": "lot_p",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_b",
+     "parent_lot": null,
+     "status": "retired",
+     "transferred": 0
+    },
+    {
+     "amount": 7,
+     "asset": "dev:dom-fx:native:MU:0",
+     "created_sequence": 2,
+     "lot_id": "lot_c2",
+     "origin_allocation": "nal_fx1",
+     "owner_account": "na_c",
+     "parent_lot": "lot_p",
+     "status": "active",
+     "transferred": 1
+    }
+   ],
+   "note": "a split reduces the parent in place (13 retired) and issues the remainder (7, transferred)"
+  },
+  {
+   "commitments": [],
+   "error": "units_per_slot_second",
+   "expect": "invalid",
+   "id": "malformed_resource_units",
+   "kind": "pool",
+   "pool": {
+    "id": "rp_x",
+    "kind": "compute",
+    "resolution_seconds": 1,
+    "schedule": [
+     {
+      "capacity": 1,
+      "end": 60,
+      "start": 0
+     }
+    ],
+    "slot_unit": "cpu_slot",
+    "units_per_slot_second": 0
+   }
+  },
+  {
+   "commitments": [
+    {
+     "end": 30,
+     "id": "pc1",
+     "reservation_id": "rr1",
+     "slots": 1,
+     "start": 0,
+     "state": "reserved"
+    },
+    {
+     "end": 40,
+     "id": "pc2",
+     "reservation_id": "rr2",
+     "slots": 1,
+     "start": 20,
+     "state": "active"
+    }
+   ],
+   "error": "pool_overlap",
+   "expect": "invalid",
+   "id": "pool_oversold",
+   "kind": "pool",
+   "pool": {
+    "id": "rp_y",
+    "kind": "contact",
+    "resolution_seconds": 1,
+    "schedule": [
+     {
+      "capacity": 1,
+      "end": 60,
+      "start": 0
+     }
+    ],
+    "slot_unit": "channel",
+    "units_per_slot_second": 1
+   }
+  },
+  {
+   "commitments": [
+    {
+     "end": 30,
+     "id": "pc1",
+     "reservation_id": "rr1",
+     "slots": 1,
+     "start": 0,
+     "state": "reserved"
+    },
+    {
+     "end": 60,
+     "id": "pc2",
+     "reservation_id": "rr2",
+     "slots": 1,
+     "start": 30,
+     "state": "reserved"
+    }
+   ],
+   "expect": "valid",
+   "id": "pool_touching_ok",
+   "kind": "pool",
+   "pool": {
+    "id": "rp_z",
+    "kind": "contact",
+    "resolution_seconds": 1,
+    "schedule": [
+     {
+      "capacity": 1,
+      "end": 60,
+      "start": 0
+     }
+    ],
+    "slot_unit": "channel",
+    "units_per_slot_second": 1
+   }
+  }
+ ],
+ "version": "metacoin-provider-conformance/v2"
+}

@@ -175,7 +175,8 @@ class Evidence:
         t, terms = _terms(db, award['terms_id'])
         party = self._party(db, principal, award)
         job = db.execute('SELECT * FROM jobs WHERE id=?', (ms['job_id'],)).fetchone() if ms['job_id'] else None
-        ev = acceptance_mod.evaluate(db, terms, key, job, provider_identity=party['provider_row']['principal_id'], provider_execution=json.loads(party['provider_row']['execution_json'])['type'])
+        offer_row = db.execute('SELECT price_amount FROM work_offers WHERE id=?', (award['offer_id'],)).fetchone()
+        ev = acceptance_mod.evaluate(db, terms, key, job, provider_identity=party['provider_row']['principal_id'], provider_execution=json.loads(party['provider_row']['execution_json'])['type'], price_cap=offer_row['price_amount'] if offer_row else None)
         if not (party['requester'] or party['reviewer'] or principal.can('work:award')):
             ev = dict(ev, trace=[{k: v for k, v in x.items() if k != 'detail'} for x in ev['trace']])
         return dict(ev, award_id=aid, milestone_state=ms['state'], current_decision_id=ms['decision_id'], entitlement_id=ms['entitlement_id'])

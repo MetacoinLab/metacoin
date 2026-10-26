@@ -1,0 +1,12 @@
+# Defects found and fixed during the order (chronological, from the session transcript)
+
+- Signer crash test prepared nonce 2 before nonce 1 settled (test ordering); grace boundary used `>` instead of `>=`; registration ignored the signer's grace (now carried in the signed registration); exposure test amount inside the ceiling.
+- Witness: `rollback_check` returned early when the watermark file was missing (now consults the witness); reconcile ignored the witness sequence; a lost return message after a crash is reconstructed on replay; `economic_ids` listed envelope ids instead of allocation ids; `conflicting_sequence` compared the local import sequence instead of the certificate's source sequence (latent bug fixed).
+- Market: reservation INSERT had 18 placeholders for 19 columns; CLI storage upload passed nonexistent kwargs.
+- Controller: candidates were performed in graph order, so a new request could open before an incurred settlement (now settlement and decisions have priority); amendments were refused while a mission was `running`; `followon` depended on `settle` so earn-then-buy could not be observed before settlement (now depends on the accepted work); `terrain_delivery` never settled the acquisition milestone (added `settle_acquire`); missed windows left a dead reservation (added `release_missed_reservation` with attempt-numbered request ids); the budget ledger ignored previous reservations.
+- Planner: none in the kernel (600 random fixtures agree with the oracle); mission-level planning first read budgets after other journeys drained the requester (harness funding fixed).
+- Provider client: the executor expected full lunar inputs (added `lunar task` subcommand); bundle bookkeeping flagged negative categories on a journal subset (now reported as not decidable from a subset); offline intent verification failed after key rotation (exports now carry the account key history; verifiers try the named key, the current key and the history).
+- Harness: `decide` returned a pending result over real processes (advance now waits for a decision); supplier/verifier headers swapped in the mission unit tests; the demonstration's blackout check misread the courier's refusal shape; the cross-domain storage offer had to be priced in the exporting domain's asset.
+- Deployment: `deploy_local` first printed next steps with the wrong CLI argument order (global options precede the subcommand).
+
+Open (not defects, limits): see FEATURE_LEDGER.json `unresolved_limitations`, HANDOFF.md and the BPv7 probe.

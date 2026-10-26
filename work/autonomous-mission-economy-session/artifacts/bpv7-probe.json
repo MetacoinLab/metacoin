@@ -1,0 +1,20 @@
+{
+ "checked_at": 1792728561,
+ "binaries": {
+  "dtnd": null,
+  "dtn7": null,
+  "ud3tn": null,
+  "aap2-client": null,
+  "cargo": null,
+  "ion": null,
+  "bpsink": null
+ },
+ "pip": {
+  "ud3tn-utils": "ud3tn-utils (0.15.1)",
+  "py-dtn7": "not found",
+  "dtn7": "not found",
+  "pydtn": "pydtn (0.0.0)",
+  "bp7": "not found"
+ },
+ "conclusion": "No BPv7 (RFC 9171) daemon is installable here: ud3tn-utils is a client library whose daemon (\u00b5D3TN, C) is not packaged; dtn7 (Rust) needs cargo which is absent; ION is not available. The envelope/bundle layer stays transport-agnostic; BPv7 interoperability is unverified and reported as such (no fabricated result)."
+}

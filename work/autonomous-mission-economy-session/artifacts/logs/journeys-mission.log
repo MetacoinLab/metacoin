@@ -1,0 +1,40 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+{"passed": 36, "failed": 0, "blocked": 1, "skipped": 0, "total": 37, "revision": "809b95eb974337c934dd78c7e736678a3bf1c83c"}
+1 passed Recover baseline and reproduce the distinct-recipient 80-unit accounting example.
+2 passed Complete the native economic cycle with x402 disabled and facilitator unavailable.
+3 passed Enroll an actor through the external signer; server has no configured actor private key.
+4 passed Refuse altered recipient, amount, domain and obligation before signing.
+5 passed Crash and restart the signer around signature persistence without additional exposure.
+6 passed Rotate a signer, verify historical receipts and refuse unauthorized new old-key intents.
+7 passed Refuse delegation that expands recipient scope or aggregate authority.
+8 passed Race two buyers for one resource slot; capacity and funds remain consistent.
+9 passed Refuse acceptance of a stale resource quote without silently repricing it.
+10 passed Deliver actual compute work and settle its measured contract once.
+11 passed Deliver storage and emulated contact capacity with correctly labelled evidence.
+12 passed Cancel uncommitted resource reservations and preserve committed obligations.
+13 passed Execute a multi-milestone mission with frozen terms and linked input versions.
+14 passed Settle a partial useful delivery without paying an unfinished mandatory milestone.
+15 passed Accept and pay a valid negative result under an explicit policy.
+16 passed Refuse unauthorized mutation of awarded terms; accept an authorized amendment.
+17 passed Refuse a machine purchase before earnings; allow it from settled earnings afterward.
+18 passed Refuse spending unsettled anticipated revenue and preserve minimum cash reserve.
+19 passed Reject an unsafe model-proposed action through the deterministic grant validator.
+20 passed Continue during blackout within preallocated authority; wait when exhausted.
+21 passed Apply learned revocation to new work while retaining already incurred obligations.
+22 passed Match the planner to an exhaustive oracle on bounded fixtures.
+23 passed Schedule competing missions without overcommitting shared resources.
+24 passed Replan after a missed contact window without duplicating payments or reservations.
+25 passed Return an explicit feasibility failure when reserve/deadline constraints conflict.
+0 passed Connected mission across two domains with signers: terrain analysis on pinned public data,
+26 passed Subdivide an export and prove disjoint identities and exact backing conservation.
+27 passed Spend one allocation and return a separate unused allocation safely.
+28 passed Refuse unsupported return of spent or mixed provenance.
+29 passed Crash at export, import, retirement, return and acknowledgment boundaries; replay safely.
+30 passed Deliver duplicate/reordered/expired bundles without duplicate settlement or timeout refund
+31 passed Restore stale state and quarantine against a signed external checkpoint.
+32 passed Detect contradictory authority histories; expose the actual safety limitation.
+33 passed Install a clean provider client and complete an offer-to-receipt cycle over public APIs.
+34 passed Verify a portable mission bundle offline; reject tampered evidence and accounting.
+35 passed Run the connected mission through the console, including blackout and recovery states.
+36 blocked Reproduce the packaged candidate in a fresh environment and verify migrations on a prior-s

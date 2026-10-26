@@ -15,6 +15,7 @@ from .models import service as model_svc
 from .knowledge import retrieval as retrieval_mod, engine as knowledge_engine
 from . import statements as statements_mod, verification as verification_mod
 from .errors import ServiceError, from_exception
+from .db import now
 from .api import SENSITIVE_HEADERS, model_host_of, preloaded_generation_host
 
 _env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(Path(__file__).parent / 'templates')), autoescape=True)
@@ -67,10 +68,14 @@ def mount(app, svc):
         return await run_in_threadpool(page_sync, request, fn, mutating)
 
     def page_sync(request, fn, mutating=False):
-        """Run fn(db, principal) inside one transaction; render errors as pages."""
+        """Run fn(db, principal) inside one transaction; render errors as pages. A mutating request after the session expired is
+        never performed: the login page shows the unsent form as a draft so nothing is lost and nothing (paid or not) is resubmitted."""
         with svc.db.tx() as db:
             principal = session_principal(request, db)
             if principal is None:
+                if mutating:
+                    draft = {k: v for k, v in (getattr(request.state, 'form', None) or {}).items() if k != 'csrf' and not k.lower().startswith('token')}
+                    return render(request, 'login.html', status=401, expired='1', principal=None, error=None, draft={'action': request.url.path, 'fields': draft, 'note': 'your session expired before this form was sent; nothing was submitted or paid; sign in and re-enter the values below if you still want to perform the action'})
                 return RedirectResponse('/console/login?expired=1', status_code=303)
             try:
                 if mutating:
@@ -98,7 +103,7 @@ def mount(app, svc):
 
     @app.get('/console/login', response_class=HTMLResponse)
     async def login_page(request: Request):
-        return render(request, 'login.html', expired=request.query_params.get('expired'), principal=None, error=None)
+        return render(request, 'login.html', expired=request.query_params.get('expired'), principal=None, error=None, draft=None)
 
     @app.post('/console/login', response_class=HTMLResponse)
     async def login(request: Request):
@@ -112,7 +117,7 @@ def mount(app, svc):
                 return auth.create_session(db, principal.id, settings.limits['session_seconds'])[0]
         sid = await run_in_threadpool(do)
         if sid is None:
-            return render(request, 'login.html', status=401, expired=None, principal=None, error='credential not accepted')
+            return render(request, 'login.html', status=401, expired=None, principal=None, error='credential not accepted', draft=None)
         response = RedirectResponse('/console/', status_code=303)
         response.set_cookie('metacoin_session', sid, httponly=True, samesite='strict', secure=not settings.dev_http_loopback,
                             max_age=settings.limits['session_seconds'], path='/')
@@ -750,6 +755,18 @@ def mount(app, svc):
             except ServiceError:
                 evals[m['key']] = None
         ents = [E.evidence.entitlement_view(db, p, e['id']) for e in db.execute('SELECT id FROM work_entitlements WHERE award_id=? ORDER BY rowid', (aid,)).fetchall()]
+        assurance, delivery_spec = {}, {}
+        for m in a['milestones']:
+            try:
+                assurance[m['key']] = svc.decisions.assurance_preview(db, p, aid, m['key'])
+            except ServiceError:
+                assurance[m['key']] = None
+            if a['kind'] == 'evidence_acquisition':
+                try:
+                    delivery_spec[m['key']] = svc.decisions.delivery_spec(db, p, aid, m['key'])
+                except ServiceError:
+                    delivery_spec[m['key']] = None
+        extra = dict(extra, assurance=assurance, delivery_spec=delivery_spec)
         intents = [E.money.intent_view(db, p, i['id']) for i in db.execute("SELECT id FROM payment_intents WHERE entitlement_id IN (SELECT id FROM work_entitlements WHERE award_id=?) ORDER BY rowid", (aid,)).fetchall()]
         events = history.for_object(db, p.workspace, 'work_award', aid)
         disputes = E.evidence.list_disputes(db, p, aid)
@@ -791,6 +808,8 @@ def mount(app, svc):
             elif action == 'dispute':
                 d = E.evidence.open_dispute(db, p, aid, key, {'claim': f.get('claim', ''), 'scope': f.get('scope', 'acceptance')})
                 return RedirectResponse('/console/work/disputes/' + d['id'], status_code=303)
+            elif action == 'deliver':
+                svc.decisions.deliver(db, p, aid, key, {'delivery': json.loads(f.get('delivery') or '{}')})
             elif action == 'ack':
                 E.board.acknowledge(db, p, aid)
             elif action == 'close':
@@ -831,6 +850,332 @@ def mount(app, svc):
         from .economy import provider_history
         return await page(request, lambda db, p: render(request, 'work_provider.html', principal=p, pv=E.providers.view(db, p, E.providers.row(db, p, prid)), h=provider_history.build(db, p, E.providers, prid), pf=provider_history.portfolio_view(db, p, E.providers, prid)))
 
+    # ---- native protocol (order 2026-10-22 §17): domain, machine account, settlement, treasury, mission, product, recovery ------
+    N = svc.native
+
+    @app.get('/console/native', response_class=HTMLResponse)
+    async def native_overview(request: Request):
+        def fn(db, p):
+            d = N.domain_view(db, p)
+            return render(request, 'native_overview.html', principal=p, d=d, accounts=N.accounts(db, p), audit=N.audit(db, p, None), allocations=N.allocations(db, p)['items'])
+        return await page(request, fn)
+
+    @app.get('/console/native/accounts/{aid}', response_class=HTMLResponse)
+    async def native_account_page(request: Request, aid: str):
+        def fn(db, p):
+            a = N.account_view(db, p, aid, None)
+            return render(request, 'native_account.html', principal=p, a=a, mine=(a.get('principal_id') == p.id) or p.can('native:admin'), intents=N.intents(db, p, aid), obligations=N.obligations(db, p, aid), now=now(), sim=None, keys=N.keys_view(db, p, aid))
+        return await page(request, fn)
+
+    @app.post('/console/native/accounts/{aid}/transfer', response_class=HTMLResponse)
+    async def native_account_transfer(request: Request, aid: str):
+        f = await form(request)
+        def fn(db, p):
+            body = {'from_account': aid, 'to_account': f.get('to_account'), 'amount': int(f.get('amount') or 0), 'request_id': f.get('request_id') or ('console-' + str(now()))}
+            if f.get('commit'):
+                N.transfer(db, p, body)
+                return RedirectResponse('/console/native/accounts/' + aid, status_code=303)
+            sim = N.transfer_simulate(db, p, body); a = N.account_view(db, p, aid, None)
+            return render(request, 'native_account.html', principal=p, a=a, mine=True, intents=N.intents(db, p, aid), obligations=N.obligations(db, p, aid), now=now(), sim=sim)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/native/settlement', response_class=HTMLResponse)
+    async def native_settlement_page(request: Request):
+        def fn(db, p):
+            from .native import protocol as NP
+            allocs = N.allocations(db, p)['items']; aid = request.query_params.get('allocation')
+            alloc = next((a for a in allocs if a['id'] == aid), None)
+            settled = [i for i in N.intents(db, p, None) if i['state'] == 'settled']
+            pending = [a for a in allocs if a['state'] not in ('acknowledged', 'returned')]
+            queued = db.execute("SELECT COUNT(*) FROM native_envelopes WHERE workspace=? AND direction='out' AND state='queued'", (p.workspace,)).fetchone()[0]
+            return render(request, 'native_settlement.html', principal=p, d=N.domain_view(db, p), fin=NP.FINALITY, alloc=alloc, pending=pending, settled=settled, queued=queued)
+        return await page(request, fn)
+
+    @app.post('/console/native/allocations/{aid}/return', response_class=HTMLResponse)
+    async def native_allocation_return(request: Request, aid: str):
+        await form(request)
+        def fn(db, p):
+            N.return_request(db, p, {'allocation_id': aid}); return RedirectResponse('/console/native/settlement?allocation=' + aid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/native/connectivity', response_class=HTMLResponse)
+    async def native_connectivity(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            N.set_connectivity(db, p, f.get('state')); return RedirectResponse('/console/native/settlement', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/native/treasury', response_class=HTMLResponse)
+    async def native_treasury_page(request: Request):
+        def fn(db, p):
+            asset = N.default_asset(db, p.workspace); t = E.treasury.view(db, p, asset); tre = N.system_account(db, p.workspace, 'treasury')
+            intents = N.intents(db, p, None)
+            fees = [i for i in intents if i['recipient'] == tre and i['state'] == 'settled']; payouts = [i for i in intents if i['actor_account'] == tre and i['state'] == 'settled']
+            return render(request, 'native_treasury.html', principal=p, t=t, fees=fees, payouts=payouts)
+        return await page(request, fn)
+
+    @app.get('/console/native/missions', response_class=HTMLResponse)
+    async def native_missions(request: Request):
+        def fn(db, p):
+            awards = E.board.list_awards(db, p)
+            return render(request, 'work_overview.html', principal=p, requests=E.board.list_requests(db, p), awards=awards, providers=E.providers.list(db, p), disputes=E.evidence.list_disputes(db, p), missions=E.missions.list_portfolios(db, p),
+                          notifications=[], counts={}, waiting=[], terms=E.terms.list(db, p), templates=__import__('metacoin_service.economy.terms', fromlist=['TEMPLATES']).TEMPLATES)
+        return await page(request, fn)
+
+    @app.get('/console/native/missions/{aid}', response_class=HTMLResponse)
+    async def native_mission_page(request: Request, aid: str):
+        def fn(db, p):
+            arow = db.execute('SELECT * FROM work_awards WHERE id=? AND workspace=?', (aid, p.workspace)).fetchone()
+            if arow is None:
+                raise ServiceError('NOT_FOUND', 'award')
+            a = E.board.award_view(db, p, arow); t = json.loads(db.execute('SELECT terms_json FROM work_terms WHERE id=?', (a['terms_id'],)).fetchone()['terms_json'])
+            prov = E.providers.view(db, p, E.providers.row(db, p, a['provider_id'])); offer = db.execute('SELECT statement_json FROM work_offers WHERE id=?', (a['offer_id'],)).fetchone()
+            claims = json.loads(offer['statement_json']).get('resource_claims') if offer else None
+            from .economy import terms as terms_mod
+            price = json.loads(offer['statement_json'])['price']['amount'] if offer else None; fee = terms_mod.fee_amount(t['payment'], price or 0)
+            nres = None
+            if terms_mod.is_native_asset(t['payment']['asset']):
+                payer = N._award_payer(db, db.execute('SELECT * FROM work_awards WHERE id=?', (aid,)).fetchone(), t); nres = {'payer_account': payer, 'reserved': a['reserved']}
+            jobs = [m.get('job_id') for m in a['milestones'] if m.get('job_id')]
+            pj = next((j for j in jobs if db.execute("SELECT 1 FROM jobs WHERE id=? AND kind IN ('terrain_tile','route_feasibility','scenario_pack')", (j,)).fetchone()), None)
+            return render(request, 'native_mission.html', principal=p, a=a, terms=t, prov=prov, offer_claims=claims, price=price, fee=fee, native_reservation=nres, product_job=pj)
+        return await page(request, fn)
+
+    @app.get('/console/lunar', response_class=HTMLResponse)
+    async def lunar_products_page(request: Request):
+        def fn(db, p):
+            return render(request, 'lunar_products.html', principal=p, items=svc.lunar.list(db, p), sources=svc.lunar.sources(db, p))
+        return await page(request, fn)
+
+    @app.get('/console/lunar/{jid}', response_class=HTMLResponse)
+    async def lunar_product_page(request: Request, jid: str):
+        def fn(db, p):
+            return render(request, 'lunar_product.html', principal=p, p=svc.lunar.view(db, p, jid))
+        return await page(request, fn)
+
+    @app.get('/console/native/recovery', response_class=HTMLResponse)
+    async def native_recovery_page(request: Request):
+        def fn(db, p):
+            return render(request, 'native_recovery.html', principal=p, r=N.recovery_view(db, p), report=None)
+        return await page(request, fn)
+
+    @app.post('/console/native/recovery/reconcile', response_class=HTMLResponse)
+    async def native_recovery_reconcile(request: Request):
+        await form(request)
+        def fn(db, p):
+            rep = N.recovery_reconcile(db, p, {}); return render(request, 'native_recovery.html', principal=p, r=N.recovery_view(db, p), report=rep)
+        return await page(request, fn, mutating=True)
+
+    # ---- resource market (order 2026-10-23 group B) -------------------------------------------------------------------------------
+    MK = svc.market
+
+    @app.get('/console/resources', response_class=HTMLResponse)
+    async def resources_page(request: Request):
+        def fn(db, p):
+            return render(request, 'native_market.html', principal=p, m=MK.market_view(db, p), now=now(), quote=None, refusal=None)
+        return await page(request, fn)
+
+    @app.post('/console/resources/reserve', response_class=HTMLResponse)
+    async def resources_reserve_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            oid, ver = (f.get('offer_id') or ':').split(':'); q = int(f.get('quantity') or 0)
+            if f.get('preview'):
+                return render(request, 'native_market.html', principal=p, m=MK.market_view(db, p), now=now(), quote=MK.quote(db, p, {'offer_id': oid, 'quantity': q}), refusal=None)
+            try:
+                r = MK.reserve(db, p, {'offer_id': oid, 'offer_version': int(ver or 0), 'quantity': q, 'request_id': f.get('request_id') or ('console-' + str(now()))})
+            except ServiceError as exc:
+                db.execute('ROLLBACK'); db.execute('BEGIN IMMEDIATE')
+                return render(request, 'native_market.html', principal=p, m=MK.market_view(db, p), now=now(), quote=None, refusal={'code': exc.code, 'detail': exc.detail})
+            return RedirectResponse('/console/resources/reservations/' + r['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/resources/offers', response_class=HTMLResponse)
+    async def resources_offer_form(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            t = now(); MK.publish(db, p, {'kind': f.get('kind'), 'resource_id': f.get('resource_id') or 'unit-1', 'capacity': int(f.get('capacity') or 1), 'price_per_unit': int(f.get('price_per_unit') or 0), 'window_start': t, 'window_end': t + 3600 * int(f.get('hours') or 24)})
+            return RedirectResponse('/console/resources', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/resources/reservations/{rid}', response_class=HTMLResponse)
+    async def resources_reservation_page(request: Request, rid: str):
+        def fn(db, p):
+            r = MK.reservation_view(db, p, rid); acct = N.account_of(db, p, create=False); mine = acct['id'] if acct else None
+            is_buyer, is_prov = mine == r['buyer_account'], mine == r['provider_account']; actions = []; disabled = {}
+            if r['state'] == 'reserved':
+                (actions if is_prov else disabled).__setitem__('activate', 'provider only') if not is_prov else actions.append('activate')
+                (actions.append('cancel') if (is_buyer or is_prov) else disabled.__setitem__('cancel', 'parties only'))
+            elif r['state'] == 'active':
+                (actions.append('deliver') if is_prov else disabled.__setitem__('deliver', 'provider only')); (actions.append('cancel') if (is_buyer or is_prov) else None)
+            elif r['state'] == 'delivered':
+                (actions.append('settle') if (is_buyer or is_prov) else disabled.__setitem__('settle', 'parties only'))
+            else:
+                disabled['any'] = 'terminal state %s' % r['state']
+            return render(request, 'native_reservation.html', principal=p, r=r, actions=actions, disabled=disabled)
+        return await page(request, fn)
+
+    @app.post('/console/resources/reservations/{rid}/action', response_class=HTMLResponse)
+    async def resources_reservation_action_form(request: Request, rid: str):
+        f = await form(request)
+        def fn(db, p):
+            a = f.get('action'); {'activate': lambda: MK.activate(db, p, rid), 'deliver': lambda: MK.deliver(db, p, rid, {'bytes': 8192}), 'settle': lambda: MK.settle(db, p, rid), 'cancel': lambda: MK.cancel(db, p, rid, {'reason': 'console'})}[a]()
+            return RedirectResponse('/console/resources/reservations/' + rid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    # ---- mission contracts (order 2026-10-23 groups C, D) --------------------------------------------------------------------------
+    MS, CT = svc.missions, svc.controller
+
+    @app.get('/console/operator', response_class=HTMLResponse)
+    async def operator_page(request: Request):
+        def fn(db, p):
+            return render(request, 'native_operator.html', principal=p, o=svc.operator.view(db, p, None))
+        return await page(request, fn)
+
+    # ---- independent machine network pages (order 2026-10-23 group J) ----------------------------------------------------------------
+    @app.get('/console/providers', response_class=HTMLResponse)
+    async def providers_page(request: Request):
+        def fn(db, p):
+            B = svc.economy.providers; rows = db.execute('SELECT id FROM providers WHERE workspace=? ORDER BY created_at', (p.workspace,)).fetchall()
+            items = []
+            for r in rows:
+                try:
+                    items.append(B.identity_view(db, p, r['id']))
+                except Exception:
+                    pass
+            cap = svc_capabilities(db, p)
+            return render(request, 'network_providers.html', principal=p, items=items, signer=cap.get('signer'), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.get('/console/pools', response_class=HTMLResponse)
+    async def pools_page(request: Request):
+        def fn(db, p):
+            return render(request, 'network_pools.html', principal=p, pools=svc.pools.list(db, p), domain=svc.native.domain_view(db, p), now=now())
+        return await page(request, fn)
+
+    @app.post('/console/pools', response_class=HTMLResponse)
+    async def pools_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            t = now(); sched = [{'start': t, 'end': t + int(f.get('hours') or 2) * 3600, 'capacity': int(f.get('capacity') or 1)}]
+            pool = svc.pools.create(db, p, {'kind': f.get('kind'), 'label': f.get('label') or 'pool', 'slot_unit': f.get('slot_unit') or 'slot', 'units_per_slot_second': int(f.get('units_per_slot_second') or 1), 'schedule': sched})
+            if f.get('publish_offer'):
+                svc.market.publish(db, p, {'kind': f.get('kind'), 'resource_id': f.get('label') or 'pool', 'capacity': int(f.get('offer_capacity') or 1000), 'price_per_unit': int(f.get('price') or 1), 'window_start': t, 'window_end': sched[0]['end'], 'pool_id': pool['id']})
+            return RedirectResponse('/console/pools', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/subcontracts/{sid}', response_class=HTMLResponse)
+    async def subcontract_page(request: Request, sid: str):
+        def fn(db, p):
+            return render(request, 'network_subcontract.html', principal=p, s=svc.subcontracts.view(db, p, sid), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.post('/console/subcontracts/{sid}/action', response_class=HTMLResponse)
+    async def subcontract_action_form(request: Request, sid: str):
+        f = await form(request)
+        def fn(db, p):
+            a = f.get('action')
+            {'step': lambda: svc.subcontracts.step(db, p, sid), 'prefund': lambda: svc.subcontracts.prefund_submit(db, p, sid, {}), 'return-unused': lambda: svc.subcontracts.return_unused(db, p, sid), 'cancel': lambda: svc.subcontracts.cancel(db, p, sid)}[a]()
+            return RedirectResponse('/console/subcontracts/' + sid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/products', response_class=HTMLResponse)
+    async def products_page(request: Request):
+        def fn(db, p):
+            return render(request, 'network_products.html', principal=p, items=svc.products.list(db, p, 'all'), mine=svc.products.my_entitlements(db, p), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.post('/console/products/{pid}/purchase', response_class=HTMLResponse)
+    async def product_purchase_form(request: Request, pid: str):
+        f = await form(request)
+        def fn(db, p):
+            svc.products.purchase(db, p, pid, {'request_id': f.get('request_id') or ('console-' + str(now()))}); return RedirectResponse('/console/products', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/relay', response_class=HTMLResponse)
+    async def relay_page(request: Request):
+        def fn(db, p):
+            return render(request, 'network_relay.html', principal=p, routes=svc.relay.list(db, p), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.get('/console/missions/{mid}/continuity', response_class=HTMLResponse)
+    async def continuity_page(request: Request, mid: str):
+        def fn(db, p):
+            return render(request, 'network_continuity.html', principal=p, c=svc.controller.continuity(db, p, mid), domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    @app.post('/console/missions/{mid}/takeover', response_class=HTMLResponse)
+    async def takeover_form(request: Request, mid: str):
+        f = await form(request)
+        def fn(db, p):
+            svc.controller.takeover(db, p, mid, {'holder': f.get('holder') or ('console-' + p.name), 'reason': f.get('reason') or 'console takeover'}); return RedirectResponse('/console/missions/%s/continuity' % mid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/portfolio', response_class=HTMLResponse)
+    async def portfolio_page(request: Request):
+        def fn(db, p):
+            ids = [x for x in (request.query_params.get('missions') or '').split(',') if x]; plan = None
+            if ids:
+                plan = svc.portfolio.plan(db, p, {'mission_ids': ids, 'planner': request.query_params.get('planner', 'improved')})
+            return render(request, 'network_portfolio.html', principal=p, missions=svc.missions.list(db, p), plan=plan, selected=ids, domain=svc.native.domain_view(db, p))
+        return await page(request, fn)
+
+    def svc_capabilities(db, p):
+        from .api import capability_table
+        try:
+            return capability_table(svc, db)
+        except Exception:
+            return {}
+
+    @app.get('/console/missions', response_class=HTMLResponse)
+    async def missions_page(request: Request):
+        def fn(db, p):
+            from .native import mission_templates as MT
+            return render(request, 'native_missions.html', principal=p, items=MS.list(db, p), templates=MT.TEMPLATES)
+        return await page(request, fn)
+
+    @app.post('/console/missions', response_class=HTMLResponse)
+    async def missions_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            pol = {'price': int(f.get('price') or 40), 'min_cash_reserve': int(f.get('min_cash_reserve') or 0)}
+            if f.get('verifier_pay_to'):
+                pol['verifier_pay_to'] = f['verifier_pay_to']; pol['verifier'] = 3
+            else:
+                pol['verifier'] = 0
+            m = MS.create(db, p, {'title': f.get('template'), 'template': f.get('template'), 'policy': pol}); MS.freeze(db, p, m['id'])
+            return RedirectResponse('/console/missions/' + m['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/missions/{mid}', response_class=HTMLResponse)
+    async def mission_page(request: Request, mid: str):
+        def fn(db, p):
+            m = MS.view(db, p, mid)
+            try:
+                ex = CT.explain(db, p, mid, observe=p.can('native:admin'))
+            except ServiceError as exc:
+                ex = {'context': {}, 'actions': [], 'stop_reason': exc.code}
+            return render(request, 'native_mission_detail.html', principal=p, m=m, ledger=MS.budget_ledger(db, p, mid), ex=ex)
+        return await page(request, fn)
+
+    @app.post('/console/missions/{mid}/action', response_class=HTMLResponse)
+    async def mission_action_form(request: Request, mid: str):
+        f = await form(request)
+        def fn(db, p):
+            a = f.get('action')
+            if a == 'step':
+                CT.step(db, p, mid)
+            elif a == 'run':
+                CT.run(db, p, mid, 8)
+            elif a == 'pause':
+                MS.pause(db, p, mid, {'reason': f.get('reason') or 'operator pause'})
+            elif a == 'resume':
+                MS.resume(db, p, mid)
+            elif a == 'amend':
+                MS.amend(db, p, mid, {'milestones': json.loads(f.get('milestones') or '[]'), 'reason': f.get('reason') or 'replan'})
+            return RedirectResponse('/console/missions/' + mid, status_code=303)
+        return await page(request, fn, mutating=True)
+
     @app.get('/console/work/reconciliation', response_class=HTMLResponse)
     async def work_reconciliation_page(request: Request):
         return await page(request, lambda db, p: render(request, 'work_reconciliation.html', principal=p, v=E.money.pending_observations(db, p), exposure=E.money.exposure(db, p)))
@@ -851,6 +1196,124 @@ def mount(app, svc):
             else:
                 raise ServiceError('VALIDATION', {'code': 'action', 'allowed': ['reconcile', 'renew', 'submit']})
             return RedirectResponse('/console/work/reconciliation', status_code=303)
+        return await page(request, fn, mutating=True)
+
+    # ---- decision evidence (order of 2026-10-22) --------------------------------------------------------------------------------
+    @app.get('/console/decisions', response_class=HTMLResponse)
+    async def decisions_overview(request: Request):
+        def fn(db, p):
+            p.require('job:read')
+            D, S, P = svc.decisions, svc.sampling, svc.portfolios
+            ctx = {'decisions': D.list(db, p), 'plans': D.plan_list(db, p), 'sampling': S.list(db, p), 'portfolios': P.list(db, p), 'campaigns': P.list_campaigns(db, p),
+                   'example': json.dumps(__import__('metacoin_service.decision.operations', fromlist=['EXAMPLE_ANALYSIS']).EXAMPLE_ANALYSIS, indent=1) if hasattr(__import__('metacoin_service.decision.operations', fromlist=['x']), 'EXAMPLE_ANALYSIS') else '{}'}
+            return render(request, 'decisions.html', principal=p, **ctx)
+        return await page(request, fn)
+
+    @app.post('/console/decisions/analyze', response_class=HTMLResponse)
+    async def decisions_analyze(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            out = svc.decisions.analyze(db, p, {'inputs': json.loads(f.get('inputs') or '{}'), 'title': f.get('title') or 'decision observability'})
+            return RedirectResponse('/console/decisions/' + out['job_id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/decisions/{jid}', response_class=HTMLResponse)
+    async def decision_page(request: Request, jid: str):
+        def fn(db, p):
+            D = svc.decisions
+            v = D.view(db, p, jid)
+            witnesses = None
+            try:
+                witnesses = D.witnesses(db, p, jid) if v['state'] == 'succeeded' else None
+            except ServiceError:
+                witnesses = None
+            menu_example = json.dumps([{'id': 'cell_1_sensor', 'rows': [[1, 0]], 'noise': [2], 'output_units': ['mJ'], 'cost': 3, 'quote_expires_at': now() + 3600, 'execution_modes': ['local_worker']}], indent=1)
+            return render(request, 'decision.html', principal=p, v=v, witnesses=witnesses, menu_example=menu_example, preview=request.query_params.get('preview'))
+        return await page(request, fn)
+
+    @app.post('/console/decisions/{jid}/{action}', response_class=HTMLResponse)
+    async def decision_action(request: Request, jid: str, action: str):
+        f = await form(request)
+        def fn(db, p):
+            D = svc.decisions
+            if action in ('preview', 'plan'):
+                body = {'analysis_job_id': jid, 'menu': json.loads(f.get('menu') or '[]'), 'budget': int(f.get('budget') or 0)}
+                if action == 'preview':
+                    pv = D.plan_preview(db, p, body)
+                    v = D.view(db, p, jid)
+                    return render(request, 'decision.html', principal=p, v=v, witnesses=None, menu_example=f.get('menu'), plan_preview=pv, budget=body['budget'])
+                pl = D.plan_create(db, p, body)
+                return RedirectResponse('/console/acquisition-plans/' + pl['id'], status_code=303)
+            if action == 'verify':
+                svc.verification.request(db, p, jid, f.get('class') or 'analytical', {})
+                return RedirectResponse('/console/decisions/' + jid, status_code=303)
+            raise ServiceError('NOT_FOUND', 'action')
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/acquisition-plans/{pid}', response_class=HTMLResponse)
+    async def acquisition_plan_page(request: Request, pid: str):
+        return await page(request, lambda db, p: render(request, 'acquisition_plan.html', principal=p, pl=svc.decisions.plan_view(db, p, pid)))
+
+    @app.post('/console/acquisition-plans/{pid}/materialize', response_class=HTMLResponse)
+    async def acquisition_plan_materialize(request: Request, pid: str):
+        f = await form(request)
+        def fn(db, p):
+            m = svc.decisions.materialize(db, p, pid, {'diagnostic_amount': int(f.get('diagnostic') or 0)})
+            return RedirectResponse('/console/work/requests/' + m['request']['id'] if m.get('request') else '/console/acquisition-plans/' + pid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/sampling-plans/{pid}', response_class=HTMLResponse)
+    async def sampling_plan_page(request: Request, pid: str):
+        return await page(request, lambda db, p: render(request, 'sampling_plan.html', principal=p, sp=svc.sampling.view(db, p, pid)))
+
+    @app.post('/console/sampling-plans', response_class=HTMLResponse)
+    async def sampling_plan_create(request: Request):
+        f = await form(request)
+        def fn(db, p):
+            body = {'job_id': f['job_id'], 'alpha': f.get('alpha') or '1/100', 'max_samples': int(f.get('max_samples') or 256)}
+            if f.get('defect_fraction'):
+                body['defect_fraction'] = f['defect_fraction']
+            else:
+                body['minimum_defects'] = int(f.get('minimum_defects') or 1)
+            if f.get('preview'):
+                sp = svc.sampling.create(db, p, body, preview=True)
+                return render(request, 'sampling_plan.html', principal=p, sp=sp)
+            sp = svc.sampling.create(db, p, body)
+            return RedirectResponse('/console/sampling-plans/' + sp['id'], status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.post('/console/sampling-plans/{pid}/audit', response_class=HTMLResponse)
+    async def sampling_plan_audit(request: Request, pid: str):
+        await form(request)
+        def fn(db, p):
+            svc.sampling.audit(db, p, pid)
+            return RedirectResponse('/console/sampling-plans/' + pid, status_code=303)
+        return await page(request, fn, mutating=True)
+
+    @app.get('/console/portfolios', response_class=HTMLResponse)
+    async def portfolios_page(request: Request):
+        def fn(db, p):
+            P = svc.portfolios
+            cid = request.query_params.get('campaign')
+            catalog = {'families': P.families(), 'components': P.components(), 'portfolios': P.list(db, p)}
+            return render(request, 'portfolios.html', principal=p, catalog=catalog, campaigns=P.list_campaigns(db, p), campaign=P.campaign_view(db, p, cid) if cid else None)
+        return await page(request, fn)
+
+    @app.post('/console/portfolios/{action}', response_class=HTMLResponse)
+    async def portfolios_action(request: Request, action: str):
+        f = await form(request)
+        def fn(db, p):
+            P = svc.portfolios
+            if action == 'create':
+                P.create(db, p, {'name': f.get('name') or 'portfolio', 'components': [{'component': c.strip()} for c in (f.get('components') or '').split(',') if c.strip()]})
+            elif action == 'fault-suite':
+                P.create_fault_suite(db, p, {'name': f.get('name') or 'faults', 'seed': int(f.get('seed') or 1), 'cases_per_family': int(f.get('cases') or 2), 'holdout_per_family': int(f.get('holdout') or 1)})
+            elif action == 'campaign':
+                c = P.run_campaign(db, p, {'suite_id': f['suite_id'], 'portfolio_ids': [x.strip() for x in f['portfolio_ids'].split(',') if x.strip()], 'split': f.get('split') or 'dev'})
+                return RedirectResponse('/console/portfolios?campaign=' + c['id'], status_code=303)
+            else:
+                raise ServiceError('NOT_FOUND', 'action')
+            return RedirectResponse('/console/portfolios', status_code=303)
         return await page(request, fn, mutating=True)
 
     @app.get('/console/work/missions/{pid}', response_class=HTMLResponse)

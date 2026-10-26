@@ -1,0 +1,78 @@
+~/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+[1] PASSED: repeated identical total measurements remain ambiguous (witness: both states predict 120)
+[2] PASSED: a complementary measurement resolves the declared two-state decision
+[3] PASSED: near-parallel measurements fail to separate states when noise masks their difference
+[4] PASSED: touching closed error intervals are not treated as separated (gap 80 = 2*40)
+[5] PASSED: the generated ambiguity witness passes a separate exact checker (verification class analytical, independent implementation)
+[6] PASSED: a fabricated witness (observation outside one noise box) fails that checker; the genuine one passes
+[7] PASSED: a budget that buys no useful information causes no useless acquisition charge (no terms, no reservation, no journal entry)
+[8] PASSED: exact finite planning agrees with an independent brute-force oracle on the small menu
+[9] PASSED: scaling an observation row and its noise consistently preserves the separation decision
+[10] PASSED: actual observations outside all hypotheses return model inconsistency (no nearest hypothesis is chosen)
+[11] PASSED: a sample plan meets its declared finite-population bound, is minimal for its target, is bound before the challenge, and its signed statement recomputes offline (signature and arithmetic reported separately)
+[12] PASSED: a single-defect target refuses an insufficient sample budget: achieved bound and required budget reported, alpha and m never relaxed
+[13] PASSED: a changed frame digest / scope / model / result root invalidates the attached sampling claim (another job refused; changed root invalidates the plan durably)
+[14] PASSED: a same-implementation check cannot satisfy a distinct independent requirement merely through its class or rank (and the independent witness check satisfies only its own claim)
+[15] PASSED: a final-transition heat audit (passed) cannot establish an entire-trajectory claim; it satisfies only its own claim
+[16] PASSED: an audit outcome cannot be hidden by retrying until a passing challenge appears: one bound attempt per plan, every attempt recorded
+[17] PASSED: valid negative / ambiguous / inconsistent / failed-acquisition deliveries receive exactly the payment the frozen terms define; an invalid delivery earns nothing
+[18] PASSED: duplicate prepare/submit requests reconcile without another charge: one entitlement, one intent, journal consistent
+[19] PASSED: an analysis-only credential cannot purchase; another principal and unknown ids never leak private witnesses
+[20] PASSED: a crash at evidence publication during acquisition resumes without duplicate publication or a second budget reservation
+[21] PASSED: a common-model defect survives identical replicas and the full portfolio alike, and is reported as residual risk with a recommendation for a different evidence source
+[22] PASSED: a zero-failure campaign on a representative suite retains a nonzero exact one-sided bound
+[23] PASSED: an authorized bundle replays decision witnesses and sampling calculations in a clean process without service secrets
+[24] BLOCKED: browser journey
+[25] PASSED: existing legacy work contracts (determination template) and signed evidence remain readable, with their policy semantics named explicitly
+[26] BLOCKED: clean exported tree reproduces the journey
+""
+   },
+   {
+    "check": "acceptance recorded; payment payable",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "plan shows actual cost payable (3) separately from the scientific outcome",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "acquisition job reads as determined within the declared model",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "portfolios page explains coverage, not a trust score",
+    "ok": true,
+    "detail": ""
+   },
+   {
+    "check": "narrow width: no horizontal overflow on the decision pages",
+    "ok": true,
+    "detail": "{'/console/decisions': True, '/console/decisions/j_dd43d586cb048ebd': True, '/console/acquisition-plans/ap_f0fb39ff36e7': True, '/console/work/awards/wa_9cc44b77ef72cf21': True, '/console/portfolios': True}"
+   }
+  ],
+  "screenshots": [
+   "01-decisions-overview.png",
+   "02-decision-ambiguous.png",
+   "03-plan-preview.png",
+   "04-request.png",
+   "05-plan-reserved.png",
+   "06-assurance-missing.png",
+   "07-assurance-satisfied.png",
+   "08-decision-resolved.png",
+   "09-narrow-decision.png"
+  ],
+  "crash": null,
+  "rc": 0,
+  "status": "passed"
+ },
+ "passed": 25,
+ "failed": 0,
+ "blocked": 1,
+ "total": 26
+}
+exit 0
+alldone

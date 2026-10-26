@@ -2,6 +2,7 @@
 import json
 import os
 import secrets
+import sqlite3
 import subprocess
 import sys
 import time
@@ -11,7 +12,7 @@ from . import history, scheduling
 from .compute import manifests as compute_manifests
 from .compute.engine import ComputeEngine
 from .models import engine as model_engine
-from .db import now
+from .db import is_busy, now
 from .errors import ServiceError
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -110,8 +111,11 @@ class Worker:
         doc = merkle.parse(contract['contract_json'])
         vault = self.store.load_json(db, contract['input_artifact_id'], job['workspace'])
         inputs = {f['name']: f['value'] for f in vault['fields']}['inputs']
-        return contract, {'kind': job['kind'], 'contract': doc, 'contract_digest': contract['contract_digest'],
-                          'input_root': contract['input_root'], 'input_vault': vault, 'inputs': inputs}
+        spec = {'kind': job['kind'], 'contract': doc, 'contract_digest': contract['contract_digest'], 'input_root': contract['input_root'], 'input_vault': vault, 'inputs': inputs}
+        if job['kind'] == 'evidence_acquisition':
+            from .decision.service import stored_delivery
+            spec['delivery'] = stored_delivery(db, self.store, job)
+        return contract, spec
 
     def execute(self, job):
         """Run one attempt in a child process; publish only if the lease is still ours."""
@@ -191,8 +195,14 @@ class Worker:
             return bool(db.execute('SELECT cancel_requested FROM jobs WHERE id=?', (job['id'],)).fetchone()[0])
 
     def _finish(self, job, result, error):
-        with self.db.tx() as db:
-            return self._finish_in(db, job, result, error)
+        for attempt in range(5):                                             # the lease is ours; a lock-wait timeout must not drop a computed result
+            try:
+                with self.db.tx() as db:
+                    return self._finish_in(db, job, result, error)
+            except sqlite3.OperationalError as exc:
+                if not is_busy(exc) or attempt == 4:
+                    raise
+                self.busy_streak = getattr(self, 'busy_streak', 0) + 1; self._log_busy('finish'); time.sleep(0.2 * (attempt + 1))
 
     def _finish_in(self, db, job, result, error):
         if True:
@@ -285,21 +295,51 @@ class Worker:
         except Exception:
             return None
 
+    BUSY_GIVE_UP_AFTER = 120                      # consecutive lock-wait timeouts (≈ 2 min at 1 s) before the worker exits for real
+
+    def _log_busy(self, where):
+        try:
+            self.settings.logs_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            path = self.settings.logs_dir / 'busy.log'
+            with open(path, 'a') as fh:
+                fh.write('%s JOURNAL_BUSY worker %s %s consecutive=%d\n' % (now(), self.name, where, self.busy_streak))
+            os.chmod(path, 0o600)
+        except Exception:
+            pass
+
+    def step(self, last_beat):
+        """One scheduler iteration (claim+execute one job, tick, heartbeat). A lock-wait timeout ('database is locked') on the
+        claim or heartbeat is a retryable condition of a saturated database, not a reason to die: it is logged and the loop
+        continues after a short pause (the 2026-10-23 endurance runs lost both workers to one such timeout each). Returns
+        (ran, advanced, last_beat)."""
+        try:
+            ran = self.run_once()
+            advanced = self.tick_workflows()
+            if time.time() - last_beat >= scheduling.HEARTBEAT_SECONDS:
+                self.heartbeat(); last_beat = time.time()
+                if self.models.available():
+                    try:
+                        self.models.host.apply_desired(self.models.registry); self.models.host.apply_warmup(self.models.registry); self.models.host.idle_cleanup()
+                    except Exception:
+                        pass
+            self.busy_streak = 0
+            return ran, advanced, last_beat
+        except sqlite3.OperationalError as exc:
+            if not is_busy(exc):
+                raise
+            self.busy_streak = getattr(self, 'busy_streak', 0) + 1; self._log_busy('claim/heartbeat')
+            if self.busy_streak >= self.BUSY_GIVE_UP_AFTER:
+                raise
+            time.sleep(min(1.0, 0.1 * self.busy_streak))
+            return None, None, last_beat
+
     def run_forever(self, poll_seconds=0.5, stop_file=None):
-        last_beat = 0
+        last_beat = 0; self.busy_streak = 0
         try:
             while True:
                 if stop_file and Path(stop_file).exists():
                     return
-                ran = self.run_once()
-                advanced = self.tick_workflows()
-                if time.time() - last_beat >= scheduling.HEARTBEAT_SECONDS:
-                    self.heartbeat(); last_beat = time.time()
-                    if self.models.available():
-                        try:
-                            self.models.host.apply_desired(self.models.registry); self.models.host.apply_warmup(self.models.registry); self.models.host.idle_cleanup()
-                        except Exception:
-                            pass
+                ran, advanced, last_beat = self.step(last_beat)
                 if ran is None and not advanced:
                     time.sleep(poll_seconds)
         finally:

@@ -1,0 +1,1620 @@
+{
+ "schema": "metacoin-developer-examples/v2",
+ "revision": "1b396f38902f1d9d164ebba1c9040fb94ad5a799",
+ "environment": "fresh custody-separated domain dom-ex (METACOIN_REQUIRE_EXTERNAL_CUSTODY=1), one signer process (sig-example), witness, x402 disabled; commands executed as shown, responses verbatim except redacted tokens",
+ "steps": [
+  {
+   "command": "metacoin-provider --base http://127.0.0.1:37977 --signer http://127.0.0.1:57813 --signer-token <signer-token> enroll --admin-cred <admin-cred> --name prov-ex --ceiling 100000 --out <cred>",
+   "exit_code": 0,
+   "response": {
+    "account_id": "na_40129b32e828",
+    "principal_id": "p_af1df3e4d689c8f9",
+    "key_id": "k_03245764671678de9c4995a1",
+    "custody": "external-signer:sig-example",
+    "private_key_held_by_service": false,
+    "credential_file": "/tmp/tmpc19rnk90/prov-cred.json"
+   }
+  },
+  {
+   "command": "metacoin-provider --base http://127.0.0.1:37977 --cred <cred> --home /tmp/tmpc19rnk90/prov-home --signer http://127.0.0.1:57813 --signer-token <signer-token> --actor prov-ex init --name prov-ex",
+   "exit_code": 0,
+   "response": {
+    "home": "/tmp/tmpc19rnk90/prov-home",
+    "pinned": {
+     "domain": "dom-ex",
+     "environment": "dev",
+     "authority_key_id": "k_946af195fc855cd181594e39",
+     "authority_public_hex": "3b893fceb5f00a226120848ddfd659f5b5c21022fc71f54e07ac776816099e95",
+     "epoch": 1,
+     "protocol": "metacoin-native/v0",
+     "policy_version": "native-policy/v0",
+     "pinned_at": 1792740828
+    },
+    "identity": {
+     "account": "na_40129b32e828",
+     "custody": "external-signer:sig-example"
+    }
+   }
+  },
+  {
+   "command": "metacoin-provider --home /tmp/tmpc19rnk90/prov-home handshake",
+   "exit_code": 0,
+   "response": {
+    "ok": true,
+    "domain": "dom-ex",
+    "epoch": 1,
+    "protocol": "metacoin-native/v0",
+    "policy_version": "native-policy/v0",
+    "custody": "external-signer:sig-example",
+    "negotiated": {
+     "envelope_versions": [
+      "v0",
+      "v1"
+     ]
+    }
+   }
+  },
+  {
+   "command": "POST /api/v1/work/providers {\"name\": \"prov-ex\", \"principal_id\": \"p_af1df3e4d689c8f9\", \"capabilities\": {\"kinds\": [\"terrain_tile\", \"route_feasibility\"], \"verification_classes\": [\"analytical\"], \"payment_schemes\": [\"exact\"]}, \"relationship\": {\"relationship\": \"same_operator\", \"same_host\": true, \"shared_custody\": false, \"identity\": {\"operator_id\": \"op-example\", \"machine_id\": \"rig-example\", \"worker_instance\": \"w1\", \"signer_id\": \"sig-example\", \"domain\": \"dom-ex\"}}} (as owner)",
+   "status": 201,
+   "response": {
+    "id": "pv_f85c2a25dfab",
+    "name": "prov-ex",
+    "principal_id": "p_af1df3e4d689c8f9",
+    "revision": 1,
+    "execution": {
+     "type": "local_worker",
+     "transport": "in-process worker of this instance (same host, same operator fixture)"
+    },
+    "capabilities": {
+     "kinds": [
+      "terrain_tile",
+      "route_feasibility"
+     ],
+     "verification_classes": [
+      "analytical"
+     ],
+     "payment_schemes": [
+      "exact"
+     ]
+    },
+    "relationship": {
+     "operator_affiliation": "unknown",
+     "same_host": true,
+     "shared_custody": false,
+     "relationship": "same_operator",
+     "note": "",
+     "identity": {
+      "operator_id": "op-example",
+      "machine_id": "rig-example",
+      "worker_instance": "w1",
+      "signer_id": "sig-example",
+      "domain": "dom-ex"
+     }
+    },
+    "pay_to": "na_40129b32e828",
+    "evidence": {
+     "declared": [
+      "route_feasibility",
+      "terrain_tile"
+     ],
+     "exercised": [],
+     "witnessed": [],
+     "meaning": "declared = the provider claims it; exercised = completed on this instance; witnessed = verified by a distinct verifier under a contract"
+    },
+    "state": "active",
+    "signature": {
+     "key_id": "k_526fa927a4b858947d5848c7",
+     "custody": "service-custodied",
+     "label": "application signature: Ed25519 by the service signing key on behalf of the authenticated provider principal (service custody); not an interoperable x402 signed offer"
+    },
+    "created_at": 1792740828,
+    "updated_at": 1792740828,
+    "revisions": [
+     {
+      "revision": 1,
+      "pay_to": "na_40129b32e828",
+      "execution": "local_worker",
+      "created_at": 1792740828
+     }
+    ],
+    "credential": null,
+    "bound_actor": "p_af1df3e4d689c8f9"
+   }
+  },
+  {
+   "command": "metacoin-provider --home /tmp/tmpc19rnk90/prov-home capabilities",
+   "exit_code": 0,
+   "response": {
+    "schema": "metacoin-provider-identity/v1",
+    "provider_id": "pv_f85c2a25dfab",
+    "name": "prov-ex",
+    "principal_id": "p_af1df3e4d689c8f9",
+    "account": "na_40129b32e828",
+    "custody": "external-signer:sig-example",
+    "identity": {
+     "operator_id": "op-example",
+     "machine_id": "rig-example",
+     "worker_instance": "w1",
+     "signer_id": "sig-example",
+     "domain": "dom-ex"
+    },
+    "relationship": {
+     "relationship": "same_operator",
+     "operator_affiliation": "unknown",
+     "same_host": true,
+     "shared_custody": false
+    },
+    "independence": {
+     "independent_party": false,
+     "shared_operator": true,
+     "same_operator_providers": [],
+     "disclosure": "providers declaring the same operator_id are one economic party: several workers under one operator are never counted as independent; independence is declared and disclosed, never inferred from keys"
+    },
+    "outcomes": {
+     "milestones_by_state": {},
+     "verifications_by_state": {},
+     "reservations_by_state": {},
+     "offers": [],
+     "sample_sizes": {
+      "milestones": 0,
+      "verifications": 0,
+      "reservations": 0
+     },
+     "verification_policy": [
+      "analytical"
+     ],
+     "note": "concrete outcomes with sample sizes on this instance; no universal trust score is computed"
+    },
+    "revision": 1,
+    "state": "active"
+   }
+  },
+  {
+   "command": "POST /api/v1/resources/pools {\"kind\": \"compute\", \"label\": \"rig-example\", \"slot_unit\": \"cpu_slot\", \"units_per_slot_second\": 1000, \"resolution_seconds\": 1, \"schedule\": [{\"start\": 1792740768, \"end\": 1792748028, \"capacity\": 1}]} (as prov-ex)",
+   "status": 201,
+   "response": {
+    "schema": "metacoin-resource-pool/v1",
+    "id": "rp_1bcb43c372c4",
+    "provider_account": "na_40129b32e828",
+    "kind": "compute",
+    "label": "rig-example",
+    "slot_unit": "cpu_slot",
+    "units_per_slot_second": 1000,
+    "resolution_seconds": 1,
+    "schedule": [
+     {
+      "start": 1792740768,
+      "end": 1792748028,
+      "capacity": 1
+     }
+    ],
+    "version": 1,
+    "state": "open",
+    "offers": [],
+    "commitments": [],
+    "utilization": [
+     {
+      "start": 1792740768,
+      "end": 1792748028,
+      "used": 0,
+      "capacity": 1,
+      "ok": true
+     }
+    ],
+    "peak_slots_used": 0,
+    "all_within_capacity": true,
+    "semantics": {
+     "intervals": "half-open [start, end); touching intervals do not conflict",
+     "alignment": "start floored, end ceiled to resolution_seconds",
+     "slots": "ceil(quantity / (units_per_slot_second \u00d7 seconds))",
+     "reductions": "refused when below any committed interval",
+     "release": "only the future unused tail of a commitment is freed; delivered capacity stays committed"
+    },
+    "created_at": 1792740828
+   }
+  },
+  {
+   "command": "POST /api/v1/resources/offers {\"kind\": \"compute\", \"resource_id\": \"cpu-example\", \"capacity\": 100000, \"price_per_unit\": 1, \"window_start\": 1792740768, \"window_end\": 1792748028, \"pool_id\": \"rp_1bcb43c372c4\"} (as prov-ex)",
+   "status": 201,
+   "response": {
+    "schema": "metacoin-resource-offer/v1",
+    "id": "ro_634ae3cfdf7e",
+    "version": 1,
+    "provider_account": "na_40129b32e828",
+    "pool_id": "rp_1bcb43c372c4",
+    "kind": "compute",
+    "resource_id": "cpu-example",
+    "unit": "cpu_ms",
+    "time_basis": "cpu milliseconds of a bounded child execution (rlimited); wall time recorded alongside",
+    "capacity": 100000,
+    "reserved": 0,
+    "delivered": 0,
+    "available": 100000,
+    "price_per_unit": 1,
+    "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+    "window": {
+     "start": 1792740768,
+     "end": 1792748028,
+     "upcoming": false
+    },
+    "reservation_policy": "exact_capacity",
+    "cancellation": "free_before_activation; after activation the delivered portion is owed",
+    "delivery_evidence": "metered_fact: rusage of the child; provider_assertion: the task output; verified: independent reference check of the output",
+    "energy_mwh_per_unit": 0,
+    "bandwidth_bytes_per_s": null,
+    "note": "",
+    "state": "open",
+    "created_at": 1792740828,
+    "refusal_reasons_when_reserving": [
+     "stale_quote (offer version changed)",
+     "capacity_exhausted",
+     "insufficient_available (buyer funds)",
+     "window_closed",
+     "offer_closed",
+     "self_dealing (provider cannot buy its own capacity)",
+     "domain_quarantined"
+    ]
+   }
+  },
+  {
+   "command": "POST /api/v1/native/actors/enroll {\"name\": \"buyer-ex\", \"public_hex\": \"88277e00baaf026e251253d14a6f529d0ba90cab73c44b7aef95893f9e37525c\", \"key_id\": \"k_806ef33a530f6253ca68ef2e\", \"signer_id\": \"sig-example\"} (as owner)",
+   "status": 201,
+   "response": {
+    "principal_id": "p_2f633f73384d92a6",
+    "account_id": "na_81621b2bf9aa",
+    "role": "actor",
+    "credential": {
+     "id": "c_bec1d0b2f88811cf",
+     "token": "mck_<redacted>",
+     "shown_once": true
+    },
+    "key_id": "k_806ef33a530f6253ca68ef2e",
+    "custody": "external-signer:sig-example",
+    "private_key_held_by_service": false
+   }
+  },
+  {
+   "command": "POST /api/v1/native/fixtures/fund {\"account_id\": \"na_81621b2bf9aa\", \"amount\": 5000} (as owner)",
+   "status": 201,
+   "response": {
+    "schema": "metacoin-native-account/v0",
+    "id": "na_81621b2bf9aa",
+    "kind": "actor",
+    "label": "buyer-ex",
+    "principal_id": "p_2f633f73384d92a6",
+    "domain": "dom-ex",
+    "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+    "available": 5000,
+    "reserved": 0,
+    "committed_outgoing": 0,
+    "in_transit": 0,
+    "disputed": 0,
+    "earned_unsettled": 0,
+    "obligations_outstanding": 0,
+    "pending_inter_domain_claims": 0,
+    "exported_awaiting_acknowledgment": 0,
+    "spendable_now": 5000,
+    "signer": {
+     "key_id": "k_806ef33a530f6253ca68ef2e",
+     "custody": "external-signer:sig-example"
+    },
+    "meaning": {
+     "available": "settled, spendable in this domain now",
+     "reserved": "set aside for an award or an intent; not spendable, not yet committed",
+     "committed_outgoing": "ordered by the authority; leaves on settlement in the same transaction",
+     "in_transit": "made nonspendable for an export or a return in progress",
+     "disputed": "held under a bounded dispute",
+     "earned_unsettled": "accepted obligations owed to this account; NOT spendable until settled",
+     "pending_inter_domain_claims": "imported allocations not yet acknowledged by their source (spendable here under this domain's rules; reconciliation pending)"
+    },
+    "rebuilt_from_journal": true
+   }
+  },
+  {
+   "command": "POST /api/v1/resources/reservations/prepare {\"offer_id\": \"ro_634ae3cfdf7e\", \"offer_version\": 1, \"quantity\": 3000, \"request_id\": \"ex-res-1\", \"interval_start\": 1792740828, \"interval_end\": 1792740888} (as buyer-ex)",
+   "status": 200,
+   "response": {
+    "message": {
+     "protocol": "metacoin-native/v0",
+     "type": "intent",
+     "environment": "dev",
+     "actor_account": "na_81621b2bf9aa",
+     "authority": "dom-ex",
+     "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+     "amount_ceiling": 3000,
+     "recipient": "na_40129b32e828",
+     "obligation_id": null,
+     "grant_id": null,
+     "nonce": "na_81621b2bf9aa-1",
+     "policy_version": "native-policy/v0",
+     "request_id": "ex-res-1",
+     "purpose": "reservation of 3000 cpu_ms on ro_634ae3cfdf7e v1",
+     "expires_at": 1792741728,
+     "policy_hash": "6d76dc5645d69a522a1d5a925d0386db4c9d7723333017bfa24f12fcf8204282"
+    },
+    "context": {
+     "kind": "reservation",
+     "offer_id": "ro_634ae3cfdf7e",
+     "offer_version": 1,
+     "quantity": 3000,
+     "unit": "cpu_ms",
+     "interval": [
+      1792740828,
+      1792740888
+     ],
+     "price": 3000,
+     "amount": 3000,
+     "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+     "recipient": "na_40129b32e828",
+     "pool_id": "rp_1bcb43c372c4"
+    },
+    "reserve_body": {
+     "offer_id": "ro_634ae3cfdf7e",
+     "offer_version": 1,
+     "quantity": 3000,
+     "request_id": "ex-res-1",
+     "interval_start": 1792740828,
+     "interval_end": 1792740888
+    },
+    "custody": "external-signer:sig-example",
+    "note": "sign the message with the context at the signer; submit the reservation with native_signature {message, signature_hex, key_id}"
+   }
+  },
+  {
+   "command": "POST <signer>/sign {actor: buyer-ex, intent: <message>, context: <context>}",
+   "status": 200,
+   "response": {
+    "key_id": "k_806ef33a530f6253ca68ef2e",
+    "digest": "269f835d57989ac0c8c9c1171d73123a88deee73515bc5c9add08c7531316302",
+    "replayed": false,
+    "exposure_outstanding_after": 3000,
+    "signature_hex": "<64 bytes hex>"
+   }
+  },
+  {
+   "command": "POST /api/v1/resources/reservations {\"offer_id\": \"ro_634ae3cfdf7e\", \"offer_version\": 1, \"quantity\": 3000, \"request_id\": \"ex-res-1\", \"interval_start\": 1792740828, \"interval_end\": 1792740888, \"native_signature\": {\"message\": {\"protocol\": \"metacoin-native/v0\", \"type\": \"intent\", \"environment\": \"dev\", \"actor_account\": \"na_81621b2bf9aa\", \"authority\": \"dom-ex\", \"asset\": \"dev:dom-ex:ledger-dom-ex:TMETA:0\", \"amount_ceiling\": 3000, \"recipient\": \"na_40129b32e828\", \"obligation_id\": null, \"grant_id\": null, \"nonce\": \"na_81621b2bf9aa-1\", \"policy_version\": \"native-policy/v0\", \"request_id\": \"ex-res-1\", \"purpose\": \"reservation of 3000 cpu_ms on ro_634ae3cfdf7e v1\", \"expires_at\": 1792741728, \"policy_hash\": \"6d76dc5645d69a522a1d5a925d0386db4c9d7723333017bfa24f12fcf8204282\"}, \"signature_hex\": \"96cc3fb0a0298e6e6ad051a6559d80f94d94f0f24c775c2370d3c1024bc887d6ab2d37d7ba15623d160f9f234a1c1e74e179b883f298dd9e4021717798c5a702\", \"key_id\": \"k_806ef33a530f6253ca68ef2e\"}} (as buyer-ex)",
+   "status": 201,
+   "response": {
+    "schema": "metacoin-resource-reservation/v1",
+    "id": "rr_316b676f0bc5",
+    "offer_id": "ro_634ae3cfdf7e",
+    "offer_version": 1,
+    "kind": "compute",
+    "resource_id": "cpu-example",
+    "unit": "cpu_ms",
+    "buyer_account": "na_81621b2bf9aa",
+    "provider_account": "na_40129b32e828",
+    "quantity": 3000,
+    "delivered_quantity": 0,
+    "price": 3000,
+    "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+    "obligation": {
+     "id": "no_0a4ce278a58fb62c",
+     "amount": 3000,
+     "settled_amount": 0,
+     "state": "open"
+    },
+    "state": "reserved",
+    "evidence": {
+     "purpose": "",
+     "steps": [
+      {
+       "state": "reserved",
+       "at": 1792740828,
+       "pool_commitment": {
+        "commitment_id": "pc_ad47e8949700",
+        "pool_id": "rp_1bcb43c372c4",
+        "interval": [
+         1792740828,
+         1792740888
+        ],
+        "slots": 1,
+        "units_per_slot_second": 1000,
+        "pool_version": 1
+       },
+       "authorization": {
+        "key_id": "k_806ef33a530f6253ca68ef2e",
+        "signature_hex": "96cc3fb0a0298e6e6ad051a6559d80f94d94f0f24c775c2370d3c1024bc887d6ab2d37d7ba15623d160f9f234a1c1e74e179b883f298dd9e4021717798c5a702",
+        "message_digest": "269f835d57989ac0c8c9c1171d73123a88deee73515bc5c9add08c7531316302"
+       }
+      }
+     ]
+    },
+    "interval": [
+     1792740828,
+     1792740888
+    ],
+    "slots": 1,
+    "pool_id": "rp_1bcb43c372c4",
+    "commitment_id": "pc_ad47e8949700",
+    "measurement": null,
+    "window": {
+     "start": 1792740768,
+     "end": 1792748028
+    },
+    "cancellation": "free_before_activation; after activation the delivered portion is owed",
+    "activated_at": null,
+    "created_at": 1792740828,
+    "updated_at": 1792740828,
+    "labels": {
+     "metered_fact": "the measurement block (service-recorded)",
+     "provider_assertion": "what the provider claims it delivered (assertion block)",
+     "verified": "independent verification of the delivered thing (verification block)"
+    },
+    "atomicity": "money and capacity changed in one domain transaction; cross-domain buyers export an allocation first (prepare) and reserve locally (commit): no global atomic reservation is claimed"
+   }
+  },
+  {
+   "command": "metacoin-provider --base http://127.0.0.1:37977 --cred <cred> activate rr_316b676f0bc5",
+   "exit_code": 0,
+   "response": {
+    "schema": "metacoin-resource-reservation/v1",
+    "id": "rr_316b676f0bc5",
+    "offer_id": "ro_634ae3cfdf7e",
+    "offer_version": 1,
+    "kind": "compute",
+    "resource_id": "cpu-example",
+    "unit": "cpu_ms",
+    "buyer_account": "na_81621b2bf9aa",
+    "provider_account": "na_40129b32e828",
+    "quantity": 3000,
+    "delivered_quantity": 0,
+    "price": 3000,
+    "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+    "obligation": {
+     "id": "no_0a4ce278a58fb62c",
+     "amount": 3000,
+     "settled_amount": 0,
+     "state": "open"
+    },
+    "state": "active",
+    "evidence": {
+     "purpose": "",
+     "steps": [
+      {
+       "state": "reserved",
+       "at": 1792740828,
+       "pool_commitment": {
+        "commitment_id": "pc_ad47e8949700",
+        "pool_id": "rp_1bcb43c372c4",
+        "interval": [
+         1792740828,
+         1792740888
+        ],
+        "slots": 1,
+        "units_per_slot_second": 1000,
+        "pool_version": 1
+       },
+       "authorization": {
+        "key_id": "k_806ef33a530f6253ca68ef2e",
+        "signature_hex": "96cc3fb0a0298e6e6ad051a6559d80f94d94f0f24c775c2370d3c1024bc887d6ab2d37d7ba15623d160f9f234a1c1e74e179b883f298dd9e4021717798c5a702",
+        "message_digest": "269f835d57989ac0c8c9c1171d73123a88deee73515bc5c9add08c7531316302"
+       }
+      },
+      {
+       "state": "active",
+       "at": 1792740828
+      }
+     ]
+    },
+    "interval": [
+     1792740828,
+     1792740888
+    ],
+    "slots": 1,
+    "pool_id": "rp_1bcb43c372c4",
+    "commitment_id": "pc_ad47e8949700",
+    "measurement": null,
+    "window": {
+     "start": 1792740768,
+     "end": 1792748028
+    },
+    "cancellation": "free_before_activation; after activation the delivered portion is owed",
+    "activated_at": 1792740828,
+    "created_at": 1792740828,
+    "updated_at": 1792740828,
+    "labels": {
+     "metered_fact": "the measurement block (service-recorded)",
+     "provider_assertion": "what the provider claims it delivered (assertion block)",
+     "verified": "independent verification of the delivered thing (verification block)"
+    },
+    "atomicity": "money and capacity changed in one domain transaction; cross-domain buyers export an allocation first (prepare) and reserve locally (commit): no global atomic reservation is claimed"
+   }
+  },
+  {
+   "command": "metacoin-provider --base http://127.0.0.1:37977 --cred <cred> deliver-compute rr_316b676f0bc5 --executor env PYTHONPATH=/home/zhangd2/projects/metacoin /home/zhangd2/projects/metacoin/.venv-service/bin/python -m metacoin_service.lunar task",
+   "exit_code": 0,
+   "response": {
+    "execution": {
+     "cpu_ms": 26,
+     "wall_ms": 26,
+     "output_digest": "69877a3f42a825b6fb4e983628617dfbc303966e5a1fafd03718a170501f2fa6",
+     "measurement_source": "os rusage of the executor child on the provider host (provider assertion when reported to the service)"
+    },
+    "reservation": {
+     "schema": "metacoin-resource-reservation/v1",
+     "id": "rr_316b676f0bc5",
+     "offer_id": "ro_634ae3cfdf7e",
+     "offer_version": 1,
+     "kind": "compute",
+     "resource_id": "cpu-example",
+     "unit": "cpu_ms",
+     "buyer_account": "na_81621b2bf9aa",
+     "provider_account": "na_40129b32e828",
+     "quantity": 3000,
+     "delivered_quantity": 26,
+     "price": 3000,
+     "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+     "obligation": {
+      "id": "no_0a4ce278a58fb62c",
+      "amount": 3000,
+      "settled_amount": 0,
+      "state": "open"
+     },
+     "state": "delivered",
+     "evidence": {
+      "purpose": "",
+      "steps": [
+       {
+        "state": "reserved",
+        "at": 1792740828,
+        "pool_commitment": {
+         "commitment_id": "pc_ad47e8949700",
+         "pool_id": "rp_1bcb43c372c4",
+         "interval": [
+          1792740828,
+          1792740888
+         ],
+         "slots": 1,
+         "units_per_slot_second": 1000,
+         "pool_version": 1
+        },
+        "authorization": {
+         "key_id": "k_806ef33a530f6253ca68ef2e",
+         "signature_hex": "96cc3fb0a0298e6e6ad051a6559d80f94d94f0f24c775c2370d3c1024bc887d6ab2d37d7ba15623d160f9f234a1c1e74e179b883f298dd9e4021717798c5a702",
+         "message_digest": "269f835d57989ac0c8c9c1171d73123a88deee73515bc5c9add08c7531316302"
+        }
+       },
+       {
+        "state": "active",
+        "at": 1792740828
+       },
+       {
+        "state": "delivered",
+        "at": 1792740828,
+        "delivered_quantity": 26
+       }
+      ]
+     },
+     "interval": [
+      1792740828,
+      1792740888
+     ],
+     "slots": 1,
+     "pool_id": "rp_1bcb43c372c4",
+     "commitment_id": "pc_ad47e8949700",
+     "measurement": {
+      "measurement": {
+       "kind": "provider_assertion",
+       "claimed_cpu_ms": 26,
+       "claimed_wall_ms": 26,
+       "task": {
+        "kind": "terrain_tile",
+        "source": "apollo11_32"
+       },
+       "output_digest": "69877a3f42a825b6fb4e983628617dfbc303966e5a1fafd03718a170501f2fa6",
+       "reference_ok": true,
+       "checker_id": "lunar-reference-checker/v1",
+       "measurement_source": "provider host rusage as asserted by the provider client; not measured by this service",
+       "executed_by": "provider"
+      },
+      "assertion": {
+       "kind": "provider_assertion",
+       "claimed_quantity": 26,
+       "note": ""
+      },
+      "verification": {
+       "kind": "verified",
+       "ok": true,
+       "method": "independent lunar reference check of the provider-submitted product; the CPU time itself is a provider assertion, not verified",
+       "checker": "lunar-reference-checker/v1"
+      },
+      "recorded_at": 1792740828
+     },
+     "window": {
+      "start": 1792740768,
+      "end": 1792748028
+     },
+     "cancellation": "free_before_activation; after activation the delivered portion is owed",
+     "activated_at": 1792740828,
+     "created_at": 1792740828,
+     "updated_at": 1792740828,
+     "labels": {
+      "metered_fact": "the measurement block (service-recorded)",
+      "provider_assertion": "what the provider claims it delivered (assertion block)",
+      "verified": "independent verification of the delivered thing (verification block)"
+     },
+     "atomicity": "money and capacity changed in one domain transaction; cross-domain buyers export an allocation first (prepare) and reserve locally (commit): no global atomic reservation is claimed"
+    }
+   }
+  },
+  {
+   "command": "POST /api/v1/resources/reservations/rr_316b676f0bc5/settle {} (as buyer-ex)",
+   "status": 200,
+   "response": {
+    "schema": "metacoin-resource-reservation/v1",
+    "id": "rr_316b676f0bc5",
+    "offer_id": "ro_634ae3cfdf7e",
+    "offer_version": 1,
+    "kind": "compute",
+    "resource_id": "cpu-example",
+    "unit": "cpu_ms",
+    "buyer_account": "na_81621b2bf9aa",
+    "provider_account": "na_40129b32e828",
+    "quantity": 3000,
+    "delivered_quantity": 26,
+    "price": 3000,
+    "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+    "obligation": {
+     "id": "no_0a4ce278a58fb62c",
+     "amount": 3000,
+     "settled_amount": 26,
+     "state": "partial"
+    },
+    "state": "settled",
+    "evidence": {
+     "purpose": "",
+     "steps": [
+      {
+       "state": "reserved",
+       "at": 1792740828,
+       "pool_commitment": {
+        "commitment_id": "pc_ad47e8949700",
+        "pool_id": "rp_1bcb43c372c4",
+        "interval": [
+         1792740828,
+         1792740888
+        ],
+        "slots": 1,
+        "units_per_slot_second": 1000,
+        "pool_version": 1
+       },
+       "authorization": {
+        "key_id": "k_806ef33a530f6253ca68ef2e",
+        "signature_hex": "96cc3fb0a0298e6e6ad051a6559d80f94d94f0f24c775c2370d3c1024bc887d6ab2d37d7ba15623d160f9f234a1c1e74e179b883f298dd9e4021717798c5a702",
+        "message_digest": "269f835d57989ac0c8c9c1171d73123a88deee73515bc5c9add08c7531316302"
+       }
+      },
+      {
+       "state": "active",
+       "at": 1792740828
+      },
+      {
+       "state": "delivered",
+       "at": 1792740828,
+       "delivered_quantity": 26
+      },
+      {
+       "state": "settled",
+       "at": 1792740828,
+       "owed": 26,
+       "released": 2974,
+       "cancelled_after_activation": false
+      }
+     ]
+    },
+    "interval": [
+     1792740828,
+     1792740888
+    ],
+    "slots": 1,
+    "pool_id": "rp_1bcb43c372c4",
+    "commitment_id": "pc_ad47e8949700",
+    "measurement": {
+     "measurement": {
+      "kind": "provider_assertion",
+      "claimed_cpu_ms": 26,
+      "claimed_wall_ms": 26,
+      "task": {
+       "kind": "terrain_tile",
+       "source": "apollo11_32"
+      },
+      "output_digest": "69877a3f42a825b6fb4e983628617dfbc303966e5a1fafd03718a170501f2fa6",
+      "reference_ok": true,
+      "checker_id": "lunar-reference-checker/v1",
+      "measurement_source": "provider host rusage as asserted by the provider client; not measured by this service",
+      "executed_by": "provider"
+     },
+     "assertion": {
+      "kind": "provider_assertion",
+      "claimed_quantity": 26,
+      "note": ""
+     },
+     "verification": {
+      "kind": "verified",
+      "ok": true,
+      "method": "independent lunar reference check of the provider-submitted product; the CPU time itself is a provider assertion, not verified",
+      "checker": "lunar-reference-checker/v1"
+     },
+     "recorded_at": 1792740828
+    },
+    "window": {
+     "start": 1792740768,
+     "end": 1792748028
+    },
+    "cancellation": "free_before_activation; after activation the delivered portion is owed",
+    "activated_at": 1792740828,
+    "created_at": 1792740828,
+    "updated_at": 1792740828,
+    "labels": {
+     "metered_fact": "the measurement block (service-recorded)",
+     "provider_assertion": "what the provider claims it delivered (assertion block)",
+     "verified": "independent verification of the delivered thing (verification block)"
+    },
+    "atomicity": "money and capacity changed in one domain transaction; cross-domain buyers export an allocation first (prepare) and reserve locally (commit): no global atomic reservation is claimed"
+   }
+  },
+  {
+   "command": "GET /api/v1/resources/pools/rp_1bcb43c372c4 (as owner)",
+   "status": 200,
+   "response": {
+    "schema": "metacoin-resource-pool/v1",
+    "id": "rp_1bcb43c372c4",
+    "provider_account": "na_40129b32e828",
+    "kind": "compute",
+    "label": "rig-example",
+    "slot_unit": "cpu_slot",
+    "units_per_slot_second": 1000,
+    "resolution_seconds": 1,
+    "schedule": [
+     {
+      "start": 1792740768,
+      "end": 1792748028,
+      "capacity": 1
+     }
+    ],
+    "version": 1,
+    "state": "open",
+    "offers": [
+     {
+      "id": "ro_634ae3cfdf7e",
+      "version": 1,
+      "window_start": 1792740768,
+      "window_end": 1792748028,
+      "capacity": 100000,
+      "price_per_unit": 1,
+      "state": "open"
+     }
+    ],
+    "commitments": [
+     {
+      "id": "pc_ad47e8949700",
+      "reservation_id": "rr_316b676f0bc5",
+      "start": 1792740828,
+      "end": 1792740888,
+      "slots": 1,
+      "state": "delivered"
+     }
+    ],
+    "utilization": [
+     {
+      "start": 1792740768,
+      "end": 1792740828,
+      "used": 0,
+      "capacity": 1,
+      "ok": true
+     },
+     {
+      "start": 1792740828,
+      "end": 1792740888,
+      "used": 1,
+      "capacity": 1,
+      "ok": true
+     },
+     {
+      "start": 1792740888,
+      "end": 1792748028,
+      "used": 0,
+      "capacity": 1,
+      "ok": true
+     }
+    ],
+    "peak_slots_used": 1,
+    "all_within_capacity": true,
+    "semantics": {
+     "intervals": "half-open [start, end); touching intervals do not conflict",
+     "alignment": "start floored, end ceiled to resolution_seconds",
+     "slots": "ceil(quantity / (units_per_slot_second \u00d7 seconds))",
+     "reductions": "refused when below any committed interval",
+     "release": "only the future unused tail of a commitment is freed; delivered capacity stays committed"
+    },
+    "created_at": 1792740828
+   }
+  },
+  {
+   "command": "metacoin-provider --base http://127.0.0.1:37977 --cred <cred> earnings",
+   "exit_code": 0,
+   "response": {
+    "account": "na_40129b32e828",
+    "available": 26,
+    "reserved": 0,
+    "earned_unsettled": 2974,
+    "settled_in": null,
+    "obligations_owed_to_me": [
+     {
+      "id": "no_0a4ce278a58fb62c",
+      "kind": "resource",
+      "amount": 3000,
+      "settled": 26,
+      "state": "partial"
+     }
+    ]
+   }
+  },
+  {
+   "command": "GET /api/v1/native/accounts/na_81621b2bf9aa/liquidity (as buyer-ex)",
+   "status": 200,
+   "response": {
+    "held_locally": 4974,
+    "reserved": 0,
+    "cross_domain_claims_held": 0,
+    "cross_domain_pending": 0,
+    "expected_earnings": 0,
+    "spendable": 4974,
+    "min_reserve": 0,
+    "rule": "spendable = settled available minus the declared minimum reserve; reserved, in-transit, pending claims and expected earnings never admit work"
+   }
+  },
+  {
+   "command": "GET /api/v1/work/providers/pv_f85c2a25dfab/identity (as owner)",
+   "status": 200,
+   "response": {
+    "schema": "metacoin-provider-identity/v1",
+    "provider_id": "pv_f85c2a25dfab",
+    "name": "prov-ex",
+    "principal_id": "p_af1df3e4d689c8f9",
+    "account": "na_40129b32e828",
+    "custody": "external-signer:sig-example",
+    "identity": {
+     "operator_id": "op-example",
+     "machine_id": "rig-example",
+     "worker_instance": "w1",
+     "signer_id": "sig-example",
+     "domain": "dom-ex"
+    },
+    "relationship": {
+     "relationship": "same_operator",
+     "operator_affiliation": "unknown",
+     "same_host": true,
+     "shared_custody": false
+    },
+    "independence": {
+     "independent_party": false,
+     "shared_operator": true,
+     "same_operator_providers": [],
+     "disclosure": "providers declaring the same operator_id are one economic party: several workers under one operator are never counted as independent; independence is declared and disclosed, never inferred from keys"
+    },
+    "outcomes": {
+     "milestones_by_state": {},
+     "verifications_by_state": {},
+     "reservations_by_state": {
+      "settled": 1
+     },
+     "offers": [
+      {
+       "kind": "compute",
+       "count": 1,
+       "capacity_sum": 100000
+      }
+     ],
+     "sample_sizes": {
+      "milestones": 0,
+      "verifications": 0,
+      "reservations": 1
+     },
+     "verification_policy": [
+      "analytical"
+     ],
+     "note": "concrete outcomes with sample sizes on this instance; no universal trust score is computed"
+    },
+    "revision": 1,
+    "state": "active"
+   }
+  },
+  {
+   "command": "POST /api/v1/missions {\"title\": \"example mission\", \"graph\": {\"milestones\": [{\"key\": \"cpu\", \"kind\": \"resource\", \"depends\": [], \"spec\": {\"offer_kind\": \"compute\", \"quantity\": 2000, \"max_price_per_unit\": 2}}]}, \"policy\": {\"priority\": 2}} (as buyer-ex)",
+   "status": 201,
+   "response": {
+    "schema": "metacoin-mission-contract/v1",
+    "id": "mc_a205fed13e38",
+    "title": "example mission",
+    "template": null,
+    "state": "draft",
+    "pause_reason": null,
+    "owner_principal": "p_2f633f73384d92a6",
+    "owner_account": "na_81621b2bf9aa",
+    "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+    "grant_id": null,
+    "policy": {
+     "min_cash_reserve": 0,
+     "per_action_ceiling": null,
+     "mission_ceiling": null,
+     "permitted_recipients": null,
+     "energy_reserve_mwh": 0,
+     "energy_budget_mwh": null,
+     "stop_on": [
+      "grant_revoked",
+      "domain_quarantined"
+     ],
+     "priority": 2
+    },
+    "subcontracts": [],
+    "viewer_is_party": true,
+    "revision": 1,
+    "frozen_revision": null,
+    "revisions": [
+     {
+      "revision": 1,
+      "state": "draft",
+      "digest": "e9150b64af864863c8799c692056cd91fb2d13fcb9be94eb288e4143084043bd",
+      "affected": [],
+      "authorizations": [],
+      "reason": "initial",
+      "created_at": 1792740828
+     }
+    ],
+    "milestones": [
+     {
+      "id": "mm_ee2e32ea55",
+      "key": "cpu",
+      "kind": "resource",
+      "actor": "requester",
+      "optional": false,
+      "depends": [],
+      "spec": {
+       "offer_kind": "compute",
+       "quantity": 2000,
+       "max_price_per_unit": 2
+      },
+      "spec_digest": "406c98b14fce1f348120a6a5c5a2cf634024c2c6d7b069879ca69ad07c910a1c",
+      "state": "pending",
+      "binding": {},
+      "result": null,
+      "reason": null,
+      "ceiling": 4000
+     }
+    ],
+    "ceiling": 4000,
+    "events": [
+     {
+      "seq": 1,
+      "at": 1792740828,
+      "actor": "p_2f633f73384d92a6",
+      "kind": "created",
+      "detail": {
+       "milestones": [
+        "cpu"
+       ],
+       "ceiling": 4000
+      }
+     }
+    ],
+    "created_at": 1792740828,
+    "updated_at": 1792740828
+   }
+  },
+  {
+   "command": "POST /api/v1/missions/mc_a205fed13e38/freeze {} (as buyer-ex)",
+   "status": 200,
+   "response": {
+    "schema": "metacoin-mission-contract/v1",
+    "id": "mc_a205fed13e38",
+    "title": "example mission",
+    "template": null,
+    "state": "frozen",
+    "pause_reason": null,
+    "owner_principal": "p_2f633f73384d92a6",
+    "owner_account": "na_81621b2bf9aa",
+    "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+    "grant_id": null,
+    "policy": {
+     "min_cash_reserve": 0,
+     "per_action_ceiling": null,
+     "mission_ceiling": null,
+     "permitted_recipients": null,
+     "energy_reserve_mwh": 0,
+     "energy_budget_mwh": null,
+     "stop_on": [
+      "grant_revoked",
+      "domain_quarantined"
+     ],
+     "priority": 2
+    },
+    "subcontracts": [],
+    "viewer_is_party": true,
+    "revision": 1,
+    "frozen_revision": 1,
+    "revisions": [
+     {
+      "revision": 1,
+      "state": "frozen",
+      "digest": "e9150b64af864863c8799c692056cd91fb2d13fcb9be94eb288e4143084043bd",
+      "affected": [],
+      "authorizations": [],
+      "reason": "initial",
+      "created_at": 1792740828
+     }
+    ],
+    "milestones": [
+     {
+      "id": "mm_ee2e32ea55",
+      "key": "cpu",
+      "kind": "resource",
+      "actor": "requester",
+      "optional": false,
+      "depends": [],
+      "spec": {
+       "offer_kind": "compute",
+       "quantity": 2000,
+       "max_price_per_unit": 2
+      },
+      "spec_digest": "406c98b14fce1f348120a6a5c5a2cf634024c2c6d7b069879ca69ad07c910a1c",
+      "state": "ready",
+      "binding": {},
+      "result": null,
+      "reason": null,
+      "ceiling": 4000
+     }
+    ],
+    "ceiling": 4000,
+    "events": [
+     {
+      "seq": 2,
+      "at": 1792740828,
+      "actor": "p_2f633f73384d92a6",
+      "kind": "frozen",
+      "detail": {
+       "revision": 1,
+       "digest": "e9150b64af864863c8799c692056cd91fb2d13fcb9be94eb288e4143084043bd"
+      }
+     },
+     {
+      "seq": 1,
+      "at": 1792740828,
+      "actor": "p_2f633f73384d92a6",
+      "kind": "created",
+      "detail": {
+       "milestones": [
+        "cpu"
+       ],
+       "ceiling": 4000
+      }
+     }
+    ],
+    "created_at": 1792740828,
+    "updated_at": 1792740828
+   }
+  },
+  {
+   "command": "POST /api/v1/portfolio/plan {\"mission_ids\": [\"mc_a205fed13e38\"], \"planner\": \"reference\"} (as buyer-ex)",
+   "status": 200,
+   "response": {
+    "policy": "priority_then_cost",
+    "admitted": [],
+    "deferred": [
+     {
+      "mission": "mc_a205fed13e38",
+      "reason": "pool_capacity"
+     }
+    ],
+    "plan": null,
+    "score": null,
+    "schema": "metacoin-portfolio-plan/v1",
+    "missions": [
+     "mc_a205fed13e38"
+    ],
+    "priorities": {
+     "mc_a205fed13e38": 2
+    },
+    "liquidity": {
+     "mc_a205fed13e38": {
+      "held_locally": 4974,
+      "reserved": 0,
+      "cross_domain_claims_held": 0,
+      "cross_domain_pending": 0,
+      "expected_earnings": 0,
+      "spendable": 4974,
+      "min_reserve": 0,
+      "rule": "spendable = settled available minus the declared minimum reserve; reserved, in-transit, pending claims and expected earnings never admit work"
+     }
+    },
+    "admission_policy": "priority_then_cost",
+    "binding": false,
+    "note": "declared priorities decide admission; no model score supersedes them; this recommendation authorizes nothing \u2014 the independent validator and the reservation path decide"
+   }
+  },
+  {
+   "command": "GET /api/v1/missions/mc_a205fed13e38/continuity (as buyer-ex)",
+   "status": 200,
+   "response": {
+    "schema": "metacoin-mission-continuity/v1",
+    "mission_id": "mc_a205fed13e38",
+    "state": "frozen",
+    "active_generation": null,
+    "generations": [],
+    "pending_operations": [],
+    "pending_signing_requests": [],
+    "safe_actions": [
+     {
+      "action": "reserve",
+      "milestone": "cpu",
+      "offer_id": "ro_634ae3cfdf7e",
+      "amount": 2000,
+      "permitted": true,
+      "reason": "ok"
+     }
+    ],
+    "blocked": [],
+    "stop_reason": null,
+    "recovery_evidence": {
+     "domain": "dom-ex",
+     "recovery_state": "normal",
+     "rollback_detection": "UNAVAILABLE: no witness reachable and no watermark file; a restored database cannot be told from the newest one",
+     "witness": {
+      "configured": true,
+      "reachable": true,
+      "identity_pinned_matches": true,
+      "latest_sequence": null,
+      "age_seconds": null,
+      "witness_id": "w-test",
+      "fresh": false
+     },
+     "last_acknowledged_checkpoint": null,
+     "connectivity": "online"
+    },
+    "signer": {
+     "custody": "external-signer:sig-example",
+     "reachable": null
+    },
+    "rules": [
+     "a replacement controller reconstructs state from this record and obtains a new generation from the authority; it cannot reuse consumed authority",
+     "if the authority is unreachable the controller may use only its previously granted generation; it cannot grant itself a new one",
+     "a stopped worker does not imply its external payment failed: uncertain intents are reconciled by their stable identity before any resubmission",
+     "a manual pause stops new work while outstanding obligations and earned funds stay"
+    ],
+    "last_events": [
+     {
+      "at": 1792740828,
+      "kind": "portfolio_plan",
+      "actor": "p_2f633f73384d92a6"
+     },
+     {
+      "at": 1792740828,
+      "kind": "frozen",
+      "actor": "p_2f633f73384d92a6"
+     },
+     {
+      "at": 1792740828,
+      "kind": "created",
+      "actor": "p_2f633f73384d92a6"
+     }
+    ]
+   }
+  },
+  {
+   "command": "POST /api/v1/missions/mc_a205fed13e38/takeover {\"holder\": \"runner-example\"} (as buyer-ex)",
+   "status": 200,
+   "response": {
+    "mission_id": "mc_a205fed13e38",
+    "generation": 1,
+    "holder": "runner-example",
+    "superseded": null,
+    "granted_at": 1792740828,
+    "rule": "present this generation on every mutating controller call; a superseded generation is refused; the authority alone grants generations"
+   }
+  },
+  {
+   "command": "POST /api/v1/missions/mc_a205fed13e38/step {\"generation\": 1} (as buyer-ex)",
+   "status": 200,
+   "response": {
+    "mission_id": "mc_a205fed13e38",
+    "performed": {
+     "action": "reserve",
+     "milestone": "cpu",
+     "offer_id": "ro_634ae3cfdf7e",
+     "amount": 2000,
+     "reason": null
+    },
+    "result": {
+     "awaiting_signature": [
+      "sr_7216f49f8ed4"
+     ],
+     "note": "the buyer account is held by an external signer: its agent must sign the reservation intent; nothing reserved until then"
+    },
+    "rejected": [],
+    "state": "running",
+    "context": {
+     "role": "requester",
+     "acting_account": "na_81621b2bf9aa",
+     "spendable_settled": 4974,
+     "available": 4974,
+     "reserved_exposure": 0,
+     "earned_unsettled_not_spendable": 0,
+     "min_cash_reserve": 0,
+     "per_action_ceiling": null,
+     "mission_ceiling": null,
+     "mission_reserved": 0,
+     "mission_spent": 0,
+     "grant": null,
+     "custody": "external-signer:sig-example",
+     "connectivity": "online",
+     "recovery_state": "normal",
+     "energy": {
+      "budget_mwh": null,
+      "reserve_mwh": 0,
+      "committed_mwh": 0
+     },
+     "now": 1792740828
+    }
+   }
+  },
+  {
+   "command": "metacoin-provider --base http://127.0.0.1:37977 --cred <cred> roots",
+   "exit_code": 0,
+   "response": {
+    "dom-ex": [
+     {
+      "key_id": "k_946af195fc855cd181594e39",
+      "public_hex": "3b893fceb5f00a226120848ddfd659f5b5c21022fc71f54e07ac776816099e95",
+      "epoch": 1
+     }
+    ]
+   }
+  },
+  {
+   "command": "metacoin-provider --base http://127.0.0.1:37977 --cred <cred> export --out /tmp/tmpc19rnk90/export.json",
+   "exit_code": 0,
+   "response": {
+    "written": "/tmp/tmpc19rnk90/export.json",
+    "receipts": 1,
+    "intents": 1
+   }
+  },
+  {
+   "command": "metacoin-provider verify /tmp/tmpc19rnk90/export.json --roots /tmp/tmpc19rnk90/roots.json",
+   "exit_code": 0,
+   "response": {
+    "schema": "metacoin-export-verification/v1",
+    "domain": "dom-ex",
+    "checks": [
+     {
+      "check": "receipt:nr_fb020e29350bf010",
+      "ok": true,
+      "detail": {
+       "kind": "settlement",
+       "ref": [
+        "native_intent",
+        "ni_ad3579b171404532"
+       ],
+       "claims": {
+        "intent_id": "ni_ad3579b171404532",
+        "from": "na_81621b2bf9aa",
+        "to": "na_40129b32e828",
+        "asset": "dev:dom-ex:ledger-dom-ex:TMETA:0",
+        "amount": 26,
+        "obligation_id": "no_0a4ce278a58fb62c",
+        "reservation_id": "rr_316b676f0bc5",
+        "delivered_quantity": 26,
+        "unit": "cpu_ms",
+        "commit_sequence": 1,
+        "domain": "dom-ex",
+        "finality": "domain_local_settlement"
+       }
+      }
+     },
+     {
+      "check": "intent:ni_ad3579b171404532",
+      "ok": true,
+      "detail": {
+       "note": "authority-ordered settlement without an actor signature (treasury or reservation settlement); the authority receipt applies"
+      }
+     },
+     {
+      "check": "entries_balanced",
+      "ok": true,
+      "detail": {
+       "unbalanced": [],
+       "entries": 5
+      }
+     },
+     {
+      "check": "no_negative_account_category",
+      "ok": true,
+      "detail": {
+       "negative": []
+      }
+     }
+    ],
+    "ok": true
+   }
+  },
+  {
+   "command": "metacoin-provider conformance",
+   "exit_code": 0,
+   "response": {
+    "version": "metacoin-provider-conformance/v2",
+    "cases": 32,
+    "passed": 32,
+    "ok": true,
+    "results": [
+     {
+      "case": "canonical:nested_sorted",
+      "ok": true
+     },
+     {
+      "case": "canonical:unicode_escaped",
+      "ok": true
+     },
+     {
+      "case": "canonical:big_int",
+      "ok": true
+     },
+     {
+      "case": "invalid_json:float",
+      "ok": true,
+      "detail": "float_forbidden"
+     },
+     {
+      "case": "invalid_json:duplicate_key",
+      "ok": true,
+      "detail": "duplicate_key"
+     },
+     {
+      "case": "invalid_json:nan",
+      "ok": true,
+      "detail": "constant_forbidden"
+     },
+     {
+      "case": "signature:receipt_valid",
+      "ok": true,
+      "detail": {
+       "got": true,
+       "expect": true
+      }
+     },
+     {
+      "case": "signature:receipt_wrong_key",
+      "ok": true,
+      "detail": {
+       "got": false,
+       "expect": false
+      }
+     },
+     {
+      "case": "signature:receipt_altered_claim",
+      "ok": true,
+      "detail": {
+       "got": false,
+       "expect": false
+      }
+     },
+     {
+      "case": "signature:receipt_as_intent_type",
+      "ok": true,
+      "detail": {
+       "got": false,
+       "expect": false
+      }
+     },
+     {
+      "case": "signature:signature_truncated",
+      "ok": true,
+      "detail": {
+       "got": false,
+       "expect": false
+      }
+     },
+     {
+      "case": "signature:public_key_not_on_curve",
+      "ok": true,
+      "detail": {
+       "got": false,
+       "expect": false
+      }
+     },
+     {
+      "case": "signature:intent_valid",
+      "ok": true,
+      "detail": {
+       "got": true,
+       "expect": true
+      }
+     },
+     {
+      "case": "signature:intent_recipient_altered",
+      "ok": true,
+      "detail": {
+       "got": false,
+       "expect": false
+      }
+     },
+     {
+      "case": "bundle:valid",
+      "ok": true,
+      "detail": {
+       "failed_checks": [],
+       "expected": []
+      }
+     },
+     {
+      "case": "bundle:receipt_claim_altered",
+      "ok": true,
+      "detail": {
+       "failed_checks": [
+        "content_digest",
+        "receipt:nr_1"
+       ],
+       "expected": [
+        "content_digest",
+        "receipt:nr_1"
+       ]
+      }
+     },
+     {
+      "case": "bundle:ledger_spent_altered",
+      "ok": true,
+      "detail": {
+       "failed_checks": [
+        "content_digest",
+        "ledger_spent_matches_settled_intents"
+       ],
+       "expected": [
+        "content_digest",
+        "ledger_spent_matches_settled_intents"
+       ]
+      }
+     },
+     {
+      "case": "bundle:journal_posting_altered",
+      "ok": true,
+      "detail": {
+       "failed_checks": [
+        "content_digest",
+        "entries_balanced"
+       ],
+       "expected": [
+        "content_digest",
+        "entries_balanced"
+       ]
+      }
+     },
+     {
+      "case": "bundle:intent_amount_altered",
+      "ok": true,
+      "detail": {
+       "failed_checks": [
+        "content_digest",
+        "ledger_spent_matches_settled_intents"
+       ],
+       "expected": [
+        "content_digest",
+        "ledger_spent_matches_settled_intents"
+       ]
+      }
+     },
+     {
+      "case": "bundle:content_altered_seal_stale",
+      "ok": true,
+      "detail": {
+       "failed_checks": [
+        "content_digest"
+       ],
+       "expected": [
+        "content_digest"
+       ]
+      }
+     },
+     {
+      "case": "bundle:no_root_pinned",
+      "ok": true,
+      "detail": {
+       "failed_checks": [
+        "seal_root_pinned",
+        "receipt:nr_1"
+       ],
+       "expected": [
+        "seal_root_pinned",
+        "receipt:nr_1"
+       ]
+      }
+     },
+     {
+      "case": "key_id_rule",
+      "ok": true
+     },
+     {
+      "case": "v2:monetary_overflow",
+      "ok": true,
+      "detail": {
+       "got": "integer_out_of_bounds",
+       "expect": "integer_out_of_bounds"
+      }
+     },
+     {
+      "case": "v2:duplicate_keys",
+      "ok": true,
+      "detail": {
+       "got": "duplicate_key",
+       "expect": "duplicate_key"
+      }
+     },
+     {
+      "case": "v2:unknown_critical_field",
+      "ok": true,
+      "detail": {
+       "got": "unknown_critical_field",
+       "expect": "unknown_critical_field"
+      }
+     },
+     {
+      "case": "v2:stale_authority_epoch",
+      "ok": true,
+      "detail": {
+       "got": "epoch_key_mismatch",
+       "expect": "epoch_key_mismatch"
+      }
+     },
+     {
+      "case": "v2:revoked_signer",
+      "ok": true,
+      "detail": {
+       "got": "key_not_valid",
+       "expect": "key_not_valid"
+      }
+     },
+     {
+      "case": "v2:consumed_claim_parent",
+      "ok": true,
+      "detail": {
+       "got": "lot_partition",
+       "expect": "lot_partition"
+      }
+     },
+     {
+      "case": "v2:valid_lot_partition",
+      "ok": true,
+      "detail": {
+       "got": "valid",
+       "expect": "valid"
+      }
+     },
+     {
+      "case": "v2:malformed_resource_units",
+      "ok": true,
+      "detail": {
+       "got": "units_per_slot_second",
+       "expect": "units_per_slot_second"
+      }
+     },
+     {
+      "case": "v2:pool_oversold",
+      "ok": true,
+      "detail": {
+       "got": "pool_overlap",
+       "expect": "pool_overlap"
+      }
+     },
+     {
+      "case": "v2:pool_touching_ok",
+      "ok": true,
+      "detail": {
+       "got": "valid",
+       "expect": "valid"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

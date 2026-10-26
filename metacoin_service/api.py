@@ -4,6 +4,7 @@ and calls the narrow services; state machines live in the services, not here."""
 import asyncio
 import hashlib
 import json
+import os
 import time
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -28,7 +29,7 @@ from .documents.service import Documents
 from .disagreements import Disagreements
 from . import agents as agents_mod, budgets, campaigns as campaigns_mod, observability, reuse as reuse_mod, schedules as schedules_mod, scheduling, search as search_mod, sharing, catalog as catalog_mod, datasets as datasets_mod, metering, jobs as jobs_mod, reviews as reviews_mod, science, templates_svc, workflows as workflows_mod, x402_http
 from .db import Database, now
-from .errors import ServiceError, from_exception
+from .errors import BUSY_RETRY_AFTER_SECONDS, ServiceError, from_exception
 
 API = '/api/v1'
 SENSITIVE_HEADERS = {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
@@ -73,6 +74,33 @@ class Services:
         self.reconciliations = Reconciliations(settings, self)
         from .economy.facade import Economy
         self.economy = Economy(settings, self)
+        from .decision.service import Decisions
+        from .decision.sampling import Sampling
+        from .decision.portfolio import Portfolios
+        self.decisions = Decisions(settings, self)
+        self.sampling = Sampling(settings, self)
+        self.portfolios = Portfolios(settings, self)
+        from .native.service import Native
+        self.native = Native(settings, self)
+        from .lunar.service import Lunar
+        self.lunar = Lunar(settings, self)
+        from .native.market import Market
+        from .native.pools import Pools; self.pools = Pools(settings, self)
+        self.market = Market(settings, self)
+        from .native.mission_contracts import Missions
+        from .native.controller import Controller
+        self.missions = Missions(settings, self)
+        self.controller = Controller(settings, self)
+        from .native.mission_planning import MissionPlanning; self.planning = MissionPlanning(self)
+        from .native.operator import OperatorScreen; self.operator = OperatorScreen(self)
+        from .native.signing import Signing; self.signing = Signing(settings, self)
+        from .native.subcontracts import Subcontracts; self.subcontracts = Subcontracts(settings, self)
+        from .native.products import Products; self.products = Products(settings, self)
+        from .native.relay import Relay; self.relay = Relay(settings, self)
+        from .native.portfolio import Portfolio; self.portfolio = Portfolio(settings, self)
+        from .native.subscriptions import Subscriptions; self.subscriptions = Subscriptions(settings, self)
+        from .native.substitution import Substitution; self.substitution = Substitution(settings, self)
+        self.on_signed_hooks = {'subcontract': [self.subcontracts.on_signed], 'product_entitlement': [self.products.on_signed]}
         self.sales.delivery_gate = self.packages.gate_for_job
         self._model_host = None
         with self.db.tx() as db:                       # installed services are registered idempotently at start
@@ -172,7 +200,7 @@ def create_app(settings):
 
     @app.exception_handler(ServiceError)
     async def handle_service_error(request, exc):
-        return JSONResponse(exc.body(), status_code=exc.status, headers=SENSITIVE_HEADERS)
+        return JSONResponse(exc.body(), status_code=exc.status, headers=dict(SENSITIVE_HEADERS, **({'Retry-After': str(BUSY_RETRY_AFTER_SECONDS)} if exc.status == 503 else {})))
 
     @app.middleware('http')
     async def headers(request, call_next):
@@ -185,11 +213,27 @@ def create_app(settings):
             response = JSONResponse(exc.body(), status_code=exc.status)
         except Exception as exc:
             err = from_exception(exc)
-            _log_defect(request, exc, err.code)
+            if err.code == 'JOURNAL_BUSY':
+                _log_busy(request)                                        # a classified, retryable refusal: counted, not a defect
+            else:
+                _log_defect(request, exc, err.code)
             response = JSONResponse(err.body(), status_code=err.status)
+        if response.status_code == 503:
+            response.headers.setdefault('Retry-After', str(BUSY_RETRY_AFTER_SECONDS))
         for key, value in SENSITIVE_HEADERS.items():
             response.headers.setdefault(key, value)
         return response
+
+    def _log_busy(request):
+        """One line per lock-wait timeout (private operator log): when and which route; no bodies, no headers."""
+        try:
+            svc.settings.logs_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+            path = svc.settings.logs_dir / 'busy.log'
+            with open(path, 'a') as fh:
+                fh.write('%s JOURNAL_BUSY %s %s\n' % (now(), request.method, request.url.path))
+            os.chmod(path, 0o600)
+        except Exception:
+            pass
 
     def _log_defect(request, exc, code):
         """Unexpected exceptions never reach the client; their trace goes to a private operator log (no bodies, no headers)."""
@@ -198,7 +242,10 @@ def create_app(settings):
             svc.settings.logs_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
             path = svc.settings.logs_dir / 'defects.log'
             with open(path, 'a') as fh:
-                fh.write('%s %s %s %s\n%s\n' % (now(), code, request.method, request.url.path, ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-4000:]))
+                cause = exc.__cause__ or exc.__context__
+                fh.write('%s %s %s %s %s%s\n%s\n' % (now(), code, request.method, request.url.path, type(exc).__name__,
+                                                   (' (while handling %s: %s)' % (type(cause).__name__, str(cause)[:120])) if cause is not None else '',
+                                                   ''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-4000:]))
             os.chmod(path, 0o600)
         except Exception:
             pass
@@ -942,7 +989,7 @@ def create_app(settings):
         q = request.query_params
         def fn(db, p):
             p.require('history:read')
-            if object_type not in ('dataset_version', 'contract', 'job', 'artifact', 'review', 'workflow_run', 'workflow_definition', 'campaign', 'quote', 'usage', 'service'):
+            if object_type not in ('dataset_version', 'contract', 'job', 'artifact', 'review', 'workflow_run', 'workflow_definition', 'campaign', 'quote', 'usage', 'service', 'acquisition_plan', 'sampling_plan', 'work_terms', 'work_award', 'work_request', 'decision', 'verification'):
                 raise ServiceError('VALIDATION', 'object_type')
             return datasets_mod.lineage(db, p, object_type, object_id, depth=int(q.get('depth', 4)), limit=min(int(q.get('limit', 200)), 500))
         return await run(request, False, fn)
@@ -2401,6 +2448,12 @@ def create_app(settings):
     console.mount(app, svc)
     from .economy import routes as economy_routes
     economy_routes.mount(app, svc, run, read_body, API)
+    from .decision import routes as decision_routes
+    decision_routes.mount(app, svc, run, read_body, API)
+    from .native import routes as native_routes
+    native_routes.mount(app, svc, run, read_body, API)
+    from .lunar import routes as lunar_routes
+    lunar_routes.mount(app, svc, run, read_body, API)
     return app
 
 
@@ -2443,11 +2496,34 @@ def _revision():
     return _REVISION_AT_START
 
 
+def _signer_capability(settings, db):
+    """Custody facts and signer reachability (a health probe only; the service never asks the signer to sign on its own behalf)."""
+    ext = db.execute("SELECT COUNT(*) FROM native_accounts WHERE custody LIKE 'external-signer:%'").fetchone()[0]
+    dev = db.execute("SELECT COUNT(*) FROM native_accounts WHERE kind='actor' AND custody NOT LIKE 'external-signer:%'").fetchone()[0]
+    out = {'custody': {'external_signer_accounts': ext, 'development_custody_accounts': dev, 'service_holds_private_keys_for': 'development-custody actors and the domain authority only', 'development_custody_creation': 'disabled' if getattr(settings, 'require_external_custody', False) else 'enabled', 'fallback': 'none: an external-custody account can only spend with a signature from its signer; the service has no path to those keys'}, 'signer_url_configured': bool(settings.signer_url), 'reachable': None, 'signer': None}
+    if settings.signer_url and settings.signer_token_file:
+        try:
+            from .native.signer import SignerClient
+            st, h = SignerClient(settings.signer_url, settings.signer_token_file).health()
+            out['reachable'] = st == 200; out['signer'] = {k: h.get(k) for k in ('signer_id', 'environment', 'domains', 'custody', 'actors_active', 'os_isolation')} if st == 200 else {'code': h.get('code')}
+        except Exception as exc:
+            out['reachable'] = False; out['signer'] = {'error': type(exc).__name__}
+    return out
+
+
 def capability_table(svc, db):
     settings = svc.settings
-    from integrations.x402 import loopback_harness as lb
-    installed_x402 = lb.available()
+    if settings.x402_disabled:
+        installed_x402 = False
+    else:
+        from integrations.x402 import loopback_harness as lb
+        installed_x402 = lb.available()
+    native_dom = db.execute('SELECT id, environment, connectivity, recovery_state, commit_sequence FROM native_domains LIMIT 1').fetchone()
     return {
+        'native': {'installed': True, 'available': native_dom is not None, 'protocol': 'metacoin-native/v0', 'domain': native_dom['id'] if native_dom else None,
+                   'state': dict(native_dom) if native_dom else None, 'note': 'MetaCoin-native signed intents, obligations and domain-local settlement; the payment core; x402 is never imported by it'},
+        'signer': _signer_capability(settings, db),
+        'x402': {'disabled': settings.x402_disabled, 'installed': installed_x402, 'required_by_native_core': False, 'role': 'optional Earth-side adapter (HTTP sale / buyer); not the asset model, not a dependency of native settlement'},
         'service': {'version': '0.1.0', 'revision': _revision(), 'bind': settings.host + ':' + str(settings.port),
                     'dev_http_loopback': settings.dev_http_loopback},
         'authentication': {'installed': True, 'configured': True, 'available': True, 'externally_validated': False,

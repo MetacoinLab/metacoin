@@ -1,0 +1,12 @@
+runtime data placed from protocol-data/
+files: 634
+sha256 of archive: 7c668cc872b3ab6b5827f9fdf951eea5225da71db929a5d4d3d6bffbe8377974
+venv rc=0
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home --provider-mode simulation init
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home status
+rc=0 54s :: .venv/bin/python -m unittest metacoin_service.tests.test_native_protocol metacoin_service.tests.test_native_domains metacoin_service.tests.test_native_lunar metacoin_service.tests.test_native_conformance metacoin_service.tests.test_native_model metacoin_service.tests.test_native_interfaces
+rc=0 0s :: .venv/bin/python -m metacoin_service.native.vectors
+rc=0 0s :: .venv/bin/python -m metacoin_service.lunar reproduce metacoin_service/lunar/data/example-pack-inputs.json --manifest metacoin_service/lunar/data/example-pack-manifest.json
+rc=0 14s :: .venv/bin/python -m metacoin_service.tests.journeys_native --only 1,2,4,5,8,9,12,13,14,16,17,18,21,22,36 --out /home/zhangd2/projects/metacoin/work/native-space-protocol-session/artifacts/clean-export/journeys-native-from-clean-export.json
+CLEAN_EXPORT rc=0
+CE_RC=0

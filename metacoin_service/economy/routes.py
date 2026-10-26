@@ -82,6 +82,10 @@ def mount(app, svc, run, read_body, API):
     async def work_provider(request: Request, prid: str):
         return await run(request, False, lambda db, p: P.view(db, p, P.row(db, p, prid)))
 
+    @app.get(API + '/work/providers/{prid}/identity')
+    async def work_provider_identity(request: Request, prid: str):
+        return await run(request, False, lambda db, p: P.identity_view(db, p, prid))
+
     @app.get(API + '/work/providers/{prid}/history')
     async def work_provider_history(request: Request, prid: str):
         return await run(request, False, lambda db, p: provider_history.build(db, p, P, prid, disclosed_only=request.query_params.get('scope') == 'disclosed'))
@@ -194,6 +198,12 @@ def mount(app, svc, run, read_body, API):
             return await run(request, True, lambda db, p: (E.open_dispute(db, p, aid, key, body), 201), 'work.dispute.open', raw)
         if action == 'delegate':
             return await run(request, True, lambda db, p: (E.delegate(db, p, aid, key, body), 201), 'work.delegate', raw)
+        if action == 'deliver':
+            return await run(request, True, lambda db, p: (svc.decisions.deliver(db, p, aid, key, body), 201), 'work.deliver', raw)
+        if action == 'assurance':
+            return await run(request, False, lambda db, p: svc.decisions.assurance_preview(db, p, aid, key))
+        if action == 'delivery-spec':
+            return await run(request, False, lambda db, p: svc.decisions.delivery_spec(db, p, aid, key))
         AC = svc.economy.access
         if action == 'package':
             return await run(request, True, lambda db, p: (AC.encrypted_package(db, p, aid, key, body), 201), 'work.package', raw)
@@ -203,6 +213,14 @@ def mount(app, svc, run, read_body, API):
             return await run(request, True, lambda db, p: AC.anchor_candidate(db, p, aid, key, body))
         from ..errors import ServiceError
         raise ServiceError('NOT_FOUND', 'milestone action')
+
+    @app.get(API + '/work/awards/{aid}/milestones/{key}/assurance')
+    async def work_assurance(request: Request, aid: str, key: str):
+        return await run(request, False, lambda db, p: svc.decisions.assurance_preview(db, p, aid, key))
+
+    @app.get(API + '/work/awards/{aid}/milestones/{key}/delivery-spec')
+    async def work_delivery_spec(request: Request, aid: str, key: str):
+        return await run(request, False, lambda db, p: svc.decisions.delivery_spec(db, p, aid, key))
 
     @app.post(API + '/work/awards/{aid}/reassign')
     async def work_reassign(request: Request, aid: str):

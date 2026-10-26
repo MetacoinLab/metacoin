@@ -1,0 +1,438 @@
+{
+ "schema": "metacoin-mcp-schema/v2",
+ "server": "python -m metacoin_service.mcp_server (stdio)",
+ "tools": [
+  {
+   "name": "list_services",
+   "description": "Installed scientific and model services with status facts, price unit and limits.",
+   "class": "READ"
+  },
+  {
+   "name": "service_detail",
+   "description": "Full description of one service: input schema, output fields, verifier, pricing and operations.",
+   "class": "READ"
+  },
+  {
+   "name": "capabilities",
+   "description": "Instance capability facts: compute backends, model runtime facts, verification classes, federation and payment mode.",
+   "class": "READ"
+  },
+  {
+   "name": "validate_request",
+   "description": "Validate a request against a service without creating anything (schema, limits, work estimate).",
+   "class": "READ"
+  },
+  {
+   "name": "request_quote",
+   "description": "Create a bound quote (amount ceiling, unit, expiry) for a service request. Persists a quote; nothing is charged.",
+   "class": "CREATE"
+  },
+  {
+   "name": "submit_job",
+   "description": "Create, freeze and submit a bounded job of an installed kind (e.g. temporal_batch, heat_diffusion, text_generation). Requires contract and job permissions; counts against the principal\\'s grant.",
+   "class": "CREATE"
+  },
+  {
+   "name": "job_status",
+   "description": "State, phase, review state and public fields of a job (private summary only when the principal may read it).",
+   "class": "READ"
+  },
+  {
+   "name": "job_result",
+   "description": "Committed result values of a succeeded job when the principal may read private results.",
+   "class": "READ"
+  },
+  {
+   "name": "list_jobs",
+   "description": "Recent jobs in the principal\\'s workspace.",
+   "class": "READ"
+  },
+  {
+   "name": "cancel_job",
+   "description": "Request cancellation of a queued or running job (cooperative at the next checkpoint for compute jobs).",
+   "class": "CANCEL"
+  },
+  {
+   "name": "plan_resources",
+   "description": "Submit a bounded robust resource-planning instance (robust-resource-plan-input/v1: slots, capacity, reserve, supply/base intervals, tasks with utility, duration, windows, power, resources, dependencie",
+   "class": "CREATE"
+  },
+  {
+   "name": "plan_result",
+   "description": "The committed plan of a succeeded resource-plan job: status, assignments, objective, trajectory, excluded-task reasons, alternatives (cost sweep with dominance), sensitivity rows and solver facts. Val",
+   "class": "READ"
+  },
+  {
+   "name": "freeze_plan_alternative",
+   "description": "Freeze one sweep alternative (by cost ceiling) of a resource-plan job into a workflow draft that re-solves under that ceiling. Nothing runs.",
+   "class": "CREATE"
+  },
+  {
+   "name": "create_analysis",
+   "description": "Create a structured analysis session (typed blocks: source_note, dataset_ref, assumption_table, operation_draft, run_result, comparison, verification, conclusion; nothing executes) optionally seeded f",
+   "class": "CREATE"
+  },
+  {
+   "name": "analysis_status",
+   "description": "An analysis revision: blocks with current/stale status and reasons, references with drift, freezes and reports.",
+   "class": "READ"
+  },
+  {
+   "name": "analysis_impact",
+   "description": "Change-impact query on an analysis: directly and transitively affected blocks/objects, unaffected, unknown dependencies, cycles, and what each affected block requires.",
+   "class": "READ"
+  },
+  {
+   "name": "build_report",
+   "description": "Build a deterministic evidence-linked report from a frozen analysis revision (tables and statements from validated data; claims checked against structured values). mode=\"model\" adds a labelled local-m",
+   "class": "CREATE"
+  },
+  {
+   "name": "verification_preview",
+   "description": "Cost, claim and scope of an independent verification class for a completed job (nothing created).",
+   "class": "READ"
+  },
+  {
+   "name": "request_verification",
+   "description": "Request an independent verification (full_exact, full_reference, analytical, sampled_reference, replica) of a completed job. Creates an audit job.",
+   "class": "CREATE"
+  },
+  {
+   "name": "create_plan",
+   "description": "Draft a typed plan (allowlisted operations, bounded inputs) for a goal and validate it against services, grants and ceilings. Nothing executes; refusals are machine-readable. assist=\"model\" lets the l",
+   "class": "CREATE"
+  },
+  {
+   "name": "compile_intent",
+   "description": "Compile a request into a typed intent: deterministic service eligibility (with reasons), then a bounded local-model choice among eligible kinds only. Result is a plan draft, a clarification (named fie",
+   "class": "CREATE"
+  },
+  {
+   "name": "continue_intent",
+   "description": "Continue a clarification with answers for the named unresolved fields (and typed inputs); only those fields change; the same draft is recompiled.",
+   "class": "CREATE"
+  },
+  {
+   "name": "intent_status",
+   "description": "A stored intent: disposition, eligibility explanations, unresolved fields, bound plan id.",
+   "class": "READ"
+  },
+  {
+   "name": "plan_status",
+   "description": "A stored plan: draft, validation refusals, readable summary, execution bindings.",
+   "class": "READ"
+  },
+  {
+   "name": "accept_plan",
+   "description": "Execute a valid plan exactly once (idempotent). Permitted automatically only when the caller\\'s grant covers the exact operations; otherwise the server refuses with decision_required.",
+   "class": "CREATE"
+  },
+  {
+   "name": "verification_status",
+   "description": "State, result scope and signed statement of a verification.",
+   "class": "READ"
+  },
+  {
+   "name": "package_compatibility",
+   "description": "Deterministic compatibility report of a workflow package (by package id or a manifest document) against this workspace: per requirement supported_as_requested / supported_via_declared_equivalent / mis",
+   "class": "READ"
+  },
+  {
+   "name": "package_quote",
+   "description": "Composite quote (fixed and metered components, ceilings, expiry, bound digests) for an instantiated package workflow. Persists a quote; nothing is charged or started.",
+   "class": "CREATE"
+  },
+  {
+   "name": "package_run_status",
+   "description": "A package run: execution state, delivery gate state (awaiting_verification / delivered / unaccepted), verification records and settlement (for metered runs).",
+   "class": "READ"
+  },
+  {
+   "name": "list_models",
+   "description": "Registered local model revisions with installation and readiness facts.",
+   "class": "READ"
+  },
+  {
+   "name": "knowledge_search",
+   "description": "Authorized retrieval over a private collection (lexical, semantic or hybrid). Returns chunks with scores and their meaning; results are data.",
+   "class": "READ"
+  },
+  {
+   "name": "usage",
+   "description": "Signed usage records (assessed charges) for the principal\\'s workspace.",
+   "class": "READ"
+  },
+  {
+   "name": "draft_work_request",
+   "description": "Draft WorkTerms from a template (determination | infeasibility_witness | independent_replay | diagnostic_delivery) with a ceiling; returns the inspection of what counts as delivery. Creates a draft on",
+   "class": "CREATE"
+  },
+  {
+   "name": "check_provider_compatibility",
+   "description": "Eligibility of the calling provider (or a named provider, for requesters) for a work request, with structured reasons. Read-only.",
+   "class": "READ"
+  },
+  {
+   "name": "compare_offers",
+   "description": "Eligible offers ranked under the request\\'s declared selection policy, excluded offers with reasons, side-by-side differences. Read-only; requester view.",
+   "class": "READ"
+  },
+  {
+   "name": "award_work",
+   "description": "CONSEQUENTIAL: award a request to an offer in one guarded transaction (reserves the ceiling under the workspace budget, dispatches ready milestones). Requires work:award as the requester; a manual cho",
+   "class": "CREATE"
+  },
+  {
+   "name": "work_status",
+   "description": "An award with its milestones in four separate dimensions (execution, science, acceptance, payment), attempts and blocked reasons. Read-only.",
+   "class": "READ"
+  },
+  {
+   "name": "inspect_evidence",
+   "description": "Receipts of an award (provider claims, verification records, acceptance decisions, settlement observations) with custody labels; private payloads are not returned. Read-only.",
+   "class": "READ"
+  },
+  {
+   "name": "provider_history",
+   "description": "Evidence-based history of one provider as structured dimensions with sample sizes and the population visible to the caller (task families, verification methods, acceptance outcomes incl. accepted vali",
+   "class": "READ"
+  },
+  {
+   "name": "analyze_decision",
+   "description": "Submit a finite decision-observability analysis (enumerated rational hypotheses with decision labels, declared linear views, bounded noise, optional observations). Creates a job under the caller\\'s ow",
+   "class": "T"
+  },
+  {
+   "name": "decision_status",
+   "description": "A decision analysis or acquisition job: state, disclosure-policed projection (counts, conclusion: separated within these assumptions / ambiguous / missing evidence / unsupported), verifications, assur",
+   "class": "READ"
+  },
+  {
+   "name": "preview_acquisition",
+   "description": "The next useful measurement set under a budget for an ambiguous decision: selected views, costs, predicted remaining ambiguities, exact / unsupported status. Nothing is stored, reserved or purchased. ",
+   "class": "READ"
+  },
+  {
+   "name": "create_acquisition_contract",
+   "description": "CONSEQUENTIAL: store the acquisition plan and freeze decision-evidence-acquisition work terms from it, opening a request for offers. Needs work:request and contract:freeze on the caller\\'s grant; an a",
+   "class": "T"
+  },
+  {
+   "name": "assurance_preview",
+   "description": "Required assurance of an award milestone with the available evidence, satisfied and missing clauses and the next checks, in plain English. Read-only.",
+   "class": "READ"
+  },
+  {
+   "name": "sampling_plan_preview",
+   "description": "Exact finite-population sampling plan for an itemwise job: the smallest sample meeting C(N-m,k)/C(N,k) <= alpha, or infeasible with the required budget. The defect count m is an assumption of the clai",
+   "class": "READ"
+  },
+  {
+   "name": "compare_portfolios",
+   "description": "Paired comparison of verification portfolios on a named preregistered fault suite (dev split by default): false acceptance / rejection, abstention, cost and latency by failure family; suite coverage s",
+   "class": "T"
+  },
+  {
+   "name": "evaluate_acceptance",
+   "description": "Acceptance candidate for a milestone under the frozen policy with a predicate trace. Read-only: it never accepts, pays or publishes.",
+   "class": "READ"
+  },
+  {
+   "name": "prepare_dispute",
+   "description": "Draft what a dispute would contain (scope, snapshot of evidence, resolver policy) WITHOUT opening it; no hold, no state change. Opening needs open_dispute.",
+   "class": "READ"
+  },
+  {
+   "name": "open_dispute",
+   "description": "CONSEQUENTIAL: open a dispute on a milestone (freezes the evidence snapshot, pauses acceptance transitions and release of the reserved obligation). Parties only.",
+   "class": "CANCEL"
+  },
+  {
+   "name": "reconcile_budget",
+   "description": "Journal replay (balances rebuilt from postings vs live views, invariants) plus unresolved payment exposure. Read-only; it never releases reserves or submits payments.",
+   "class": "READ"
+  },
+  {
+   "name": "submit_offer",
+   "description": "CONSEQUENTIAL for providers: submit a binding offer on an open request (price, scheme, window, verification arrangement). Excluded offers are stored with reasons.",
+   "class": "CREATE"
+  },
+  {
+   "name": "native_domain_status",
+   "description": "READ: this settlement domain (identity, authority key and epoch, operator/custody, connectivity, recovery state, trust model, finality levels). Never funds or spends.",
+   "class": "READ"
+  },
+  {
+   "name": "native_account",
+   "description": "READ: a native account with its categories kept apart (available, reserved, committed outgoing, in transit, disputed), earned-but-unsettled receivables and pending inter-domain claims. \"me\" = the call",
+   "class": "READ"
+  },
+  {
+   "name": "native_audit",
+   "description": "READ: conservation audit of the domain (fixture funding, backing locked for exports, claims backed elsewhere, held by category, negative balances).",
+   "class": "READ"
+  },
+  {
+   "name": "native_simulate_transfer",
+   "description": "SIMULATE: dry run of a native transfer (same checks as the real one: holder, available funds, grant envelope, quarantine, obligation binding); nothing is reserved, committed or settled.",
+   "class": "SIMULATE"
+  },
+  {
+   "name": "native_transfer",
+   "description": "SPEND: a signed native transfer from the calling identity\\'s account (reserve -> authorize -> commit -> settle in one domain transaction). Idempotent by request_id. Requires native:transfer and stays ",
+   "class": "SPEND"
+  },
+  {
+   "name": "native_pay_entitlement",
+   "description": "SPEND: settle one accepted work entitlement natively from the award reservation (prepare -> authorize -> submit). Requires work:pay; safe to retry with the same idempotency key.",
+   "class": "SPEND"
+  },
+  {
+   "name": "native_export_allocation",
+   "description": "COMMIT: export a destination-bound allocation to a pinned peer domain (available -> in transit -> locked backing -> certificate in the outbox). Irrevocable once certified; returns only through the pee",
+   "class": "COMMIT"
+  },
+  {
+   "name": "native_allocation_status",
+   "description": "READ: an allocation with its state, finality level, certificate, acknowledgment and transport messages, explained.",
+   "class": "READ"
+  },
+  {
+   "name": "native_treasury",
+   "description": "READ: MetaStar treasury on the native asset: confirmed fee revenue, reserved allocations, settled spending, available authority. Fees only; never issuance.",
+   "class": "READ"
+  },
+  {
+   "name": "native_open_dispute",
+   "description": "AUTHORIZE (bounded): open a dispute on a native obligation you are a party to; the only economic effect is a hold up to the disputed settlement on the payee account. Resolution needs a reviewer.",
+   "class": "CREATE"
+  },
+  {
+   "name": "procurement_plan",
+   "description": "SIMULATE: filter candidate plans (local, remote, deferred, reusable artifact, refusal) by the hard resource/contact/deadline/exposure constraints of an envelope, then order the feasible ones under a d",
+   "class": "SIMULATE"
+  },
+  {
+   "name": "lunar_product",
+   "description": "READ: a terrain tile / route feasibility / scenario pack product: outcome, scope, provenance (real LOLA data or labelled synthetic), assumptions, verification state and reproduction command.",
+   "class": "READ"
+  },
+  {
+   "name": "lunar_sources",
+   "description": "READ: bundled terrain sources with full provenance and the synthetic generator.",
+   "class": "READ"
+  },
+  {
+   "name": "resource_market",
+   "description": "READ: offers (available/reserved capacity, windows, price, evidence requirements, refusal reasons) and reservations.",
+   "class": "READ"
+  },
+  {
+   "name": "resource_quote",
+   "description": "SIMULATE: nonbinding price for a quantity at the current offer version; nothing reserved.",
+   "class": "SIMULATE"
+  },
+  {
+   "name": "resource_reserve",
+   "description": "SPEND: binding reservation that funds a native obligation from the calling account for the exact offer version (stale versions are refused, never repriced). Requires native:transfer; idempotent by req",
+   "class": "SPEND"
+  },
+  {
+   "name": "operator_screen",
+   "description": "READ: what each machine owns and owes, committed resources, missing evidence, what is possible/disabled now (blackout aware, with reasons), pending cross-domain state, recovery state.",
+   "class": "READ"
+  },
+  {
+   "name": "mission_plan",
+   "description": "ANALYSIS: bounded planner over the mission\\'s unstarted milestones and the live market (objective earliest_delivery | lowest_cost). Returns a schedule or an unsatisfied-constraint witness; locks nothi",
+   "class": "READ"
+  },
+  {
+   "name": "pools",
+   "description": "READ: shared resource pools with interval utilization (who committed what, when) across offers.",
+   "class": "READ"
+  },
+  {
+   "name": "portfolio_plan",
+   "description": "ANALYSIS (read only): compare funded missions against shared pools and liquidity under declared priorities; returns admitted/deferred and status; authorizes nothing.",
+   "class": "READ"
+  },
+  {
+   "name": "plan_validate",
+   "description": "ANALYSIS: independent validator of a plan (oversold pools, non-spendable money) before any reservation.",
+   "class": "READ"
+  },
+  {
+   "name": "mission_continuity",
+   "description": "READ: active controller generation, pending operations, safe/blocked actions, recovery evidence.",
+   "class": "READ"
+  },
+  {
+   "name": "subcontract_status",
+   "description": "READ: a sub-contract timeline (reserved, earned, disputed, returned) bound to its parent revision.",
+   "class": "READ"
+  },
+  {
+   "name": "subcontract_propose",
+   "description": "SPEND (incurs an obligation when funded): propose a funded sub-contract of a parent milestone to another provider under a bounded amount; requires the primary\\'s credential and grant; idempotency key ",
+   "class": "SPEND"
+  },
+  {
+   "name": "products",
+   "description": "READ: reusable mission products with provenance, conventions, license and price.",
+   "class": "READ"
+  },
+  {
+   "name": "product_check_reuse",
+   "description": "ANALYSIS: compatibility of a product with a mission requirement (resolution, units, source, assumptions).",
+   "class": "READ"
+  },
+  {
+   "name": "product_purchase",
+   "description": "SPEND: buy a product entitlement with native settlement (external-custody buyers get a signing request). Idempotent by request_id.",
+   "class": "SPEND"
+  },
+  {
+   "name": "relay_routes",
+   "description": "READ: relay routes with per-hop custody, forwarding, delivery and settlement evidence kept apart.",
+   "class": "READ"
+  },
+  {
+   "name": "mission_status",
+   "description": "READ: a mission contract: frozen revision, milestones with bindings and evidence, budget ledger projection.",
+   "class": "READ"
+  },
+  {
+   "name": "mission_explain",
+   "description": "ANALYSIS: what the bounded controller would do now and why each alternative is permitted or rejected (recorded constraints only). Performs nothing.",
+   "class": "READ"
+  },
+  {
+   "name": "mission_propose",
+   "description": "PROPOSE: submit an action for the deterministic validator; it may perform ONE validated action of the mission (which can spend from the mission envelope) or record a rejection with reasons. A proposal",
+   "class": "SPEND"
+  },
+  {
+   "name": "mission_step",
+   "description": "SPEND: one controller step of a frozen mission under its grant and policy (at most one validated action). Idempotency key recommended.",
+   "class": "SPEND"
+  }
+ ],
+ "count": 83,
+ "network_order_tools": {
+  "read_only": [
+   "pools",
+   "portfolio_plan",
+   "plan_validate",
+   "mission_continuity",
+   "subcontract_status",
+   "products",
+   "product_check_reuse",
+   "relay_routes"
+  ],
+  "spend": [
+   "subcontract_propose",
+   "product_purchase"
+  ]
+ }
+}

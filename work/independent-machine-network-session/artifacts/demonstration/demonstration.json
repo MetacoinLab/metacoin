@@ -1,0 +1,2584 @@
+{
+ "schema": "metacoin-demonstration/v2",
+ "title": "Independent machine network: custody-separated mission with subcontract, shared pool, relay and blackout",
+ "x402": "disabled; facilitator URL closed",
+ "domain": "dom-c (development custody disabled)",
+ "actors": {
+  "c_req": "na_c20ee3cff3df",
+  "c_mach": "na_86f36eaa993d",
+  "c_sub": "na_5de4f986f031",
+  "c_sup": "na_703d6e76f0d2",
+  "c_ver": "na_c0d7236087e7",
+  "c_relay": "na_a0549c0ff6b3",
+  "c_con": "na_cb4e8e1d8c7b"
+ },
+ "keys": {
+  "c_req": {
+   "signer": "sig-requester",
+   "key_id": "k_b137d2de47",
+   "custody": "external-signer"
+  },
+  "c_mach": {
+   "signer": "sig-machine",
+   "key_id": "k_fbb886a319",
+   "custody": "external-signer"
+  },
+  "c_sub": {
+   "signer": "sig-others",
+   "key_id": "k_2633ace4f8",
+   "custody": "external-signer"
+  },
+  "c_sup": {
+   "signer": "sig-supplier",
+   "key_id": "k_64a804d33b",
+   "custody": "external-signer"
+  },
+  "c_ver": {
+   "signer": "sig-others",
+   "key_id": "k_9c6f300ce5",
+   "custody": "external-signer"
+  },
+  "c_relay": {
+   "signer": "sig-others",
+   "key_id": "k_a5f6ede27d",
+   "custody": "external-signer"
+  },
+  "c_con": {
+   "signer": "sig-others",
+   "key_id": "k_ab230b1697",
+   "custody": "external-signer"
+  }
+ },
+ "funding_table": {
+  "c_req": 7307,
+  "c_mach": 68,
+  "c_sub": 0,
+  "c_sup": 19,
+  "c_ver": 4,
+  "c_relay": 0,
+  "c_con": 0,
+  "treasury": 2,
+  "reserved": {
+   "c_req": 0,
+   "c_mach": 0
+  }
+ },
+ "steps": [
+  {
+   "step": "funding: zero-value development asset credited to the requester only (fixture); service holds no actor key",
+   "balances": {
+    "c_req": 7307,
+    "c_mach": 68,
+    "c_sub": 0,
+    "c_sup": 19,
+    "c_ver": 4,
+    "c_relay": 0,
+    "c_con": 0,
+    "treasury": 2,
+    "reserved": {
+     "c_req": 0,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 1,
+   "service_actor_key_files": []
+  },
+  {
+   "step": "competition for the shared antenna pool (one channel): two signed reservations raced for the same half hour across two overlapping offers; exactly one admitted, the other refused without reserving funds",
+   "balances": {
+    "c_req": 7307,
+    "c_mach": 68,
+    "c_sub": 200,
+    "c_sup": 19,
+    "c_ver": 4,
+    "c_relay": 0,
+    "c_con": 0,
+    "treasury": 2,
+    "reserved": {
+     "c_req": 0,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 3,
+   "race": {
+    "sub": [
+     201,
+     "rr_cd95fad32e80"
+    ],
+    "req": [
+     409,
+     "pool_capacity_exceeded"
+    ]
+   },
+   "winner": "sub",
+   "pool": {
+    "peak_slots_used": 1,
+    "all_within_capacity": true
+   }
+  },
+  {
+   "step": "acquisition milestone settled (signed by the requester); the compute milestone awarded to the primary machine under frozen terms",
+   "balances": {
+    "c_req": 7258,
+    "c_mach": 72,
+    "c_sub": 200,
+    "c_sup": 19,
+    "c_ver": 4,
+    "c_relay": 0,
+    "c_con": 0,
+    "treasury": 2,
+    "reserved": {
+     "c_req": 45,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 10,
+   "acquire": "accepted",
+   "award": {
+    "action": "award",
+    "milestone": "compute",
+    "offer_id": "wo_fd074832f2e12724",
+    "amount": 45,
+    "reason": null
+   },
+   "requester_signed": [
+    [
+     "settlement",
+     200
+    ]
+   ]
+  },
+  {
+   "step": "subcontract: requester prefunded 12 (signed at sig-requester), subcontractor delivered and was paid 10 by the primary (signed at sig-machine), 2 unused returned to the requester (signed at sig-machine)",
+   "balances": {
+    "c_req": 7248,
+    "c_mach": 72,
+    "c_sub": 210,
+    "c_sup": 19,
+    "c_ver": 4,
+    "c_relay": 0,
+    "c_con": 0,
+    "treasury": 2,
+    "reserved": {
+     "c_req": 45,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 22,
+   "prefund": [
+    200,
+    "funded"
+   ],
+   "child_decision": "accepted",
+   "subcontract_state": "returned",
+   "timeline": {
+    "reserved": 0,
+    "spent": 10,
+    "earned_by_provider": 10,
+    "disputed": 0,
+    "returned": 2,
+    "events": [
+     {
+      "at": 1792756711,
+      "event": "proposed",
+      "funded_amount": 12,
+      "mode": "requester_prefund",
+      "state": "awaiting_prefund"
+     },
+     {
+      "at": 1792756711,
+      "event": "prefunded",
+      "intent": "ni_22c38dde16102e1c",
+      "amount": 12
+     },
+     {
+      "at": 1792756711,
+      "event": "running"
+     },
+     {
+      "at": 1792756713,
+      "event": "completed"
+     },
+     {
+      "at": 1792756713,
+      "event": "return_awaiting_signature",
+      "amount": 2,
+      "request": "sr_9dd2f13b07f6"
+     },
+     {
+      "at": 1792756713,
+      "event": "returned",
+      "amount": 2,
+      "intent": "ni_7124a57dec502c45"
+     }
+    ]
+   }
+  },
+  {
+   "step": "failed delivery branch: the second subcontract (funded 4 from the machine's own settled earnings) was rejected by verification; nothing paid for it; the child award closed and the machine's reservation was released; the primary remains responsible for the parent milestone",
+   "balances": {
+    "c_req": 7248,
+    "c_mach": 72,
+    "c_sub": 210,
+    "c_sup": 19,
+    "c_ver": 4,
+    "c_relay": 0,
+    "c_con": 0,
+    "treasury": 2,
+    "reserved": {
+     "c_req": 45,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 24,
+   "created": 201,
+   "decision": "rejected",
+   "award_closed": true,
+   "state": "failed",
+   "machine_delta": 0,
+   "machine_reserved": 0,
+   "timeline": {
+    "reserved": 0,
+    "spent": 0,
+    "returned": 0
+   },
+   "note": "the primary remains responsible for its own parent obligation; a supplier failure does not erase it"
+  },
+  {
+   "step": "terrain analysis computed from the pinned public tile and accepted by the verifier (not yet settled)",
+   "balances": {
+    "c_req": 7248,
+    "c_mach": 72,
+    "c_sub": 210,
+    "c_sup": 19,
+    "c_ver": 4,
+    "c_relay": 0,
+    "c_con": 0,
+    "treasury": 2,
+    "reserved": {
+     "c_req": 45,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 27,
+   "science": "FEASIBLE",
+   "product": {
+    "kind": "route_feasibility",
+    "scope": "exact bounded search on the declared tile and rover model",
+    "provenance": {
+     "kind": "ldem_tile",
+     "label": "NASA PDS LOLA GDR LDEM_4 extract (public archive data; real measurements, resampled grid)",
+     "product_id": "LDEM_4",
+     "data_set_id": "LRO-L-LOLA-4-GDR-V1.0",
+     "product_version": "V3.0",
+     "source_url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_4.img",
+     "label_url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_4.lbl",
+     "image_sha256": "c04632eba6449af49e3108ed7c25b3b1c450600abd3690df4fc815853a1af476",
+     "label_sha256": "b5a197b4d417e3b5e0e84f8fe15f9a1d2203b8eb5d7213236c0ffbc86e940cc6",
+     "acquired_at": "2026-10-22",
+     "projection": "simple_cylindrical",
+     "datum": "sphere radius 1737.4 km; MEAN EARTH/POLAR AXIS OF DE421 body-fixed",
+     "units": {
+      "dn_scaling_factor_milli": 500,
+      "height": "meter",
+      "offset_m": 1737400
+     },
+     "orientation": "line 1 = +90 deg latitude (north up); sample 1 = 0 deg east longitude; east to the right",
+     "origin_line": 341,
+     "origin_sample": 78,
+     "lines": 32,
+     "samples": 32,
+     "first_line_latitude_milli_deg": 4625,
+     "first_sample_longitude_milli_deg": 19625,
+     "redistribution": "NASA PDS archive data; publicly released without restriction stated in the label; cite LRO LOLA team (D. E. Smith, GSFC), data set LRO-L-LOLA-4-GDR-V1.0",
+     "region": "apollo11_32",
+     "what_this_is_not": "a 7.58 km/pixel shape grid: no rock, crater (<7.6 km), traction or illumination information; slopes are grid-scale proxies, not traversability truth"
+    },
+    "assumptions": [
+     "slope is the grid-scale gradient of a resampled DEM (pixel spacing as declared); features smaller than one pixel (rocks, small craters, scarps) are invisible",
+     "simple cylindrical grid: north-south spacing is constant, east-west spacing is pixel_spacing * cos(latitude) per row (computed per row; polar rows are refused)",
+     "heights are DN * scaling relative to the reference sphere; no geoid correction (slopes are unaffected by a constant offset)",
+     "vertical error is a declared parameter applied as an independent bound on every neighbour (not a measured error model)",
+     "edge cells use one-sided differences and are flagged; cells touching nodata have no slope (flagged nodata)",
+     "this is not a traversability, traction, illumination or communication product",
+     "energy per step = length * (flat cost + slope cost * slope of the entered cell); no slope sign (uphill and downhill cost alike), no battery dynamics, no thermal or illumination terms",
+     "passability is the slope of the entered cell against the rover limit; the grid-scale slope is a proxy (sub-pixel hazards are not modelled)",
+     "eight-neighbour moves; diagonal length = sqrt(ns^2 + ew^2) per row; the search minimizes energy, then checks length (a shorter-but-costlier route is not explored: a length violation is INDETERMINATE, not INFEASIBLE)",
+     "INFEASIBLE is exact for the declared model and tile only (nothing outside the tile is considered)",
+     "safety-critical control must not depend on this product or on any payment response"
+    ]
+   },
+   "terms_digest": "b64393633d686ee3f507a818e7d03f32fd7a7a26f558bc8f33a934247de69ef1"
+  },
+  {
+   "step": "blackout: link cut; mission settled locally from reserved funds (provider 40 + fee 2 + verifier 3, each signed by the requester); a 10-unit claim exported to the machine from dom-a is certified but undeliverable; the machine cannot spend it",
+   "balances": {
+    "c_req": 7248,
+    "c_mach": 112,
+    "c_sub": 210,
+    "c_sup": 19,
+    "c_ver": 7,
+    "c_relay": 0,
+    "c_con": 0,
+    "treasury": 4,
+    "reserved": {
+     "c_req": 0,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 40,
+   "paid": {
+    "action": "pay",
+    "milestone": "settle",
+    "offer_id": null,
+    "amount": 45,
+    "reason": null
+   },
+   "requester_signed": [
+    [
+     "settlement",
+     200
+    ],
+    [
+     "settlement",
+     200
+    ],
+    [
+     "settlement",
+     200
+    ]
+   ],
+   "export_state": "certified",
+   "transport": {
+    "ok": false,
+    "stage": "inbox",
+    "results": []
+   },
+   "machine_liquidity": {
+    "local_asset": {
+     "held_locally": 112,
+     "cross_domain_pending": 0,
+     "cross_domain_claims_held": 0,
+     "spendable": 112
+    },
+    "claim_asset_of_dom_a": {
+     "held_locally": 0,
+     "cross_domain_claims_held": 0,
+     "spendable": 0
+    }
+   },
+   "operator_blackout": {
+    "possible": [
+     [
+      "pay",
+      "settle"
+     ]
+    ],
+    "disabled": [
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 72 (available 72 m"
+     ],
+     [
+      "reserve",
+      "insufficient_liquidity: spendable settled 72 (available 72 m"
+     ],
+     [
+      "wait",
+      "no_offer_for_storage"
+     ],
+     [
+      "wait",
+      "no_offer_for_storage"
+     ],
+     [
+      "wait",
+      "no_offer_for_storage"
+     ]
+    ]
+   }
+  },
+  {
+   "step": "machine purchased compute from its settled earnings on the shared pool (signed at sig-machine, still in blackout); measured delivery settled to the supplier",
+   "balances": {
+    "c_req": 7248,
+    "c_mach": 92,
+    "c_sub": 210,
+    "c_sup": 39,
+    "c_ver": 7,
+    "c_relay": 0,
+    "c_con": 0,
+    "treasury": 4,
+    "reserved": {
+     "c_req": 0,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 43,
+   "reserve": {
+    "action": "reserve",
+    "milestone": "followon",
+    "offer_id": "ro_0a37d66641d5",
+    "amount": 20,
+    "reason": null
+   },
+   "machine_signed": [
+    [
+     "reservation",
+     200
+    ]
+   ],
+   "delivered_cpu_ms": 20,
+   "labels": [
+    "metered_fact",
+    "verified"
+   ],
+   "settled": {
+    "action": "settle_reservation",
+    "milestone": "followon",
+    "offer_id": null,
+    "amount": 20,
+    "reason": null
+   }
+  },
+  {
+   "step": "relay with safe replanning: the first route missed its early contact window and was released in full (never charged); the replanned two-hop route carried the product (hop fees signed at sig-machine), the requester acknowledged the content hash, both hops settled once",
+   "balances": {
+    "c_req": 7248,
+    "c_mach": 86,
+    "c_sub": 210,
+    "c_sup": 41,
+    "c_ver": 7,
+    "c_relay": 4,
+    "c_con": 0,
+    "treasury": 4,
+    "reserved": {
+     "c_req": 0,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 55,
+   "first_route": [
+    201,
+    [
+     "cancelled",
+     "cancelled"
+    ]
+   ],
+   "machine_reserved_after_release": 0,
+   "hop_signatures": 2,
+   "delivered": "delivered",
+   "content_matches": true,
+   "acknowledged": "acknowledged",
+   "hops": [
+    "settled",
+    "settled"
+   ]
+  },
+  {
+   "step": "reconnection: the certificate was delivered, the 10-unit claim credited to the machine at dom-c and acknowledged at dom-a; witness checkpoint recorded",
+   "balances": {
+    "c_req": 7248,
+    "c_mach": 86,
+    "c_sub": 210,
+    "c_sup": 41,
+    "c_ver": 7,
+    "c_relay": 4,
+    "c_con": 0,
+    "treasury": 4,
+    "reserved": {
+     "c_req": 0,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 57,
+   "transport": [
+    "accepted",
+    "accepted"
+   ],
+   "allocation": "acknowledged",
+   "machine_liquidity": {
+    "held_locally": 15,
+    "cross_domain_claims_held": 15,
+    "cross_domain_pending": 0,
+    "spendable": 15
+   },
+   "witness_sequence": 20,
+   "recovery": "normal"
+  },
+  {
+   "step": "fee-funded contribution: the treasury paid a distinct recipient 2 from collected fees only (never more than confirmed fee revenue)",
+   "balances": {
+    "c_req": 7248,
+    "c_mach": 86,
+    "c_sub": 210,
+    "c_sup": 41,
+    "c_ver": 7,
+    "c_relay": 4,
+    "c_con": 2,
+    "treasury": 2,
+    "reserved": {
+     "c_req": 0,
+     "c_mach": 0
+    }
+   },
+   "journal_entries": 66,
+   "treasury_before": {
+    "confirmed_revenue": 4,
+    "available": 4
+   },
+   "decision": "accepted",
+   "treasury_after": {
+    "confirmed_revenue": 4,
+    "settled_spending": 2,
+    "available": 2
+   }
+  }
+ ],
+ "final_table": {
+  "c_req": 7248,
+  "c_mach": 86,
+  "c_sub": 210,
+  "c_sup": 41,
+  "c_ver": 7,
+  "c_relay": 4,
+  "c_con": 2,
+  "treasury": 2,
+  "reserved": {
+   "c_req": 0,
+   "c_mach": 0
+  }
+ },
+ "conservation": {
+  "total_held": 9400,
+  "fixture_funding": 9400,
+  "backing_locked_for_exports": 0,
+  "claims_backed_elsewhere": 0,
+  "conserved": true
+ },
+ "accounting_checks": {
+  "backing_matches_journal": true,
+  "claims_matches_journal": true
+ },
+ "independent_checker": {
+  "authorized_bookkeeping": true,
+  "cryptographic_authenticity": true,
+  "scientific_reproducibility": null,
+  "custody_assumptions": false,
+  "economic_backing": true,
+  "resource_and_lineage": true
+ },
+ "postings": [
+  {
+   "id": "je_65925c892f367127",
+   "event_key": "fixture:nf_a6d4979c9547",
+   "kind": "fixture_funding",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_account",
+   "ref_id": "na_c20ee3cff3df",
+   "memo": "development fixture funding",
+   "created_at": 1792756709,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/equity:fixture_funding",
+     "debit": 2000,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:available",
+     "debit": 0,
+     "credit": 2000
+    }
+   ]
+  },
+  {
+   "id": "je_163dd6747d79eea1",
+   "event_key": "fixture:nf_9d0e553751b2",
+   "kind": "fixture_funding",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_account",
+   "ref_id": "na_5de4f986f031",
+   "memo": "development fixture funding",
+   "created_at": 1792756709,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/equity:fixture_funding",
+     "debit": 2000,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_5de4f986f031:available",
+     "debit": 0,
+     "credit": 2000
+    }
+   ]
+  },
+  {
+   "id": "je_00d04b448b539d57",
+   "event_key": "rr-reserve:rr_cd95fad32e80",
+   "kind": "native_resource_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_cd95fad32e80",
+   "memo": "funded reservation of 1800 kib on ro_e399bb563b7c",
+   "created_at": 1792756709,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_5de4f986f031:available",
+     "debit": 1800,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_5de4f986f031:reserved",
+     "debit": 0,
+     "credit": 1800
+    }
+   ]
+  },
+  {
+   "id": "je_df9d400d8fdc2b8a",
+   "event_key": "award-reserve:wa_05ad420cafb71e83",
+   "kind": "native_award_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "work_award",
+   "ref_id": "wa_05ad420cafb71e83",
+   "memo": "reserved for an award (ceiling incl. fee and verifier legs)",
+   "created_at": 1792756710,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:available",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:reserved",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_2d6618e7fa67531a",
+   "event_key": "accept:wm_1c45385ed714:wd_06aef77ba4da8327",
+   "kind": "acceptance",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "work_milestone",
+   "ref_id": "wm_1c45385ed714",
+   "memo": "accepted obligation to the provider (entitlement of the milestone)",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/expense:work_accepted",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_e5cf37a9fda270f5",
+   "event_key": "submit:pi_00b1ac3ca4e221a0:1",
+   "kind": "submission",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_00b1ac3ca4e221a0",
+   "memo": "settlement submitted (attempt 1); exposure until observed",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_35640a7ce863f959",
+   "event_key": "commit:ni_61fda7cb3e621ca6",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_61fda7cb3e621ca6",
+   "memo": "committed from the award reservation (sequence 9)",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:reserved",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_3ab95eb4a9d6ab13",
+   "event_key": "settle:ni_61fda7cb3e621ca6",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_61fda7cb3e621ca6",
+   "memo": "domain-local settlement of a provider obligation",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_c6bdb6036209c840",
+   "event_key": "settle:pi_00b1ac3ca4e221a0",
+   "kind": "settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_00b1ac3ca4e221a0",
+   "memo": "transfer observed on the rail (native)",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/asset:payer_cash",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_e9836229e29b3894",
+   "event_key": "award-reserve:wa_1178b79f620a47f3",
+   "kind": "native_award_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "work_award",
+   "ref_id": "wa_1178b79f620a47f3",
+   "memo": "reserved for an award (ceiling incl. fee and verifier legs)",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:available",
+     "debit": 45,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:reserved",
+     "debit": 0,
+     "credit": 45
+    }
+   ]
+  },
+  {
+   "id": "je_54348510e557b1a9",
+   "event_key": "reserve:ni_22c38dde16102e1c",
+   "kind": "native_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_22c38dde16102e1c",
+   "memo": "reserved for a signed intent",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:available",
+     "debit": 12,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:reserved",
+     "debit": 0,
+     "credit": 12
+    }
+   ]
+  },
+  {
+   "id": "je_132df80aaa26a12f",
+   "event_key": "commit:ni_22c38dde16102e1c",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_22c38dde16102e1c",
+   "memo": "committed by the domain authority (sequence 10)",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:reserved",
+     "debit": 12,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 0,
+     "credit": 12
+    }
+   ]
+  },
+  {
+   "id": "je_77e53c8563c2659c",
+   "event_key": "settle:ni_22c38dde16102e1c",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_22c38dde16102e1c",
+   "memo": "domain-local settlement",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 12,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 12
+    }
+   ]
+  },
+  {
+   "id": "je_f0b3f75b039dfadd",
+   "event_key": "award-reserve:wa_8cbb75f6bd067f87",
+   "kind": "native_award_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "work_award",
+   "ref_id": "wa_8cbb75f6bd067f87",
+   "memo": "reserved for an award (ceiling incl. fee and verifier legs)",
+   "created_at": 1792756711,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 10,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 0,
+     "credit": 10
+    }
+   ]
+  },
+  {
+   "id": "je_4d3fab6b34d7ad83",
+   "event_key": "accept:wm_27fa65af43e6:wd_777eef0dd11bdbfa",
+   "kind": "acceptance",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "work_milestone",
+   "ref_id": "wm_27fa65af43e6",
+   "memo": "accepted obligation to the provider (entitlement of the milestone)",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/expense:work_accepted",
+     "debit": 10,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 0,
+     "credit": 10
+    }
+   ]
+  },
+  {
+   "id": "je_96ac56151a7b5a80",
+   "event_key": "submit:pi_21f84fab3f04c18d:1",
+   "kind": "submission",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_21f84fab3f04c18d",
+   "memo": "settlement submitted (attempt 1); exposure until observed",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 10,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 0,
+     "credit": 10
+    }
+   ]
+  },
+  {
+   "id": "je_44ef868a27844b2c",
+   "event_key": "commit:ni_213626061a54213f",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_213626061a54213f",
+   "memo": "committed from the award reservation (sequence 11)",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 10,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 0,
+     "credit": 10
+    }
+   ]
+  },
+  {
+   "id": "je_769ffc4d5b58ce4b",
+   "event_key": "settle:ni_213626061a54213f",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_213626061a54213f",
+   "memo": "domain-local settlement of a provider obligation",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 10,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_5de4f986f031:available",
+     "debit": 0,
+     "credit": 10
+    }
+   ]
+  },
+  {
+   "id": "je_5a7565b1e9077392",
+   "event_key": "settle:pi_21f84fab3f04c18d",
+   "kind": "settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_21f84fab3f04c18d",
+   "memo": "transfer observed on the rail (native)",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 10,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/asset:payer_cash",
+     "debit": 0,
+     "credit": 10
+    }
+   ]
+  },
+  {
+   "id": "je_bc9eb18a65d88845",
+   "event_key": "reserve:ni_7124a57dec502c45",
+   "kind": "native_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_7124a57dec502c45",
+   "memo": "reserved for a signed intent",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_fbbeb9c491a1d2d9",
+   "event_key": "commit:ni_7124a57dec502c45",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_7124a57dec502c45",
+   "memo": "committed by the domain authority (sequence 12)",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_1c4821eb925c77b8",
+   "event_key": "settle:ni_7124a57dec502c45",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_7124a57dec502c45",
+   "memo": "domain-local settlement",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:available",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_774f6f562abbffe7",
+   "event_key": "award-reserve:wa_371fa15f1d68d6a4",
+   "kind": "native_award_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "work_award",
+   "ref_id": "wa_371fa15f1d68d6a4",
+   "memo": "reserved for an award (ceiling incl. fee and verifier legs)",
+   "created_at": 1792756713,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_89e4cd8804ecda53",
+   "event_key": "award-release:wa_371fa15f1d68d6a4",
+   "kind": "native_award_release",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "work_award",
+   "ref_id": "wa_371fa15f1d68d6a4",
+   "memo": "unused reservation released at award close",
+   "created_at": 1792756714,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_4e8b6e3021fbbc78",
+   "event_key": "verifier:wm_81b84d5225d9:vf_7c436147afbd",
+   "kind": "verifier_obligation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "work_entitlement",
+   "ref_id": "wen_906d5bbf0f632351",
+   "memo": "verifier compensation for a completed verification (outcome passed); not verdict-dependent",
+   "created_at": 1792756714,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/expense:verifier",
+     "debit": 3,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 0,
+     "credit": 3
+    }
+   ]
+  },
+  {
+   "id": "je_092ff330d29807c8",
+   "event_key": "accept:wm_81b84d5225d9:wd_964ecc27a4df3eb0",
+   "kind": "acceptance",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "work_milestone",
+   "ref_id": "wm_81b84d5225d9",
+   "memo": "accepted obligation to the provider (entitlement of the milestone)",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/expense:work_accepted",
+     "debit": 40,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 0,
+     "credit": 40
+    }
+   ]
+  },
+  {
+   "id": "je_c803c36127a63235",
+   "event_key": "fee:wm_81b84d5225d9:wd_964ecc27a4df3eb0",
+   "kind": "fee_obligation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "work_entitlement",
+   "ref_id": "wen_6af5a01450d88c92",
+   "memo": "treasury fee obligation bound to the frozen price policy",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/expense:platform_fee",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_de6b671b3c128152",
+   "event_key": "submit:pi_95c813953eaf7a3e:1",
+   "kind": "submission",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_95c813953eaf7a3e",
+   "memo": "settlement submitted (attempt 1); exposure until observed",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 3,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 0,
+     "credit": 3
+    }
+   ]
+  },
+  {
+   "id": "je_8cec552d479695f2",
+   "event_key": "commit:ni_325be7e534f8edc5",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_325be7e534f8edc5",
+   "memo": "committed from the award reservation (sequence 13)",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:reserved",
+     "debit": 3,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 0,
+     "credit": 3
+    }
+   ]
+  },
+  {
+   "id": "je_12aaa85762ebc43e",
+   "event_key": "settle:ni_325be7e534f8edc5",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_325be7e534f8edc5",
+   "memo": "domain-local settlement of a verifier obligation",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 3,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c0d7236087e7:available",
+     "debit": 0,
+     "credit": 3
+    }
+   ]
+  },
+  {
+   "id": "je_ad2ecbad3ef8a93c",
+   "event_key": "settle:pi_95c813953eaf7a3e",
+   "kind": "settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_95c813953eaf7a3e",
+   "memo": "transfer observed on the rail (native)",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 3,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/asset:payer_cash",
+     "debit": 0,
+     "credit": 3
+    }
+   ]
+  },
+  {
+   "id": "je_330efc7d671e2669",
+   "event_key": "submit:pi_af93d4e07783b2bb:1",
+   "kind": "submission",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_af93d4e07783b2bb",
+   "memo": "settlement submitted (attempt 1); exposure until observed",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 40,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 0,
+     "credit": 40
+    }
+   ]
+  },
+  {
+   "id": "je_c80631a89028a45d",
+   "event_key": "commit:ni_a04ec094b0d5d3f4",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_a04ec094b0d5d3f4",
+   "memo": "committed from the award reservation (sequence 14)",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:reserved",
+     "debit": 40,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 0,
+     "credit": 40
+    }
+   ]
+  },
+  {
+   "id": "je_d143bab4d7286086",
+   "event_key": "settle:ni_a04ec094b0d5d3f4",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_a04ec094b0d5d3f4",
+   "memo": "domain-local settlement of a provider obligation",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 40,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 40
+    }
+   ]
+  },
+  {
+   "id": "je_53baab820db64903",
+   "event_key": "settle:pi_af93d4e07783b2bb",
+   "kind": "settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_af93d4e07783b2bb",
+   "memo": "transfer observed on the rail (native)",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 40,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/asset:payer_cash",
+     "debit": 0,
+     "credit": 40
+    }
+   ]
+  },
+  {
+   "id": "je_fcf591754668c25c",
+   "event_key": "submit:pi_fd573184f2f6ac56:1",
+   "kind": "submission",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_fd573184f2f6ac56",
+   "memo": "settlement submitted (attempt 1); exposure until observed",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_06aa9d9d529559d8",
+   "event_key": "commit:ni_6f101ff08a05ae69",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_6f101ff08a05ae69",
+   "memo": "committed from the award reservation (sequence 15)",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:reserved",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_4114525350a7f9f2",
+   "event_key": "settle:ni_6f101ff08a05ae69",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_6f101ff08a05ae69",
+   "memo": "domain-local settlement of a fee obligation",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_c20ee3cff3df:committed_outgoing",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_treasury_dom-c:available",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_d1bd9ad2050f85c1",
+   "event_key": "settle:pi_fd573184f2f6ac56",
+   "kind": "settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_fd573184f2f6ac56",
+   "memo": "transfer observed on the rail (native)",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/asset:payer_cash",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_38eb38275638f813",
+   "event_key": "fee-credit:pi_fd573184f2f6ac56",
+   "kind": "fee_credit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_fd573184f2f6ac56",
+   "memo": "platform fee observed as settled to the treasury address; credited once per settlement event",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/treasury:cash",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/treasury:revenue",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_021556972eaa2cba",
+   "event_key": "rr-reserve:rr_206f637a3b0d",
+   "kind": "native_resource_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_206f637a3b0d",
+   "memo": "funded reservation of 20 cpu_ms on ro_0a37d66641d5",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 20,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 0,
+     "credit": 20
+    }
+   ]
+  },
+  {
+   "id": "je_6bb91e0cac9e6616",
+   "event_key": "commit:ni_161736f447d33d64",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_161736f447d33d64",
+   "memo": "resource delivery committed (sequence 16)",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 20,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 0,
+     "credit": 20
+    }
+   ]
+  },
+  {
+   "id": "je_caa512eb59f1918f",
+   "event_key": "settle:ni_161736f447d33d64",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_161736f447d33d64",
+   "memo": "resource delivery settled",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 20,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_703d6e76f0d2:available",
+     "debit": 0,
+     "credit": 20
+    }
+   ]
+  },
+  {
+   "id": "je_0b3f6543486baac4",
+   "event_key": "rr-reserve:rr_a64a2e8b9cc4",
+   "kind": "native_resource_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_a64a2e8b9cc4",
+   "memo": "funded reservation of 3 kib on ro_8253725b3843",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 3,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 0,
+     "credit": 3
+    }
+   ]
+  },
+  {
+   "id": "je_93029d26f3daffcd",
+   "event_key": "rr-reserve:rr_9a89e03ef8a6",
+   "kind": "native_resource_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_9a89e03ef8a6",
+   "memo": "funded reservation of 3 kib on ro_2d2e675e8d74",
+   "created_at": 1792756715,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 6,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 0,
+     "credit": 6
+    }
+   ]
+  },
+  {
+   "id": "je_7098b7c971ce85fc",
+   "event_key": "rr-cancel:rr_a64a2e8b9cc4",
+   "kind": "native_resource_release",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_a64a2e8b9cc4",
+   "memo": "cancelled before activation: funds and capacity released in full",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 3,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 3
+    }
+   ]
+  },
+  {
+   "id": "je_1a1f20a32b7cbda1",
+   "event_key": "rr-cancel:rr_9a89e03ef8a6",
+   "kind": "native_resource_release",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_9a89e03ef8a6",
+   "memo": "cancelled before activation: funds and capacity released in full",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 6,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 6
+    }
+   ]
+  },
+  {
+   "id": "je_49ea3523b0751f84",
+   "event_key": "rr-reserve:rr_8682524827ff",
+   "kind": "native_resource_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_8682524827ff",
+   "memo": "funded reservation of 3 kib on ro_7ca03788d39e",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 3,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 0,
+     "credit": 3
+    }
+   ]
+  },
+  {
+   "id": "je_4530ee5df13a9611",
+   "event_key": "rr-reserve:rr_4a11fe7eb665",
+   "kind": "native_resource_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_4a11fe7eb665",
+   "memo": "funded reservation of 3 kib on ro_2d2e675e8d74",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 6,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 0,
+     "credit": 6
+    }
+   ]
+  },
+  {
+   "id": "je_974212b46d45e3dd",
+   "event_key": "commit:ni_8d5b5c6bdebc2e74",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_8d5b5c6bdebc2e74",
+   "memo": "resource delivery committed (sequence 17)",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_ff93376356b5fc5a",
+   "event_key": "settle:ni_8d5b5c6bdebc2e74",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_8d5b5c6bdebc2e74",
+   "memo": "resource delivery settled",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_703d6e76f0d2:available",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_2afbfaaba29e614b",
+   "event_key": "rr-release:rr_8682524827ff",
+   "kind": "native_resource_release",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_8682524827ff",
+   "memo": "undelivered portion released",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 1,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 1
+    }
+   ]
+  },
+  {
+   "id": "je_e091522d7862c00f",
+   "event_key": "commit:ni_395f4b462a727dbf",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_395f4b462a727dbf",
+   "memo": "resource delivery committed (sequence 18)",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_58c659880697b009",
+   "event_key": "settle:ni_395f4b462a727dbf",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_395f4b462a727dbf",
+   "memo": "resource delivery settled",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:committed_outgoing",
+     "debit": 4,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_a0549c0ff6b3:available",
+     "debit": 0,
+     "credit": 4
+    }
+   ]
+  },
+  {
+   "id": "je_fae26d0a851266d9",
+   "event_key": "rr-release:rr_4a11fe7eb665",
+   "kind": "native_resource_release",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "resource_reservation",
+   "ref_id": "rr_4a11fe7eb665",
+   "memo": "undelivered portion released",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:reserved",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_e28eaf5507f6ee1a",
+   "event_key": "alloc-import:nal_f15ae744d86a6356",
+   "kind": "native_import",
+   "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_allocation",
+   "ref_id": "nal_f15ae744d86a6356",
+   "memo": "claim credited from dom-a certificate (sequence 47)",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-c/backing:claim:nal_f15ae744d86a6356",
+     "debit": 5,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 5
+    }
+   ]
+  },
+  {
+   "id": "je_9c245abbe761854c",
+   "event_key": "alloc-import:nal_8da7d3f823405fb4",
+   "kind": "native_import",
+   "asset": "dev:dom-a:ledger-dom-a:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_allocation",
+   "ref_id": "nal_8da7d3f823405fb4",
+   "memo": "claim credited from dom-a certificate (sequence 48)",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-c/backing:claim:nal_8da7d3f823405fb4",
+     "debit": 10,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-a:ledger-dom-a:TMETA:0@dom-c/acct:na_86f36eaa993d:available",
+     "debit": 0,
+     "credit": 10
+    }
+   ]
+  },
+  {
+   "id": "je_5f2ef0ccf458cf87",
+   "event_key": "treasury-reserve:ta_9a5e854748f9",
+   "kind": "treasury_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "treasury_allocation",
+   "ref_id": "ta_9a5e854748f9",
+   "memo": "treasury commitment reserved under confirmed revenue",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/treasury:committed",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/treasury:available_memo",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_f6d0ba6697d09e67",
+   "event_key": "treasury-native-reserve:ta_9a5e854748f9",
+   "kind": "native_treasury_reservation",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "treasury_allocation",
+   "ref_id": "ta_9a5e854748f9",
+   "memo": "treasury award reserved from settled fee revenue",
+   "created_at": 1792756718,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_treasury_dom-c:available",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_treasury_dom-c:reserved",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_7ee7d10565c30bae",
+   "event_key": "accept:wm_1d07aab161b9:wd_3bf8afbfd837d80f",
+   "kind": "acceptance",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "work_milestone",
+   "ref_id": "wm_1d07aab161b9",
+   "memo": "accepted obligation to the provider (entitlement of the milestone)",
+   "created_at": 1792756719,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/expense:work_accepted",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_5b25583b4b9b51a1",
+   "event_key": "submit:pi_1712846c13ebeb76:1",
+   "kind": "submission",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_1712846c13ebeb76",
+   "memo": "settlement submitted (attempt 1); exposure until observed",
+   "created_at": 1792756719,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/liability:payable",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_c17a54cd70dea523",
+   "event_key": "commit:ni_1c04e438250968b9",
+   "kind": "native_commit",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_1c04e438250968b9",
+   "memo": "committed from the award reservation (sequence 21)",
+   "created_at": 1792756719,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_treasury_dom-c:reserved",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_treasury_dom-c:committed_outgoing",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_df1ed4e5a31bec28",
+   "event_key": "settle:ni_1c04e438250968b9",
+   "kind": "native_settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "dev",
+   "ref_type": "native_intent",
+   "ref_id": "ni_1c04e438250968b9",
+   "memo": "domain-local settlement of a provider obligation",
+   "created_at": 1792756719,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_treasury_dom-c:committed_outgoing",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/acct:na_cb4e8e1d8c7b:available",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_5a28d03fe651f668",
+   "event_key": "settle:pi_1712846c13ebeb76",
+   "kind": "settlement",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_1712846c13ebeb76",
+   "memo": "transfer observed on the rail (native)",
+   "created_at": 1792756719,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/exposure:pending",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/asset:payer_cash",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_e12c16e22f731fe3",
+   "event_key": "treasury-spend:pi_1712846c13ebeb76",
+   "kind": "treasury_spend",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "payment_intent",
+   "ref_id": "pi_1712846c13ebeb76",
+   "memo": "treasury-funded award settled",
+   "created_at": 1792756719,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/treasury:spent",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/treasury:cash",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  },
+  {
+   "id": "je_e534750a774b55fd",
+   "event_key": "treasury-release:ta_9a5e854748f9",
+   "kind": "treasury_release",
+   "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+   "network": "dom-c",
+   "environment": "synthetic-local",
+   "ref_type": "treasury_allocation",
+   "ref_id": "ta_9a5e854748f9",
+   "memo": "commitment closed: spent 2, released 0",
+   "created_at": 1792756719,
+   "postings": [
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/treasury:available_memo",
+     "debit": 2,
+     "credit": 0
+    },
+    {
+     "account": "dev:dom-c:ledger-dom-c:TMETA:0@dom-c/treasury:committed",
+     "debit": 0,
+     "credit": 2
+    }
+   ]
+  }
+ ],
+ "pool_commitments": [
+  {
+   "id": "pc_f086b0571c1f",
+   "pool_id": "rp_fab83e663837",
+   "reservation_id": "rr_89ef19a77caf",
+   "start": 1792756684,
+   "end": 1792767421,
+   "slots": 1,
+   "state": "delivered"
+  },
+  {
+   "id": "pc_0250877e0e12",
+   "pool_id": "rp_881c1b2a2b58",
+   "reservation_id": "rr_cd95fad32e80",
+   "start": 1792758509,
+   "end": 1792760309,
+   "slots": 1,
+   "state": "reserved"
+  },
+  {
+   "id": "pc_82e7121a7680",
+   "pool_id": "rp_fab83e663837",
+   "reservation_id": "rr_206f637a3b0d",
+   "start": 1792756715,
+   "end": 1792767421,
+   "slots": 1,
+   "state": "delivered"
+  },
+  {
+   "id": "pc_0b71b6c56e11",
+   "pool_id": "rp_17790b745974",
+   "reservation_id": "rr_a64a2e8b9cc4",
+   "start": 1792756715,
+   "end": 1792756717,
+   "slots": 2,
+   "state": "released"
+  },
+  {
+   "id": "pc_1af376bfe56a",
+   "pool_id": "rp_a07c5c4c9a62",
+   "reservation_id": "rr_9a89e03ef8a6",
+   "start": 1792756715,
+   "end": 1792760315,
+   "slots": 1,
+   "state": "released"
+  },
+  {
+   "id": "pc_92b7b9fa0a0b",
+   "pool_id": "rp_368e79c78112",
+   "reservation_id": "rr_8682524827ff",
+   "start": 1792756718,
+   "end": 1792760315,
+   "slots": 1,
+   "state": "delivered"
+  },
+  {
+   "id": "pc_0c4ae4bb26f2",
+   "pool_id": "rp_a07c5c4c9a62",
+   "reservation_id": "rr_4a11fe7eb665",
+   "start": 1792756718,
+   "end": 1792760315,
+   "slots": 1,
+   "state": "delivered"
+  }
+ ],
+ "mission": "mc_1c34eb3200de",
+ "subcontracts": [
+  "sc_7b81ec8cdee3",
+  "sc_7129a1f05c7b"
+ ],
+ "relay_routes": [
+  "rl_731d7091e5f7",
+  "rl_6c5f2eda0a94"
+ ],
+ "job": "j_b13e77aa5bb3d07b",
+ "operator_screen_during_blackout": {
+  "schema": "metacoin-operator-screen/v1",
+  "domain": "dom-c",
+  "asset": "dev:dom-c:ledger-dom-c:TMETA:0",
+  "connectivity": "cut",
+  "recovery_state": "normal",
+  "machines": [
+   {
+    "account": "na_c20ee3cff3df",
+    "label": "c_req",
+    "custody": null,
+    "owns": {
+     "available": 7248,
+     "reserved": 45,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 45,
+     "obligations": 3
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_86f36eaa993d",
+    "label": "c_mach",
+    "custody": null,
+    "owns": {
+     "available": 72,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 40,
+     "obligations": 1,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_703d6e76f0d2",
+    "label": "c_sup",
+    "custody": null,
+    "owns": {
+     "available": 19,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 1800,
+     "obligations": 1,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": [
+      {
+       "reservation": "rr_cd95fad32e80",
+       "kind": "contact",
+       "quantity": 1800,
+       "state": "reserved"
+      }
+     ]
+    }
+   },
+   {
+    "account": "na_5de4f986f031",
+    "label": "c_sub",
+    "custody": null,
+    "owns": {
+     "available": 210,
+     "reserved": 1800,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 1800,
+     "obligations": 1
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [
+      {
+       "reservation": "rr_cd95fad32e80",
+       "kind": "contact",
+       "quantity": 1800,
+       "state": "reserved",
+       "price": 1800
+      }
+     ],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_c0d7236087e7",
+    "label": "c_ver",
+    "custody": null,
+    "owns": {
+     "available": 4,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 3,
+     "obligations": 1,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_a0549c0ff6b3",
+    "label": "c_relay",
+    "custody": null,
+    "owns": {
+     "available": 0,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   },
+   {
+    "account": "na_cb4e8e1d8c7b",
+    "label": "c_con",
+    "custody": null,
+    "owns": {
+     "available": 0,
+     "reserved": 0,
+     "committed_outgoing": 0,
+     "in_transit": 0,
+     "disputed": 0
+    },
+    "pending_claims": 0,
+    "owes": {
+     "outstanding": 0,
+     "obligations": 0
+    },
+    "owed": {
+     "outstanding": 0,
+     "obligations": 0,
+     "note": "earned, unsettled: not spendable"
+    },
+    "resources_committed": {
+     "bought": [],
+     "sold": []
+    }
+   }
+  ],
+  "missing_evidence": [],
+  "missions": [
+   {
+    "id": "mc_154d4ea04b61",
+    "title": "subcontract of mc_1c34eb3200de/compute",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 72,
+    "reserved_exposure": 0
+   },
+   {
+    "id": "mc_e0b4094df66c",
+    "title": "machine plan",
+    "state": "frozen",
+    "stop_reason": null,
+    "spendable_settled": 72,
+    "reserved_exposure": 0
+   },
+   {
+    "id": "mc_1c34eb3200de",
+    "title": "terrain analysis delivery (custody separated)",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 7248,
+    "reserved_exposure": 45
+   },
+   {
+    "id": "mc_098b14aaf7d2",
+    "title": "terrain_delivery",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 7248,
+    "reserved_exposure": 45
+   },
+   {
+    "id": "mc_b4eabf3fe470",
+    "title": "terrain_delivery",
+    "state": "running",
+    "stop_reason": null,
+    "spendable_settled": 7248,
+    "reserved_exposure": 45
+   }
+  ],
+  "blackout": {
+   "active": true,
+   "possible_now": [
+    {
+     "mission": "mc_1c34eb3200de",
+     "action": "pay",
+     "milestone": "settle",
+     "amount": 45,
+     "reason": "ok"
+    }
+   ],
+   "disabled_now": [
+    {
+     "mission": "mc_e0b4094df66c",
+     "action": "reserve",
+     "milestone": "cpu",
+     "amount": 1000,
+     "reason": "insufficient_liquidity: spendable settled 72 (available 72 minus minimum reserve 0) < 1000; receivables 40 are not spendable"
+    },
+    {
+     "mission": "mc_e0b4094df66c",
+     "action": "reserve",
+     "milestone": "cpu",
+     "amount": 1000,
+     "reason": "insufficient_liquidity: spendable settled 72 (available 72 minus minimum reserve 0) < 1000; receivables 40 are not spendable"
+    },
+    {
+     "mission": "mc_1c34eb3200de",
+     "action": "wait",
+     "milestone": "store",
+     "amount": null,
+     "reason": "no_offer_for_storage"
+    },
+    {
+     "mission": "mc_098b14aaf7d2",
+     "action": "wait",
+     "milestone": "store",
+     "amount": null,
+     "reason": "no_offer_for_storage"
+    },
+    {
+     "mission": "mc_b4eabf3fe470",
+     "action": "wait",
+     "milestone": "store",
+     "amount": null,
+     "reason": "no_offer_for_storage"
+    }
+   ],
+   "rule": "during a cut link only local actions within already funded reservations and preallocated authority proceed; relay, cross-domain and witness-dependent actions are refused with link_cut"
+  },
+  "pending_cross_domain": {
+   "allocations": [],
+   "queued_outbox_messages": 0,
+   "accounting": {
+    "source_backing_locked": 0,
+    "claims_active": 0,
+    "retirements_pending": 0,
+    "returns_completed": 0
+   },
+   "checks": {
+    "backing_matches_journal": true,
+    "claims_matches_journal": true
+   }
+  },
+  "recovery": {
+   "state": "normal",
+   "rollback_detection": "UNAVAILABLE: no witness reachable and no watermark file; a restored database cannot be told from the newest one",
+   "witness": {
+    "configured": true,
+    "reachable": true,
+    "identity_pinned_matches": true,
+    "latest_sequence": null,
+    "age_seconds": null,
+    "witness_id": "w-test",
+    "fresh": false
+   },
+   "quarantined_peers": [],
+   "quarantined_allocations": []
+  },
+  "audit": {
+   "total_held": 9400,
+   "fixture_funding": 9400,
+   "backing_locked_for_exports": 0,
+   "claims_backed_elsewhere": 0,
+   "conserved": true
+  },
+  "source": "projection of journal, obligations, reservations, allocations, missions and controller validation; no second balance"
+ },
+ "custody_note": "every spend by the requester, the primary machine and the supplier was signed at that party's own signer process (sig-requester, sig-machine, sig-supplier); the subcontractor, verifier, relay and contribution recipient share sig-others; the API and worker processes hold no actor key; cross-domain exports remain a development-custody action at dom-a in this order",
+ "elapsed_seconds": 10.4,
+ "conditions": {
+  "race": true,
+  "science": true,
+  "prefund": true,
+  "sub_returned": true,
+  "blackout_pay": true,
+  "export_undeliverable": true,
+  "followon": true,
+  "failed_branch": true,
+  "relay_replanned": true,
+  "reconnection": true,
+  "treasury": true,
+  "conserved": true
+ }
+}

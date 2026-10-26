@@ -65,6 +65,20 @@ async def run(base, cred, mode):
                     out['evaluate'] = content(await s.call_tool('evaluate_acceptance', {'award_id': aid}))
                     out['reconcile'] = content(await s.call_tool('reconcile_budget', {}))
                 return out
+            if mode == 'native':
+                # order 2026-10-22 journey 37: read, simulate and spend are different tools; the same server policy as HTTP applies
+                names = {t.name for t in tools.tools}
+                out['native_tools'] = sorted(n for n in names if n.startswith('native_') or n in ('procurement_plan', 'lunar_product', 'lunar_sources'))
+                out['domain'] = content(await s.call_tool('native_domain_status', {}))
+                out['account'] = content(await s.call_tool('native_account', {'account_id': 'me'}))
+                to = os.environ['MCP_NATIVE_TO']
+                out['simulate'] = content(await s.call_tool('native_simulate_transfer', {'to_account': to, 'amount': int(os.environ.get('MCP_NATIVE_AMOUNT', '1')), 'request_id': 'mcp-sim-1'}))
+                out['account_after_simulate'] = content(await s.call_tool('native_account', {'account_id': 'me'}))
+                out['transfer'] = content(await s.call_tool('native_transfer', {'to_account': to, 'amount': int(os.environ.get('MCP_NATIVE_AMOUNT', '1')), 'request_id': 'mcp-xfer-1', 'purpose': 'mcp journey'}))
+                out['transfer_retry'] = content(await s.call_tool('native_transfer', {'to_account': to, 'amount': int(os.environ.get('MCP_NATIVE_AMOUNT', '1')), 'request_id': 'mcp-xfer-1', 'purpose': 'mcp journey'}))
+                out['account_after'] = content(await s.call_tool('native_account', {'account_id': 'me'}))
+                out['audit'] = content(await s.call_tool('native_audit', {}))
+                return out
             if mode == 'analysis':
                 out['analysis'] = content(await s.call_tool('create_analysis', {'name': 'mcp analysis', 'blocks': [{'id': 'aim', 'type': 'text', 'text': 'created through MCP'}]}))
                 out['status'] = content(await s.call_tool('analysis_status', {'analysis_id': out['analysis'].get('id', 'x')}))

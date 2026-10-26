@@ -70,12 +70,17 @@ class Providers:
             return {'type': 'node', 'node_id': node['id'], 'node_kinds': json.loads(node['capabilities_json']), 'transport': 'signed HTTPS node protocol, separate process and state directory'}
         return {'type': 'local_worker', 'transport': 'in-process worker of this instance (same host, same operator fixture)'}
 
+    IDENTITY_FIELDS = ('operator_id', 'machine_id', 'worker_instance', 'signer_id', 'domain')
+
     def _validate_relationship(self, rel):
-        if type(rel) is not dict or set(rel) - {'operator_affiliation', 'same_host', 'shared_custody', 'relationship', 'note'}:
-            raise ServiceError('VALIDATION', {'code': 'relationship', 'allowed': ['operator_affiliation', 'same_host', 'shared_custody', 'relationship', 'note']})
+        if type(rel) is not dict or set(rel) - {'operator_affiliation', 'same_host', 'shared_custody', 'relationship', 'note', 'identity'}:
+            raise ServiceError('VALIDATION', {'code': 'relationship', 'allowed': ['operator_affiliation', 'same_host', 'shared_custody', 'relationship', 'note', 'identity {operator_id, machine_id, worker_instance, signer_id, domain}']})
+        ident = rel.get('identity')
+        if ident is not None and (type(ident) is not dict or set(ident) - set(self.IDENTITY_FIELDS) or not all(type(v) is str and 1 <= len(v) <= 128 for v in ident.values())):
+            raise ServiceError('VALIDATION', {'code': 'identity', 'allowed': list(self.IDENTITY_FIELDS)})
         if rel.get('relationship', 'unknown') not in RELATIONSHIPS:
             raise ServiceError('VALIDATION', {'code': 'relationship', 'allowed': list(RELATIONSHIPS)})
-        out = {'operator_affiliation': str(rel.get('operator_affiliation', 'unknown'))[:64], 'same_host': rel.get('same_host'), 'shared_custody': rel.get('shared_custody'), 'relationship': rel.get('relationship', 'unknown'), 'note': str(rel.get('note', ''))[:256]}
+        out = {'operator_affiliation': str(rel.get('operator_affiliation', 'unknown'))[:64], 'same_host': rel.get('same_host'), 'shared_custody': rel.get('shared_custody'), 'relationship': rel.get('relationship', 'unknown'), 'note': str(rel.get('note', ''))[:256], 'identity': rel.get('identity')}
         if out['same_host'] not in (True, False, None) or out['shared_custody'] not in (True, False, None):
             raise ServiceError('VALIDATION', 'relationship booleans')
         return out
@@ -84,8 +89,8 @@ class Providers:
         """Operator registers a provider: a new principal with the provider role, one credential (shown once) and the
         signed capability record. Independence is never derived from the key; the relationship attributes are declared."""
         principal.require('work:provider_admin'); principal.require('admin:credentials')
-        if type(body) is not dict or set(body) - {'name', 'execution', 'capabilities', 'relationship', 'pay_to', 'credential_seconds'}:
-            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['name', 'execution', 'capabilities', 'relationship', 'pay_to', 'credential_seconds']})
+        if type(body) is not dict or set(body) - {'name', 'execution', 'capabilities', 'relationship', 'pay_to', 'credential_seconds', 'principal_id'}:
+            raise ServiceError('VALIDATION', {'code': 'fields', 'allowed': ['name', 'execution', 'capabilities', 'relationship', 'pay_to', 'credential_seconds', 'principal_id (an existing native actor)']})
         name = body.get('name')
         if type(name) is not str or not 1 <= len(name) <= 64:
             raise ServiceError('VALIDATION', 'name')
@@ -95,8 +100,17 @@ class Providers:
         pay_to = body.get('pay_to') or ('provider:' + name)
         if type(pay_to) is not str or not 1 <= len(pay_to) <= 128:
             raise ServiceError('VALIDATION', 'pay_to')
-        pid = auth.create_principal(db, name, 'provider', principal.workspace)
-        cid, token = auth.issue_credential(db, pid, body.get('credential_seconds', 30 * 86400))
+        if body.get('principal_id'):
+            prow_ = db.execute('SELECT * FROM principals WHERE id=? AND workspace=? AND revoked_at IS NULL', (body['principal_id'], principal.workspace)).fetchone()
+            if prow_ is None or prow_['role'] != 'actor':
+                raise ServiceError('VALIDATION', {'code': 'principal_not_actor', 'note': 'an existing native actor keeps its identity, credential and account when it registers as a provider'})
+            if db.execute('SELECT 1 FROM providers WHERE principal_id=?', (prow_['id'],)).fetchone():
+                raise ServiceError('CONFLICT', 'this actor is already a provider')
+            pid, cid, token = prow_['id'], None, None
+            pay_to = body.get('pay_to') or self.svc.native.account_of(db, pid, principal.workspace)['id']
+        else:
+            pid = auth.create_principal(db, name, 'provider', principal.workspace)
+            cid, token = auth.issue_credential(db, pid, body.get('credential_seconds', 30 * 86400))
         prid = 'pv_' + secrets.token_hex(6)
         ev = {'declared': sorted(caps['kinds']), 'exercised': [], 'witnessed': [], 'meaning': 'declared = the provider claims it; exercised = completed on this instance; witnessed = verified by a distinct verifier under a contract'}
         st = {'schema': PROVIDER_STATEMENT, 'provider_id': prid, 'principal_id': pid, 'revision': 1, 'execution': ex, 'capabilities': caps, 'relationship': rel, 'pay_to': pay_to, 'workspace': principal.workspace, 'registered_by': principal.id, 'issued_at': now(), 'signature': SIGNATURE_LABEL}
@@ -105,7 +119,9 @@ class Providers:
         db.execute('INSERT INTO provider_revisions VALUES (?,?,1,?,?,?,?,?,?,?,?)', ('pr_' + secrets.token_hex(6), prid, json.dumps(ex), json.dumps(caps), json.dumps(rel), pay_to, msg, sig, kid, now()))
         history.record(db, principal.workspace, principal.id, 'work.provider_registered', 'provider', prid, {'principal_id': pid, 'execution': ex['type'], 'kinds': sorted(caps['kinds']), 'relationship': rel['relationship']})
         out = self.view(db, principal, self.row(db, principal, prid))
-        out['credential'] = {'credential_id': cid, 'token': token, 'note': 'shown once; store privately (0600); never in URLs, logs or reports'}
+        out['credential'] = {'credential_id': cid, 'token': token, 'note': 'shown once; store privately (0600); never in URLs, logs or reports'} if cid else None
+        if cid is None:
+            out['bound_actor'] = pid
         return out
 
     def revise(self, db, principal, prid, body):
@@ -132,6 +148,28 @@ class Providers:
         db.execute('INSERT INTO provider_revisions VALUES (?,?,?,?,?,?,?,?,?,?,?)', ('pr_' + secrets.token_hex(6), prid, rev, json.dumps(ex), json.dumps(caps), json.dumps(rel), pay_to, msg, sig, kid, now()))
         history.record(db, principal.workspace, principal.id, 'work.provider_revised', 'provider', prid, {'revision': rev, 'pay_to_changed': pay_to != r['pay_to'], 'execution': ex['type']})
         return self.view(db, principal, self.row(db, principal, prid))
+
+    def identity_view(self, db, principal, prid):
+        """Identity separation and concrete outcome history: operator, machine, worker instance, signer and domain are declared
+        separately; several workers under one operator are one party; the history shows counts and sample sizes, no trust score."""
+        r = self.row(db, principal, prid) if prid != 'me' else self.for_principal(db, principal); rel = json.loads(r['relationship_json']); ident = rel.get('identity') or {}
+        acct = db.execute('SELECT id, custody FROM native_accounts WHERE principal_id=?', (r['principal_id'],)).fetchone()
+        peers = []
+        if ident.get('operator_id'):
+            for o in db.execute("SELECT id, name, relationship_json FROM providers WHERE workspace=? AND id<>?", (principal.workspace, r['id'])).fetchall():
+                oi = (json.loads(o['relationship_json']).get('identity') or {})
+                if oi.get('operator_id') == ident['operator_id']:
+                    peers.append({'provider_id': o['id'], 'name': o['name'], 'machine_id': oi.get('machine_id'), 'worker_instance': oi.get('worker_instance')})
+        awards = db.execute("SELECT m.state, COUNT(*) FROM work_awards a JOIN work_milestones m ON m.award_id=a.id WHERE a.provider_id=? GROUP BY m.state", (r['id'],)).fetchall()
+        ver = db.execute("SELECT v.state, COUNT(*) FROM verifications v JOIN jobs j ON j.id=v.job_id JOIN work_milestones m ON m.job_id=j.id JOIN work_awards a ON a.id=m.award_id WHERE a.provider_id=? GROUP BY v.state", (r['id'],)).fetchall() if db.execute("SELECT 1 FROM sqlite_master WHERE name='verifications'").fetchone() else []
+        res = db.execute("SELECT state, COUNT(*) FROM resource_reservations WHERE provider_account=? GROUP BY state", (acct['id'],)).fetchall() if acct else []
+        offers = db.execute("SELECT kind, COUNT(*), SUM(capacity) FROM resource_offers WHERE provider_account=? GROUP BY kind", (acct['id'],)).fetchall() if acct else []
+        shared = bool(peers) or rel.get('relationship') == 'same_operator'
+        return {'schema': 'metacoin-provider-identity/v1', 'provider_id': r['id'], 'name': r['name'], 'principal_id': r['principal_id'], 'account': acct['id'] if acct else None, 'custody': acct['custody'] if acct else None,
+                'identity': {k: ident.get(k) for k in self.IDENTITY_FIELDS}, 'relationship': {k: rel.get(k) for k in ('relationship', 'operator_affiliation', 'same_host', 'shared_custody')},
+                'independence': {'independent_party': not shared and rel.get('relationship') == 'independent_declared', 'shared_operator': shared, 'same_operator_providers': peers, 'disclosure': 'providers declaring the same operator_id are one economic party: several workers under one operator are never counted as independent; independence is declared and disclosed, never inferred from keys'},
+                'outcomes': {'milestones_by_state': {s_: n for s_, n in awards}, 'verifications_by_state': {s_: n for s_, n in ver}, 'reservations_by_state': {s_: n for s_, n in res}, 'offers': [{'kind': k, 'count': n, 'capacity_sum': c} for k, n, c in offers], 'sample_sizes': {'milestones': sum(n for _, n in awards), 'verifications': sum(n for _, n in ver), 'reservations': sum(n for _, n in res)}, 'verification_policy': json.loads(r['capabilities_json']).get('verification_classes'), 'note': 'concrete outcomes with sample sizes on this instance; no universal trust score is computed'},
+                'revision': r['revision'], 'state': r['state']}
 
     def row(self, db, principal, prid):
         r = db.execute('SELECT * FROM providers WHERE id=? AND workspace=?', (prid, principal.workspace)).fetchone()
@@ -202,6 +240,13 @@ class Providers:
                 reasons.append({'code': 'distinct_verifier_required'})
             if offer['privacy_terms'] not in ('as_requested', 'stricter'):
                 reasons.append({'code': 'disallowed_disclosure', 'offered': offer['privacy_terms']})
+            if terms.get('resource_envelope') is not None:
+                from ..native import procurement as _proc
+                if offer.get('resource_claims') is None:
+                    reasons.append({'code': 'resource_claims_required', 'note': 'the terms declare a resource envelope; an offer must declare its energy (measured or estimated), memory, runtime, thermal class, storage and delivery contact'})
+                else:
+                    for v in _proc.offer_claims_eligibility(terms['resource_envelope'], offer['resource_claims'], now()):
+                        reasons.append(dict(v, code='resource_violation:' + v['code']))
             if offer['window_seconds'] > terms['deadlines']['delivery_seconds']:
                 reasons.append({'code': 'window_exceeds_delivery_deadline', 'offered': offer['window_seconds'], 'deadline': terms['deadlines']['delivery_seconds']})
             if offer['pay_to'] != provider_row['pay_to']:
@@ -253,7 +298,7 @@ class Board:
         if not self._audience_ok(principal, r):
             raise ServiceError('NOT_FOUND', 'work request')
         t, terms = _terms(db, r['terms_id'])
-        is_req = principal.id == r['requester_id'] or principal.can('work:award')
+        is_req = principal.id == r['requester_id'] or (principal.can('work:award') and principal.role != 'actor')      # offers are private: another provider (an actor principal) sees only its own
         out = {'id': r['id'], 'state': r['state'], 'requester_id': r['requester_id'], 'terms_id': r['terms_id'], 'terms_digest': r['terms_digest'], 'audience': json.loads(r['audience_json']) if is_req else {'scope': json.loads(r['audience_json'])['scope']},
                'max_awards': r['max_awards'], 'opened_at': r['opened_at'], 'closes_at': r['closes_at'], 'closed_at': r['closed_at'], 'close_reason': r['close_reason'], 'created_at': r['created_at'], 'updated_at': r['updated_at'],
                'title': terms['title'], 'kind': terms['operation']['kind'], 'purpose': terms.get('purpose'),
@@ -344,11 +389,14 @@ class Board:
         return dict(self.providers.eligibility(db, prow, terms, offer), request_id=rid, provider_id=prow['id'], terms_digest=r['terms_digest'])
 
     def _normalize_offer(self, o, prow):
-        if type(o) is not dict or set(o) - {'price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note'}:
-            raise ServiceError('VALIDATION', {'code': 'offer_fields', 'allowed': ['price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note']})
+        if type(o) is not dict or set(o) - {'price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note', 'resource_claims'}:
+            raise ServiceError('VALIDATION', {'code': 'offer_fields', 'allowed': ['price_amount', 'asset', 'scheme', 'window_seconds', 'verification', 'privacy_terms', 'pay_to', 'expires_in_seconds', 'note', 'resource_claims']})
+        if 'resource_claims' in o:
+            from ..native import procurement as _proc
+            _proc.validate_plan(dict({'id': 'offer', 'kind': 'remote_compute'}, **(o['resource_claims'] if type(o['resource_claims']) is dict else {'_': 1})))
         terms_mod._int(o.get('price_amount'), 0, 10 ** 15, 'offer_price_amount')
-        if o.get('asset') not in terms_mod.ASSETS:
-            raise ServiceError('VALIDATION', {'code': 'offer_asset', 'allowed': list(terms_mod.ASSETS)})
+        if o.get('asset') not in terms_mod.ASSETS and not (isinstance(o.get('asset'), str) and terms_mod.is_native_asset(o['asset'])):
+            raise ServiceError('VALIDATION', {'code': 'offer_asset', 'allowed': list(terms_mod.ASSETS) + ['a native asset id of this domain']})
         if o.get('scheme') not in terms_mod.SCHEMES:
             raise ServiceError('VALIDATION', {'code': 'offer_scheme', 'allowed': list(terms_mod.SCHEMES)})
         terms_mod._int(o.get('window_seconds'), 1, 365 * 86400, 'offer_window_seconds')
@@ -363,8 +411,8 @@ class Board:
             raise ServiceError('VALIDATION', 'offer_pay_to')
         if 'note' in o and (type(o['note']) is not str or len(o['note']) > 512):
             raise ServiceError('VALIDATION', 'offer_note')
-        return {'price_amount': o['price_amount'], 'asset': o['asset'], 'scale': terms_mod.ASSETS[o['asset']]['scale'], 'scheme': o['scheme'], 'window_seconds': o['window_seconds'], 'verification': {'class': v['class'], 'distinct_verifier': v.get('distinct_verifier', False)},
-                'privacy_terms': o.get('privacy_terms', 'as_requested'), 'pay_to': pay_to, 'expires_in_seconds': o.get('expires_in_seconds', 86400), 'note': o.get('note', '')}
+        return {'price_amount': o['price_amount'], 'asset': o['asset'], 'scale': terms_mod.asset_scale(o['asset']), 'scheme': o['scheme'], 'window_seconds': o['window_seconds'], 'verification': {'class': v['class'], 'distinct_verifier': v.get('distinct_verifier', False)},
+                'privacy_terms': o.get('privacy_terms', 'as_requested'), 'pay_to': pay_to, 'expires_in_seconds': o.get('expires_in_seconds', 86400), 'note': o.get('note', ''), 'resource_claims': o.get('resource_claims')}
 
     def submit_offer(self, db, principal, rid, body):
         principal.require('work:offer')
@@ -387,7 +435,7 @@ class Board:
         st = {'schema': OFFER_STATEMENT, 'offer_id': oid, 'request_id': rid, 'terms_digest': r['terms_digest'], 'provider_id': prow['id'], 'provider_revision': prow['revision'], 'provider_principal': prow['principal_id'],
               'operation': {k: terms['operation'].get(k) for k in ('kind', 'contract_digest', 'model_id', 'verifier_digest')}, 'deliverables': [d['key'] for d in terms['deliverables']],
               'price': {'amount': o['price_amount'], 'asset': o['asset'], 'scale': o['scale'], 'scheme': o['scheme'], 'note': 'fixed price (exact) or cap (upto) in integer base units'}, 'window_seconds': o['window_seconds'],
-              'verification': o['verification'], 'privacy_terms': o['privacy_terms'], 'pay_to': o['pay_to'], 'expires_at': now() + o['expires_in_seconds'], 'issued_at': now(), 'signature': SIGNATURE_LABEL}
+              'verification': o['verification'], 'privacy_terms': o['privacy_terms'], 'pay_to': o['pay_to'], 'resource_claims': o.get('resource_claims'), 'expires_at': now() + o['expires_in_seconds'], 'issued_at': now(), 'signature': SIGNATURE_LABEL}
         msg, sig, kid = _sign(self.settings, db, st)
         state = 'offered' if elig['eligible'] else 'excluded'
         db.execute('INSERT INTO work_offers VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -503,6 +551,8 @@ class Board:
         if selection['manual'] and (type(body.get('reason')) is not str or not body['reason'].strip()):
             raise ServiceError('VALIDATION', {'code': 'manual_reason_required', 'recommended': cmp['recommended']})
         approval_gate(self.svc.approvals, db, principal, 'work_award')
+        if getattr(self.svc, 'decisions', None) is not None:
+            self.svc.decisions.award_guard(db, terms)                               # evidence acquisition: quote expiry and plan binding rechecked inside the award transaction
         from ..agents import grant_of, guard
         if grant_of(principal):
             guard(db, principal, 'work:award', service_kind=terms['operation']['kind'], amount=o['price_amount'] + terms['payment'].get('verifier_compensation', 0), precheck_jobs=1)
@@ -514,6 +564,8 @@ class Board:
             node, rsv = None, None
             if not db.execute("SELECT id FROM treasury_allocations WHERE terms_id=? AND state='reserved'", (t['id'],)).fetchone():
                 raise ServiceError('CONFLICT', {'code': 'treasury_allocation_required', 'note': 'allocate the treasury budget for these terms before awarding'})
+        elif terms_mod.is_native_asset(terms['payment']['asset']):
+            node, rsv = None, None                                                  # the payer's own native funds are the reservation (available -> reserved below); the application budget memo tree does not apply
         else:
             root = budgets.root(db, principal.workspace)
             node = budgets.create_child(db, principal.workspace, root['id'], 'campaign', 'award:' + aid, min(ceiling, root['ceiling']))
@@ -522,6 +574,8 @@ class Board:
             except ServiceError as exc:
                 db.execute('DELETE FROM budget_nodes WHERE id=?', (node,))
                 raise ServiceError('BUDGET_EXHAUSTED', dict(exc.detail if isinstance(exc.detail, dict) else {}, note='nothing awarded; nothing reserved'))
+        if terms_mod.is_native_asset(terms['payment']['asset']):
+            self.svc.native.reserve_for_award(db, principal, aid, terms, ceiling)              # the requester's (or treasury's) own native funds: available -> reserved, atomically with the award
         from .ops import fault
         fault(db, self.settings, 'reservation_posting')
         db.execute('INSERT INTO work_awards (id, workspace, request_id, offer_id, terms_id, terms_digest, provider_id, provider_revision, pay_to, state, active, ceiling, reserved, budget_node_id, reservation_id, ack_deadline, delivery_deadline, selection_json, awarded_by, awarded_at, created_at, updated_at) '
@@ -541,6 +595,8 @@ class Board:
         history.record(db, principal.workspace, principal.id, 'work.awarded', 'work_award', aid, {'request_id': rid, 'offer_id': oid, 'provider_id': prow['id'], 'provider_revision': prow['revision'], 'terms_digest': t['digest'], 'ceiling': ceiling, 'reserved': ceiling, 'budget_node': node, 'selection': selection['policy']['policy'], 'manual': selection['manual']})
         from ..datasets import add_edge
         add_edge(db, principal.workspace, 'work_request', rid, 'work_award', aid, 'awarded'); add_edge(db, principal.workspace, 'work_offer', oid, 'work_award', aid, 'bound_offer')
+        if getattr(self.svc, 'decisions', None) is not None:
+            self.svc.decisions.on_award(db, aid, t['id'])
         self.dispatch_ready(db, aid)
         fault(db, self.settings, 'award_commit')
         return self.award_view(db, principal, db.execute('SELECT * FROM work_awards WHERE id=?', (aid,)).fetchone())
@@ -617,6 +673,8 @@ class Board:
             if award['state'] == 'awarded':
                 db.execute("UPDATE work_awards SET state='executing', updated_at=? WHERE id=?", (now(), aid))
             history.record(db, award['workspace'], 'scheduler', 'work.attempt', 'work_attempt', wat, {'award_id': aid, 'milestone': key, 'job_id': jid, 'generation': gen, 'execution': ex['type'], 'location_policy': json.loads(loc)})
+            if getattr(self.svc, 'decisions', None) is not None:
+                self.svc.decisions.on_dispatch(db, award, m, jid)
             from ..datasets import add_edge
             add_edge(db, award['workspace'], 'work_award', aid, 'job', jid, 'executes_milestone:' + key)
             started.append({'milestone': key, 'job_id': jid, 'attempt': wat})

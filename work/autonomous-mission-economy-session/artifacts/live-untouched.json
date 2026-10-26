@@ -1,0 +1,17 @@
+{
+ "checked_at": 1792728491,
+ "health": {
+  "revision": "3e3412678ab487ee0792807d9f5b902895180584",
+  "queued": 0,
+  "running": 0
+ },
+ "schema": "040_work_programs_pricing_challenges",
+ "pids": [
+  "2827392",
+  "2065565",
+  "2827403",
+  "2065564"
+ ],
+ "db_mtime": 1792728491,
+ "statement": "live service at 127.0.0.1:8402 neither upgraded nor restarted during this order; migration rehearsed on an isolated copy only (journey 36)"
+}

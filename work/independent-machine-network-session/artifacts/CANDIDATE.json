@@ -1,0 +1,40 @@
+{
+ "schema": "metacoin-candidate/v1",
+ "order": "independent machine network (2026-10-23)",
+ "branch": "feature/independent-machine-network-v1",
+ "base_revision": "a6d672d2d1d95c66fd021f43dccccf9e453c540a",
+ "source_candidate": "1fc3bda1fb69bbee196b83a552a86d904990ebd2",
+ "journeys_revision": "1fc3bda1fb69bbee196b83a552a86d904990ebd2",
+ "journeys": {
+  "required": {
+   "passed": 51,
+   "failed": 0,
+   "blocked": 0,
+   "total": 51
+  },
+  "extensions": {
+   "passed": 6,
+   "failed": 0,
+   "total": 6
+  }
+ },
+ "migrations": [
+  "048_resource_pools",
+  "049_signing_requests",
+  "050_mission_subcontracts",
+  "051_claim_lots",
+  "052_mission_products",
+  "053_relay_service",
+  "054_controller_generations"
+ ],
+ "x402": "disabled; facilitator URL closed",
+ "custody_separated_domain": "dom-c (METACOIN_REQUIRE_EXTERNAL_CUSTODY=1; signers sig-requester / sig-machine / sig-supplier / sig-others)",
+ "published": false,
+ "pushed": false,
+ "merged": false,
+ "live_upgraded": false,
+ "unit_suites": true,
+ "endurance_ok": true,
+ "records_commit": "be1c111e3311cf86194c836b58f74d2ed68f279f",
+ "git_head_at_build": "be1c111e3311cf86194c836b58f74d2ed68f279f"
+}

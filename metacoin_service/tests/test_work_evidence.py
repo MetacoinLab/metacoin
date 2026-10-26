@@ -184,7 +184,12 @@ class WorkEvidenceTests(EvidenceBase):
             db.execute("DELETE FROM meta WHERE key=?", ('fault:verification_fail:' + jid,))
         recs = self.c.get('/api/v1/work/awards/' + a['id'] + '/receipts', headers=self.H).json()['items']
         self.assertEqual(sorted(x['statement']['claims']['outcome'] for x in recs if x['kind'] == 'verification'), ['failed', 'passed'])
-        ev = self.evaluate(a['id']); self.assertEqual(ev['decision_candidate'], 'accepted')                       # a passed audit on the same commitment satisfies the policy
+        # policy v2 (claim-specific): the failed same-class audit on the same commitment blocks acceptance even though a pass exists;
+        # the designated reviewer adjudicates the disagreement (producer upheld, bound to the passed record) and only then it is accepted
+        ev = self.evaluate(a['id']); self.assertEqual(ev['decision_candidate'], 'rejected'); self.assertIn('not overridden', next(t['reason'] for t in ev['trace'] if t['type'] == 'verification_passed'))
+        self.assertEqual(ev['policy_schema'], 'metacoin-acceptance-policy/v2')
+        rd = self.c.post('/api/v1/verification/' + v2['id'] + '/decide', headers=self.R, json={'decision': 'producer_upheld', 'note': 'forced failure by the test hook; the full replay passed on the identical commitment', 'evidence': [{'kind': 'verification', 'id': v1['id']}]}); self.assertEqual(rd.status_code, 200, rd.text)
+        ev = self.evaluate(a['id']); self.assertEqual(ev['decision_candidate'], 'accepted')
         # mistaken rejection by the requester (recorded with reason), then a dispute corrects it by supersession
         d1 = self.decide(a['id'], decision='reject', reason='reviewer believed the verification failed')
         self.assertEqual((d1['decision'], d1['authority']), ('rejected', 'requester'))

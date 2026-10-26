@@ -1,0 +1,836 @@
+{
+ "schema": "metacoin-endurance-network/v1",
+ "seconds": 1801.4,
+ "seed": 7,
+ "restarts": {
+  "api": 2,
+  "signer": 1
+ },
+ "partitions": 5,
+ "events": [
+  {
+   "at_s": 244.0,
+   "event": "partition_cut"
+  },
+  {
+   "at_s": 264.4,
+   "event": "partition_online"
+  },
+  {
+   "at_s": 543.2,
+   "event": "partition_cut"
+  },
+  {
+   "at_s": 566.5,
+   "event": "partition_online"
+  },
+  {
+   "at_s": 603.1,
+   "event": "signer_restarted",
+   "seconds": 0.06
+  },
+  {
+   "at_s": 843.4,
+   "event": "partition_cut"
+  },
+  {
+   "at_s": 872.2,
+   "event": "partition_online"
+  },
+  {
+   "at_s": 904.3,
+   "event": "api_restarted",
+   "seconds": 1.12
+  },
+  {
+   "at_s": 1143.0,
+   "event": "partition_cut"
+  },
+  {
+   "at_s": 1163.1,
+   "event": "partition_online"
+  },
+  {
+   "at_s": 1444.1,
+   "event": "partition_cut"
+  },
+  {
+   "at_s": 1467.4,
+   "event": "partition_online"
+  },
+  {
+   "at_s": 1504.2,
+   "event": "api_restarted",
+   "seconds": 1.25
+  }
+ ],
+ "ticks": [
+  {
+   "at_s": 60,
+   "ok": {
+    "transfers": 1398,
+    "signed_transfers": 246,
+    "pool_reservations": 55,
+    "work": 24,
+    "cross_domain": 64,
+    "lots": 63
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 110640
+  },
+  {
+   "at_s": 120,
+   "ok": {
+    "transfers": 2115,
+    "signed_transfers": 406,
+    "pool_reservations": 74,
+    "work": 35,
+    "cross_domain": 105,
+    "lots": 104
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 110984
+  },
+  {
+   "at_s": 180,
+   "ok": {
+    "transfers": 2732,
+    "signed_transfers": 503,
+    "pool_reservations": 102,
+    "work": 47,
+    "cross_domain": 143,
+    "lots": 143
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 111552
+  },
+  {
+   "at_s": 240,
+   "ok": {
+    "transfers": 3365,
+    "signed_transfers": 636,
+    "pool_reservations": 134,
+    "work": 60,
+    "cross_domain": 201,
+    "lots": 176
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 114208
+  },
+  {
+   "at_s": 300,
+   "ok": {
+    "transfers": 3557,
+    "signed_transfers": 699,
+    "pool_reservations": 148,
+    "work": 67,
+    "cross_domain": 222,
+    "lots": 196
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 112712
+  },
+  {
+   "at_s": 360,
+   "ok": {
+    "transfers": 3928,
+    "signed_transfers": 782,
+    "pool_reservations": 166,
+    "work": 75,
+    "cross_domain": 244,
+    "lots": 219
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 112716
+  },
+  {
+   "at_s": 420,
+   "ok": {
+    "transfers": 4407,
+    "signed_transfers": 834,
+    "pool_reservations": 206,
+    "work": 81,
+    "cross_domain": 267,
+    "lots": 242
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 112716
+  },
+  {
+   "at_s": 480,
+   "ok": {
+    "transfers": 4800,
+    "signed_transfers": 901,
+    "pool_reservations": 224,
+    "work": 86,
+    "cross_domain": 287,
+    "lots": 262
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 112716
+  },
+  {
+   "at_s": 540,
+   "ok": {
+    "transfers": 5184,
+    "signed_transfers": 1004,
+    "pool_reservations": 248,
+    "work": 95,
+    "cross_domain": 325,
+    "lots": 290
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 114496
+  },
+  {
+   "at_s": 600,
+   "ok": {
+    "transfers": 5321,
+    "signed_transfers": 1035,
+    "pool_reservations": 278,
+    "work": 99,
+    "cross_domain": 338,
+    "lots": 303
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 112460
+  },
+  {
+   "at_s": 660,
+   "ok": {
+    "transfers": 5604,
+    "signed_transfers": 1089,
+    "pool_reservations": 304,
+    "work": 103,
+    "cross_domain": 349,
+    "lots": 314
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 112536
+  },
+  {
+   "at_s": 720,
+   "ok": {
+    "transfers": 5784,
+    "signed_transfers": 1155,
+    "pool_reservations": 334,
+    "work": 106,
+    "cross_domain": 361,
+    "lots": 325
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 0,
+    "pool_reservations": 0,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 112536
+  },
+  {
+   "at_s": 780,
+   "ok": {
+    "transfers": 6107,
+    "signed_transfers": 1178,
+    "pool_reservations": 352,
+    "work": 109,
+    "cross_domain": 371,
+    "lots": 336
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 3,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 112908
+  },
+  {
+   "at_s": 840,
+   "ok": {
+    "transfers": 6403,
+    "signed_transfers": 1244,
+    "pool_reservations": 392,
+    "work": 114,
+    "cross_domain": 400,
+    "lots": 348
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 3,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 113096
+  },
+  {
+   "at_s": 900,
+   "ok": {
+    "transfers": 6499,
+    "signed_transfers": 1264,
+    "pool_reservations": 406,
+    "work": 116,
+    "cross_domain": 407,
+    "lots": 355
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 81120
+  },
+  {
+   "at_s": 960,
+   "ok": {
+    "transfers": 6692,
+    "signed_transfers": 1282,
+    "pool_reservations": 430,
+    "work": 120,
+    "cross_domain": 416,
+    "lots": 363
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 108972
+  },
+  {
+   "at_s": 1020,
+   "ok": {
+    "transfers": 6949,
+    "signed_transfers": 1313,
+    "pool_reservations": 458,
+    "work": 124,
+    "cross_domain": 427,
+    "lots": 375
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 109648
+  },
+  {
+   "at_s": 1080,
+   "ok": {
+    "transfers": 7199,
+    "signed_transfers": 1346,
+    "pool_reservations": 490,
+    "work": 128,
+    "cross_domain": 438,
+    "lots": 386
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 109704
+  },
+  {
+   "at_s": 1140,
+   "ok": {
+    "transfers": 7415,
+    "signed_transfers": 1385,
+    "pool_reservations": 522,
+    "work": 134,
+    "cross_domain": 466,
+    "lots": 397
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 110920
+  },
+  {
+   "at_s": 1200,
+   "ok": {
+    "transfers": 7566,
+    "signed_transfers": 1404,
+    "pool_reservations": 540,
+    "work": 137,
+    "cross_domain": 472,
+    "lots": 403
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 113392
+  },
+  {
+   "at_s": 1260,
+   "ok": {
+    "transfers": 7771,
+    "signed_transfers": 1434,
+    "pool_reservations": 556,
+    "work": 141,
+    "cross_domain": 483,
+    "lots": 414
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 113620
+  },
+  {
+   "at_s": 1320,
+   "ok": {
+    "transfers": 7944,
+    "signed_transfers": 1467,
+    "pool_reservations": 582,
+    "work": 145,
+    "cross_domain": 494,
+    "lots": 424
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 113840
+  },
+  {
+   "at_s": 1380,
+   "ok": {
+    "transfers": 8105,
+    "signed_transfers": 1502,
+    "pool_reservations": 604,
+    "work": 151,
+    "cross_domain": 506,
+    "lots": 436
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 113848
+  },
+  {
+   "at_s": 1440,
+   "ok": {
+    "transfers": 8340,
+    "signed_transfers": 1538,
+    "pool_reservations": 636,
+    "work": 155,
+    "cross_domain": 534,
+    "lots": 450
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 113424
+  },
+  {
+   "at_s": 1500,
+   "ok": {
+    "transfers": 8416,
+    "signed_transfers": 1558,
+    "pool_reservations": 652,
+    "work": 157,
+    "cross_domain": 538,
+    "lots": 454
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 81628
+  },
+  {
+   "at_s": 1560,
+   "ok": {
+    "transfers": 8563,
+    "signed_transfers": 1587,
+    "pool_reservations": 676,
+    "work": 161,
+    "cross_domain": 549,
+    "lots": 464
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 109204
+  },
+  {
+   "at_s": 1620,
+   "ok": {
+    "transfers": 8723,
+    "signed_transfers": 1627,
+    "pool_reservations": 696,
+    "work": 163,
+    "cross_domain": 558,
+    "lots": 473
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 109848
+  },
+  {
+   "at_s": 1680,
+   "ok": {
+    "transfers": 8880,
+    "signed_transfers": 1650,
+    "pool_reservations": 716,
+    "work": 166,
+    "cross_domain": 565,
+    "lots": 481
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 110632
+  },
+  {
+   "at_s": 1740,
+   "ok": {
+    "transfers": 9066,
+    "signed_transfers": 1685,
+    "pool_reservations": 744,
+    "work": 171,
+    "cross_domain": 573,
+    "lots": 489
+   },
+   "unexpected": {
+    "transfers": 0,
+    "signed_transfers": 1,
+    "pool_reservations": 4,
+    "work": 0,
+    "cross_domain": 0,
+    "lots": 0
+   },
+   "api_rss_kb": 110636
+  }
+ ],
+ "unexpected_samples": [
+  {
+   "at_s": 734.5,
+   "loop": "pool_reservations",
+   "code": "LOCAL_OPERATION_FAILED",
+   "body": "{\"error\": true, \"code\": \"LOCAL_OPERATION_FAILED\", \"action\": \"a local file/database operation failed (no details echoed)\", \"detail\": null}"
+  },
+  {
+   "at_s": 735.4,
+   "loop": "signed_transfers",
+   "code": "LOCAL_OPERATION_FAILED",
+   "body": "{\"error\": true, \"code\": \"LOCAL_OPERATION_FAILED\", \"action\": \"a local file/database operation failed (no details echoed)\", \"detail\": null}"
+  },
+  {
+   "at_s": 737.7,
+   "loop": "pool_reservations",
+   "code": "LOCAL_OPERATION_FAILED",
+   "body": "{\"error\": true, \"code\": \"LOCAL_OPERATION_FAILED\", \"action\": \"a local file/database operation failed (no details echoed)\", \"detail\": null}"
+  },
+  {
+   "at_s": 737.9,
+   "loop": "pool_reservations",
+   "code": "LOCAL_OPERATION_FAILED",
+   "body": "{\"error\": true, \"code\": \"LOCAL_OPERATION_FAILED\", \"action\": \"a local file/database operation failed (no details echoed)\", \"detail\": null}"
+  },
+  {
+   "at_s": 873.3,
+   "loop": "pool_reservations",
+   "code": "LOCAL_OPERATION_FAILED",
+   "body": "{\"error\": true, \"code\": \"LOCAL_OPERATION_FAILED\", \"action\": \"a local file/database operation failed (no details echoed)\", \"detail\": null}"
+  },
+  {
+   "at_s": 1778.6,
+   "loop": "signed_transfers",
+   "code": "LOCAL_OPERATION_FAILED",
+   "body": "{\"error\": true, \"code\": \"LOCAL_OPERATION_FAILED\", \"action\": \"a local file/database operation failed (no details echoed)\", \"detail\": null}"
+  }
+ ],
+ "api_stderr_tail": "",
+ "loops": {
+  "transfers": {
+   "ok": 9235,
+   "expected_refusals": {
+    "transport:ConnectError": 5
+   },
+   "unexpected_failures": {},
+   "per_s": 5.13,
+   "p50_s": 0.0981,
+   "p95_s": 0.7219,
+   "p99_s": 2.3885
+  },
+  "signed_transfers": {
+   "ok": 1704,
+   "expected_refusals": {
+    "transport:ConnectError": 6
+   },
+   "unexpected_failures": {
+    "LOCAL_OPERATION_FAILED": 2
+   },
+   "per_s": 0.95,
+   "p50_s": 0.2535,
+   "p95_s": 4.4054,
+   "p99_s": 8.0283
+  },
+  "pool_reservations": {
+   "ok": 766,
+   "expected_refusals": {
+    "pool_capacity_exceeded": 14952,
+    "transport:ConnectError": 21
+   },
+   "unexpected_failures": {
+    "LOCAL_OPERATION_FAILED": 4
+   },
+   "per_s": 0.43,
+   "p50_s": 0.0744,
+   "p95_s": 2.2035,
+   "p99_s": 4.9818
+  },
+  "work": {
+   "ok": 175,
+   "expected_refusals": {
+    "exception:ConnectError (during restart)": 2
+   },
+   "unexpected_failures": {},
+   "per_s": 0.1,
+   "p50_s": 8.2833,
+   "p95_s": 22.845,
+   "p99_s": 34.7595
+  },
+  "cross_domain": {
+   "ok": 581,
+   "expected_refusals": {
+    "transport:outbox": 83,
+    "transport:ConnectError": 4,
+    "courier:ConnectError (during restart)": 3
+   },
+   "unexpected_failures": {},
+   "per_s": 0.32,
+   "p50_s": 0.1945,
+   "p95_s": 2.7107,
+   "p99_s": 7.4147
+  },
+  "lots": {
+   "ok": 497,
+   "expected_refusals": {},
+   "unexpected_failures": {},
+   "per_s": 0.28,
+   "p50_s": 0.0239,
+   "p95_s": 0.031,
+   "p99_s": 0.0341
+  }
+ },
+ "summary": {
+  "completed": 12958,
+  "refused_expected": 15076,
+  "unexpected_failures": 6,
+  "duplicate_settlements": 0,
+  "conserved": true,
+  "latency_p99_s": 5.7664,
+  "recovery_seconds": [
+   {
+    "signer": 0.06
+   },
+   {
+    "api": 1.12
+   },
+   {
+    "api": 1.25
+   }
+  ],
+  "backlog_age_s": 0,
+  "api_rss_kb_last": 110904
+ },
+ "final": {
+  "audit_a": {
+   "total_held": 464167,
+   "fixture_funding": 465000,
+   "backing_locked_for_exports": 833,
+   "claims_backed_elsewhere": 0,
+   "conserved": true
+  },
+  "audit_b_asset_a": {
+   "total_held": 833,
+   "claims_backed_elsewhere": 833,
+   "conserved": true
+  },
+  "accounting_checks_a": {
+   "backing_matches_journal": true,
+   "claims_matches_journal": true
+  },
+  "accounting_b": {
+   "checks": {
+    "backing_matches_journal": true,
+    "claims_matches_journal": true
+   },
+   "lots": {
+    "allocations": 581,
+    "partition_ok": true,
+    "legacy_without_lineage": 0,
+    "backed_matches_lots": true,
+    "returned_total": 1491,
+    "invariant": "for every imported allocation: lots partition its amount; active + committed + spent lots = amount \u2212 returned"
+   }
+  },
+  "pool": {
+   "peak_slots_used": 2,
+   "all_within_capacity": true,
+   "commitments": 151
+  },
+  "reservation_states": {
+   "cancelled": 81,
+   "settled": 151
+  },
+  "jobs": {
+   "succeeded": 354
+  },
+  "duplicate_settled_intents": [],
+  "duplicate_reservations": []
+ },
+ "time_accounting": {
+  "wall_clock_s": 1801.4,
+  "planned_contact_time": "contact reservations are half-open intervals on the shared pool (seconds); no emulator delay is injected",
+  "transport_emulator_delay_s": 0,
+  "compute_time": "energy_audit jobs executed by the background worker (see jobs)"
+ },
+ "ok": false,
+ "note": "same host, loopback, SQLite; restarts interrupt in-flight requests whose retries reuse request ids (transport errors are expected refusals); partitions refuse cross-domain delivery (expected) while local work continues"
+}

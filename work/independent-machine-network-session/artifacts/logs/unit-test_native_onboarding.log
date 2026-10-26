@@ -1,0 +1,61 @@
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  from starlette.testclient import TestClient as TestClient  # noqa
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpvcnmu3yy/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/native/signer.py:389: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmposges4gb/signer/token' mode='r' encoding='UTF-8'>
+  self.base = base.rstrip('/'); self.token = token or json.load(open(token_file))['token']
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_native_onboarding.py:26: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpvcnmu3yy/prov-home/config.json' mode='r' encoding='UTF-8'>
+  cfg = json.load(open(os.path.join(home, 'config.json'))); bad = dict(cfg); bad['pinned'] = dict(cfg['pinned'], authority_key_id='k_other'); json.dump(bad, open(os.path.join(home, 'config.json'), 'w'))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_native_onboarding.py:26: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpvcnmu3yy/prov-home/config.json' mode='w' encoding='UTF-8'>
+  cfg = json.load(open(os.path.join(home, 'config.json'))); bad = dict(cfg); bad['pinned'] = dict(cfg['pinned'], authority_key_id='k_other'); json.dump(bad, open(os.path.join(home, 'config.json'), 'w'))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_native_onboarding.py:30: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpvcnmu3yy/prov-home/config.json' mode='w' encoding='UTF-8'>
+  bad = dict(cfg); bad['compatible_protocols'] = ['metacoin-native/v9']; json.dump(bad, open(os.path.join(home, 'config.json'), 'w'))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_native_onboarding.py:33: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpvcnmu3yy/prov-home/config.json' mode='w' encoding='UTF-8'>
+  self.assertEqual(cm.exception.body['problems'][0]['code'], 'protocol_incompatible'); json.dump(cfg, open(os.path.join(home, 'config.json'), 'w'))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpsovuk571/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.12/re/_parser.py:261: ResourceWarning: unclosed <socket.socket fd=3, family=2, type=1, proto=6, laddr=('127.0.0.1', 41138), raddr=('127.0.0.1', 45319)>
+  def get(self):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/native/signer.py:389: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmps4mjf_mi/signer/token' mode='r' encoding='UTF-8'>
+  self.base = base.rstrip('/'); self.token = token or json.load(open(token_file))['token']
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp_rj9600_/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/.venv-service/lib/python3.12/site-packages/starlette/routing.py:131: ResourceWarning: unclosed <socket.socket fd=3, family=2, type=1, proto=6, laddr=('127.0.0.1', 36334), raddr=('127.0.0.1', 51647)>
+  for match in PARAM_REGEX.finditer(path):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/native/signer.py:389: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmpoi933ioe/signer/token' mode='r' encoding='UTF-8'>
+  self.base = base.rstrip('/'); self.token = token or json.load(open(token_file))['token']
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/db.py:623: ResourceWarning: unclosed <socket.socket fd=3, family=2, type=1, proto=6, laddr=('127.0.0.1', 39234), raddr=('127.0.0.1', 38509)>
+  db.executescript(sql) if False else [db.execute(stmt) for stmt in _statements(sql)]
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmphnxkj1l_/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/native/signer.py:389: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp86p1r_t4/signer/token' mode='r' encoding='UTF-8'>
+  self.base = base.rstrip('/'); self.token = token or json.load(open(token_file))['token']
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+./home/zhangd2/projects/metacoin/metacoin_service/tests/test_service.py:54: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp6k94f2hv/home/credentials/bootstrap.json' mode='r' encoding='UTF-8'>
+  self.creds = json.load(open(info['credential_file']))
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/usr/lib/python3.12/re/_parser.py:261: ResourceWarning: unclosed <socket.socket fd=3, family=2, type=1, proto=6, laddr=('127.0.0.1', 56818), raddr=('127.0.0.1', 45269)>
+  def get(self):
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/home/zhangd2/projects/metacoin/metacoin_service/native/signer.py:389: ResourceWarning: unclosed file <_io.TextIOWrapper name='/tmp/tmp1cq6ln9p/signer/token' mode='r' encoding='UTF-8'>
+  self.base = base.rstrip('/'); self.token = token or json.load(open(token_file))['token']
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+.
+----------------------------------------------------------------------
+Ran 5 tests in 6.819s
+
+OK

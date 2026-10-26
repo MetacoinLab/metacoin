@@ -1,0 +1,66 @@
+{
+ "schema": "metacoin-mission-migrations/v1",
+ "chosen_by_inspection": "highest id before this order: 043_native_authority_keys (native protocol order); 044\u2013047 were free; next free: 048",
+ "forward_only": true,
+ "migrations": [
+  {
+   "id": "044_native_account_keys",
+   "statements": [
+    "CREATE TABLE native_account_keys (key_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL REFERENCES native_accounts(id),",
+    "CREATE INDEX native_account_keys_acct ON native_account_keys(account_id, state)"
+   ],
+   "statement_count": 2,
+   "tables": [
+    "native_account_keys"
+   ]
+  },
+  {
+   "id": "045_claim_lineage_checkpoints_fragments",
+   "statements": [
+    "CREATE TABLE native_claim_lineage (allocation_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL, asset TEXT NOT NULL, a",
+    "CREATE INDEX native_claim_lineage_acct ON native_claim_lineage(account_id, asset, state)",
+    "CREATE TABLE native_claim_consumption (id INTEGER PRIMARY KEY AUTOINCREMENT, workspace TEXT NOT NULL, allocation_id TEXT NOT NULL, amount IN",
+    "CREATE TABLE native_checkpoints (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, domain_id TEXT NOT NULL, epoch INTEGER NOT NULL, sequence INT",
+    "CREATE TABLE native_fragments (message_id TEXT NOT NULL, workspace TEXT NOT NULL, sender TEXT NOT NULL, idx INTEGER NOT NULL, count INTEGER "
+   ],
+   "statement_count": 5,
+   "tables": [
+    "native_checkpoints",
+    "native_claim_consumption",
+    "native_claim_lineage",
+    "native_fragments"
+   ]
+  },
+  {
+   "id": "046_resource_market",
+   "statements": [
+    "CREATE TABLE resource_offers (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, provider_account TEXT NOT NULL, provider_principal TEXT NOT NULL",
+    "CREATE TABLE resource_reservations (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, offer_id TEXT NOT NULL REFERENCES resource_offers(id), off",
+    "CREATE INDEX resource_reservations_offer ON resource_reservations(offer_id, state)",
+    "CREATE UNIQUE INDEX resource_reservations_req ON resource_reservations(buyer_account, request_id)"
+   ],
+   "statement_count": 4,
+   "tables": [
+    "resource_offers",
+    "resource_reservations"
+   ]
+  },
+  {
+   "id": "047_mission_contracts",
+   "statements": [
+    "CREATE TABLE mission_contracts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, owner_principal TEXT NOT NULL, owner_account TEXT NOT NULL, ti",
+    "CREATE TABLE mission_revisions (mission_id TEXT NOT NULL REFERENCES mission_contracts(id), revision INTEGER NOT NULL, graph_json TEXT NOT NU",
+    "CREATE TABLE mission_milestones (id TEXT PRIMARY KEY, mission_id TEXT NOT NULL REFERENCES mission_contracts(id), key TEXT NOT NULL, kind TEX",
+    "CREATE TABLE mission_events (seq INTEGER PRIMARY KEY AUTOINCREMENT, mission_id TEXT NOT NULL, at INTEGER NOT NULL, actor TEXT NOT NULL, kind",
+    "CREATE INDEX mission_events_mission ON mission_events(mission_id, seq)"
+   ],
+   "statement_count": 5,
+   "tables": [
+    "mission_contracts",
+    "mission_events",
+    "mission_milestones",
+    "mission_revisions"
+   ]
+  }
+ ]
+}

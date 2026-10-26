@@ -1,0 +1,176 @@
+{
+ "analysis_schema": "decision-observability-input/v1",
+ "model_id": "finite-decision-observability/v1",
+ "limits": {
+  "hypotheses": 32,
+  "coordinates": 16,
+  "views": 64,
+  "rows_per_view": 16,
+  "total_rows": 256,
+  "menu_exact": 12,
+  "id_chars": 64,
+  "label_chars": 64,
+  "text_chars": 256,
+  "rational_chars": 48,
+  "population": 1000000,
+  "exact_terms": 200000,
+  "sample_cap": 1000000
+ },
+ "delivery_schema": "observation-delivery/v1",
+ "acquisition_schema": "evidence-acquisition-input/v1",
+ "validation_method": "closed-noise-box-conditioning/v1",
+ "outcomes": {
+  "ANALYSIS_OUTCOMES": [
+   "AMBIGUOUS",
+   "SEPARATED_ON_DECLARED_SET",
+   "NO_DECISION_RELEVANT_ALTERNATIVES",
+   "DETERMINED_WITHIN_DECLARED_MODEL",
+   "AMBIGUOUS_AFTER_OBSERVATION",
+   "MODEL_INCONSISTENT_WITH_OBSERVATIONS"
+  ],
+  "DECISION_OUTCOMES": [
+   "DECISION_RESOLVED",
+   "DECISION_AMBIGUOUS",
+   "MODEL_INCONSISTENT_WITH_OBSERVATIONS",
+   "DELIVERY_INVALID",
+   "ACQUISITION_FAILED"
+  ]
+ },
+ "example_analysis_input": {
+  "schema": "decision-observability-input/v1",
+  "model": {
+   "id": "finite-decision-observability/v1",
+   "version": 1
+  },
+  "candidate_set_version": "cs-2026-10-22",
+  "measurement_menu_version": "mm-1",
+  "coordinates": [
+   {
+    "name": "cell_1",
+    "unit": "mJ"
+   },
+   {
+    "name": "cell_2",
+    "unit": "mJ"
+   }
+  ],
+  "hypotheses": [
+   {
+    "id": "hot_cell_1",
+    "label": "DO_NOT_START",
+    "state": [
+     100,
+     20
+    ],
+    "provenance": "thermal model v3"
+   },
+   {
+    "id": "hot_cell_2",
+    "label": "START_UNDER_DECLARED_MODEL",
+    "state": [
+     20,
+     100
+    ],
+    "provenance": "thermal model v3"
+   }
+  ],
+  "views": [
+   {
+    "id": "total",
+    "rows": [
+     [
+      1,
+      1
+     ]
+    ],
+    "noise": [
+     2
+    ],
+    "output_units": [
+     "mJ"
+    ],
+    "cost": 0
+   }
+  ],
+  "question": "may the heater start?",
+  "private_label": "EXAMPLE_SYNTHETIC"
+ },
+ "example_menu": [
+  {
+   "id": "total_again",
+   "rows": [
+    [
+     1,
+     1
+    ]
+   ],
+   "noise": [
+    2
+   ],
+   "output_units": [
+    "mJ"
+   ],
+   "cost": 1,
+   "quote_expires_at": 1760003600,
+   "execution_modes": [
+    "local_worker"
+   ]
+  },
+  {
+   "id": "near_parallel",
+   "rows": [
+    [
+     1,
+     "1001/1000"
+    ]
+   ],
+   "noise": [
+    1
+   ],
+   "output_units": [
+    "mJ"
+   ],
+   "cost": 1,
+   "quote_expires_at": 1760003600,
+   "execution_modes": [
+    "local_worker"
+   ]
+  },
+  {
+   "id": "cell_1_sensor",
+   "rows": [
+    [
+     1,
+     0
+    ]
+   ],
+   "noise": [
+    2
+   ],
+   "output_units": [
+    "mJ"
+   ],
+   "cost": 3,
+   "quote_expires_at": 1760003600,
+   "execution_modes": [
+    "local_worker",
+    "instrument"
+   ]
+  }
+ ],
+ "example_delivery": {
+  "schema": "observation-delivery/v1",
+  "status": "acquired",
+  "provenance": {
+   "instrument": "cell-1 calorimeter (simulated)",
+   "acquired_at": 1760000000,
+   "units_confirmed": true,
+   "simulated": true
+  },
+  "observations": {
+   "cell_1_sensor": [
+    "99"
+   ]
+  }
+ }
+}

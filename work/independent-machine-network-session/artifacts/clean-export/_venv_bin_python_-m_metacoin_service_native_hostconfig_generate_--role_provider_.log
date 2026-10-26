@@ -1,0 +1,1 @@
+{"role": "provider", "out": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-network/metacoin-independent-machine-network/hostcfg-sample", "files": ["README.txt", "enroll.sh", "identity.json", "provider.env", "run-signer.sh", "selfcheck.sh"], "service_loopback": false, "tls_required": true}

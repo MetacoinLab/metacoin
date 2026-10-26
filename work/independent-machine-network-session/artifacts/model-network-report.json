@@ -1,0 +1,110 @@
+{
+ "schema": "metacoin-network-state-model/v1",
+ "events": [
+  "reserve_a",
+  "reserve_b",
+  "reserve_b_retry",
+  "crash_after_pool_commit",
+  "cancel_b",
+  "deliver_a",
+  "sub_propose",
+  "sub_fund",
+  "sub_fund_retry",
+  "sub_pay",
+  "sub_pay_again",
+  "sub_return",
+  "sub_fund_from_future",
+  "export_20",
+  "deliver_cert",
+  "spend_7",
+  "retire_13",
+  "retire_13_again",
+  "retire_other",
+  "deliver_retire",
+  "deliver_retire_again",
+  "retire_7_by_holder",
+  "takeover",
+  "step_gen_old",
+  "step_gen_active",
+  "step_gen_forged"
+ ],
+ "depth": 6,
+ "reachable_states": 323,
+ "transitions": 4628,
+ "refused_or_idempotent": 3581,
+ "violations": [],
+ "violation_count": 0,
+ "outcomes": {
+  "pool_delivered": 51,
+  "subcontract_returned": 12,
+  "partially_returned": 4,
+  "fenced_refusals": 209
+ },
+ "bounds": "one pool of capacity 1 over three unit intervals with two overlapping offers; one subcontract (prefund 12, price 10); one export of 20 split 13/7; one mission with monotone generations; sequences of length <= 6 over 26 events; not an unbounded proof",
+ "assumptions": [
+  "the authority is honest and its database is durable between steps",
+  "messages may be delayed, duplicated or reordered but not forged",
+  "a crash inside a transaction leaves no partial durable state",
+  "amounts are small integers of one asset"
+ ],
+ "invariants": [
+  "conservation: available + reserved + backing equals the fixture",
+  "claims backed: lots plus in-transit retirements never exceed locked backing",
+  "pool within capacity at every unit interval",
+  "subcontract payments plus returns never exceed the prefund",
+  "lot partition: lots + returned + in transit equals the allocation amount",
+  "exactly one active generation once fenced"
+ ],
+ "example_sequences": [
+  [
+   "reserve_a",
+   "reserve_b",
+   "reserve_b_retry",
+   "cancel_b",
+   "reserve_b",
+   "deliver_a"
+  ],
+  [
+   "reserve_a",
+   "crash_after_pool_commit",
+   "reserve_b"
+  ],
+  [
+   "sub_propose",
+   "sub_fund_from_future",
+   "sub_fund",
+   "sub_fund_retry",
+   "sub_pay",
+   "sub_pay_again",
+   "sub_return"
+  ],
+  [
+   "export_20",
+   "deliver_cert",
+   "deliver_cert",
+   "spend_7",
+   "retire_other",
+   "retire_13",
+   "retire_13_again",
+   "deliver_retire",
+   "deliver_retire_again"
+  ],
+  [
+   "export_20",
+   "deliver_cert",
+   "spend_7",
+   "retire_13",
+   "deliver_retire",
+   "retire_7_by_holder",
+   "deliver_retire"
+  ],
+  [
+   "takeover",
+   "step_gen_old",
+   "takeover",
+   "step_gen_old",
+   "step_gen_forged",
+   "step_gen_active"
+  ]
+ ]
+}

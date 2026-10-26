@@ -1,0 +1,24 @@
+{
+ "checked_at": 1792739873,
+ "binaries": {
+  "dtnd": null,
+  "dtn7": null,
+  "ud3tn": null,
+  "aap2-client": null,
+  "cargo": null,
+  "ion": null,
+  "bpsink": null,
+  "ionstart": null,
+  "bpecho": null
+ },
+ "pip": {
+  "ud3tn-utils": "not found",
+  "py-dtn7": "not found",
+  "dtn7": "not found",
+  "pydtn": "not found",
+  "bp7": "not found",
+  "pyion": "not found"
+ },
+ "conclusion": "Re-probed for this order: still no BPv7 (RFC 9171) daemon installable here (no dtnd/dtn7/ud3tn/ION binary, no cargo); ud3tn-utils is a client library without its C daemon. The relay service (group F) is an application-level store-and-forward over the emulated loop and is explicitly NOT BPv7 interoperability; this track stays blocked and is never counted as passed.",
+ "order": "independent machine network (2026-10-23)"
+}

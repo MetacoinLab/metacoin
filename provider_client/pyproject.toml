@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metacoin-provider"
+version = "0.1.0"
+description = "Portable provider client for the MetaCoin native economy: offers, measured deliveries, work awards, signed payments through an external signer, offline receipt verification. Standard library only; no server imports."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+metacoin-provider = "metacoin_provider.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["metacoin_provider*"]
+
+[tool.setuptools.package-data]
+metacoin_provider = ["conformance/v1/*.json"]

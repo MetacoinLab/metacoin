@@ -1,0 +1,15 @@
+runtime data placed from protocol-data/ (59ec7834451e17ab d285945db156863e )
+files: 584
+sha256 of archive: 3adba62636ae0e38743d0d4373824cabe77df5042ad9867b0b6a7bec6613a32a
+venv rc=0
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home --provider-mode test-http init
+rc=0 0s :: .venv/bin/python -m metacoin_service --home ./svc-home status
+rc=0 25s :: .venv/bin/python -m unittest metacoin_service.tests.test_decision_kernels metacoin_service.tests.test_decision_service metacoin_service.tests.test_decision_surfaces metacoin_service.tests.test_work_terms metacoin_service.tests.test_work_evidence
+rc=0 2s :: /usr/bin/python3 -m unittest metacoin_service.tests.test_resource_plan metacoin_service.tests.test_compute_science
+rc=0 30s :: .venv/bin/python -m unittest metacoin_service.tests.test_service
+rc=0 5s :: .venv/bin/python -m unittest integrations.x402.local_chain.test_local_chain metacoin_service.tests.test_packages_upto
+rc=0 3s :: .venv/bin/python -m unittest metacoin_service.tests.test_decision_sampling
+rc=0 53s :: .venv/bin/python -m metacoin_service.tests.journeys_decision --only 1,2,5,7,8,10,17,19,23 --out /tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/er/clean-export/journeys-from-clean-export.json
+CLEAN_EXPORT rc=0
+exit 0
+alldone

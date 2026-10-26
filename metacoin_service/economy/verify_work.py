@@ -129,6 +129,19 @@ def verify(path, trust_root=None, trust_roots=()):
                 replay = {'performed': True, 'failed': type(exc).__name__, 'detail': str(exc)[:200]}
         else:
             replay = {'performed': False, 'reason': 'private input and evidence vaults not in this package (restricted scope): disclosed fields are membership-checked only'}
+    elif kind in ('terrain_tile', 'route_feasibility', 'scenario_pack'):
+        from metacoin_service.lunar import operations as lunar_ops, reference as lunar_ref
+        avail.update(available=True, implementation='metacoin_service.lunar.reference (independent CPU reference, installed)', verifier_status='current' if lunar_ops.implementation_digest() == terms['operation'].get('verifier_digest') else 'different installed bundle')
+        if 'private/evidence-vault.json' in files and 'private/input-vault.json' in files:
+            try:
+                ev = json.loads(files['private/evidence-vault.json']); iv = json.loads(files['private/input-vault.json'])
+                inputs = {f['name']: f['value'] for f in iv['fields']}['inputs']; result = lunar_ops.reassemble({f['name']: f['value'] for f in ev['fields']})
+                chk = lunar_ref.check(kind, inputs, result)
+                replay = {'performed': True, 'reference_ok': chk['ok'], 'checks': chk['checks'], 'checker_id': chk['checker_id'], 'outcome': result.get('outcome'), 'scope': 'independent reference over the private input and evidence vaults'}
+            except Exception as exc:
+                replay = {'performed': True, 'failed': type(exc).__name__, 'detail': str(exc)[:200]}
+        else:
+            replay = {'performed': False, 'reason': 'private input and evidence vaults not in this package (restricted scope): disclosed fields are membership-checked only'}
     else:
         avail.update(available=False, note='no offline replay implementation for this kind in the portable verifier; acceptance class scope is narrower')
     report['method_availability'] = avail; report['scientific_replay'] = replay

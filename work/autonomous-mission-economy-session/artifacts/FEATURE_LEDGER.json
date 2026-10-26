@@ -1,0 +1,241 @@
+{
+ "schema": "metacoin-feature-ledger/v3",
+ "source": "809b95eb974337c934dd78c7e736678a3bf1c83c",
+ "journeys": {
+  "passed": 37,
+  "failed": 0,
+  "blocked": 0,
+  "skipped": 0,
+  "total": 37
+ },
+ "capabilities": [
+  {
+   "group": "A",
+   "capability": "Operator-controlled signing: separate signer executable (metacoin-signer/v1), service stores public identities only, durable consumed authorization, crash idempotency, rotation with grace, delegation bounded by principal authority, server-side substitution refused",
+   "implemented": "metacoin_service/native/signer.py, service.py (enroll_external, transfer_prepare/submit, register_key, revoke_key), migration 044",
+   "executed": {
+    "journeys": [
+     3,
+     4,
+     5,
+     6,
+     7,
+     33
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "signer on loopback of the same host and operator; bearer token file; Ed25519 via cryptography",
+   "unresolved_limitations": "operator-controlled custody, not an independent validator; one signer per domain in the journeys; no HSM"
+  },
+  {
+   "group": "B",
+   "capability": "Native resource reservation market: compute/storage/contact offers (versioned, fixed price), nonbinding quotes, atomic acceptance, stale quote refused, measured delivery with metered_fact / provider_assertion / verified labels, cancellation terms, market page",
+   "implemented": "metacoin_service/native/market.py, link.py, routes, console_ui (/console/resources), CLI, MCP; migration 046",
+   "executed": {
+    "journeys": [
+     8,
+     9,
+     10,
+     11,
+     12,
+     24
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "compute measured by child-process rusage; storage by stored bytes \u00d7 seconds; contact over a loopback link emulator (labelled, not a radio)",
+   "unresolved_limitations": "energy per unit is a declared constraint (nothing meters rover electricity); fixed-price offers only; no cross-domain atomic reservation"
+  },
+  {
+   "group": "C",
+   "capability": "Mission contracts: versioned dependency graph, frozen revisions with digests, amendments authorized by affected parties limited to unstarted work, partial delivery, valid negatives paid, verifier compensation separate, builder/graph/ledger/evidence views, pause/replan, three executable templates",
+   "implemented": "metacoin_service/native/mission_contracts.py, mission_templates.py, routes, console (/console/missions), CLI, MCP; migration 047",
+   "executed": {
+    "journeys": [
+     13,
+     14,
+     15,
+     16
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "lunar route feasibility / terrain tiles on pinned LDEM_4 extracts via the background worker",
+   "unresolved_limitations": "templates are small graphs; no multi-requester missions; evidence_gate exercised at unit level only"
+  },
+  {
+   "group": "D",
+   "capability": "Bounded mission controller: explicit actions over immutable offers, deterministic validator (liquidity after minimum reserve, per-action/mission ceilings, grant envelope, permitted recipients, offer price bounds, capacity, windows, energy, link state, revocation, quarantine), earn-then-buy, published chosen and rejected actions, blackout wait, settlement before new spending",
+   "implemented": "metacoin_service/native/controller.py; operator screen native/operator.py",
+   "executed": {
+    "journeys": [
+     17,
+     18,
+     19,
+     20,
+     21
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "development custody for mission payments and the machine's purchases; grants issued by the administrator",
+   "unresolved_limitations": "LLM proposals are validated, never generated here; one action per step; energy model is a declared assumption"
+  },
+  {
+   "group": "E",
+   "capability": "Bounded resource and contact planning: explicit discretised horizon, baseline greedy planner, improved branch-and-bound with bound/timeout/status, exhaustive oracle on bounded fixtures, two objectives, infeasibility witnesses, competing missions, missed-window replan",
+   "implemented": "metacoin_service/native/planner.py, mission_planning.py; routes /missions/{id}/plan, /missions/plan, /plans/solve; CLI, MCP",
+   "executed": {
+    "journeys": [
+     22,
+     23,
+     24,
+     25
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "capacity counted per offer window (units), left-shifted starts; energy/thermal labelled planning assumptions",
+   "unresolved_limitations": "no per-slot capacity model; thermal not modelled; optimality claimed only when the search exhausts under the stated discretisation"
+  },
+  {
+   "group": "F",
+   "capability": "Incremental cross-domain liquidity: subdivided exports with disjoint ids and exact backing conservation, claim lineage, spending consumes unlineaged units first then claims oldest-first, irrevocable retirement before the return certificate, accounting over backing/active/consumed/retired/returns, states exposed",
+   "implemented": "metacoin_service/native/domains.py (export_batch, lineage_view, accounting_view, _consume_claims); migration 045",
+   "executed": {
+    "journeys": [
+     26,
+     27,
+     28
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "two domains, same operator and host",
+   "unresolved_limitations": "returns are full-and-unspent only; no partial return"
+  },
+  {
+   "group": "G",
+   "capability": "Durable transport and recovery witnesses: envelope bundle v1 (versions, economic ids, fragmentation that never alters signed content, dedup), independently stored signed commit checkpoints, pinned witness identity and freshness, quarantine on stale restore against the witness, \"detection unavailable\" honesty, contradictory histories exposed",
+   "implemented": "metacoin_service/native/witness.py, domains.py (checkpoint, witness_latest, rollback_check, _reassemble)",
+   "executed": {
+    "journeys": [
+     29,
+     30,
+     31,
+     32
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "witness on loopback of the same host and operator",
+   "unresolved_limitations": "equivocation detected where two histories meet, never prevented; BPv7 not exercised (no installable daemon: see bpv7-probe.json)"
+  },
+  {
+   "group": "H",
+   "capability": "Portable provider client (standard library only, no server imports, external signer, offline receipt/export/bundle verifier with pure-Python Ed25519), versioned conformance fixtures v1 (22 cases), sealed mission bundles, one local deployment command, two-host document",
+   "implemented": "provider_client/metacoin_provider/*, metacoin_service/native/conformance_fixtures.py, deploy_local.py, docs/native/TWO_HOST.md",
+   "executed": {
+    "journeys": [
+     33,
+     34,
+     36
+    ],
+    "statuses": [
+     "passed",
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "fresh virtual environment on the same host; pip could not build offline (no setuptools), the package ran from its directory; executor = the repository's public lunar module",
+   "unresolved_limitations": "two-host configuration documented, exercised on one host only; pip install verified only where setuptools is available"
+  },
+  {
+   "group": "\u00a712",
+   "capability": "Defining demonstration: two domains with signers, requester / machine / supplier / verifier / treasury / distinct award recipient, terrain analysis on pinned public data, blackout, outage replan, reconnection, treasury award from fees, funding table and postings, operator screen with disabled actions and reasons",
+   "implemented": "metacoin_service/tests/journeys_mission.py (demo), demonstration/demonstration.json, tests/browser/journey_mission.py",
+   "executed": {
+    "journeys": [
+     0,
+     35
+    ],
+    "statuses": [
+     "passed",
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "zero-value development asset; same operator for both domains",
+   "unresolved_limitations": "the machine's mission payments and purchases use development custody; external signer custody shown for the supplier and the client-enrolled provider"
+  },
+  {
+   "group": "\u00a714",
+   "capability": "Migrations 044\u2013047 rehearsed on an isolated copy of the preserved live database (schema 040 \u2192 047) with balances and old jobs preserved; live service untouched",
+   "implemented": "metacoin_service/db.py; MIGRATIONS.json, MIGRATION_NOTES.md",
+   "executed": {
+    "journeys": [
+     36
+    ],
+    "statuses": [
+     "passed"
+    ],
+    "exercised": true
+   },
+   "environment_assumptions": "read-only backup of the live database",
+   "unresolved_limitations": "live upgrade not performed (not authorized by this order)"
+  },
+  {
+   "group": "\u00a715",
+   "capability": "Benchmarks before/after (native workload on the base revision and HEAD), mission measurements (signer overhead, reservation contention, backlog recovery, planner runtime, worker resource use) and a bounded mixed-work endurance run with a mid-run API restart",
+   "implemented": "metacoin_service/benchmark_mission.py, endurance_mission.py, run_benchmark.py; benchmarks/*.json",
+   "executed": {
+    "journeys": [],
+    "statuses": [],
+    "exercised": true
+   },
+   "environment_assumptions": "single host, loopback, SQLite",
+   "unresolved_limitations": "local same-operator measurements; not adoption or production finality"
+  }
+ ]
+}

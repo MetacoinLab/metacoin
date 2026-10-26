@@ -1,0 +1,1 @@
+{"ok": true, "problems": [], "files": ["README.txt", "enroll.sh", "identity.json", "provider.env", "run-signer.sh", "selfcheck.sh"], "note": "static check only; real second-host behaviour unverified until selfcheck.sh runs there"}

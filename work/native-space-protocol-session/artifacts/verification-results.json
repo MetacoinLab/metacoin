@@ -1,0 +1,206 @@
+{
+ "schema": "metacoin-native-verification-results/v1",
+ "source_revision": "35d194ac18c053212828870a563a8c523c3535c3",
+ "base_revision": "0ded29d90706d4e5aafbd2e59b6d029d66d08702",
+ "journeys": {
+  "passed": 40,
+  "failed": 0,
+  "blocked": 0,
+  "total": 40,
+  "revision": "35d194ac18c053212828870a563a8c523c3535c3"
+ },
+ "journey_statuses": {
+  "1": "passed",
+  "2": "passed",
+  "3": "passed",
+  "4": "passed",
+  "5": "passed",
+  "6": "passed",
+  "7": "passed",
+  "8": "passed",
+  "9": "passed",
+  "10": "passed",
+  "11": "passed",
+  "12": "passed",
+  "13": "passed",
+  "14": "passed",
+  "15": "passed",
+  "16": "passed",
+  "17": "passed",
+  "18": "passed",
+  "19": "passed",
+  "20": "passed",
+  "21": "passed",
+  "22": "passed",
+  "23": "passed",
+  "24": "passed",
+  "25": "passed",
+  "26": "passed",
+  "27": "passed",
+  "28": "passed",
+  "29": "passed",
+  "30": "passed",
+  "31": "passed",
+  "32": "passed",
+  "33": "passed",
+  "34": "passed",
+  "35": "passed",
+  "36": "passed",
+  "37": "passed",
+  "38": "passed",
+  "39": "passed",
+  "40": "passed"
+ },
+ "unit_suites": [
+  "test_native_protocol: Ran 2 tests in 3.968s OK",
+  "test_native_domains: Ran 9 tests in 10.412s OK",
+  "test_native_lunar: Ran 3 tests in 4.524s OK",
+  "test_native_conformance: Ran 5 tests in 1.673s OK",
+  "test_native_model: Ran 21 tests in 31.099s OK",
+  "test_native_interfaces: Ran 9 tests in 9.201s OK",
+  "test_native_evidence: Ran 8 tests in 9.611s OK",
+  "test_work_money: Ran 4 tests in 7.753s OK",
+  "test_work_board: Ran 5 tests in 3.619s OK",
+  "test_work_terms: Ran 6 tests in 6.591s OK",
+  "test_work_evidence: Ran 7 tests in 9.289s OK",
+  "test_decision_service: Ran 10 tests in 10.560s OK",
+  "test_decision_surfaces: Ran 3 tests in 1.833s OK",
+  "test_work_surfaces: Ran 4 tests in 3.071s OK",
+  "test_service: Ran 19 tests in 19.018s OK",
+  "test_agents: Ran 5 tests in 5.352s OK",
+  "test_budgets: Ran 2 tests in 2.176s OK"
+ ],
+ "unit_suites_all_ok": true,
+ "benchmark": {
+  "transfers": {
+   "count": 300,
+   "elapsed_s": 3.453,
+   "throughput_per_s": 86.9,
+   "p50_s": 0.0214,
+   "p95_s": 0.3429,
+   "max_s": 1.7414,
+   "errors": [],
+   "payee_available_after": 300,
+   "correct": true
+  },
+  "settlement": {
+   "native": {
+    "rail": "native",
+    "awards": 6,
+    "failed_or_unaccepted": 0,
+    "verification_jobs": 12,
+    "award_p50_s": 0.0323,
+    "award_p95_s": 0.038,
+    "to_accepted_p50_s": 1.162,
+    "pay_p50_s": 0.0556,
+    "pay_p95_s": 0.0703
+   },
+   "application_journal": {
+    "rail": "application-journal",
+    "awards": 6,
+    "failed_or_unaccepted": 0,
+    "verification_jobs": 12,
+    "award_p50_s": 0.03,
+    "award_p95_s": 0.0807,
+    "to_accepted_p50_s": 1.14,
+    "pay_p50_s": 0.0566,
+    "pay_p95_s": 0.064
+   }
+  },
+  "journal_replay": {
+   "seconds": 0.081,
+   "consistent": true,
+   "scopes": 2
+  },
+  "recovery_sweep": {
+   "seconds": 0.0029,
+   "resumed": 0
+  },
+  "storage_bytes": {
+   "service_sqlite": 4468736,
+   "wal": 0
+  },
+  "economic_summary": {
+   "protocol_operations": 348,
+   "accepted_work_products": 12,
+   "same_operator_transfer_volume": 300,
+   "external_demand": 0,
+   "note": "operation count is not accepted work; all volume is same-operator; verification jobs and unaccepted awards are included above"
+  }
+ },
+ "clean_export": {
+  "passed": 15,
+  "failed": 0,
+  "blocked": 0,
+  "total": 15,
+  "archive_sha256": "7c668cc872b3ab6b5827f9fdf951eea5225da71db929a5d4d3d6bffbe8377974"
+ },
+ "browser": [
+  {
+   "check": "domain view: identity, custody, authority policy, connectivity and recovery state",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "domain view: x402 not required by the native core",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "machine account: available, reservations, earned receivables and pending inter-domain claims shown separately",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "settlement view explains local finality, remote acknowledgment and unresolved exposure",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "treasury view follows fee receipts into allocations and completed awards",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "mission screen shows deliverable, acceptance, resource envelope, maximum obligation and selected provider",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "product view shows the artifact scope, provenance, assumptions and reproduction path",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "product preview image renders",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "simulate shows would_succeed and moves nothing",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "committed transfer reduced the available balance by one",
+   "ok": true,
+   "detail": "('51', '50')"
+  },
+  {
+   "check": "viewer reads the account but has no transfer control",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "viewer cannot post a transfer form",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "check": "narrow width: no horizontal page overflow on the native pages",
+   "ok": true,
+   "detail": "{'/console/native': True, '/console/native/accounts/na_bf9ab06b2eb9': True, '/console/native/settlement': True, '/console/native/treasury': True, '/console/native/missions/wa_642d873074778d5e': True, '/console/lunar/j_d6e084f60635b78b': True}"
+  }
+ ],
+ "skipped_or_blocked": []
+}

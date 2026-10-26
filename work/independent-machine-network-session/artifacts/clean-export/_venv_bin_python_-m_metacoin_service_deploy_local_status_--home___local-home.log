@@ -1,0 +1,41 @@
+{
+ "home": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-network/metacoin-independent-machine-network/local-home",
+ "service_home": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-network/metacoin-independent-machine-network/local-home/service",
+ "base": "http://127.0.0.1:48119",
+ "signer": {
+  "url": "http://127.0.0.1:60077",
+  "token_file": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-network/metacoin-independent-machine-network/local-home/signer/token"
+ },
+ "witness": {
+  "url": "http://127.0.0.1:47979",
+  "token_file": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-network/metacoin-independent-machine-network/local-home/witness/token",
+  "key_id": "k_5a1e16e80b8ecf952374a2f0",
+  "pinned": "dom-clean"
+ },
+ "admin_credential_file": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-network/metacoin-independent-machine-network/local-home/service/credentials/bootstrap.json",
+ "domain_id": "dom-clean",
+ "pids": {
+  "signer": 1118020,
+  "witness": 1118021,
+  "api": 1118022,
+  "worker": 1118023
+ },
+ "worker_stop_file": "/tmp/claude-1000/-home-zhangd2-projects/f65722f6-7e7f-47b5-8ca5-55d9958b5691/scratchpad/fresh-network/metacoin-independent-machine-network/local-home/worker.stop",
+ "x402": "disabled (METACOIN_X402_DISABLED=1; facilitator URL closed)",
+ "started_at": 1792756520,
+ "domain": {
+  "id": "dom-clean",
+  "default_asset": "dev:dom-clean:ledger-dom-clean:TMETA:0",
+  "accounts": {
+   "treasury": "na_treasury_dom-clean",
+   "fixture": "na_fixture_dom-clean"
+  }
+ },
+ "alive": {
+  "signer": true,
+  "witness": true,
+  "api": true,
+  "worker": true
+ },
+ "api_healthy": true
+}

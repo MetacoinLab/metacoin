@@ -75,7 +75,7 @@ class WorkTermsTests(unittest.TestCase):
         bad4 = dict(t['terms']); bad4['operation'] = {'kind': 'text_generation', 'compatibility': 'same_model_id'}; bad4['deliverables'] = [{'key': 'x', 'type': 'bounded_model_explanation', 'required': True}]; bad4['eligibility'] = dict(bad4['eligibility'], capabilities=['text_generation'])
         r = self.c.post('/api/v1/work/terms/validate', headers=self.H, json={'terms': bad4}); self.assertIn(r.json()['refusal']['detail']['code'], ('predicate_not_applicable_to_deliverables', 'review_signature_required'))
         templates = self.c.get('/api/v1/work/terms/templates', headers=self.H).json()
-        self.assertEqual(set(templates['templates']), {'determination', 'infeasibility_witness', 'independent_replay', 'diagnostic_delivery'})
+        self.assertEqual(set(templates['templates']), {'determination', 'infeasibility_witness', 'independent_replay', 'diagnostic_delivery', 'decision_evidence_acquisition', 'lunar_terrain_tile', 'lunar_route_feasibility', 'lunar_scenario_pack'})
         # viewer can read but not create
         self.assertEqual(self.c.post('/api/v1/work/terms', headers=self.inst.h('viewer'), json={'template': 'determination'}).status_code, 403)
         self.assertEqual(self.c.get('/api/v1/work/terms/' + t['id'], headers=self.inst.h('viewer')).status_code, 200)

@@ -1,0 +1,111 @@
+{
+ "schema": "metacoin-network-migrations/v1",
+ "chosen_by_inspection": "highest id before this order: 047_mission_contracts (autonomous mission economy order); 048\u2013054 were free; next free: 055",
+ "forward_only": true,
+ "migrations": [
+  {
+   "id": "048_resource_pools",
+   "statements": [
+    "CREATE TABLE resource_pools (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, provider_account TEXT NOT NULL, provider_principal TEXT NOT NULL, kind TEXT NOT NULL, label TEXT NOT NULL, slot_unit TEXT NOT",
+    "CREATE TABLE pool_commitments (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, pool_id TEXT NOT NULL REFERENCES resource_pools(id), reservation_id TEXT NOT NULL, start INTEGER NOT NULL, end INTEGER NOT ",
+    "CREATE INDEX pool_commitments_pool ON pool_commitments(pool_id, state)",
+    "ALTER TABLE resource_offers ADD COLUMN pool_id TEXT",
+    "ALTER TABLE resource_reservations ADD COLUMN interval_start INTEGER",
+    "ALTER TABLE resource_reservations ADD COLUMN interval_end INTEGER",
+    "ALTER TABLE resource_reservations ADD COLUMN slots INTEGER",
+    "ALTER TABLE resource_reservations ADD COLUMN commitment_id TEXT"
+   ],
+   "statement_count": 8,
+   "tables": [
+    "pool_commitments",
+    "resource_pools"
+   ],
+   "alters": [
+    "ALTER TABLE resource_offers ADD COLUMN pool_id TEXT",
+    "ALTER TABLE resource_reservations ADD COLUMN interval_start INTEGER",
+    "ALTER TABLE resource_reservations ADD COLUMN interval_end INTEGER",
+    "ALTER TABLE resource_reservations ADD COLUMN slots INTEGER",
+    "ALTER TABLE resource_reservations ADD COLUMN commitment_id TEXT"
+   ]
+  },
+  {
+   "id": "049_signing_requests",
+   "statements": [
+    "CREATE TABLE native_signing_requests (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, account_id TEXT NOT NULL, kind TEXT NOT NULL, message_json TEXT NOT NULL, context_json TEXT NOT NULL, policy_hash TE",
+    "CREATE INDEX native_signing_requests_acct ON native_signing_requests(workspace, account_id, state)"
+   ],
+   "statement_count": 2,
+   "tables": [
+    "native_signing_requests"
+   ],
+   "alters": []
+  },
+  {
+   "id": "050_mission_subcontracts",
+   "statements": [
+    "CREATE TABLE mission_subcontracts (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, parent_mission TEXT NOT NULL REFERENCES mission_contracts(id), parent_revision INTEGER NOT NULL, parent_milestone TEXT ",
+    "CREATE INDEX mission_subcontracts_parent ON mission_subcontracts(parent_mission, parent_milestone)"
+   ],
+   "statement_count": 2,
+   "tables": [
+    "mission_subcontracts"
+   ],
+   "alters": []
+  },
+  {
+   "id": "051_claim_lots",
+   "statements": [
+    "CREATE TABLE native_claim_lots (lot_id TEXT PRIMARY KEY, workspace TEXT NOT NULL, origin_allocation TEXT NOT NULL, parent_lot TEXT, asset TEXT NOT NULL, amount INTEGER NOT NULL, owner_account TEXT NOT",
+    "CREATE INDEX native_claim_lots_owner ON native_claim_lots(workspace, owner_account, asset, status)",
+    "CREATE INDEX native_claim_lots_origin ON native_claim_lots(origin_allocation, status)",
+    "ALTER TABLE native_allocations ADD COLUMN returned_amount INTEGER NOT NULL DEFAULT 0",
+    "INSERT INTO native_claim_lots SELECT 'lot_legacy_' || substr(allocation_id, 4), workspace, allocation_id, NULL, asset, amount, account_id, 'active', 0, imported_sequence, '{\"migrated_from\":\"native_cla"
+   ],
+   "statement_count": 5,
+   "tables": [
+    "native_claim_lots"
+   ],
+   "alters": [
+    "ALTER TABLE native_allocations ADD COLUMN returned_amount INTEGER NOT NULL DEFAULT 0"
+   ]
+  },
+  {
+   "id": "052_mission_products",
+   "statements": [
+    "CREATE TABLE mission_products (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, producer_account TEXT NOT NULL, producer_principal TEXT NOT NULL, version INTEGER NOT NULL, title TEXT NOT NULL, kind TEXT ",
+    "CREATE TABLE product_entitlements (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, product_id TEXT NOT NULL REFERENCES mission_products(id), version INTEGER NOT NULL, buyer_account TEXT NOT NULL, buyer_"
+   ],
+   "statement_count": 2,
+   "tables": [
+    "mission_products",
+    "product_entitlements"
+   ],
+   "alters": []
+  },
+  {
+   "id": "053_relay_service",
+   "statements": [
+    "CREATE TABLE relay_routes (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, sender_account TEXT NOT NULL, sender_principal TEXT NOT NULL, recipient_account TEXT NOT NULL, message_id TEXT NOT NULL, conten",
+    "CREATE TABLE relay_queue (id TEXT PRIMARY KEY, workspace TEXT NOT NULL, route_id TEXT NOT NULL REFERENCES relay_routes(id), hop_index INTEGER NOT NULL, relay_account TEXT NOT NULL, artifact_id TEXT, b"
+   ],
+   "statement_count": 2,
+   "tables": [
+    "relay_queue",
+    "relay_routes"
+   ],
+   "alters": []
+  },
+  {
+   "id": "054_controller_generations",
+   "statements": [
+    "CREATE TABLE controller_generations (mission_id TEXT NOT NULL REFERENCES mission_contracts(id), generation INTEGER NOT NULL, holder TEXT NOT NULL, granted_by TEXT NOT NULL, granted_at INTEGER NOT NULL"
+   ],
+   "statement_count": 1,
+   "tables": [
+    "controller_generations"
+   ],
+   "alters": []
+  }
+ ],
+ "rehearsal": "journey 47: isolated copies of the preserved live database (schema 040) and of two genuine prior-state databases produced by the base revision a6d672d (schema 047); see journeys/journeys-network.json and MIGRATION_NOTES.md"
+}

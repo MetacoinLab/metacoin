@@ -3,6 +3,7 @@
 *.key
 /secrets/
 *receipt*
+!provider_client/starter_kit/receipt_consumer.py
 *password*
 *screenshot*
 *.JPG

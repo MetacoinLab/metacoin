@@ -1,0 +1,193 @@
+{
+ "version": "metacoin-provider-conformance/v1",
+ "cases": 22,
+ "passed": 22,
+ "ok": true,
+ "results": [
+  {
+   "case": "canonical:nested_sorted",
+   "ok": true
+  },
+  {
+   "case": "canonical:unicode_escaped",
+   "ok": true
+  },
+  {
+   "case": "canonical:big_int",
+   "ok": true
+  },
+  {
+   "case": "invalid_json:float",
+   "ok": true,
+   "detail": "float_forbidden"
+  },
+  {
+   "case": "invalid_json:duplicate_key",
+   "ok": true,
+   "detail": "duplicate_key"
+  },
+  {
+   "case": "invalid_json:nan",
+   "ok": true,
+   "detail": "constant_forbidden"
+  },
+  {
+   "case": "signature:receipt_valid",
+   "ok": true,
+   "detail": {
+    "got": true,
+    "expect": true
+   }
+  },
+  {
+   "case": "signature:receipt_wrong_key",
+   "ok": true,
+   "detail": {
+    "got": false,
+    "expect": false
+   }
+  },
+  {
+   "case": "signature:receipt_altered_claim",
+   "ok": true,
+   "detail": {
+    "got": false,
+    "expect": false
+   }
+  },
+  {
+   "case": "signature:receipt_as_intent_type",
+   "ok": true,
+   "detail": {
+    "got": false,
+    "expect": false
+   }
+  },
+  {
+   "case": "signature:signature_truncated",
+   "ok": true,
+   "detail": {
+    "got": false,
+    "expect": false
+   }
+  },
+  {
+   "case": "signature:public_key_not_on_curve",
+   "ok": true,
+   "detail": {
+    "got": false,
+    "expect": false
+   }
+  },
+  {
+   "case": "signature:intent_valid",
+   "ok": true,
+   "detail": {
+    "got": true,
+    "expect": true
+   }
+  },
+  {
+   "case": "signature:intent_recipient_altered",
+   "ok": true,
+   "detail": {
+    "got": false,
+    "expect": false
+   }
+  },
+  {
+   "case": "bundle:valid",
+   "ok": true,
+   "detail": {
+    "failed_checks": [],
+    "expected": []
+   }
+  },
+  {
+   "case": "bundle:receipt_claim_altered",
+   "ok": true,
+   "detail": {
+    "failed_checks": [
+     "content_digest",
+     "receipt:nr_1"
+    ],
+    "expected": [
+     "content_digest",
+     "receipt:nr_1"
+    ]
+   }
+  },
+  {
+   "case": "bundle:ledger_spent_altered",
+   "ok": true,
+   "detail": {
+    "failed_checks": [
+     "content_digest",
+     "ledger_spent_matches_settled_intents"
+    ],
+    "expected": [
+     "content_digest",
+     "ledger_spent_matches_settled_intents"
+    ]
+   }
+  },
+  {
+   "case": "bundle:journal_posting_altered",
+   "ok": true,
+   "detail": {
+    "failed_checks": [
+     "content_digest",
+     "entries_balanced"
+    ],
+    "expected": [
+     "content_digest",
+     "entries_balanced"
+    ]
+   }
+  },
+  {
+   "case": "bundle:intent_amount_altered",
+   "ok": true,
+   "detail": {
+    "failed_checks": [
+     "content_digest",
+     "ledger_spent_matches_settled_intents"
+    ],
+    "expected": [
+     "content_digest",
+     "ledger_spent_matches_settled_intents"
+    ]
+   }
+  },
+  {
+   "case": "bundle:content_altered_seal_stale",
+   "ok": true,
+   "detail": {
+    "failed_checks": [
+     "content_digest"
+    ],
+    "expected": [
+     "content_digest"
+    ]
+   }
+  },
+  {
+   "case": "bundle:no_root_pinned",
+   "ok": true,
+   "detail": {
+    "failed_checks": [
+     "seal_root_pinned",
+     "receipt:nr_1"
+    ],
+    "expected": [
+     "seal_root_pinned",
+     "receipt:nr_1"
+    ]
+   }
+  },
+  {
+   "case": "key_id_rule",
+   "ok": true
+  }
+ ]
+}
